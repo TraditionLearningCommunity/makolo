@@ -224,8 +224,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       if (!mounted ||
           repository != widget.repository ||
           revision != _scopeRevision ||
-          !_actorValid)
+          !_actorValid) {
         return;
+      }
       // A cached Space organizer is not a fresh permission grant.
       if (slug == null) _readCreateCapability(local);
       // Permissions may have changed since the last Space acquisition.
