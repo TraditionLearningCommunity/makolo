@@ -93,3 +93,44 @@ Ne pas merger #522 avec une CI obligatoire rouge.
   les opérations `replace` inter-Projets interdites.
 - Il n'existe toujours pas de pourcentage d'accomplissement Projet ni
   d'historique propriétaire consolidé inventé par la Presentation.
+
+
+## Ajustements après recette visuelle — 13 novembre 2026
+
+- **Barre supérieure** : actualisation et menu `⋮` contenant uniquement les
+  capacités de rattachement, modification et transition autorisées. Aucune
+  ligne séparée « Actions » dans le corps du Projet.
+- **Échanger** : une seule icône, à droite du titre du Projet, jamais dans
+  le menu supérieur. Elle conserve la résolution des droits Conversations
+  et peut être absente si l'ouverture n'est pas autorisée.
+- **Créer un dossier** : icône dossier +, proche des trois icônes
+  Synthèse / Dossiers / Calendrier ; elle reste conditionnée à
+  `project.dossier.create` et accessible avec tooltip/nom.
+- **Informations** : description humaine, facultative et pliable, immédiatement
+  après les modes de vue, sans en-tête supplémentaire.
+- **Personnes** : aperçu d'avatars puis accès à la profondeur, avec des cibles
+  tactiles accessibles ; aucun mandat ou Profil privé n'est inventé.
+- **Synthèse** : indicateurs non nuls alignés horizontalement sans cartes
+  décoratives ; pas de pourcentage d'accomplissement.
+- **À suivre** : jusqu'à deux éléments nécessitant une intervention selon
+  Readiness ; titres non barrés artificiellement et signaux précis
+  lorsqu'ils existent. Un élément déjà dans cette section ne revient
+  ni dans la prochaine échéance ni dans l'aperçu complémentaire.
+- **Dossiers** : jusqu'à trois éléments complémentaires, lignes plus
+  compactes, bouton « Voir tout » ouvrant la collection complète ;
+  pas de suppression des faits de Dossier.
+- **Espacement** : environ 4–8 px intra-groupe et 8–16 px entre groupes,
+  sans réduire les boutons et liens tactiles en dessous de 44 px.
+- **Parité** : Flutter et Web conservent la même grammaire avec un seul
+  écran Project et le même filtrage autoritatif des permissions,
+  indépendamment du Profil/Espace porteur.
+
+### Validation
+
+- JS Projet : vérification de syntaxe.
+- Django : test de placement de l'icône Échanger, du menu supérieur et
+  de la création compacte, plus les tests existants de droits.
+- E2E : sélecteurs déplacés vers la topbar, contrôles de présentation
+  Profil/Espace.
+- Format Dart, analyse Flutter, tests Django et recette réelle sur
+  émulateur/Samsung : à exécuter sur la branche et à attester avant merge.
