@@ -285,12 +285,20 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   personal: runtime.personal!,
                   onActSpace: (item) async {
                     // Le picker valide le contexte acquis de cet Espace.
-                    // Aucune appartenance Team/Group ne confere un droit.
+                    // Aucun changement d'acteur ni navigation si annule.
+                    final previous = runtime.actorContext?.value;
                     await showMakoloActorPicker(
                       context,
                       runtime: runtime,
                       preferredSpaceId: item.destination.id,
                     );
+                    final selected = runtime.actorContext?.value;
+                    if (context.mounted &&
+                        selected is SpaceActorContext &&
+                        selected.space.id == item.destination.id &&
+                        selected != previous) {
+                      context.go('/space/now');
+                    }
                   },
                   onOpenDestination: (destination) {
                     if (destination.kind == 'group') {
