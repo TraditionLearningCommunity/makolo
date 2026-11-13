@@ -1167,7 +1167,7 @@ class _JourneyIdentity extends StatelessWidget {
         : compactTime(startTime);
     final endLabel = !sameDay && endDate != null
         ? 'Jusqu’au ${locale.formatMediumDate(endDate)}'
-          '${endTime == null ? '' : ' · ${compactTime(endTime)}'}'
+              '${endTime == null ? '' : ' · ${compactTime(endTime)}'}'
         : null;
     final place = JourneyDayPresentation.place(
       name: facts?.placeName,
@@ -1312,10 +1312,7 @@ class _JourneyIdentity extends StatelessWidget {
                     label: timeLabel,
                   ),
                 if (place != null)
-                  _JourneyHeroFact(
-                    icon: Icons.place_outlined,
-                    label: place,
-                  ),
+                  _JourneyHeroFact(icon: Icons.place_outlined, label: place),
               ],
             ),
             if (placeDetail != null || endLabel != null) ...[
@@ -1359,9 +1356,7 @@ class _JourneyHeroFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = secondary
-        ? const Color(0xFFE0D9FF)
-        : Colors.white;
+    final color = secondary ? const Color(0xFFE0D9FF) : Colors.white;
     return Semantics(
       label: label,
       child: ExcludeSemantics(
