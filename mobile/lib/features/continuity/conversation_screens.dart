@@ -431,7 +431,7 @@ class _ConversationListScreenState extends State<ConversationListScreen>
                           ).length;
                       return IconButton(
                         key: const Key('conversation-invitations-open'),
-                        tooltip: 'Invitations reçues',
+                        tooltip: 'Invitations et demandes',
                         onPressed: _openInvitations,
                         icon: count > 0
                             ? Badge.count(
