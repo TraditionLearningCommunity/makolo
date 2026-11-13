@@ -15,7 +15,6 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import '../../sync/owner_source_state.dart';
-import 'space_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
