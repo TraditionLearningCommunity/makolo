@@ -11,6 +11,8 @@ import 'package:makolo_mobile/design/action_controls.dart';
 import 'package:makolo_mobile/features/continuity/objective_create_screen.dart';
 import 'package:makolo_mobile/features/continuity/objective_repository.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 import 'fakes.dart';
 
@@ -73,6 +75,11 @@ void main() {
         store: store,
         profileId: 'viewer',
       );
+      final drafts = DraftRepository(
+        database: db,
+        outbox: OutboxRepository(db, 'viewer'),
+        profileId: 'viewer',
+      );
       final controller = await ActorContextController.restore(
         profileId: 'viewer',
         store: _ActorStore(),
@@ -90,12 +97,14 @@ void main() {
             kind: 'dossier',
             api: api,
             repository: repository,
+            drafts: drafts,
             spaceActor: space,
             actorContext: controller,
             onCreated: (id) => opened = id,
           ),
         ),
       );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextFormField).first,
         'Réalisation commune',
@@ -104,8 +113,15 @@ void main() {
         find.widgetWithText(MakoloActionButton, 'Créer un dossier'),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
 
       expect(api.calls, 1);
+      final pending = await drafts.read(
+        owner: 'Objectives',
+        resourceKind: 'objective.creation',
+        resourceId: 'dossier:space-a',
+      );
+      expect(pending?.payload['submission_state'], 'verification_required');
       expect(api.postedPath, contains('context=space&space=atelier-test'));
 
       await controller.selectPersonal();
