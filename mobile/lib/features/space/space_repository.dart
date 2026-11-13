@@ -782,7 +782,66 @@ final class WorkspaceContextRepository {
     SpaceActorIdentity space, {
     String query = '',
     int offset = 0,
-  }) => _refresh(documentsSource(space, query: query, offset: offset));
+  }) async {
+    final normalizedQuery = query.trim();
+    final source = documentsSource(
+      space,
+      query: normalizedQuery,
+      offset: offset,
+    );
+    await _refresh(source);
+    if (offset != 0) return;
+
+    final state = await readSource(source);
+    final denied =
+        state.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode);
+    if (denied) {
+      await _deleteDocumentPages(
+        space,
+        query: normalizedQuery,
+        keepOffset: null,
+      );
+      return;
+    }
+    if (state.lastErrorCode != null) return;
+
+    final first = await readDocumentPage(
+      space,
+      query: normalizedQuery,
+      offset: 0,
+    );
+    if (first == null) return;
+    await _deleteDocumentPages(
+      space,
+      query: normalizedQuery,
+      keepOffset: 0,
+    );
+  }
+
+  Future<void> _deleteDocumentPages(
+    SpaceActorIdentity space, {
+    required String query,
+    required int? keepOffset,
+  }) async {
+    final pages = await store.readProjections(
+      SpaceSyncKeys.documentsProjectionKind,
+    );
+    for (final page in pages) {
+      final payload = page.payload;
+      if (payload['space_id']?.toString() != space.id ||
+          (payload['_query']?.toString() ?? '') != query) {
+        continue;
+      }
+      final rawOffset = payload['_offset'];
+      final pageOffset = rawOffset is num ? rawOffset.toInt() : 0;
+      if (keepOffset != null && pageOffset == keepOffset) continue;
+      await store.deleteProjection(
+        SpaceSyncKeys.documentsProjectionKind,
+        resourceKey: page.resourceKey,
+      );
+    }
+  }
 
   Future<void> refreshRelationships(SpaceActorIdentity space) =>
       _refresh(relationshipsSource(space));
