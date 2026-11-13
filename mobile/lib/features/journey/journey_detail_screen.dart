@@ -891,8 +891,9 @@ class _JourneyContent extends StatelessWidget {
             DateTime.now(),
             timezoneName: facts?.timezone,
           ) !=
-          0)
+          0) {
         return null;
+      }
       return MakoloActionButton(
         appearance: appearance,
         label: label,
@@ -1567,8 +1568,9 @@ bool _showReadinessItem(
   JourneyReadinessItem item,
 ) {
   if (item.key == presentation.nextActionKey &&
-      presentation.nextActionKey != null)
+      presentation.nextActionKey != null) {
     return false;
+  }
   final repeatingObjective =
       item.summary.trim().toLowerCase() ==
       presentation.title.trim().toLowerCase();
