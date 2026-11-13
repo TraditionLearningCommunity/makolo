@@ -166,11 +166,12 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       _observe();
       await _load();
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'Lecture locale indisponible. Votre saisie est conservée.',
         );
+      }
     }
   }
 
@@ -185,15 +186,17 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
             setState(() {
               if (_scroll.hasClients &&
                   _scroll.offset > 80 &&
-                  rows.any((row) => (row['sequence'] as int) > latest))
+                  rows.any((row) => (row['sequence'] as int) > latest)) {
                 _newMessages = true;
+              }
               _rows = rows;
               _loaded = true;
             });
           },
           onError: (Object error) {
-            if (mounted)
+            if (mounted) {
               setState(() => _error = 'Lecture locale indisponible.');
+            }
           },
         );
   }
@@ -211,8 +214,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       }
       _references.addAll(_entries(draft['references']));
       final replyId = draft['reply_to_id'];
-      if (replyId is String)
+      if (replyId is String) {
         setState(() => _reply = {'id': replyId, 'body': 'Réponse citée'});
+      }
     } on Object {
       if (mounted) setState(() => _error = 'Brouillon local indisponible.');
     }
@@ -239,11 +243,12 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
           );
         })
         .catchError((Object error) {
-          if (mounted)
+          if (mounted) {
             setState(
               () => _error =
                   'Brouillon non sauvegardé. Gardez cette discussion ouverte.',
             );
+          }
         });
     widget.repository.realtime?.typing(widget.pointId);
   }
@@ -321,14 +326,16 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       _observe();
       await _refresh();
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Impossible d’actualiser les messages.');
+      }
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _loaded = true;
         });
+      }
     }
   }
 
@@ -336,8 +343,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     if (_sending ||
         _revoked ||
         !widget.canRespond ||
-        (_body.text.trim().isEmpty && _references.isEmpty))
+        (_body.text.trim().isEmpty && _references.isEmpty)) {
       return;
+    }
     final text = _body.text;
     setState(() {
       _sending = true;
@@ -450,11 +458,12 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       }
       await _refresh();
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'Modification non confirmée. Actualisez avant de réessayer.',
         );
+      }
     }
   }
 
@@ -505,8 +514,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       });
       _draftChanged();
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Sélection indisponible. Réessayez.');
+      }
     }
   }
 
@@ -528,18 +538,22 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       );
       if (!mounted || generation != _searchGeneration) return;
       setState(() {
-        for (final row in rows) _searchRows[row['id'].toString()] = row;
+        for (final row in rows) {
+          _searchRows[row['id'].toString()] = row;
+        }
         _searchFreshness = 'Messages reçus sur cet appareil';
       });
     }().catchError((Object error) {
-      if (mounted && generation == _searchGeneration)
+      if (mounted && generation == _searchGeneration) {
         setState(() => _error = 'Recherche locale indisponible.');
+      }
     });
-    if (query.length >= 2)
+    if (query.length >= 2) {
       _searchDebounce = Timer(
         const Duration(milliseconds: 300),
         () => _remoteSearch(generation),
       );
+    }
   }
 
   Future<void> _remoteSearch(int generation, {bool append = false}) async {
@@ -554,12 +568,14 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       );
       if (!mounted ||
           generation != _searchGeneration ||
-          query != _search.text.trim())
+          query != _search.text.trim()) {
         return;
+      }
       setState(() {
         if (page['local_scope_changed'] == true) _searchRows.clear();
-        for (final row in _entries(page['results']))
+        for (final row in _entries(page['results'])) {
           _searchRows[row['id'].toString()] = row;
+        }
         _searchCursor = page['next_cursor']?.toString();
         _searchFreshness = 'Résultats actualisés';
       });
@@ -567,7 +583,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       if (mounted && generation == _searchGeneration) {
         if ({401, 403, 404}.contains(error.statusCode)) {
           await widget.repository.exchangeStore.revoke(widget.pointId);
-          if (mounted)
+          if (mounted) {
             setState(() {
               _revoked = true;
               _rows = [];
@@ -575,26 +591,30 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
               _focusedContext = null;
               _error = 'Cette Discussion n’est plus accessible.';
             });
-        } else
+          }
+        } else {
           setState(
             () => _searchFreshness =
                 'Réseau indisponible · Résultats locaux conservés',
           );
+        }
       }
     } on Object {
-      if (mounted && generation == _searchGeneration)
+      if (mounted && generation == _searchGeneration) {
         setState(
           () => _searchFreshness =
               'Réseau indisponible · Résultats locaux conservés',
         );
+      }
     } finally {
       if (mounted) {
         setState(() => _searchBusy = false);
-        if (generation != _searchGeneration && _search.text.trim().length >= 2)
+        if (generation != _searchGeneration && _search.text.trim().length >= 2) {
           _searchDebounce = Timer(
             const Duration(milliseconds: 100),
             () => _remoteSearch(_searchGeneration),
           );
+        }
       }
     }
   }
@@ -748,8 +768,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
         ),
       );
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Cette référence n’est plus accessible.');
+      }
     }
   }
 
@@ -787,8 +808,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
         shareReadReceipts: selected,
       );
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Préférence non confirmée. Réessayez.');
+      }
     }
   }
 
@@ -821,8 +843,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     if (!_foreground ||
         _revoked ||
         _programmaticScroll ||
-        ModalRoute.of(context)?.isCurrent != true)
+        ModalRoute.of(context)?.isCurrent != true) {
       return;
+    }
     final viewport = _viewportKey.currentContext?.findRenderObject();
     if (viewport is! RenderBox) return;
     final origin = viewport.localToGlobal(Offset.zero);
@@ -833,8 +856,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       if (node is! RenderBox || !node.attached) continue;
       final top = node.localToGlobal(Offset.zero);
       final box = top & node.size;
-      if (box.top >= bounds.top && box.bottom <= bounds.bottom)
+      if (box.top >= bounds.top && box.bottom <= bounds.bottom) {
         visible.add(entry.key);
+      }
     }
     try {
       await widget.repository.markVisibleExchangeRead(widget.pointId, visible);
@@ -1086,8 +1110,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                     key: _viewportKey,
                     onNotification: (notification) {
                       if (!_programmaticScroll &&
-                          notification is UserScrollNotification)
+                          notification is UserScrollNotification) {
                         unawaited(_markRead());
+                      }
                       return false;
                     },
                     child: ListView.builder(
@@ -1119,8 +1144,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                         ),
                                         builder: (context, snapshot) {
                                           final transfer = snapshot.data;
-                                          if (transfer == null)
+                                          if (transfer == null) {
                                             return const SizedBox.shrink();
+                                          }
                                           return Column(
                                             children: [
                                               if (transfer.state ==
@@ -1171,7 +1197,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                           );
                         }
                         final messageIndex = index - pending.length;
-                        if (messageIndex == rows.length)
+                        if (messageIndex == rows.length) {
                           return _cursor == null
                               ? const SizedBox.shrink()
                               : TextButton(
@@ -1182,6 +1208,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                         : 'Messages précédents',
                                   ),
                                 );
+                        }
                         final row = rows[rows.length - 1 - messageIndex];
                         final id = row['id'].toString();
                         final previous = rows.length - 2 - messageIndex >= 0
