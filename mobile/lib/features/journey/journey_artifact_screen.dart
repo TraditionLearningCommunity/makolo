@@ -542,8 +542,9 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                           onChanged: _busy
                               ? null
                               : (value) {
-                                  if (value != null)
+                                  if (value != null) {
                                     setState(() => _kind = value);
+                                  }
                                 },
                         ),
                       DropdownButtonFormField<String>(
@@ -569,8 +570,9 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                         onChanged: _busy
                             ? null
                             : (value) {
-                                if (value != null)
+                                if (value != null) {
                                   setState(() => _sensitivity = value);
+                                }
                               },
                       ),
                       const SizedBox(height: 12),
