@@ -259,6 +259,88 @@ void main() {
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
   });
 
+  test('Nous Resources summary is local-first and owner-revocable', () async {
+    var phase = 'online';
+    final harness = await _harness(
+      handler: (request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/workspaces/space-x/us/resources/',
+        );
+        expect(request.url.queryParameters['kind'], 'document');
+        expect(request.url.queryParameters['offset'], '0');
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'denied') {
+          return MockResponse(
+            jsonEncode({
+              'error': {
+                'code': 'permission_denied',
+                'message': 'Access revoked',
+              },
+            }),
+            403,
+          );
+        }
+        return MockResponse(
+          jsonEncode({
+            'space_id': 'space-x',
+            'kind': 'document',
+            'count': 2,
+            'counts': {
+              'document': 2,
+              'passport': 1,
+              'template': 1,
+              'theme': 0,
+            },
+            'total_count': 4,
+            'items': <Object>[],
+            'has_more': false,
+            'next_offset': 0,
+            'coverage': {
+              'state': 'partial',
+              'owners': [
+                'space_assets.documents',
+                'sharing.passport',
+                'presentations.library',
+              ],
+            },
+          }),
+          200,
+        );
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final source = repository.resourcesSource(space);
+
+    expect(source.actorScope, SyncActorScope.space(spaceId: 'space-x'));
+    await repository.refreshResources(space);
+    final acquired = await repository.readResources(space);
+    expect(acquired, isNotNull);
+    expect((acquired!.payload['counts'] as Map)['document'], 2);
+
+    phase = 'offline';
+    await repository.refreshResources(space);
+    expect(
+      await repository.readResources(space),
+      isNotNull,
+      reason: 'Transport failure keeps the last acquired Resource summary.',
+    );
+    expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+
+    phase = 'denied';
+    await repository.refreshResources(space);
+    expect(
+      await repository.readResources(space),
+      isNull,
+      reason: 'Owner denial withdraws the cached Resource summary.',
+    );
+    expect((await repository.readSource(source)).invalidated, isTrue);
+  });
+
   test(
     'Space documents are local-first and scoped to the active Space',
     () async {
