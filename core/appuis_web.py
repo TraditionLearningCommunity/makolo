@@ -181,4 +181,134 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             or bool(context["loyalty_rewards"])
             or bool(context["partners"])
         )
+
+        # Web and Flutter share the same display rule: a real owner element
+        # remains visible with zero points, but zero is never a headline.
+        account_rows = list(context["loyalty_accounts"])
+        membership_rows = list(context["loyalty_memberships"])
+        reward_rows = list(context["loyalty_rewards"])
+        partner_rows = list(context["partners"])
+        achievement_rows = list(context["recognition_achievements"])
+        recognition_reward_rows = list(context["recognition_rewards"])
+        incoming_rows = list(context["recognition_incoming"])
+
+        if recognition_visible if space is not None else True:
+            recognition_benefits = list(
+                RecognitionRedemption.objects.filter(
+                    **(
+                        {"beneficiary_space": space}
+                        if space is not None else {"beneficiary_profile": viewer}
+                    )
+                ).select_related("reward").order_by("-created_at", "-pk")[:20]
+            )
+        else:
+            recognition_benefits = []
+        context["recognition_benefits"] = recognition_benefits
+
+        loyalty_cards = {}
+        for account in account_rows:
+            program = account.program
+            loyalty_cards[str(program.pk)] = {
+                "name": program.name,
+                "organization": program.organization.name,
+                "url": reverse("loyalty:portal", kwargs={
+                    "slug": program.organization.slug}),
+                "balance": account.points_balance if account.points_balance > 0 else None,
+                "unit": program.points_name,
+                "tier": account.current_tier.name if account.current_tier else None,
+            }
+        for membership in membership_rows:
+            program = membership.program
+            loyalty_cards.setdefault(str(program.pk), {
+                "name": program.name,
+                "organization": program.organization.name,
+                "url": reverse("loyalty:portal", kwargs={
+                    "slug": program.organization.slug}),
+                "balance": None, "unit": program.points_name, "tier": None,
+            })
+        for reward in reward_rows:
+            program = reward.program
+            loyalty_cards.setdefault(str(program.pk), {
+                "name": program.name,
+                "organization": program.organization.name,
+                "url": reverse("loyalty:portal", kwargs={
+                    "slug": program.organization.slug}),
+                "balance": None, "unit": program.points_name, "tier": None,
+            })
+        if context["loyalty_program"] is not None:
+            program = context["loyalty_program"]
+            loyalty_cards[str(program.pk)] = {
+                "name": program.name,
+                "organization": program.organization.name,
+                "url": context["loyalty_url"],
+                "balance": None, "unit": program.points_name, "tier": None,
+            }
+        context["loyalty_cards"] = list(loyalty_cards.values())
+
+        recognition_cards = []
+        for row in incoming_rows:
+            recognition_cards.append({
+                "title": row.reward.name, "subtitle": "Réponse attendue",
+                "symbol": "bell-ring",
+            })
+        for row in recognition_reward_rows:
+            recognition_cards.append({
+                "title": row.name, "subtitle": "Récompense disponible",
+                "symbol": "gift",
+            })
+        for row in achievement_rows:
+            recognition_cards.append({
+                "title": row.achievement.name,
+                "subtitle": row.achievement.badge_label or "Contribution reconnue",
+                "symbol": "award",
+            })
+        for row in recognition_benefits:
+            recognition_cards.append({
+                "title": row.reward.name, "subtitle": row.get_status_display(),
+                "symbol": "badge-check",
+            })
+        context["recognition_cards"] = recognition_cards
+
+        recognition_credits = (
+            recognition_account.points_balance
+            if recognition_account is not None and recognition_account.points_balance > 0
+            else None
+        )
+        context["recognition_credits"] = recognition_credits
+        context["has_recognition_appuis"] = bool(
+            recognition_credits is not None or recognition_cards
+        )
+        context["has_loyalty_appuis"] = bool(loyalty_cards)
+        context["has_partner_appuis"] = bool(partner_rows)
+        context["partner_cards"] = partner_rows
+
+        metrics = []
+        if loyalty_cards:
+            metrics.append({
+                "icon": "gift", "value": len(loyalty_cards),
+                "label": "programme" if len(loyalty_cards) == 1 else "programmes",
+            })
+        # Never add Recognition rewards to Loyalty rewards or their balances.
+        recognition_count = len(achievement_rows) or len(recognition_reward_rows)
+        if recognition_count > 0:
+            metrics.append({
+                "icon": "award", "value": recognition_count,
+                "label": (
+                    "reconnaissance" if len(achievement_rows) == 1
+                    else "reconnaissances"
+                ) if achievement_rows else (
+                    "récompense" if recognition_count == 1 else "récompenses"
+                ),
+            })
+        if partner_rows:
+            metrics.append({
+                "icon": "handshake", "value": len(partner_rows),
+                "label": "partenariat" if len(partner_rows) == 1 else "partenariats",
+            })
+        context["appuis_metrics"] = metrics
+        context["appuis_available"] = bool(
+            context["has_recognition_appuis"] or
+            context["has_loyalty_appuis"] or
+            context["has_partner_appuis"]
+        )
         return context
