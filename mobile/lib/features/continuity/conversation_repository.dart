@@ -1549,7 +1549,7 @@ class ConversationRepository {
       'api/v1/conversations/$conversationId/personal-state/',
       headers: {'X-Makolo-Profile': profileId},
       body: {
-        if (shareReadReceipts != null) 'share_read_receipts': shareReadReceipts,
+        'share_read_receipts': ?shareReadReceipts,
         'mute': ?mute,
         'hidden': ?hidden,
         'archived': ?archived,
