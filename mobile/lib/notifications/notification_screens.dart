@@ -791,7 +791,7 @@ class _NotificationVisual extends StatelessWidget {
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => fallback,
+                  errorBuilder: (_, _, _) => fallback,
                 ),
         ),
       ),
