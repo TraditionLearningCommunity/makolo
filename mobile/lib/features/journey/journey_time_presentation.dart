@@ -147,10 +147,12 @@ class JourneyDayBadge extends StatefulWidget {
     required this.occurrenceDate,
     this.timezoneName,
     this.onOpenDayOf,
+    this.onCover = false,
   });
 
   final String occurrenceDate;
   final String? timezoneName;
+  final bool onCover;
 
   /// The server already supplied the owner capability and destination.
   final VoidCallback? onOpenDayOf;
@@ -220,22 +222,31 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
         ? 'Dans ${-offset} jours'
         : 'Il y a $offset jours';
     final enabled = offset == 0 && widget.onOpenDayOf != null;
+    final scheme = Theme.of(context).colorScheme;
     final badge = Container(
       key: const Key('journey-relative-day'),
       decoration: BoxDecoration(
-        color: enabled
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: widget.onCover
+            ? Colors.white.withValues(alpha: enabled ? 0.26 : 0.14)
+            : enabled
+            ? scheme.primary
+            : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(
+          color: widget.onCover
+              ? Colors.white.withValues(alpha: 0.35)
+              : scheme.outlineVariant,
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Text(
         label,
         style: TextStyle(
-          color: enabled
-              ? Theme.of(context).colorScheme.onPrimary
-              : Theme.of(context).colorScheme.onSurface,
+          color: widget.onCover
+              ? Colors.white
+              : enabled
+              ? scheme.onPrimary
+              : scheme.onSurface,
           fontWeight: FontWeight.w700,
           fontSize: 13,
         ),
