@@ -9,7 +9,6 @@ import '../../app/runtime/app_runtime.dart';
 import '../../network/api_error.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
-import '../../network/api_error.dart';
 import 'journey_artifact_repository.dart';
 
 /// A Journey with a Space beneficiary is not a personal /me Journey and not
@@ -56,7 +55,7 @@ class _SpaceBeneficiaryJourneyScreenState
       SpaceBeneficiaryJourneyRepository(
         database: widget.runtime.database!,
         store: widget.runtime.store!,
-        profileId: widget.runtime.session!.profileId,
+        profileId: widget.runtime.session!.profileId!,
         sync: widget.runtime.sync,
       );
 

@@ -46,7 +46,7 @@ class _SpaceBeneficiaryJourneysScreenState
     _repository = SpaceBeneficiaryJourneyListRepository(
       database: widget.runtime.database!,
       store: widget.runtime.store!,
-      profileId: widget.runtime.session!.profileId,
+      profileId: widget.runtime.session!.profileId!,
       sync: widget.runtime.sync,
     );
     widget.runtime.actorContext?.addListener(_changed);
