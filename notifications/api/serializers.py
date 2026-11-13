@@ -9,6 +9,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     is_read = serializers.BooleanField(read_only=True)
     navigation = serializers.SerializerMethodField()
     visual = serializers.SerializerMethodField()
+    is_demo = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
@@ -22,6 +23,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "metadata",
             "navigation",
             "visual",
+            "is_demo",
             "is_read",
             "read_at",
             "created_at",
@@ -33,6 +35,9 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     def get_visual(self, obj):
         return notification_visual(obj, self.context.get('request'))
+
+    def get_is_demo(self, obj):
+        return isinstance(obj.metadata, dict) and obj.metadata.get("seed") == "makolo-demo"
 
 
 class PushEndpointRegistrationSerializer(serializers.Serializer):
