@@ -227,6 +227,10 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
                     "organizations_api:workspace-beneficiary-artifacts",
                     kwargs={"slug": space.slug, "journey_id": journey.pk},
                 ),
+                "resources": reverse(
+                    "organizations_api:workspace-beneficiary-resources",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
             },
         }
         return _reply(projection_envelope(
