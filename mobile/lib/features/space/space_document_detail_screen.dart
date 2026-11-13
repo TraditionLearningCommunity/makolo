@@ -177,7 +177,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _replace() async {
-    if (_working || !_canManage || _actor == null) return;
+    if (_working || !_canManage || !_canUseNetwork || _actor == null) return;
     final file = await NativeMediaPicker.pickDocument([
       'pdf',
       'doc',
@@ -206,7 +206,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       );
       if (!mounted || _actor?.space.id != id) return;
       _toast('Version ajoutée.');
-      await _load();
+      await _reconcileAfterMutation(collection: true);
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Ajout impossible.');
     } finally {
@@ -215,7 +215,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _download(Map<String, dynamic> version) async {
-    if (_working || _actor == null) return;
+    if (_working || !_canUseNetwork || _actor == null) return;
     final api = widget.runtime.api;
     final id = _actor!.space.id;
     final versionId = version['id']?.toString();
@@ -268,7 +268,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _preview(Map<String, dynamic> version) async {
-    if (_working || _actor == null) return;
+    if (_working || !_canUseNetwork || _actor == null) return;
     final mime = version['mime_type']?.toString();
     if (mime != 'application/pdf' &&
         mime != 'image/jpeg' &&
@@ -324,7 +324,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _share(Map<String, dynamic> version) async {
-    if (_working || !_canManage || _actor == null) return;
+    if (_working || !_canManage || !_canUseNetwork || _actor == null) return;
     final controller = TextEditingController();
     var days = 7;
     final recipient = await showDialog<String>(
@@ -389,7 +389,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       );
       if (mounted && _actor?.space.id == id) {
         _toast('Document partagé.');
-        await _load();
+        await _reconcileAfterMutation();
       }
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Partage impossible.');
@@ -399,7 +399,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _revoke(String deliveryId) async {
-    if (_working || !_canManage || _actor == null) return;
+    if (_working || !_canManage || !_canUseNetwork || _actor == null) return;
     final id = _actor!.space.id;
     final api = widget.runtime.api;
     if (api == null) return;
@@ -410,7 +410,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       );
       if (mounted && _actor?.space.id == id) {
         _toast('Partage révoqué.');
-        await _load();
+        await _reconcileAfterMutation();
       }
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Révocation impossible.');
@@ -420,7 +420,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _reuse(Map<String, dynamic> version) async {
-    if (_working || _actor == null) return;
+    if (_working || !_canUseNetwork || _actor == null) return;
     final api = widget.runtime.api;
     final id = _actor!.space.id;
     if (api == null) return;
@@ -553,7 +553,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       await widget.runtime.api!.patch(_url, body: changes);
       if (mounted && _actor?.space.id == id) {
         _toast('Document actualisé.');
-        await _load();
+        await _reconcileAfterMutation(collection: true);
       }
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Modification impossible.');
@@ -563,7 +563,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   Future<void> _archive() async {
-    if (_working || !_canManage || _actor == null) return;
+    if (_working || !_canManage || !_canUseNetwork || _actor == null) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -588,7 +588,22 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     try {
       await widget.runtime.api!.delete(_url);
       if (!mounted || _actor?.space.id != id) return;
-      context.pop();
+      final repository = widget.runtime.space;
+      final actor = _actor;
+      if (repository != null && actor != null && repository.sync != null) {
+        try {
+          await repository.refreshDocumentPage(
+            actor.space,
+            query: '',
+            offset: 0,
+          );
+          await repository.refreshResources(actor.space);
+          await repository.refreshUs(actor.space);
+        } on Object {
+          // Archive is already owner-confirmed; reconciliation is best effort.
+        }
+      }
+      if (mounted && _actor?.space.id == id) context.pop();
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Archivage impossible.');
     } finally {
