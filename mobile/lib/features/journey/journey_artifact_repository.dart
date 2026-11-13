@@ -64,7 +64,9 @@ class JourneyArtifactRepository {
             beneficiary['kind'] != (space == null ? 'profile' : 'space') ||
             beneficiary['id'] != (space?.id ?? profileId) ||
             payload['artifacts'] is! List) {
-          throw const FormatException('Unexpected private JourneyArtifact owner');
+          throw const FormatException(
+            'Unexpected private JourneyArtifact owner',
+          );
         }
         return AcquiredProjection(schemaVersion: 1, payload: payload);
       },
@@ -97,10 +99,7 @@ class JourneyArtifactRepository {
     sourceKey: sourceFor(journeyId, space: space).sourceKey,
   );
 
-  Future<void> refresh(
-    String journeyId, {
-    SpaceActorIdentity? space,
-  }) async {
+  Future<void> refresh(String journeyId, {SpaceActorIdentity? space}) async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Journey owner sync is not available.');
@@ -136,7 +135,8 @@ class SpaceBeneficiaryJourneyRepository {
     return SyncSourceDefinition(
       sourceKey: 'space-beneficiary-journey:${resourceKey(space, journeyId)}',
       owner: 'Services',
-      path: 'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/$journeyId/',
+      path:
+          'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/$journeyId/',
       projectionKind: projectionKind,
       resourceKey: resourceKey(space, journeyId),
       actorScope: SyncActorScope.space(spaceId: space.id),
@@ -162,7 +162,9 @@ class SpaceBeneficiaryJourneyRepository {
             selected is! Map ||
             selected['id'] != space.id ||
             selected['slug'] != space.slug) {
-          throw const FormatException('Unexpected Space beneficiary Journey owner');
+          throw const FormatException(
+            'Unexpected Space beneficiary Journey owner',
+          );
         }
         return AcquiredProjection(schemaVersion: 1, payload: payload);
       },
@@ -187,7 +189,8 @@ class SpaceBeneficiaryJourneyRepository {
 
   Future<void> refresh(SpaceActorIdentity space, String journeyId) async {
     final engine = sync;
-    if (engine == null) throw StateError('Space Journey sync is not available.');
+    if (engine == null)
+      throw StateError('Space Journey sync is not available.');
     await engine.refreshSource(sourceFor(space, journeyId));
   }
 }
