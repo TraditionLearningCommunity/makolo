@@ -22,8 +22,8 @@ Map<String, Map<String, dynamic>> data({
     'available_rewards': <Object>[],
     'rewards': <Object>[],
   },
-  if (recognition != null) 'recognition': recognition,
-  if (partners != null) 'partners': partners,
+  'recognition': ?recognition,
+  'partners': ?partners,
 };
 
 Widget harness(
