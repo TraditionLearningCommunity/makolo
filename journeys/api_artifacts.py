@@ -3,6 +3,9 @@
 No public storage URLs or fake Readiness transitions. Uploads use existing
 Journey collaboration services, file signature checks, and version audits.
 """
+from authorization.constants import PermissionCode
+from authorization.services import can
+
 from django.core.exceptions import PermissionDenied as DomainPermissionDenied
 from django.core.exceptions import ValidationError as DomainValidationError
 from django.db import IntegrityError
@@ -194,6 +197,14 @@ class JourneyArtifactCollectionAPIView(APIView):
                     journey.beneficiary_id == request.user.pk
                     if slug is None else
                     can_act_for_space_service_journey(request.user, journey)
+                ),
+                "upload_restricted": (
+                    journey.beneficiary_id == request.user.pk
+                    if slug is None else
+                    can(
+                        request.user, PermissionCode.SPACE_MANAGE,
+                        journey.beneficiary_space, include_platform=False,
+                    )
                 ),
             },
         })
