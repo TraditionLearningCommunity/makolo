@@ -708,6 +708,35 @@ void main() {
     expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
     expect(find.byKey(const Key('space-us-edit-passport')), findsOneWidget);
   });
+  testWidgets('Nous hides a zero Resource count in grid mode', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['resources'] as Map<String, dynamic>)['count'] = 0;
+    (projection['resources'] as Map<String, dynamic>)['items'] = <Object>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    await tester.tap(find.byIcon(Icons.grid_view_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nos ressources'), findsOneWidget);
+    expect(find.text('0 élément visible'), findsNothing);
+    expect(find.text('0 éléments visibles'), findsNothing);
+  });
+
   testWidgets('Nous switches to the shared grid and keeps owner handoffs', (
     tester,
   ) async {
