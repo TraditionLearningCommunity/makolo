@@ -12,7 +12,7 @@ from organizations.models import Organization
 from organizations.permissions import organization_has_public_profile
 from promotions.models import Promotion
 
-from loyalty.models import LoyaltyAccount, LoyaltyLedgerEntry, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipSubscription
+from loyalty.models import LoyaltyAccount, LoyaltyLedgerEntry, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipStatus, MembershipSubscription
 from loyalty.permissions import user_can_manage_loyalty_strategy, user_can_view_loyalty_workspace
 from loyalty.selectors import get_accounts_visible_to, get_programs_visible_to, get_subscriptions_visible_to, personal_rewards_available_to
 from loyalty.services import activate_membership, adjust_points, cancel_membership, redeem_reward, request_membership
@@ -159,6 +159,20 @@ def _personal_loyalty_reward_payload(reward):
     }
 
 
+def _personal_membership_payload(subscription):
+    """Expose only owner-confirmed actions on this authenticated membership."""
+    payload = MembershipSubscriptionSerializer(subscription).data
+    if subscription.status in {MembershipStatus.PENDING, MembershipStatus.ACTIVE}:
+        payload["capabilities"] = ["cancel"]
+        payload["links"] = {
+            "cancel": f"/api/v1/loyalty/memberships/{subscription.pk}/cancel/",
+        }
+    else:
+        payload["capabilities"] = []
+        payload["links"] = {}
+    return payload
+
+
 class MyLoyaltyAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -207,10 +221,10 @@ class MyLoyaltyAPIView(APIView):
                 _personal_loyalty_account_payload(account)
                 for account in accounts
             ],
-            "memberships": MembershipSubscriptionSerializer(
-                subscriptions,
-                many=True,
-            ).data,
+            "memberships": [
+                _personal_membership_payload(subscription)
+                for subscription in subscriptions
+            ],
             "rewards": LoyaltyRewardRedemptionSerializer(
                 redemptions,
                 many=True,
