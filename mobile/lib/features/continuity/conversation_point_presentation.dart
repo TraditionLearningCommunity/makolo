@@ -278,10 +278,10 @@ class ConversationPointMediaTile extends StatelessWidget {
               if (onOpen != null)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton.icon(
+                  child: IconButton(
+                    tooltip: 'Ouvrir le média',
                     onPressed: onOpen,
-                    icon: const Icon(Icons.open_in_full_rounded, size: 17),
-                    label: Text(preview == null ? 'Ouvrir' : 'Voir en détail'),
+                    icon: const Icon(Icons.open_in_full_rounded, size: 19),
                   ),
                 ),
             ],
