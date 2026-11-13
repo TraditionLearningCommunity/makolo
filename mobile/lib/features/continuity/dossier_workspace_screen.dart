@@ -760,22 +760,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     }
   }
 
-  Future<void> _removeAssignment(Map<String, dynamic> row) async {
-    final yes = await _confirm(
-      'Retirer la responsabilité ?',
-      'Les mandats de cette personne ne sont pas modifiés.',
-    );
-    if (yes) await _command('assignment_remove', {'assignment_id': row['id']});
-  }
-
-  Future<void> _revoke(Map<String, dynamic> row) async {
-    final yes = await _confirm(
-      'Révoquer le mandat ?',
-      'L’autorité sur ce Dossier sera retirée.',
-    );
-    if (yes) await _command('mandate_revoke', {'mandate_id': row['id']});
-  }
-
   Widget _linkAction(Map<String, dynamic> data) {
     return Tooltip(
       message: 'Lier une démarche',
@@ -1159,29 +1143,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       ),
     );
   }
-
-  Widget _metric(String count, String title) => Container(
-    constraints: const BoxConstraints(minWidth: 96),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    decoration: BoxDecoration(
-      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          count,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(title, style: Theme.of(context).textTheme.labelSmall),
-      ],
-    ),
-  );
 
   /// One compact surface, with the canonical people page as the full list.
   /// Assignments do not convey Mandates, and the preview only shows
