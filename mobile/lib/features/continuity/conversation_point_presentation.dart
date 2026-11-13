@@ -17,6 +17,7 @@ class ConversationPointShell extends StatelessWidget {
     this.representedSpaceLabel,
     this.publishedAt,
     this.statusIcon,
+    this.headerActions,
   });
 
   final String kind;
@@ -28,6 +29,8 @@ class ConversationPointShell extends StatelessWidget {
   final String? representedSpaceLabel;
   final DateTime? publishedAt;
   final Widget? statusIcon;
+  /// Small secondary controls aligned with the author, not a separate row.
+  final Widget? headerActions;
   final Widget child;
 
   static (String, IconData) typePresentation(String kind) => switch (kind) {
@@ -36,7 +39,7 @@ class ConversationPointShell extends StatelessWidget {
     'form_request' => ('Formulaire', Icons.article_outlined),
     'poll' => ('Sondage', Icons.poll_outlined),
     'confirmation' => ('Confirmation', Icons.task_alt_rounded),
-    'exchange' => ('Échange', Icons.forum_outlined),
+    'exchange' => ('Discussion', Icons.forum_outlined),
     'information' => ('Information', Icons.chat_bubble_outline_rounded),
     _ => ('Point', Icons.chat_bubble_outline_rounded),
   };
@@ -135,6 +138,10 @@ class ConversationPointShell extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (headerActions != null) ...[
+                          const Spacer(),
+                          headerActions!,
+                        ],
                         if (representedSpace && !isMine) ...[
                           const SizedBox(width: 4),
                           Icon(
@@ -159,7 +166,7 @@ class ConversationPointShell extends StatelessWidget {
                       ),
                     ],
                     if (!isOrdinary) ...[
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -175,7 +182,7 @@ class ConversationPointShell extends StatelessWidget {
                         ],
                       ),
                     ],
-                    const SizedBox(height: 9),
+                    const SizedBox(height: 6),
                     child,
                     if (time != null || statusIcon != null) ...[
                       const SizedBox(height: 5),
