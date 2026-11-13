@@ -66,7 +66,10 @@ def _journey(request, slug, journey_id, *, write=False):
             "service_context__opportunity",
             "service_context__opportunity_revision",
         )
-        .filter(pk=journey_id, beneficiary_space=space, workflow=WorkflowKind.SERVICE)
+        .filter(
+            pk=journey_id, beneficiary_space=space,
+            workflow=WorkflowKind.SERVICE, service_context__isnull=False,
+        )
         .first()
     )
     if journey is None or not (
@@ -182,6 +185,7 @@ class SpaceBeneficiaryJourneyListAPIView(APIView):
         rows = list(
             Journey.objects.filter(
                 beneficiary_space=space, workflow=WorkflowKind.SERVICE,
+                service_context__isnull=False,
             )
             .select_related("activity", "service_context")
             .order_by("-created_at", "-pk")[:51]
