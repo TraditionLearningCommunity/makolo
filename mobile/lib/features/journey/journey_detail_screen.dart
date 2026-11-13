@@ -488,7 +488,9 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.serviceRequest != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Votre demande',
                 child: MakoloCard(
                   child: Column(
@@ -546,7 +548,9 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.serviceResult != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Réponse de l’organisme',
                 child: MakoloCard(
                   child: Column(
@@ -661,7 +665,9 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.steps.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Où j’en suis',
                 child: _JourneyPath(
                   steps: presentation.steps,
@@ -672,7 +678,9 @@ class _JourneyContent extends StatelessWidget {
             if (composition.hasPreparation) ...[
               const SizedBox(height: MakoloSpacing.sm),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Ma préparation',
                 child: _JourneyPreparation(
                   presentation: presentation,
@@ -734,7 +742,9 @@ class _JourneyContent extends StatelessWidget {
             if (_hasAdditionalPracticalFacts(presentation.practical)) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Sur place',
                 child: _JourneyPracticalCard(facts: presentation.practical!),
               ),
@@ -742,7 +752,9 @@ class _JourneyContent extends StatelessWidget {
             if (composition.hasEngagements) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Mes engagements',
                 child: _JourneyEngagements(
                   presentation: presentation,
@@ -788,7 +800,9 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.history.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Historique',
                 child: _JourneyHistory(entries: presentation.history),
               ),
@@ -1777,9 +1791,7 @@ String? _additionalJourneyInstructions(JourneyPracticalFacts? facts) {
       address: facts.placeAddress,
     ),
   ];
-  if (known.any(
-    (value) => value?.trim().toLowerCase() == text.toLowerCase(),
-  )) {
+  if (known.any((value) => value?.trim().toLowerCase() == text.toLowerCase())) {
     return null;
   }
   return text;
