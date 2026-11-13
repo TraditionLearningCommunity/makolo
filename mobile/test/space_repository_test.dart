@@ -337,6 +337,82 @@ void main() {
     expect((await repository.readSource(source)).invalidated, isTrue);
   });
 
+  test('Space document detail is local-first and owner-revocable', () async {
+    var phase = 'online';
+    final documentId = '00000000-0000-4000-8000-000000000001';
+    final harness = await _harness(
+      handler: (request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/workspaces/space-x/documents/$documentId/',
+        );
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'denied') {
+          return MockResponse(
+            jsonEncode({
+              'error': {
+                'code': 'not_found',
+                'message': 'Unavailable',
+              },
+            }),
+            404,
+          );
+        }
+        return MockResponse(
+          jsonEncode({
+            'document': {
+              'id': documentId,
+              'title': 'Statuts',
+              'visibility': 'restricted',
+              'versions': [
+                {
+                  'id': '00000000-0000-4000-8000-000000000002',
+                  'number': 1,
+                  'mime_type': 'application/pdf',
+                },
+              ],
+            },
+            'can_manage': true,
+            'shares': <Object>[],
+          }),
+          200,
+        );
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final source = repository.documentDetailSource(space, documentId);
+
+    await repository.refreshDocumentDetail(space, documentId);
+    final acquired = await repository.readDocumentDetail(space, documentId);
+    expect(acquired, isNotNull);
+    expect(
+      (acquired!.payload['document'] as Map)['title'],
+      'Statuts',
+    );
+
+    phase = 'offline';
+    await repository.refreshDocumentDetail(space, documentId);
+    expect(
+      await repository.readDocumentDetail(space, documentId),
+      isNotNull,
+      reason: 'Transport failure keeps the acquired document metadata.',
+    );
+    expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+
+    phase = 'denied';
+    await repository.refreshDocumentDetail(space, documentId);
+    expect(
+      await repository.readDocumentDetail(space, documentId),
+      isNull,
+      reason: 'Owner denial withdraws the cached document detail.',
+    );
+    expect((await repository.readSource(source)).invalidated, isTrue);
+  });
+
   test(
     'Space documents are local-first and scoped to the active Space',
     () async {
