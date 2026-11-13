@@ -249,3 +249,151 @@
 .mk-project__people-close {
   display:flex;justify-content:flex-end;margin:12px 0 0;
 }
+
+
+/* Project 2027: a single quiet hierarchy for Profile and Space.
+   Keep tappable controls >=44px while reducing decorative whitespace. */
+.mk-project {padding-top:8px;padding-bottom:28px}
+.mk-project__path {gap:7px;min-height:44px;margin-bottom:6px;align-items:center}
+.mk-project__top-menu {position:relative;margin-left:auto;z-index:30}
+.mk-project__top-menu > summary {
+  list-style:none;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;width:44px;height:44px;border-radius:12px;
+  color:var(--ink);
+}
+.mk-project__top-menu > summary::-webkit-details-marker {display:none}
+.mk-project__top-menu > summary:hover,
+.mk-project__top-menu[open] > summary {background:var(--soft)}
+.mk-project__top-menu-items {
+  position:absolute;right:0;top:100%;min-width:225px;
+  border:1px solid var(--edge);border-radius:13px;
+  background:var(--mk-surface,#fff);padding:5px;
+  box-shadow:0 10px 32px #160a402b;
+}
+.mk-project__top-menu-items button {
+  border:0;border-radius:9px;background:transparent;color:var(--ink);
+  width:100%;display:flex;gap:9px;align-items:center;text-align:left;
+  padding:9px 11px;min-height:44px;cursor:pointer;font-size:13px;
+}
+.mk-project__top-menu-items button:hover {background:var(--soft)}
+.mk-project__top-menu-items button svg {width:19px;height:19px;color:var(--violet)}
+.mk-project__hero {gap:8px;padding-bottom:8px}
+.mk-project__identity {gap:9px;width:100%;align-items:flex-start}
+.mk-project__identity > div {flex:1;min-width:0}
+.mk-project__symbol {width:38px;height:38px;border-radius:11px}
+.mk-project__symbol svg {width:21px;height:21px}
+.mk-project__title-row {display:flex;align-items:flex-start;gap:8px}
+.mk-project__title-row h1 {
+  font-size:clamp(19px,2.8vw,29px);line-height:1.2;
+  flex:1;min-width:0;letter-spacing:-.02em;
+}
+.mk-project__exchange {
+  display:flex;align-items:center;justify-content:center;
+  border-radius:11px;color:var(--violet)!important;
+  min-width:44px;min-height:44px;flex:none;
+}
+.mk-project__exchange:hover {background:var(--soft)}
+.mk-project__exchange svg {width:20px;height:20px}
+.mk-project__facts {margin-top:3px;gap:5px}
+.mk-project__facts span {
+  border:0;padding:0;background:transparent;
+  font-size:12px;font-weight:550;color:var(--quiet);
+}
+.mk-project__facts span + span:before {content:"·";margin-right:5px}
+.mk-project__view-toolbar {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:9px;margin:2px 0 5px;
+}
+.mk-project__view-switch {
+  display:inline-flex;width:auto;flex:none;margin:0;padding:2px;gap:2px;
+  border:1px solid var(--edge);border-radius:12px;background:var(--soft);
+}
+.mk-project__view-switch button {
+  flex:0 0 44px;min-width:44px;min-height:44px;
+  padding:8px;gap:0;
+}
+.mk-project__view-switch svg {width:20px;height:20px}
+.mk-project__create-icon {
+  display:flex;align-items:center;justify-content:center;
+  width:44px;height:44px;min-width:44px;border:0;
+  background:#ede8ff;color:var(--violet);border-radius:12px;
+  cursor:pointer;
+}
+.mk-project__create-icon:hover {background:#e0d7ff}
+.mk-project__create-icon svg {width:21px;height:21px}
+.mk-project__description {margin:3px 0 7px;gap:8px}
+.mk-project__description p {font-size:13px;line-height:1.45;color:var(--quiet)}
+.mk-project__description > svg {width:18px;height:18px}
+.mk-project__people-preview {
+  max-width:none;padding:3px 0 5px;margin:0 0 5px;
+  background:transparent;border:0;border-radius:0;
+}
+.mk-project__people-preview:hover {border:0}
+.mk-project__people-preview-heading {gap:7px}
+.mk-project__people-preview-heading strong {font-size:14px}
+.mk-project__avatar-row {gap:3px;margin-top:2px}
+.mk-project__avatar {width:34px;height:34px;min-width:34px}
+.mk-project__avatar-row > :is(a,button) {
+  width:44px;height:44px;min-width:44px;min-height:44px;
+}
+.mk-project__numbers {
+  display:flex;flex-wrap:nowrap;align-items:center;gap:0;
+  overflow-x:auto;margin:3px 0 7px;
+  scrollbar-width:none;
+}
+.mk-project__numbers::-webkit-scrollbar {display:none}
+.mk-project__number {
+  display:inline-flex;align-items:baseline;gap:4px;
+  flex:none;min-width:0;border:0;border-radius:0;
+  background:transparent;padding:4px 0;
+}
+.mk-project__number strong {font-size:17px;display:inline;font-weight:800}
+.mk-project__number span {display:inline;margin:0;font-size:11px}
+.mk-project__numbers-dot {
+  font-size:16px;color:var(--quiet);padding:0 9px;
+}
+.mk-project__subtitle {margin:12px 0 5px;font-size:15px}
+.mk-project__row {
+  gap:8px;min-height:50px;padding:6px 1px;border-color:var(--edge);
+}
+.mk-project__row > svg {width:19px;height:19px}
+.mk-project__row-body a {font-size:13px}
+.mk-project__row-body small {font-size:11px;margin-top:2px}
+.mk-project__preview-heading {
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-top:8px;
+}
+.mk-project__preview-heading .mk-project__subtitle {margin:0}
+.mk-project__see-all {
+  color:var(--violet);border:0;background:transparent;
+  min-height:44px;padding:7px 6px;cursor:pointer;
+  font-size:13px;font-weight:650;
+}
+.mk-project__cards--preview {
+  display:flex;flex-direction:column;gap:0;
+}
+.mk-project__card--preview {
+  border:0;border-bottom:1px solid var(--edge);border-radius:0;
+  padding:9px 0;background:transparent;
+}
+.mk-project__card--preview .mk-project__card-top {gap:7px}
+.mk-project__card--preview .mk-project__card-top svg {width:19px;height:19px}
+.mk-project__card--preview .mk-project__card-top a {font-size:13px;line-height:1.4}
+.mk-project__card--preview .mk-project__card-meta {margin-top:2px}
+.mk-project__card--preview .mk-project__card-meta span {
+  background:none;padding:0;color:var(--quiet);
+  font-size:11px;font-weight:550;
+}
+.mk-project__card--preview .mk-project__card-meta span + span:before {
+  content:"·";margin:0 6px;color:var(--quiet);
+}
+.mk-project__more {margin:9px auto}
+@media(max-width:470px){
+  .mk-project {padding:7px 14px 30px}
+  .mk-project__hero {flex-direction:row}
+  .mk-project__symbol {width:36px;height:36px}
+  .mk-project__view-switch {display:inline-flex;width:auto}
+  .mk-project__view-switch button {flex:0 0 44px}
+  .mk-project__title-row h1 {font-size:19px}
+  .mk-project__cards--preview {display:flex}
+}
