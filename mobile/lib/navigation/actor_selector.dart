@@ -12,10 +12,14 @@ import '../features/space/space_repository.dart';
 Future<void> showMakoloActorPicker(
   BuildContext context, {
   required AppRuntime runtime,
+  String? preferredSpaceId,
 }) async {
   await showMakoloBottomSheet<void>(
     context,
-    builder: (_) => _MakoloActorPicker(runtime: runtime),
+    builder: (_) => _MakoloActorPicker(
+      runtime: runtime,
+      preferredSpaceId: preferredSpaceId,
+    ),
   );
 }
 
@@ -67,9 +71,13 @@ class MakoloActorSelectorTile extends StatelessWidget {
 }
 
 class _MakoloActorPicker extends StatefulWidget {
-  const _MakoloActorPicker({required this.runtime});
+  const _MakoloActorPicker({
+    required this.runtime,
+    this.preferredSpaceId,
+  });
 
   final AppRuntime runtime;
+  final String? preferredSpaceId;
 
   @override
   State<_MakoloActorPicker> createState() => _MakoloActorPickerState();
@@ -177,7 +185,17 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
         listenable: controller,
         builder: (context, _) {
           final actor = controller.value;
-          final spaces = snapshot.data ?? const <SpaceSummary>[];
+          final inventory = snapshot.data ?? const <SpaceSummary>[];
+          // An action from Mes collectifs selects only its own Space from
+          // the owner-backed inventory, not another similarly named Space.
+          final spaces = widget.preferredSpaceId == null
+              ? inventory
+              : inventory
+                  .where(
+                    (space) =>
+                        space.identity.id == widget.preferredSpaceId,
+                  )
+                  .toList(growable: false);
           return SafeArea(
             top: false,
             child: SingleChildScrollView(
@@ -209,6 +227,15 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                       selected: actor is PersonalActorContext,
                       onTap: _switching ? null : _selectPersonal,
                     ),
+                    if (widget.preferredSpaceId != null && spaces.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.sm,
+                        ),
+                        child: Text(
+                          'Cet Espace n’est pas disponible dans vos contextes.',
+                        ),
+                      ),
                     for (final space in spaces)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
