@@ -113,14 +113,18 @@ void main() {
   testWidgets('positive counts only and separate relationships', (
     tester,
   ) async {
-    await _show(tester, collectives: _data(groups: 0));
+    await _show(
+      tester,
+      collectives: _data(groups: 0),
+      items: const [_space, _team],
+    );
     expect(find.text('2 collectifs'), findsOneWidget);
-    expect(find.text('1 Espaces'), findsOneWidget);
-    expect(find.text('1 Équipes'), findsOneWidget);
+    expect(find.text('Espaces'), findsWidgets);
+    expect(find.text('Équipes'), findsWidgets);
     expect(find.text('0 Groupes'), findsNothing);
     expect(find.text('Espaces où je peux agir'), findsOneWidget);
     expect(find.text('Mes équipes'), findsOneWidget);
-    expect(find.text('Mes groupes'), findsOneWidget);
+    expect(find.text('Mes groupes'), findsNothing);
     expect(find.text('Espace autorisé'), findsOneWidget);
     expect(find.text('Membre'), findsOneWidget);
     expect(find.text('Agir'), findsNothing);
