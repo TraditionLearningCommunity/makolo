@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
