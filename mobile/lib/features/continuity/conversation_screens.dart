@@ -1801,7 +1801,25 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
   }
 
-  Widget _pointWidget(_ConversationPoint point, {bool readOnly = false}) {
+  ConversationOutgoing? _pointResponseIntent(
+    _ConversationPoint point,
+    List<ConversationOutgoing> outgoing,
+  ) {
+    for (final intent in outgoing.reversed) {
+      if (intent.kind == 'response' &&
+          intent.pointId == point.id &&
+          intent.representedSpaceId == widget.representedSpaceId) {
+        return intent;
+      }
+    }
+    return null;
+  }
+
+  Widget _pointWidget(
+    _ConversationPoint point, {
+    bool readOnly = false,
+    List<ConversationOutgoing> outgoing = const [],
+  }) {
     final focused = point.id == _focusedPointId;
     return Padding(
       key: focused ? _pointFocusKey : ValueKey('point-${point.id}'),
@@ -1812,6 +1830,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         conversationId: widget.id,
         representedSpaceId: widget.representedSpaceId,
         readOnly: readOnly,
+        responseIntent: _pointResponseIntent(point, outgoing),
         onOpenFormRequest: widget.onOpenFormRequest,
         onOpenExchange: () => _openExchange(point),
         onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
@@ -1977,8 +1996,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
 
   Widget _completedTimelineGroup(
     BuildContext context,
-    List<_ConversationTimelineEntry> entries,
-  ) {
+    List<_ConversationTimelineEntry> entries, {
+    List<ConversationOutgoing> outgoing = const [],
+  }) {
     final first = entries.first.point;
     final last = entries.last.point;
     final groupId = '${first.id}-${last.id}';
@@ -2084,7 +2104,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                                 ?.copyWith(color: muted),
                           ),
                         ),
-                      _pointWidget(entry.point, readOnly: entry.readOnly),
+                      _pointWidget(
+                        entry.point,
+                        readOnly: entry.readOnly,
+                        outgoing: outgoing,
+                      ),
                     ],
                   ],
                 ),
@@ -2268,7 +2292,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     };
     final visibleOutgoing = [
       for (final intent in outgoing)
-        if (!(intent.isConfirmed && ownerReferences.contains(intent.reference)))
+        if (intent.kind != 'response' &&
+            !(intent.isConfirmed && ownerReferences.contains(intent.reference)))
           intent,
     ];
     _positionTimeline(entries, visibleOutgoing);
@@ -2298,7 +2323,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
-              _pointWidget(detail.focusedPoint!, readOnly: false),
+              _pointWidget(
+                detail.focusedPoint!,
+                readOnly: false,
+                outgoing: outgoing,
+              ),
             ],
           ),
         ),
@@ -2401,10 +2430,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           next++;
         }
         children.add(
-          _completedTimelineGroup(context, [
-            for (final candidate in combined.sublist(index, next))
-              candidate.point!,
-          ]),
+          _completedTimelineGroup(
+            context,
+            [
+              for (final candidate in combined.sublist(index, next))
+                candidate.point!,
+            ],
+            outgoing: outgoing,
+          ),
         );
         index = next;
       } else if (entry.point != null) {
@@ -2416,6 +2449,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             child: _pointWidget(
               entry.point!.point,
               readOnly: entry.point!.readOnly,
+              outgoing: outgoing,
             ),
           ),
         );
@@ -2792,6 +2826,7 @@ class _PointCard extends StatefulWidget {
     required this.conversationId,
     this.representedSpaceId,
     this.readOnly = false,
+    this.responseIntent,
     this.onOpenFormRequest,
     this.onOpenExchange,
     this.onRespondWithMedia,
@@ -2803,6 +2838,7 @@ class _PointCard extends StatefulWidget {
   final String conversationId;
   final String? representedSpaceId;
   final bool readOnly;
+  final ConversationOutgoing? responseIntent;
   final Future<void> Function(String requestId)? onOpenFormRequest;
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
