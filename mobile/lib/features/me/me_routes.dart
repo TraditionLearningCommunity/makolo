@@ -21,6 +21,7 @@ import 'me_profile_screen.dart';
 import 'me_saved_screen.dart';
 import 'me_considerations_screen.dart';
 import 'me_collectives_screen.dart';
+import '../../navigation/actor_selector.dart';
 import 'me_follows_screen.dart';
 import 'me_support_screen.dart';
 
@@ -282,6 +283,11 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeCollectivesScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
+                  onActSpace: (_) async {
+                    // Le picker existant revalide le contexte acquis avant
+                    // toute selection. Cette action ne confere aucun droit.
+                    await showMakoloActorPicker(context, runtime: runtime);
+                  },
                   onOpenDestination: (destination) {
                     if (destination.kind == 'group') {
                       context.push('/groups/${destination.id}');
