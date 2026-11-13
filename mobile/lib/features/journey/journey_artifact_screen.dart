@@ -336,6 +336,44 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
     }
   }
 
+  Future<void> _openPiece(Map<String, dynamic> piece) async {
+    final links = piece['links'];
+    final path = links is Map ? links['download'] : null;
+    final api = widget.runtime.api;
+    if (!_correctActor || _denied || path is! String || api == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Consulter cette pièce privée ?'),
+        content: const Text(
+          'Cette pièce reste réservée à votre démarche. Makolo la télécharge seulement dans un lecteur privé temporaire.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ouvrir'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || !_correctActor || confirmed != true) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => JourneyOwnerFileReader(
+          api: api,
+          profileId: _repository.profileId,
+          path: path,
+          title: piece['title']?.toString() ?? 'Pièce',
+          mime: piece['mime_type']?.toString() ?? '',
+        ),
+      ),
+    );
+  }
+
   Future<void> _newVersion(Map<String, dynamic> artifact) async {
     if (_busy || !_correctActor) return;
     setState(() {
@@ -436,37 +474,7 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                                       icon: Icons.visibility_outlined,
                                       onPressed: _busy
                                           ? null
-                                          : () {
-                                              final download =
-                                                  piece['links'] is Map
-                                                  ? (piece['links']
-                                                        as Map)['download']
-                                                  : null;
-                                              if (download is String &&
-                                                  download.isNotEmpty) {
-                                                Navigator.of(context).push(
-                                                  MaterialPageRoute<void>(
-                                                    builder: (_) =>
-                                                        JourneyOwnerFileReader(
-                                                          api: widget
-                                                              .runtime
-                                                              .api!,
-                                                          profileId: _repository
-                                                              .profileId,
-                                                          path: download,
-                                                          title:
-                                                              piece['title']
-                                                                  ?.toString() ??
-                                                              'Pièce',
-                                                          mime:
-                                                              piece['mime_type']
-                                                                  ?.toString() ??
-                                                              '',
-                                                        ),
-                                                  ),
-                                                );
-                                              }
-                                            },
+                                          : () => _openPiece(piece),
                                     ),
                                   if (canUpload &&
                                       piece['capabilities'] is Map &&
