@@ -19,7 +19,13 @@ from loyalty.selectors import (
 )
 from organizations.console_context import authorized_spaces
 from partners.models import PartnerStatus
-from partners.selectors import get_partners_visible_to
+from partners.selectors import (
+    get_campaigns_visible_to,
+    get_commissions_visible_to,
+    get_partners_visible_to,
+    get_payouts_visible_to,
+    get_referral_codes_visible_to,
+)
 from recognition.selectors import (
     account_for_profile,
     account_for_space,
@@ -106,6 +112,30 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             )
             context["partner_is_personal"] = True
 
+        # Every Partner projection is scoped back to the established,
+        # actor-visible relationships before its owner detail is displayed.
+        partner_ids = [row.pk for row in context["partners"]]
+        context["partner_codes"] = (
+            get_referral_codes_visible_to(viewer)
+            .filter(partner_id__in=partner_ids)
+            .select_related("partner", "campaign")
+            .order_by("pk")[:50]
+        )
+        context["partner_campaigns"] = (
+            get_campaigns_visible_to(viewer)
+            .filter(referral_codes__partner_id__in=partner_ids)
+            .distinct().order_by("name", "pk")[:50]
+        )
+        context["partner_commissions"] = (
+            get_commissions_visible_to(viewer)
+            .filter(partner_id__in=partner_ids)
+            .order_by("-earned_at", "pk")[:50]
+        )
+        context["partner_payouts"] = (
+            get_payouts_visible_to(viewer)
+            .filter(partner_id__in=partner_ids)
+            .order_by("-created_at", "pk")[:50]
+        )
         context["recognition_account"] = recognition_account
         context["recognition_achievements"] = (
             recognition_account.achievement_grants.select_related(
