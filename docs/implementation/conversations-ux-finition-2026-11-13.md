@@ -34,6 +34,12 @@ de résolution, de téléchargement et d'accès.
 - Web : signet et menu de gestion dans l'en-tête, formulaires de gestion
   conservés sans exposer leurs commandes par défaut, choix du sondage
   accessibles sur toute la ligne, résultats et compteurs plus sobres.
+- Les vocaux, images et documents envoyés **en réponse à un Point** sont
+  copiés dans le stockage privé du Profil avant l'envoi. Le mode
+  `media_response` partage l'outbox canonique, mais passe par son endpoint
+  propriétaire distinct et ne se confirme qu'après un accusé de réception
+  complet. La feuille média se ferme après conservation durable, sans
+  présenter l'upload comme déjà accepté.
 - Les réponses structurées aux Points peuvent être **conservées dans l'outbox
   existante du Profil** avant toute tentative réseau. La valeur exacte,
   l'identifiant du Point, l'espace représenté et la référence d'idempotence
@@ -58,9 +64,13 @@ de résolution, de téléchargement et d'accès.
   intentions, jamais des réponses confirmées.
 - Ne jamais fusionner deux Points différents parce que leurs textes sont
   identiques.
-- Ne pas autoriser une reprise automatique de média de réponse sans
-  attestation de son idempotence propriétaire. Ne pas transformer un timeout
-  ou un accusé de réception incomplet en succès.
+- Les réponses média aux Points sont éligibles à une reprise idempotente
+  parce que `submit_point_media_response` vérifie le Point, le Profil, le
+  contexte représenté, la référence et l'empreinte du fichier. L'outbox
+  `mode=media_response` envoie ce fichier privé au seul endpoint propriétaire
+  `points/<point_id>/reply-media/` et exige `response_id`, `point_id`
+  et `attachment` avant de considérer une confirmation. Ne pas transformer
+  un timeout ou un accusé de réception incomplet en succès.
 - Aucune synchronisation n'efface un brouillon ou un média privé de façon
   spéculative.
 
@@ -74,7 +84,7 @@ doit passer par `mobile/tool/dart_format.sh` ou par le workflow manuel
 
 Cibles ciblées :
 - `flutter test test/conversation_local_delivery_test.dart`
-- `flutter test test/conversation_point_ux_test.dart`
+- `flutter test test/conversation_point_ux_test.dart` (gestes, menu, densité)
 - `flutter test test/conversation_c5_mature_test.dart test/conversation_list_tile_test.dart`
 - `flutter analyze`
 - Tests Django Conversations adaptés aux Points et à l'idempotence
@@ -87,9 +97,10 @@ restent des critères de sortie ; leur absence n'est pas une validation implicit
 
 ## Risques / reliquats à ne pas masquer
 
-- Les réponses par média joint à un Point possèdent un flux propriétaire
-  différent ; une automaticité similaire exige la preuve d'idempotence de
-  leur endpoint avant généralisation.
+- Le rejeu des réponses vocales/fichiers repose explicitement sur
+  l'idempotence et la vérification d'empreinte déjà présentes dans le service
+  propriétaire. La recette doit couvrir un upload interrompu, puis la
+  reprise avec exactement le même fichier conservé, sans duplicat.
 - Les résultats de sondage, audiences et capacités dépendent du serveur.
   Les composants Flutter ne déduisent ni éligibilité ni résultat propriétaire.
 - Les états `conflict` et `awaiting_confirmation` de l'outbox doivent être
