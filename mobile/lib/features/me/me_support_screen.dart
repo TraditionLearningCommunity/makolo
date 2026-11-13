@@ -488,7 +488,6 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
   }
 
-
   /// A family is an entry point, not an endless list. Detail stays folded
   /// until the participant explicitly wants it.
   Widget _section(
@@ -505,39 +504,65 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
-        key: PageStorageKey<String>('appuis:' + _scope + ':' + family + ':' + title),
+        key: PageStorageKey<String>(
+          'appuis:' + _scope + ':' + family + ':' + title,
+        ),
         leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
         title: Text(title, style: Theme.of(context).textTheme.titleSmall),
-        subtitle: Text(rows.length == 1 ? '1 élément' : rows.length.toString() + ' éléments'),
+        subtitle: Text(
+          rows.length == 1 ? '1 élément' : rows.length.toString() + ' éléments',
+        ),
         children: [
           for (final row in rows)
             ListTile(
               dense: true,
-              title: Text(_label(row), maxLines: 2, overflow: TextOverflow.ellipsis),
+              title: Text(
+                _label(row),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               subtitle: () {
-                final detail = details?.call(row) ??
-                    _text(row['status_label'] ?? row['description'] ??
-                        row['status'] ?? row['created_at']);
-                return detail.trim().isEmpty ? null : Text(
-                  detail, maxLines: 2, overflow: TextOverflow.ellipsis,
-                );
+                final detail =
+                    details?.call(row) ??
+                    _text(
+                      row['status_label'] ??
+                          row['description'] ??
+                          row['status'] ??
+                          row['created_at'],
+                    );
+                return detail.trim().isEmpty
+                    ? null
+                    : Text(
+                        detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      );
               }(),
-              trailing: actions ? Wrap(
-                spacing: 0,
-                children: [
-                  for (final command in ['accept', 'decline', 'redeem', 'cancel'])
-                    if (_action(row, family, command) != null)
-                      TextButton(
-                        onPressed: _busy ? null : () => _execute(row, family, command),
-                        child: Text(switch (command) {
-                          'accept' => 'Accepter',
-                          'decline' => 'Refuser',
-                          'cancel' => 'Annuler',
-                          _ => 'Utiliser',
-                        }),
-                      ),
-                ],
-              ) : null,
+              trailing: actions
+                  ? Wrap(
+                      spacing: 0,
+                      children: [
+                        for (final command in [
+                          'accept',
+                          'decline',
+                          'redeem',
+                          'cancel',
+                        ])
+                          if (_action(row, family, command) != null)
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _execute(row, family, command),
+                              child: Text(switch (command) {
+                                'accept' => 'Accepter',
+                                'decline' => 'Refuser',
+                                'cancel' => 'Annuler',
+                                _ => 'Utiliser',
+                              }),
+                            ),
+                      ],
+                    )
+                  : null,
             ),
         ],
       ),
@@ -556,12 +581,15 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
 
   Widget _heading(String label, IconData symbol) => Padding(
     padding: const EdgeInsets.fromLTRB(4, 18, 4, 12),
-    child: Row(children: [
-      Icon(symbol, size: 22, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(width: 10),
-      Expanded(child: Text(label,
-          style: Theme.of(context).textTheme.titleLarge)),
-    ]),
+    child: Row(
+      children: [
+        Icon(symbol, size: 22, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(label, style: Theme.of(context).textTheme.titleLarge),
+        ),
+      ],
+    ),
   );
 
   /// One card per Loyalty program, even when the owner has several rows.
@@ -583,10 +611,14 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       final available = rewards.where((row) => _programId(row) == id).toList();
       final account = owned.isNotEmpty ? owned.first : <String, dynamic>{};
       final membership = joined.isNotEmpty ? joined.first : <String, dynamic>{};
-      final reward = available.isNotEmpty ? available.first : <String, dynamic>{};
-      final organization = _text(account['organization_name'] ??
-          membership['organization_name'] ??
-          _map(reward['organization'])['name']);
+      final reward = available.isNotEmpty
+          ? available.first
+          : <String, dynamic>{};
+      final organization = _text(
+        account['organization_name'] ??
+            membership['organization_name'] ??
+            _map(reward['organization'])['name'],
+      );
       final programName = _text(account['program_name']);
       final balance = account['points_balance'];
       final tier = _text(_map(account['current_tier'])['name']);
@@ -596,99 +628,146 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           _text(balance) + (unit.isEmpty ? ' points' : ' ' + unit),
         if (tier.isNotEmpty) tier,
         if (available.isNotEmpty)
-          available.length.toString() + ' avantage' +
-              (available.length == 1 ? '' : 's') + ' disponible' +
+          available.length.toString() +
+              ' avantage' +
+              (available.length == 1 ? '' : 's') +
+              ' disponible' +
               (available.length == 1 ? '' : 's'),
       ];
-      cards.add(Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        clipBehavior: Clip.antiAlias,
-        child: ExpansionTile(
-          key: PageStorageKey<String>('loyalty:' + _scope + ':' + id),
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            child: Icon(Icons.card_giftcard_outlined,
-                color: Theme.of(context).colorScheme.onPrimaryContainer),
-          ),
-          title: Text(programName.isNotEmpty ? programName :
-              (organization.isEmpty ? 'Programme de fidélité' : organization),
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (programName.isNotEmpty && organization.isNotEmpty)
-                Text(organization, maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (details.isNotEmpty)
-                Text(details.join(' · '), maxLines: 2,
+      cards.add(
+        Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          clipBehavior: Clip.antiAlias,
+          child: ExpansionTile(
+            key: PageStorageKey<String>('loyalty:' + _scope + ':' + id),
+            leading: CircleAvatar(
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              child: Icon(
+                Icons.card_giftcard_outlined,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+            title: Text(
+              programName.isNotEmpty
+                  ? programName
+                  : (organization.isEmpty
+                        ? 'Programme de fidélité'
+                        : organization),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (programName.isNotEmpty && organization.isNotEmpty)
+                  Text(
+                    organization,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (details.isNotEmpty)
+                  Text(
+                    details.join(' · '),
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
-                    )),
-            ],
-          ),
-          children: [
-            for (final row in joined)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.verified_outlined),
-                title: Text(_text(row['plan_name']).isEmpty
-                    ? 'Adhésion' : _text(row['plan_name'])),
-                subtitle: Text(_text(row['status'])),
-                trailing: _action(row, 'loyalty', 'cancel') == null
-                    ? null : TextButton(
-                      onPressed: _busy ? null :
-                          () => _execute(row, 'loyalty', 'cancel'),
-                      child: const Text('Annuler'),
                     ),
-              ),
-            for (final row in available)
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.redeem_outlined),
-                title: Text(_label(row)),
-                subtitle: _positive(row['points_cost'])
-                    ? Text(_text(row['points_cost']) + ' ' +
-                        _text(row['points_name'])) : null,
-                trailing: _action(row, 'loyalty', 'redeem') == null
-                    ? null : TextButton(
-                      onPressed: _busy ? null :
-                          () => _execute(row, 'loyalty', 'redeem'),
-                      child: const Text('Utiliser'),
-                    ),
-              ),
-            for (final row in owned)
-              for (final movement in _rows(row['recent_activity']))
+                  ),
+              ],
+            ),
+            children: [
+              for (final row in joined)
                 ListTile(
                   dense: true,
-                  leading: const Icon(Icons.history_outlined),
-                  title: Text(_text(movement['description']).isEmpty
-                      ? 'Mouvement' : _text(movement['description'])),
-                  trailing: _positive(movement['points_delta'])
-                      ? Text('+' + _text(movement['points_delta'])) : null,
+                  leading: const Icon(Icons.verified_outlined),
+                  title: Text(
+                    _text(row['plan_name']).isEmpty
+                        ? 'Adhésion'
+                        : _text(row['plan_name']),
+                  ),
+                  subtitle: Text(_text(row['status'])),
+                  trailing: _action(row, 'loyalty', 'cancel') == null
+                      ? null
+                      : TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _execute(row, 'loyalty', 'cancel'),
+                          child: const Text('Annuler'),
+                        ),
                 ),
-          ],
-        ),
-      ));
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (cards.isNotEmpty) _heading('Fidélité', Icons.loyalty_outlined),
-      ...(_showAllPrograms ? cards : cards.take(3)),
-      if (cards.length > 3)
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            icon: Icon(_showAllPrograms
-                ? Icons.expand_less_rounded : Icons.expand_more_rounded),
-            onPressed: () => setState(() {
-              _showAllPrograms = !_showAllPrograms;
-            }),
-            label: Text(_showAllPrograms ? 'Voir moins' :
-                'Voir les ' + cards.length.toString() + ' programmes'),
+              for (final row in available)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.redeem_outlined),
+                  title: Text(_label(row)),
+                  subtitle: _positive(row['points_cost'])
+                      ? Text(
+                          _text(row['points_cost']) +
+                              ' ' +
+                              _text(row['points_name']),
+                        )
+                      : null,
+                  trailing: _action(row, 'loyalty', 'redeem') == null
+                      ? null
+                      : TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _execute(row, 'loyalty', 'redeem'),
+                          child: const Text('Utiliser'),
+                        ),
+                ),
+              for (final row in owned)
+                for (final movement in _rows(row['recent_activity']))
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.history_outlined),
+                    title: Text(
+                      _text(movement['description']).isEmpty
+                          ? 'Mouvement'
+                          : _text(movement['description']),
+                    ),
+                    trailing: _positive(movement['points_delta'])
+                        ? Text('+' + _text(movement['points_delta']))
+                        : null,
+                  ),
+            ],
           ),
         ),
-      _section('loyalty', 'Récompenses obtenues', history,
-          icon: Icons.workspace_premium_outlined),
-    ]);
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (cards.isNotEmpty) _heading('Fidélité', Icons.loyalty_outlined),
+        ...(_showAllPrograms ? cards : cards.take(3)),
+        if (cards.length > 3)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              icon: Icon(
+                _showAllPrograms
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+              ),
+              onPressed: () => setState(() {
+                _showAllPrograms = !_showAllPrograms;
+              }),
+              label: Text(
+                _showAllPrograms
+                    ? 'Voir moins'
+                    : 'Voir les ' + cards.length.toString() + ' programmes',
+              ),
+            ),
+          ),
+        _section(
+          'loyalty',
+          'Récompenses obtenues',
+          history,
+          icon: Icons.workspace_premium_outlined,
+        ),
+      ],
+    );
   }
 
   Widget _family(String family, Map<String, dynamic> data) {
@@ -700,64 +779,138 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
     if (family == 'recognition') {
       final credits = _map(data['summary'])['available_credits'];
-      final visible = account.isNotEmpty ||
+      final visible =
+          account.isNotEmpty ||
           _rows(data['incoming']).isNotEmpty ||
           _rows(data['benefits_received']).isNotEmpty ||
           _rows(data['achievements']).isNotEmpty;
       if (!visible) return const SizedBox.shrink();
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _heading('Reconnaissance', Icons.workspace_premium_outlined),
-        if (_positive(credits))
-          Card(child: ListTile(
-            leading: const Icon(Icons.stars_outlined),
-            title: Text(_text(credits) + ' crédits disponibles'),
-          )),
-        _section(family, 'Réponses attendues', data['incoming'],
-            actions: true, icon: Icons.mark_email_unread_outlined),
-        _section(family, 'Récompenses', data['rewards'],
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _heading('Reconnaissance', Icons.workspace_premium_outlined),
+          if (_positive(credits))
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.stars_outlined),
+                title: Text(_text(credits) + ' crédits disponibles'),
+              ),
+            ),
+          _section(
+            family,
+            'Réponses attendues',
+            data['incoming'],
+            actions: true,
+            icon: Icons.mark_email_unread_outlined,
+          ),
+          _section(
+            family,
+            'Récompenses',
+            data['rewards'],
             details: (row) => _positive(row['points_cost'])
-                ? _text(row['points_cost']) + ' crédits' : '',
-            actions: true, icon: Icons.redeem_outlined),
-        _section(family, 'Contributions reconnues', data['achievements'],
-            icon: Icons.military_tech_outlined),
-        _section(family, 'Avantages reçus', data['benefits_received'],
-            icon: Icons.card_giftcard_outlined),
-        _section(family, 'Utilisations', data['redemptions'],
-            icon: Icons.check_circle_outline),
-        _section(family, 'Mouvements', data['recent_activity'],
-            icon: Icons.history_outlined),
-      ]);
+                ? _text(row['points_cost']) + ' crédits'
+                : '',
+            actions: true,
+            icon: Icons.redeem_outlined,
+          ),
+          _section(
+            family,
+            'Contributions reconnues',
+            data['achievements'],
+            icon: Icons.military_tech_outlined,
+          ),
+          _section(
+            family,
+            'Avantages reçus',
+            data['benefits_received'],
+            icon: Icons.card_giftcard_outlined,
+          ),
+          _section(
+            family,
+            'Utilisations',
+            data['redemptions'],
+            icon: Icons.check_circle_outline,
+          ),
+          _section(
+            family,
+            'Mouvements',
+            data['recent_activity'],
+            icon: Icons.history_outlined,
+          ),
+        ],
+      );
     }
     if (family == 'loyalty') {
       if (program.isEmpty) return const SizedBox.shrink();
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _heading('Fidélité', Icons.loyalty_outlined),
-        Card(child: ListTile(
-          leading: const Icon(Icons.storefront_outlined),
-          title: Text(_text(program['name'])),
-          subtitle: const Text('Programme de cet Espace'),
-        )),
-        _section(family, 'Niveaux', program['tiers'], icon: Icons.layers_outlined),
-        _section(family, 'Formules', program['membership_plans'],
-            icon: Icons.card_membership_outlined),
-        _section(family, 'Avantages proposés', program['rewards'],
-            icon: Icons.redeem_outlined),
-      ]);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _heading('Fidélité', Icons.loyalty_outlined),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.storefront_outlined),
+              title: Text(_text(program['name'])),
+              subtitle: const Text('Programme de cet Espace'),
+            ),
+          ),
+          _section(
+            family,
+            'Niveaux',
+            program['tiers'],
+            icon: Icons.layers_outlined,
+          ),
+          _section(
+            family,
+            'Formules',
+            program['membership_plans'],
+            icon: Icons.card_membership_outlined,
+          ),
+          _section(
+            family,
+            'Avantages proposés',
+            program['rewards'],
+            icon: Icons.redeem_outlined,
+          ),
+        ],
+      );
     }
     if (relationships.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      _heading('Partenariats', Icons.handshake_outlined),
-      _section(family, 'Relations', relationships,
-          icon: Icons.people_outline),
-      _section(family, 'Campagnes', data['campaigns'],
-          icon: Icons.campaign_outlined),
-      _section(family, 'Codes de parrainage', data['codes'],
-          icon: Icons.qr_code_outlined),
-      _section(family, 'Commissions', data['commissions'],
-          icon: Icons.receipt_long_outlined),
-      _section(family, 'Versements', data['payouts'],
-          icon: Icons.payments_outlined),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _heading('Partenariats', Icons.handshake_outlined),
+        _section(
+          family,
+          'Relations',
+          relationships,
+          icon: Icons.people_outline,
+        ),
+        _section(
+          family,
+          'Campagnes',
+          data['campaigns'],
+          icon: Icons.campaign_outlined,
+        ),
+        _section(
+          family,
+          'Codes de parrainage',
+          data['codes'],
+          icon: Icons.qr_code_outlined,
+        ),
+        _section(
+          family,
+          'Commissions',
+          data['commissions'],
+          icon: Icons.receipt_long_outlined,
+        ),
+        _section(
+          family,
+          'Versements',
+          data['payouts'],
+          icon: Icons.payments_outlined,
+        ),
+      ],
+    );
   }
 
   bool _hasVisible(String family, Map<String, dynamic> data) {
@@ -768,11 +921,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           _rows(data['achievements']).isNotEmpty;
     }
     if (family == 'loyalty') {
-      return _space ? _map(data['program']).isNotEmpty :
-          _rows(data['accounts']).isNotEmpty ||
-          _rows(data['memberships']).isNotEmpty ||
-          _rows(data['available_rewards']).isNotEmpty ||
-          _rows(data['rewards']).isNotEmpty;
+      return _space
+          ? _map(data['program']).isNotEmpty
+          : _rows(data['accounts']).isNotEmpty ||
+                _rows(data['memberships']).isNotEmpty ||
+                _rows(data['available_rewards']).isNotEmpty ||
+                _rows(data['rewards']).isNotEmpty;
     }
     return _rows(data['relationships']).isNotEmpty;
   }
@@ -781,9 +935,11 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   Widget build(BuildContext context) {
     final offline =
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
-    final hasRows = families.any((family) =>
-        _snapshots[family] != null &&
-        _hasVisible(family, _snapshots[family]!));
+    final hasRows = families.any(
+      (family) =>
+          _snapshots[family] != null &&
+          _hasVisible(family, _snapshots[family]!),
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(_space ? 'Nos appuis' : 'Mes appuis'),
