@@ -2768,7 +2768,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   if (available && permitted)
                     _attentionLens(
                       context,
-                      _map(projection?.payload['attention']),
+                      _map(projection.payload['attention']),
                     ),
                   if (available && permitted && _newMessagesAvailable)
                     Align(
