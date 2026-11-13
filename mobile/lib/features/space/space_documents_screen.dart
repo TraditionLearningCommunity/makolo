@@ -12,7 +12,6 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/media/native_media_picker.dart';
 import '../../sync/owner_source_state.dart';
 import '../resources/resource_presentation.dart';
-import 'space_repository.dart';
 
 /// Nous · Documents.
 ///
