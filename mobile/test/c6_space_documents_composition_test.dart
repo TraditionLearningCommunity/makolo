@@ -61,6 +61,7 @@ void main() {
       schemaVersion: 1,
       payload: {
         'space_id': 'space-a',
+        'visibility': 'visible',
         'kind': 'document',
         'count': 2,
         'total_count': 6,
