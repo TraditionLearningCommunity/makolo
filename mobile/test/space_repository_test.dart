@@ -259,117 +259,100 @@ void main() {
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
   });
 
-  test('Space documents are local-first and scoped to the active Space', () async {
-    var phase = 'online';
-    final harness = await _harness(
-      handler: (request) async {
-        expect(
-          request.url.path,
-          '/api/v1/organizations/workspaces/space-x/documents/',
-        );
-        expect(request.url.queryParameters['q'], 'statuts');
-        if (phase == 'offline') {
-          throw const SocketException('offline');
-        }
-        if (phase == 'denied') {
+  test(
+    'Space documents are local-first and scoped to the active Space',
+    () async {
+      var phase = 'online';
+      final harness = await _harness(
+        handler: (request) async {
+          expect(
+            request.url.path,
+            '/api/v1/organizations/workspaces/space-x/documents/',
+          );
+          expect(request.url.queryParameters['q'], 'statuts');
+          if (phase == 'offline') {
+            throw const SocketException('offline');
+          }
+          if (phase == 'denied') {
+            return MockResponse(
+              jsonEncode({
+                'error': {
+                  'code': 'permission_denied',
+                  'message': 'Access revoked',
+                },
+              }),
+              403,
+            );
+          }
           return MockResponse(
             jsonEncode({
-              'error': {
-                'code': 'permission_denied',
-                'message': 'Access revoked',
-              },
+              'space_id': 'space-x',
+              'count': 1,
+              'items': [
+                {
+                  'id': '00000000-0000-4000-8000-000000000001',
+                  'title': 'Statuts',
+                  'visibility': 'restricted',
+                  'latest_version': 1,
+                },
+              ],
+              'has_more': false,
+              'next_offset': 1,
+              'can_manage': true,
             }),
-            403,
+            200,
           );
-        }
-        return MockResponse(
-          jsonEncode({
-            'space_id': 'space-x',
-            'count': 1,
-            'items': [
-              {
-                'id': '00000000-0000-4000-8000-000000000001',
-                'title': 'Statuts',
-                'visibility': 'restricted',
-                'latest_version': 1,
-              },
-            ],
-            'has_more': false,
-            'next_offset': 1,
-            'can_manage': true,
-          }),
-          200,
-        );
-      },
-    );
-    addTearDown(harness.close);
-    final repository = harness.repository;
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    final other = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+        },
+      );
+      addTearDown(harness.close);
+      final repository = harness.repository;
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final other = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
 
-    final source = repository.documentsSource(
-      space,
-      query: 'statuts',
-      offset: 0,
-    );
-    expect(source.actorScope, SyncActorScope.space(spaceId: 'space-x'));
-    expect(
-      source.sourceKey,
-      isNot(
-        repository
-            .documentsSource(other, query: 'statuts', offset: 0)
-            .sourceKey,
-      ),
-    );
-
-    await repository.refreshDocumentPage(
-      space,
-      query: 'statuts',
-      offset: 0,
-    );
-    final acquired = await repository.readDocumentPage(
-      space,
-      query: 'statuts',
-      offset: 0,
-    );
-    expect(acquired, isNotNull);
-    expect(acquired!.payload['count'], 1);
-    expect(acquired.payload['_query'], 'statuts');
-
-    phase = 'offline';
-    await repository.refreshDocumentPage(
-      space,
-      query: 'statuts',
-      offset: 0,
-    );
-    expect(
-      await repository.readDocumentPage(
+      final source = repository.documentsSource(
         space,
         query: 'statuts',
         offset: 0,
-      ),
-      isNotNull,
-      reason: 'Transport failure keeps the acquired reading snapshot.',
-    );
-    expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+      );
+      expect(source.actorScope, SyncActorScope.space(spaceId: 'space-x'));
+      expect(
+        source.sourceKey,
+        isNot(
+          repository
+              .documentsSource(other, query: 'statuts', offset: 0)
+              .sourceKey,
+        ),
+      );
 
-    phase = 'denied';
-    await repository.refreshDocumentPage(
-      space,
-      query: 'statuts',
-      offset: 0,
-    );
-    expect(
-      await repository.readDocumentPage(
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      final acquired = await repository.readDocumentPage(
         space,
         query: 'statuts',
         offset: 0,
-      ),
-      isNull,
-      reason: 'Owner denial withdraws the cached collection page.',
-    );
-    expect((await repository.readSource(source)).invalidated, isTrue);
-  });
+      );
+      expect(acquired, isNotNull);
+      expect(acquired!.payload['count'], 1);
+      expect(acquired.payload['_query'], 'statuts');
+
+      phase = 'offline';
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 0),
+        isNotNull,
+        reason: 'Transport failure keeps the acquired reading snapshot.',
+      );
+      expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+
+      phase = 'denied';
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 0),
+        isNull,
+        reason: 'Owner denial withdraws the cached collection page.',
+      );
+      expect((await repository.readSource(source)).invalidated, isTrue);
+    },
+  );
 
   test('acquired Space stays locally selectable on outage but never after revocation', () async {
     var phase = 'online';

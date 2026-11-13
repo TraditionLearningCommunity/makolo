@@ -48,9 +48,7 @@ void main() {
       store: _LocalActorStore(),
     );
     addTearDown(actor.dispose);
-    await actor.selectSpace(
-      SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
-    );
+    await actor.selectSpace(SpaceActorIdentity(id: 'space-a', slug: 'atelier'));
     final repository = WorkspaceContextRepository(
       database: database,
       store: store,
@@ -65,12 +63,7 @@ void main() {
         'resources': {
           'visibility': 'visible',
           'count': 6,
-          'counts': {
-            'document': 2,
-            'passport': 1,
-            'template': 2,
-            'theme': 1,
-          },
+          'counts': {'document': 2, 'passport': 1, 'template': 2, 'theme': 1},
           'items': const [],
         },
         'handoffs': {

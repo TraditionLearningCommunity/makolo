@@ -473,9 +473,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-                  child: Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
                 )
               else if (!view.hasSnapshot &&
                   (_refreshFailed ||

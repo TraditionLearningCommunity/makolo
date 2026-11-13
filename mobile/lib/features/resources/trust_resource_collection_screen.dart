@@ -442,9 +442,7 @@ class _TrustResourceCollectionScreenState
               if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-                  child: Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
                 )
               else if (!view.hasSnapshot &&
                   (_refreshFailed ||
@@ -456,10 +454,7 @@ class _TrustResourceCollectionScreenState
                   onRetry: _refreshFirst,
                 )
               else if (view.items.isEmpty)
-                _EmptyTrustCollection(
-                  family: widget.family,
-                  query: _query,
-                )
+                _EmptyTrustCollection(family: widget.family, query: _query)
               else
                 for (final item in view.items)
                   Padding(

@@ -392,38 +392,37 @@ final class WorkspaceContextRepository {
     String query = '',
   }) {
     final normalizedQuery = query.trim();
-    return store.watchProjections(SpaceSyncKeys.documentsProjectionKind).map(
-      (pages) {
-        final selected = pages.where((page) {
-          final payload = page.payload;
-          return payload['space_id']?.toString() == space.id &&
-              (payload['_query']?.toString() ?? '') == normalizedQuery;
-        }).toList()
-          ..sort((a, b) {
+    return store.watchProjections(SpaceSyncKeys.documentsProjectionKind).map((
+      pages,
+    ) {
+      final selected =
+          pages.where((page) {
+            final payload = page.payload;
+            return payload['space_id']?.toString() == space.id &&
+                (payload['_query']?.toString() ?? '') == normalizedQuery;
+          }).toList()..sort((a, b) {
             final left = a.payload['_offset'];
             final right = b.payload['_offset'];
             final leftOffset = left is num ? left.toInt() : 0;
             final rightOffset = right is num ? right.toInt() : 0;
             return leftOffset.compareTo(rightOffset);
           });
-        return selected;
-      },
-    );
+      return selected;
+    });
   }
 
   Future<StoredProjection?> readDocumentPage(
     SpaceActorIdentity space, {
     String query = '',
     int offset = 0,
-  }) =>
-      store.readProjection(
-        SpaceSyncKeys.documentsProjectionKind,
-        resourceKey: SpaceSyncKeys.documentsResourceKey(
-          space.id,
-          query: query.trim(),
-          offset: offset,
-        ),
-      );
+  }) => store.readProjection(
+    SpaceSyncKeys.documentsProjectionKind,
+    resourceKey: SpaceSyncKeys.documentsResourceKey(
+      space.id,
+      query: query.trim(),
+      offset: offset,
+    ),
+  );
 
   Stream<StoredProjection?> watchRelationships(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.relationships, space);
@@ -573,7 +572,10 @@ final class WorkspaceContextRepository {
     final source = documentsSource(space, query: query, offset: offset);
     final state = await readSource(source);
     if (state.invalidated &&
-        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
       return false;
     }
     final projection = await readDocumentPage(
@@ -599,11 +601,7 @@ final class WorkspaceContextRepository {
     String query = '',
     int offset = 0,
   }) async {
-    if (!await shouldRefreshDocumentPage(
-      space,
-      query: query,
-      offset: offset,
-    )) {
+    if (!await shouldRefreshDocumentPage(space, query: query, offset: offset)) {
       return;
     }
     await refreshDocumentPage(space, query: query, offset: offset);
@@ -613,8 +611,7 @@ final class WorkspaceContextRepository {
     SpaceActorIdentity space, {
     String query = '',
     int offset = 0,
-  }) =>
-      _refresh(documentsSource(space, query: query, offset: offset));
+  }) => _refresh(documentsSource(space, query: query, offset: offset));
 
   Future<void> refreshRelationships(SpaceActorIdentity space) =>
       _refresh(relationshipsSource(space));
@@ -924,11 +921,7 @@ final class WorkspaceContextRepository {
     }
     return AcquiredProjection(
       schemaVersion: 1,
-      payload: {
-        ...payload,
-        '_query': query,
-        '_offset': offset,
-      },
+      payload: {...payload, '_query': query, '_offset': offset},
     );
   }
 

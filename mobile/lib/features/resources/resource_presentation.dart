@@ -115,20 +115,14 @@ class ResourceHubEntry extends StatelessWidget {
             color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(
-            entry.icon,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          child: Icon(entry.icon, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(width: MakoloSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                entry.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text(entry.title, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.xs),
               Text(
                 entry.subtitle,
@@ -143,9 +137,8 @@ class ResourceHubEntry extends StatelessWidget {
           const SizedBox(width: MakoloSpacing.sm),
           Text(
             '${entry.count}',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: Theme.of(context).colorScheme.primary),
           ),
         ],
         if (entry.onTap != null) ...[
@@ -159,11 +152,7 @@ class ResourceHubEntry extends StatelessWidget {
 
 /// Shared title treatment used by Resources collections.
 class ResourceCountTitle extends StatelessWidget {
-  const ResourceCountTitle({
-    super.key,
-    required this.title,
-    this.count,
-  });
+  const ResourceCountTitle({super.key, required this.title, this.count});
 
   final String title;
   final int? count;
@@ -177,9 +166,8 @@ class ResourceCountTitle extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.clip,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       if (count != null) ...[
@@ -318,11 +306,7 @@ class ResourceDocumentHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(
-        icon,
-        size: 32,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
       const SizedBox(width: MakoloSpacing.md),
       Expanded(
         child: Column(
@@ -364,9 +348,8 @@ class ResourceSectionHeader extends StatelessWidget {
       if (count != null) ...[
         Text(
           '$count',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          style: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(color: Theme.of(context).colorScheme.primary),
         ),
         if (action != null) const SizedBox(width: MakoloSpacing.xs),
       ],
@@ -426,4 +409,3 @@ class ResourceVersionCard extends StatelessWidget {
     ),
   );
 }
-

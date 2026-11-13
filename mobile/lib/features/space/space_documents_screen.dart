@@ -107,11 +107,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
     final repository = widget.runtime.space;
     if (actor == null || repository == null) return null;
     return repository.readSource(
-      repository.documentsSource(
-        actor.space,
-        query: _query,
-        offset: offset,
-      ),
+      repository.documentsSource(actor.space, query: _query, offset: offset),
     );
   }
 
@@ -350,9 +346,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
         ],
       );
       if (!mounted || _actor?.space.id != expectedId) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Document ajouté.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Document ajouté.')));
       await _refreshFirst();
       try {
         await widget.runtime.space?.refreshUs(actor.space);
@@ -361,9 +356,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       }
     } on Object {
       if (mounted && _actor?.space.id == expectedId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dépôt impossible.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Dépôt impossible.')));
       }
     } finally {
       if (mounted && _actor?.space.id == expectedId) {
@@ -439,9 +433,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
               if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-                  child: Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
                 )
               else if (source.invalidated)
                 const Padding(
@@ -487,24 +479,20 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
               else
                 for (final doc in view.items)
                   Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: MakoloSpacing.sm,
-                    ),
+                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                     child: Card(
                       child: ListTile(
                         leading: Icon(
                           Icons.description_outlined,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        title: Text(
-                          doc['title']?.toString() ?? 'Document',
-                        ),
+                        title: Text(doc['title']?.toString() ?? 'Document'),
                         subtitle: Text(
                           doc['visibility'] == 'restricted'
                               ? 'Confidentiel · '
-                                  'v${doc['latest_version'] ?? '1'}'
+                                    'v${doc['latest_version'] ?? '1'}'
                               : 'Équipe · '
-                                  'v${doc['latest_version'] ?? '1'}',
+                                    'v${doc['latest_version'] ?? '1'}',
                         ),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () {
@@ -615,9 +603,7 @@ class _SpaceDocumentsView {
       if (rows is! List) continue;
       for (final raw in rows) {
         if (raw is! Map) continue;
-        final row = raw.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        final row = raw.map((key, value) => MapEntry(key.toString(), value));
         final id = row['id']?.toString();
         if (id == null || !seen.add(id)) continue;
         items.add(row);

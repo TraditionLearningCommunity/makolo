@@ -134,8 +134,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                 refreshing: _refreshing,
                 onRefresh: _refresh,
                 entries: const [],
-                emptyMessage:
-                    'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+                emptyMessage: 'Ces ressources ne sont pas accessibles avec vos droits actuels.',
               );
             }
 
@@ -145,8 +144,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                 refreshing: _refreshing,
                 onRefresh: _refresh,
                 entries: const [],
-                emptyMessage:
-                    'Ces ressources ne peuvent pas être actualisées pour le moment.',
+                emptyMessage: 'Ces ressources ne peuvent pas être actualisées pour le moment.',
               );
             }
 
@@ -157,8 +155,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                 title: 'Nos documents',
                 subtitle: 'Fichiers et pièces de cet Espace',
                 count: _int(counts['document']),
-                onTap: () =>
-                    context.push('/space/${widget.slug}/us/documents'),
+                onTap: () => context.push('/space/${widget.slug}/us/documents'),
               ),
             ];
 
@@ -172,8 +169,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                   title: 'Passeports émis',
                   subtitle: 'Documents institutionnels émis par cet Espace',
                   count: passportCount,
-                  onTap:
-                      passportHandoff == '/space/${widget.slug}/us/passport'
+                  onTap: passportHandoff == '/space/${widget.slug}/us/passport'
                       ? () => context.push(passportHandoff!)
                       : null,
                 ),

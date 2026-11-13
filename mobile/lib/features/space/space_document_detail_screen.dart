@@ -714,11 +714,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                         const SizedBox(height: MakoloSpacing.sm),
                         Text(
                           _error!,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
                       ],
                       const SizedBox(height: MakoloSpacing.lg),
@@ -789,9 +790,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                                     tooltip: 'Révoquer',
                                     onPressed: _working
                                         ? null
-                                        : () => _revoke(
-                                            share['id'].toString(),
-                                          ),
+                                        : () => _revoke(share['id'].toString()),
                                     icon: Icons.close_rounded,
                                   )
                                 : null,
