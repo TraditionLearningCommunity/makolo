@@ -130,7 +130,7 @@ void main() {
     await tester.tap(find.byTooltip('Liste'));
     await tester.pump();
     expect(find.text('Explorer le Dossier'), findsNothing);
-    expect(find.text('Rechercher une démarche'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
     expect(find.byTooltip('Vue d’ensemble'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
