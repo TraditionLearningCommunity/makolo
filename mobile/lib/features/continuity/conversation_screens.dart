@@ -1499,10 +1499,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     // Preserve distinct owner Points; collapse only duplicate IDs in a
     // previously cached lens, without manufacturing any ranking.
     final seenPoints = <String>{};
-    List<Map<String, dynamic>> uniquePoints(List<Map<String, dynamic>> rows) => [
-      for (final row in rows)
-        if (row['id'] == null || seenPoints.add(row['id'].toString())) row,
-    ];
+    List<Map<String, dynamic>> uniquePoints(List<Map<String, dynamic>> rows) =>
+        [
+          for (final row in rows)
+            if (row['id'] == null || seenPoints.add(row['id'].toString())) row,
+        ];
     final mine = uniquePoints(_maps(focus['for_me']));
     final decisions = uniquePoints(_maps(focus['to_resolve']));
     final knowledge = uniquePoints(_maps(focus['to_know']));
@@ -1518,9 +1519,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     String subtitleFor(Map<String, dynamic> item) {
       final reason = item['reason_label']?.toString() ?? '';
       final local = MaterialLocalizations.of(context);
-      final deadline = DateTime.tryParse(
-        item['deadline_at']?.toString() ?? '',
-      )?.toLocal();
+      final deadline = DateTime.tryParse(item['deadline_at']?.toString() ?? '')
+          ?.toLocal();
       if (deadline != null) {
         return '${reason} · ${local.formatShortDate(deadline)}';
       }
