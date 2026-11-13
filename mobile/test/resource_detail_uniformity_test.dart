@@ -137,13 +137,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Versions'), findsOneWidget);
+      expect(
+        find.byTooltip('Historique des versions'),
+        findsNothing,
+        reason: 'Une seule version ne doit pas créer un historique redondant.',
+      );
       expect(find.byTooltip('Télécharger'), findsOneWidget);
       expect(find.byTooltip('Partager'), findsOneWidget);
       expect(find.byTooltip('Plus'), findsOneWidget);
       expect(find.byTooltip('Utiliser'), findsNothing);
       expect(find.byTooltip('Archiver'), findsNothing);
-      expect(find.byTooltip('Nouvelle version'), findsOneWidget);
+      expect(find.text('Nouvelle version'), findsOneWidget);
       expect(find.text('Normale'), findsNothing);
 
       await tester.tap(find.text('Version 1'));
