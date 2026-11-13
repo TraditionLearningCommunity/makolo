@@ -2228,99 +2228,97 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Dossier'),
-      actions: [
-        MakoloIconActionButton(
-          tooltip: 'Actualiser',
-          icon: Icons.refresh_rounded,
-          onPressed: _refreshing ? null : _refresh,
-        ),
-      ],
+  Widget build(BuildContext context) => StreamBuilder<OwnerSourceState>(
+    key: ValueKey<String>(
+      'dossier-owner:' + widget.id + ':' + (_spaceSlug ?? 'personal'),
     ),
-    body: StreamBuilder<OwnerSourceState>(
-      key: ValueKey<String>(
-        'dossier-owner:${widget.id}:${_spaceSlug ?? 'personal'}',
-      ),
-      stream: _owner,
-      initialData: OwnerSourceState.unknown,
-      builder: (context, ownerSnapshot) {
-        final owner = ownerSnapshot.data ?? OwnerSourceState.unknown;
-        return StreamBuilder<StoredProjection?>(
-          key: ValueKey<String>(
-            'dossier-detail:${widget.id}:${_spaceSlug ?? 'personal'}',
-          ),
-          stream: _detail,
-          builder: (context, detailSnapshot) {
-            if (owner.invalidated) {
-              return const Center(
-                child: Text(
-                  'Ce Dossier n’est plus accessible dans ce contexte.',
+    stream: _owner,
+    initialData: OwnerSourceState.unknown,
+    builder: (context, ownerSnapshot) {
+      final owner = ownerSnapshot.data ?? OwnerSourceState.unknown;
+      return StreamBuilder<StoredProjection?>(
+        key: ValueKey<String>(
+          'dossier-detail:' + widget.id + ':' + (_spaceSlug ?? 'personal'),
+        ),
+        stream: _detail,
+        builder: (context, detailSnapshot) {
+          final snapshot = detailSnapshot.data;
+          final data = snapshot?.payload;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Dossier'),
+              actions: [
+                MakoloIconActionButton(
+                  tooltip: 'Actualiser',
+                  icon: Icons.refresh_rounded,
+                  onPressed: _refreshing ? null : _refresh,
                 ),
-              );
-            }
-            final snapshot = detailSnapshot.data;
-            if (snapshot == null) {
-              return Center(
-                child: _refreshing
-                    ? const CircularProgressIndicator.adaptive()
-                    : MakoloActionButton(
-                        label: _failed ? 'Réessayer' : 'Charger ce Dossier',
-                        onPressed: _refresh,
-                        appearance: MakoloActionAppearance.quiet,
+                if (!owner.invalidated && data != null) _dossierMenu(data),
+              ],
+            ),
+            body: owner.invalidated
+                ? const Center(
+                    child: Text(
+                      'Ce Dossier n’est plus accessible dans ce contexte.',
+                    ),
+                  )
+                : data == null
+                ? Center(
+                    child: _refreshing
+                        ? const CircularProgressIndicator.adaptive()
+                        : MakoloActionButton(
+                            label: _failed ? 'Réessayer' : 'Charger ce Dossier',
+                            onPressed: _refresh,
+                            appearance: MakoloActionAppearance.quiet,
+                          ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      controller: _pageScroll,
+                      key: PageStorageKey<String>(
+                        'dossier-workspace-scroll:' +
+                            (_spaceSlug ?? 'personal'),
                       ),
-              );
-            }
-            final data = snapshot.payload;
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                controller: _pageScroll,
-                key: PageStorageKey<String>(
-                  'dossier-workspace-scroll:${_spaceSlug ?? 'personal'}',
-                ),
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 13, 16, 49),
-                children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 950),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _header(data),
-                          const SizedBox(height: 12),
-                          if (_mode == _DossierMode.overview)
-                            _overview(data)
-                          else ...[
-                            _controls(data),
-                            const SizedBox(height: 10),
-                            _tabs(),
-                            const SizedBox(height: 12),
-                            if (_mode == _DossierMode.list)
-                              _journeyList(data)
-                            else if (_mode == _DossierMode.timeline)
-                              _timeline(data)
-                            else
-                              _dependencyView(data),
-                          ],
-                          if (_busy)
-                            const Padding(
-                              padding: EdgeInsets.all(10),
-                              child: LinearProgressIndicator(),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 22),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 950),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _header(data),
+                                const SizedBox(height: 5),
+                                if (_mode == _DossierMode.overview)
+                                  _overview(data)
+                                else ...[
+                                  _journeysHeading(data),
+                                  const SizedBox(height: 8),
+                                  if (_mode == _DossierMode.list)
+                                    _journeyList(data)
+                                  else if (_mode == _DossierMode.timeline)
+                                    _timeline(data)
+                                  else
+                                    _dependencyView(data),
+                                ],
+                                if (_busy)
+                                  const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: LinearProgressIndicator(),
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ),
+          );
+        },
+      );
+    },
   );
 }
 
