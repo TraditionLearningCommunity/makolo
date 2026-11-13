@@ -1540,14 +1540,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final deadline = DateTime.tryParse(item['deadline_at']?.toString() ?? '')
           ?.toLocal();
       if (deadline != null) {
-        return '${reason} · ${local.formatShortDate(deadline)}';
+        return '$reason · ${local.formatShortDate(deadline)}';
       }
       final label = item['label']?.toString() ?? '';
       final published = DateTime.tryParse(
         item['published_at']?.toString() ?? '',
       )?.toLocal();
       if ((duplicateLabels[label] ?? 0) > 1 && published != null) {
-        return '${reason} · ${local.formatShortDate(published)} '
+        return '$reason · ${local.formatShortDate(published)} '
             '${local.formatTimeOfDay(TimeOfDay.fromDateTime(published), alwaysUse24HourFormat: true)}';
       }
       return reason;
@@ -3306,7 +3306,7 @@ class _PointCardState extends State<_PointCard> {
                                   ),
                                   if (count > 0)
                                     Text(
-                                      '${count}',
+                                      count.toString(),
                                       style: theme.labelSmall?.copyWith(
                                         color: muted,
                                       ),
