@@ -12,6 +12,7 @@ import '../../platform/sharing/share_gateway.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import 'resource_file_viewer.dart';
+import 'resource_presentation.dart';
 import 'resource_repository.dart';
 
 class ResourceDetailScreen extends StatefulWidget {
@@ -465,49 +466,12 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(MakoloSpacing.inner),
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.description_outlined,
-                                    size: 32,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                  ),
-                                  const SizedBox(width: MakoloSpacing.md),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          detail.title,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .headlineSmall,
-                                        ),
-                                        const SizedBox(
-                                          height: MakoloSpacing.xs,
-                                        ),
-                                        Text(
-                                          [
-                                            detail.kindLabel,
-                                            if (detail.archived) 'Archivé',
-                                          ].join(' · '),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              ResourceDocumentHeader(
+                                title: detail.title,
+                                subtitle: [
+                                  detail.kindLabel,
+                                  if (detail.archived) 'Archivé',
+                                ].join(' · '),
                               ),
                               if (source.reachability ==
                                   ReachabilityState.unreachable) ...[
@@ -539,9 +503,18 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                               ],
                               const SizedBox(height: MakoloSpacing.lg),
                               if (detail.currentVersion != null)
-                                _VersionSummary(
-                                  version: detail.currentVersion!,
-                                  onOpen:
+                                ResourceVersionCard(
+                                  leading: _fileIconForMime(
+                                    detail.currentVersion!.mimeType,
+                                  ),
+                                  title:
+                                      'Version ${detail.currentVersion!.number}',
+                                  subtitle: [
+                                    detail.currentVersion!.validityLabel,
+                                    'Provenance : '
+                                        '${detail.currentVersion!.provenanceLabel}',
+                                  ].join(' · '),
+                                  onTap:
                                       detail.currentVersion!.downloadPath !=
                                               null &&
                                           canUseNetworkActions
@@ -568,44 +541,42 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                               ],
                               if (detail.versions.length > 1) ...[
                                 const SizedBox(height: MakoloSpacing.xl),
-                                Row(
+                                ResourceSectionHeader(
                                   key: _versionsKey,
-                                  children: [
-                                    Text(
-                                      'Versions précédentes',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      '${detail.versions.where((version) => !version.current).length}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelLarge
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                          ),
-                                    ),
-                                  ],
+                                  title: 'Versions précédentes',
+                                  count: detail.versions
+                                      .where((version) => !version.current)
+                                      .length,
                                 ),
                                 const SizedBox(height: MakoloSpacing.sm),
                                 for (final version in detail.versions)
                                   if (!version.current)
-                                    _VersionRow(
-                                      version: version,
-                                      canDownload:
-                                          version.downloadPath != null &&
-                                          canDownload,
-                                      onDownload:
-                                          version.downloadPath == null ||
-                                              !canDownload ||
-                                              _downloading ||
-                                              _sharing
-                                          ? null
-                                          : () => _download(detail, version),
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: MakoloSpacing.sm,
+                                      ),
+                                      child: ResourceVersionCard(
+                                        title: 'v${version.number}',
+                                        subtitle: [
+                                          version.validityLabel,
+                                          version.provenanceLabel,
+                                        ].join(' · '),
+                                        actions: [
+                                          if (version.downloadPath != null &&
+                                              canDownload)
+                                            MakoloIconActionButton(
+                                              tooltip: 'Télécharger',
+                                              icon: Icons.download_rounded,
+                                              onPressed:
+                                                  _downloading || _sharing
+                                                  ? null
+                                                  : () => _download(
+                                                      detail,
+                                                      version,
+                                                    ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
                               ],
                             ],
@@ -619,96 +590,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       },
     );
   }
-}
-
-class _VersionSummary extends StatelessWidget {
-  const _VersionSummary({required this.version, required this.onOpen});
-
-  final _ResourceVersion version;
-  final VoidCallback? onOpen;
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-    borderRadius: BorderRadius.circular(20),
-    onTap: onOpen,
-    child: MakoloCard(
-      child: Row(
-        children: [
-          Icon(_fileIconForMime(version.mimeType)),
-          const SizedBox(width: MakoloSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Version ${version.number}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  [
-                    version.validityLabel,
-                    'Provenance : ${version.provenanceLabel}',
-                  ].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onOpen != null) const Icon(Icons.chevron_right_rounded),
-        ],
-      ),
-    ),
-  );
-}
-
-class _VersionRow extends StatelessWidget {
-  const _VersionRow({
-    required this.version,
-    required this.canDownload,
-    required this.onDownload,
-  });
-
-  final _ResourceVersion version;
-  final bool canDownload;
-  final VoidCallback? onDownload;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-    child: MakoloCard(
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'v${version.number}${version.current ? ' · actuelle' : ''}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  [version.validityLabel, version.provenanceLabel].join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (canDownload)
-            MakoloIconActionButton(
-              tooltip: 'Télécharger',
-              icon: Icons.download_rounded,
-              onPressed: onDownload,
-            ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _JourneyChooser extends StatelessWidget {
