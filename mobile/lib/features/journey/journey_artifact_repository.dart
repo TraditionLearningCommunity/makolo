@@ -257,3 +257,54 @@ class SpaceBeneficiaryResourcesRepository {
     await engine.refreshSource(sourceFor(space, journeyId));
   }
 }
+
+class SpaceBeneficiaryJourneyListRepository {
+  const SpaceBeneficiaryJourneyListRepository({
+    required this.database,
+    required this.store,
+    required this.profileId,
+    this.sync,
+  });
+
+  static const projectionKind = 'space.service.journey.list';
+  static const freshnessPolicy = FreshnessPolicy(
+    id: 'space-beneficiary-journals',
+    refreshRecommendedAfter: Duration(minutes: 15),
+    usableButOldAfter: Duration(hours: 2),
+  );
+  final MakoloDatabase database;
+  final ProfileStore store;
+  final String profileId;
+  final SyncEngine? sync;
+
+  SyncSourceDefinition sourceFor(SpaceActorIdentity space) => SyncSourceDefinition(
+    sourceKey: 'space-beneficiary-journals:${space.id}',
+    owner: 'Services',
+    path: 'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/',
+    projectionKind: projectionKind,
+    resourceKey: space.id,
+    actorScope: SyncActorScope.space(spaceId: space.id),
+    category: SyncSourceCategory.collection,
+    freshnessPolicy: freshnessPolicy,
+    parser: (response) {
+      final payload = response.jsonObject();
+      final scoped = payload['space'];
+      if (scoped is! Map ||
+          scoped['id'] != space.id ||
+          scoped['slug'] != space.slug ||
+          payload['journeys'] is! List) {
+        throw const FormatException('Mismatched Space Journey list owner');
+      }
+      return AcquiredProjection(schemaVersion: 1, payload: payload);
+    },
+    applier: applyProjectionSnapshot,
+  );
+
+  Stream<StoredProjection?> watch(SpaceActorIdentity space) =>
+      store.watchProjection(projectionKind, resourceKey: space.id);
+
+  Future<void> refresh(SpaceActorIdentity space) async {
+    if (sync == null) throw StateError('Space owner sync unavailable');
+    await sync!.refreshSource(sourceFor(space));
+  }
+}
