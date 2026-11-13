@@ -416,6 +416,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
             final freshAuthority =
                 view.canManage &&
+                !_initializing &&
+                !_refreshing &&
                 source.lastSuccessAt != null &&
                 source.lastErrorCode == null &&
                 !source.invalidated;
