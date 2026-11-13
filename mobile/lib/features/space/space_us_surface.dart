@@ -160,8 +160,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         ? _rows(resources?['items'])
         : const <Map<String, dynamic>>[];
     final resourceCount = _nonNegativeCount(resources?['count']);
-    final displayedResourceCount =
-        resourceCount != null && resourceCount > 0 ? resourceCount : null;
+    final displayedResourceCount = resourceCount != null && resourceCount > 0
+        ? resourceCount
+        : null;
 
     final settingsTarget = limited ? null : route('settings');
     final pilotTarget = limited ? null : route('pilot');

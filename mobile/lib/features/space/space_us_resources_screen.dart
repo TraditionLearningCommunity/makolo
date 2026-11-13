@@ -197,11 +197,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     key: const Key('space-resources-passports'),
                     icon: Icons.badge_outlined,
                     title: 'Passeports émis',
-                    subtitle: 'Documents institutionnels produits par cet Espace',
+                    subtitle:
+                        'Documents institutionnels produits par cet Espace',
                     count: visibleCount('passport'),
                     onTap:
-                        passportHandoff ==
-                            '/space/${widget.slug}/us/passport'
+                        passportHandoff == '/space/${widget.slug}/us/passport'
                         ? () => context.push(passportHandoff!)
                         : null,
                   ),
@@ -209,7 +209,8 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     key: const Key('space-resources-credentials'),
                     icon: Icons.workspace_premium_outlined,
                     title: 'Titres émis',
-                    subtitle: 'Attestations et certificats délivrés par cet Espace',
+                    subtitle:
+                        'Attestations et certificats délivrés par cet Espace',
                     count: visibleCount('credential'),
                   ),
                 ];
