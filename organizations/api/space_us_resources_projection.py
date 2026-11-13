@@ -8,20 +8,32 @@ from __future__ import annotations
 
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
+from authorization.services import can
+from presentations.asset_models import PresentationAsset
 from presentations.enums import VersionStatus
 from presentations.models import PresentationTemplateVersion, PresentationThemeVersion
 from sharing.models import PassportSnapshot
 from space_assets.models import SpaceDocument
 from space_assets.services import visible_documents, can_manage_documents
+from trust.credential_models import Credential
+from trust.credential_selectors import credentials_issued_by_space
 
 PAGE_SIZE = 20
 PREVIEW_LIMIT = 4
-RESOURCE_KINDS = ("document", "passport", "template", "theme")
+RESOURCE_KINDS = (
+    "document", "asset", "template", "theme", "passport", "credential",
+)
 # These are the currently established institutional owners, not a claim
 # that every kind of corporate document has a canonical Makolo owner.
 RESOURCE_COVERAGE = {
     "state": "partial",
-    "owners": ["space_assets.documents", "sharing.passport", "presentations.library"],
+    "owners": [
+        "space_assets.documents",
+        "presentations.assets",
+        "presentations.library",
+        "sharing.passport",
+        "trust.credentials",
+    ],
 }
 
 
@@ -35,13 +47,12 @@ def can_view_space_resources(*, profile, space):
 
 def _families(space, profile):
     manager = can_manage_documents(profile, space)
+    trust_manager = can(profile, PermissionCode.SPACE_TRUST_MANAGE, space=space)
     return {
         "document": visible_documents(actor=profile, space=space).order_by("-updated_at", "-pk"),
-        "passport": (
-            PassportSnapshot.objects.filter(
-                space=space, revoked_at__isnull=True,
-            ).order_by("-generated_at", "-pk")
-            if manager else PassportSnapshot.objects.none()
+        "asset": (
+            PresentationAsset.objects.filter(owner_space=space).order_by("-created_at", "-pk")
+            if manager else PresentationAsset.objects.none()
         ),
         "template": PresentationTemplateVersion.objects.filter(
             template__owner_space=space,
@@ -51,6 +62,16 @@ def _families(space, profile):
             theme__owner_space=space,
             status=VersionStatus.PUBLISHED,
         ).select_related("theme").order_by("-published_at", "-pk"),
+        "passport": (
+            PassportSnapshot.objects.filter(
+                space=space, revoked_at__isnull=True,
+            ).order_by("-generated_at", "-pk")
+            if manager else PassportSnapshot.objects.none()
+        ),
+        "credential": (
+            credentials_issued_by_space(space, valid_only=True)
+            if trust_manager else Credential.objects.none()
+        ),
     }
 
 
@@ -67,6 +88,16 @@ def _item(kind, row, *, slug):
             "owner": "space_assets",
             "handoff": f"/space/{slug}/us/documents/{row.pk}",
         }
+    if kind == "asset":
+        return {
+            "kind": kind,
+            "id": str(row.pk),
+            "title": "Média de présentation",
+            "detail": "Image appartenant à cet Espace",
+            "issued_at": row.created_at.isoformat(),
+            "owner": "presentations",
+            "handoff": None,
+        }
     if kind == "passport":
         return {
             "kind": kind,
@@ -76,6 +107,16 @@ def _item(kind, row, *, slug):
             "issued_at": row.generated_at.isoformat(),
             "owner": "sharing",
             "handoff": f"/space/{slug}/us/passport",
+        }
+    if kind == "credential":
+        return {
+            "kind": kind,
+            "id": str(row.pk),
+            "title": row.title,
+            "detail": "Titre institutionnel émis par cet Espace",
+            "issued_at": row.issued_at.isoformat(),
+            "owner": "trust",
+            "handoff": None,
         }
     subject = row.template if kind == "template" else row.theme
     return {
@@ -112,7 +153,7 @@ def build_space_us_resources_projection(
         # One preview per actual owner family prevents many Passport
         # revisions from drowning out reusable institutional resources.
         items = []
-        for name in ("document", "template", "theme", "passport"):
+        for name in ("document", "asset", "template", "theme", "passport", "credential"):
             items.extend(
                 _item(name, row, slug=space.slug)
                 for row in families[name][:1]
