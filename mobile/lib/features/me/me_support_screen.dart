@@ -156,13 +156,13 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
     if (actor is SpaceActorContext) {
       final workspace = widget.runtime.space;
-      final authorized = workspace != null &&
+      final authorized =
+          workspace != null &&
           await workspace.hasAcquiredSpaceContext(actor.space);
       if (!_current(generation, actor)) return;
       if (!authorized) {
         for (final family in families) {
-          await store.deleteProjection('appuis.' + family,
-              resourceKey: _scope);
+          await store.deleteProjection('appuis.' + family, resourceKey: _scope);
         }
         if (_current(generation, actor)) {
           setState(() {
@@ -278,13 +278,13 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       if (value is Map) {
         return <String, dynamic>{
           for (final entry in value.entries)
-            if (entry.key != 'benefit_code' &&
-                entry.key != 'promotion_code')
+            if (entry.key != 'benefit_code' && entry.key != 'promotion_code')
               entry.key.toString(): clean(entry.value),
         };
       }
       return value;
     }
+
     return clean(payload) as Map<String, dynamic>;
   }
 
