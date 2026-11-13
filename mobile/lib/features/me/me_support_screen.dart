@@ -84,8 +84,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         final store = widget.runtime.store;
         if (store != null) {
           for (final family in families) {
-            unawaited(store.deleteProjection('appuis.' + family,
-                resourceKey: 'personal'));
+            unawaited(
+              store.deleteProjection(
+                'appuis.' + family,
+                resourceKey: 'personal',
+              ),
+            );
           }
         }
       } else if (_denied) {
@@ -104,8 +108,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       widget.runtime.actorContext?.addListener(_actorChanged);
       _bindPersonalSource();
       _generation++;
-      _actor = widget.runtime.actorContext?.value ??
-          const PersonalActorContext();
+      _actor =
+          widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _snapshots.clear();
       _denied = false;
       unawaited(_load());
@@ -171,7 +175,11 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final api = widget.runtime.api;
     final store = widget.runtime.store;
-    if (_denied || _busy || api == null || store == null || !_current(generation, actor))
+    if (_denied ||
+        _busy ||
+        api == null ||
+        store == null ||
+        !_current(generation, actor))
       return;
     setState(() => _busy = true);
     try {
@@ -243,7 +251,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
 
   /// Owner datasets stay separate, filtered by this actor's Partner IDs.
   Future<void> _includePartnerActivity(
-      Map<String, dynamic> payload, ActorContext actor, int generation) async {
+    Map<String, dynamic> payload,
+    ActorContext actor,
+    int generation,
+  ) async {
     final api = widget.runtime.api;
     if (api == null) return;
     final ids = _rows(payload['relationships'])
@@ -258,11 +269,14 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       if (!_current(generation, actor)) return;
       try {
         final response = await api.get(
-            'api/v1/partners/' + family + '/' + organization);
+          'api/v1/partners/' + family + '/' + organization,
+        );
         if (!_current(generation, actor)) return;
         final decoded = jsonDecode(response.body);
         if (decoded is! List) continue;
-        payload[family] = decoded.whereType<Map>().map(_map)
+        payload[family] = decoded
+            .whereType<Map>()
+            .map(_map)
             .where((row) => ids.contains(_text(row['partner'])))
             .toList(growable: false);
       } on Object {
@@ -276,10 +290,13 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (campaigns.isNotEmpty && _current(generation, actor)) {
       try {
         final response = await api.get(
-            'api/v1/partners/campaigns/' + organization);
+          'api/v1/partners/campaigns/' + organization,
+        );
         final decoded = jsonDecode(response.body);
         if (decoded is List && _current(generation, actor)) {
-          payload['campaigns'] = decoded.whereType<Map>().map(_map)
+          payload['campaigns'] = decoded
+              .whereType<Map>()
+              .map(_map)
               .where((row) => campaigns.contains(_text(row['id'])))
               .toList(growable: false);
         }
