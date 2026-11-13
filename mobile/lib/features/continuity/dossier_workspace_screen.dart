@@ -1558,37 +1558,53 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     );
   }
 
+  /// A single compact info icon beside the status, not a footer section.
   Widget _dossierInformation(Map<String, dynamic> data) {
     final created = _parse(data['created_at']);
     final updated = _parse(data['updated_at']);
     if (created == null && updated == null) {
       return const SizedBox.shrink();
     }
-    return ExpansionTile(
-      key: const PageStorageKey<String>('dossier-information'),
-      leading: const Icon(Icons.info_outline_rounded),
-      title: const Text(
-        'Informations du Dossier',
-        style: TextStyle(fontWeight: FontWeight.w700),
+    return IconButton(
+      tooltip: 'Informations du Dossier',
+      icon: const Icon(Icons.info_outline_rounded, size: 21),
+      onPressed: () => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Informations du Dossier',
+                    style: Theme.of(sheet).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (created != null)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.add_circle_outline_rounded),
+                    title: const Text('Créé le'),
+                    subtitle: Text(_dateLabel(sheet, created.toLocal())),
+                  ),
+                if (updated != null && updated != created)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.update_rounded),
+                    title: const Text('Mis à jour le'),
+                    subtitle: Text(_dateLabel(sheet, updated.toLocal())),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
-      shape: const Border(),
-      collapsedShape: const Border(),
-      children: [
-        if (created != null)
-          ListTile(
-            dense: true,
-            leading: const Icon(Icons.add_circle_outline_rounded),
-            title: const Text('Créé le'),
-            subtitle: Text(_dateLabel(context, created.toLocal())),
-          ),
-        if (updated != null && updated != created)
-          ListTile(
-            dense: true,
-            leading: const Icon(Icons.update_rounded),
-            title: const Text('Mis à jour le'),
-            subtitle: Text(_dateLabel(context, updated.toLocal())),
-          ),
-      ],
     );
   }
 
