@@ -1218,7 +1218,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         : 0;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -1226,11 +1226,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           borderRadius: BorderRadius.circular(18),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 7, 12, 12),
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 7),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ListTile(
+                dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
                   Icons.people_outline_rounded,
@@ -1312,7 +1313,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 ),
               if (canAssign || canGrant)
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 2),
                   child: Wrap(
                     spacing: 7,
                     runSpacing: 3,
@@ -1374,8 +1375,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
-                vertical: 9,
+                vertical: 2,
               ),
+              dense: true,
               leading: Icon(Icons.bolt_rounded, color: scheme.primary),
               title: const Text(
                 'À faire maintenant',
@@ -1390,36 +1392,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   : null,
             ),
           ),
-        const SizedBox(height: 10),
-        _controls(data),
         _collaboration(data),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Icon(Icons.route_outlined, color: scheme.primary),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                'Démarches',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ),
-            if (_cap(data, 'dossier.journey.link') && items.isNotEmpty)
-              IconButton(
-                tooltip: 'Lier une démarche',
-                icon: const Icon(Icons.add_link_rounded),
-                onPressed: _canMutate ? () => _link(data) : null,
-              ),
-            if (items.isNotEmpty)
-              TextButton.icon(
-                onPressed: () => _selectMode(_DossierMode.list),
-                iconAlignment: IconAlignment.end,
-                icon: const Icon(Icons.chevron_right_rounded),
-                label: const Text('Tout voir'),
-              ),
-          ],
-        ),
+        const SizedBox(height: 6),
+        _journeysHeading(data),
+        const SizedBox(height: 7),
         if (items.isNotEmpty) ...[
           if (complete) ...[
             Text(
@@ -1438,7 +1414,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 backgroundColor: scheme.primaryContainer,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
           ] else
             const Padding(
               padding: EdgeInsets.only(bottom: 12),
@@ -1475,19 +1451,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           for (final item in items.take(3)) _journeyTile(item, compact: true),
         ] else ...[
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(
               !complete
                   ? 'Aucune démarche disponible dans les données acquises.'
                   : 'Aucune démarche visible.',
             ),
           ),
-          if (_cap(data, 'dossier.journey.link'))
-            TextButton.icon(
-              onPressed: _canMutate ? () => _link(data) : null,
-              icon: const Icon(Icons.add_link_rounded),
-              label: const Text('Lier une première démarche'),
-            ),
         ],
         if (dependencies.isNotEmpty) ...[
           const SizedBox(height: 9),
@@ -1540,18 +1510,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ),
         ],
-        if (items.isNotEmpty || dependencies.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Explorer le Dossier',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 10),
-          _tabs(),
-        ],
-        const SizedBox(height: 12),
-        _dossierInformation(data),
         // No fabricated resources, proofs, payments or activity stream.
         // Any future contextual card must come from its canonical owner.
       ],
