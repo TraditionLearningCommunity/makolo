@@ -199,8 +199,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         _busy ||
         api == null ||
         store == null ||
-        !_current(generation, actor))
+        !_current(generation, actor)) {
       return;
+    }
     setState(() => _busy = true);
     try {
       for (final family in families) {
@@ -382,8 +383,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       return null;
     }
     if (row['capabilities'] is! List ||
-        !(row['capabilities'] as List).contains(name))
+        !(row['capabilities'] as List).contains(name)) {
       return null;
+    }
     final raw = _map(row['links'])[name];
     if (raw is! String) return null;
     final uri = Uri.tryParse(raw);
@@ -396,13 +398,15 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       return null;
     }
     if (!uri.path.startsWith('/api/v1/' + family + '/') ||
-        !uri.path.endsWith('/'))
+        !uri.path.endsWith('/')) {
       return null;
+    }
     if (family == 'recognition') {
       if (_space) {
         final id = (_actor as SpaceActorContext).space.id;
-        if (!uri.path.startsWith('/api/v1/recognition/spaces/' + id + '/'))
+        if (!uri.path.startsWith('/api/v1/recognition/spaces/' + id + '/')) {
           return null;
+        }
       } else if (uri.path.contains('/spaces/')) {
         return null;
       }
