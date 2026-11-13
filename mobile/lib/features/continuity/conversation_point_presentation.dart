@@ -29,6 +29,7 @@ class ConversationPointShell extends StatelessWidget {
   final String? representedSpaceLabel;
   final DateTime? publishedAt;
   final Widget? statusIcon;
+
   /// Small secondary controls aligned with the author, not a separate row.
   final Widget? headerActions;
   final Widget child;

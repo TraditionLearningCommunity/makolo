@@ -3164,15 +3164,14 @@ class _PointCardState extends State<_PointCard> {
                   final selected = multiple
                       ? _choices.contains(option.id)
                       : point
-                          .selectedOptionsForScope(widget.representedSpaceId)
-                          .contains(option.id);
+                            .selectedOptionsForScope(widget.representedSpaceId)
+                            .contains(option.id);
                   final count = point.pollCountFor(option.id) ?? 0;
                   final active = canRespond && !widget.readOnly && !_busy;
                   return Material(
                     color: selected
-                        ? Theme.of(context).colorScheme.primary.withValues(
-                            alpha: 0.08,
-                          )
+                        ? Theme.of(context).colorScheme.primary
+                              .withValues(alpha: 0.08)
                         : Theme.of(context).colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(10),
                     child: Column(
@@ -3238,7 +3237,9 @@ class _PointCardState extends State<_PointCard> {
                               horizontal: MakoloSpacing.sm,
                             ),
                             child: ConversationMediaGroup(
-                              key: Key('conversation-option-media-${option.id}'),
+                              key: Key(
+                                'conversation-option-media-${option.id}',
+                              ),
                               repository: widget.repository,
                               attachments: option.attachments,
                             ),
