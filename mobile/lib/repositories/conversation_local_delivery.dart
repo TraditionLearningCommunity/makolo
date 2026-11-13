@@ -29,13 +29,14 @@ class ConversationTransfer {
 }
 
 class _ConversationMediaOwner implements FileOwnerTransfer {
-  _ConversationMediaOwner(this.send, this.cancelHandle);
+  _ConversationMediaOwner(this.send, this.cancelHandle, {this.requireResponseId = false});
   final Future<ApiResponse> Function(
     StoredLocalFile file,
     FileTransferProgress? progress,
   )
   send;
   final MakoloCancelHandle cancelHandle;
+  final bool requireResponseId;
   ApiResponse? response;
   @override
   Future<FileTransferReceipt> upload({
@@ -47,6 +48,7 @@ class _ConversationMediaOwner implements FileOwnerTransfer {
     return FileTransferReceipt(
       confirmed:
           ack['point_id'] is String &&
+          (!requireResponseId || ack['response_id'] is String) &&
           (ack['attachment'] is Map ||
               (ack['status'] == 'confirmed' &&
                   ack['removed'] == true &&
@@ -186,6 +188,7 @@ class ConversationLocalDelivery {
     required Map<String, Object?> fields,
     required List<MakoloUploadFile> files,
     String? fileId,
+    bool requireResponseId = false,
   }) async {
     final cancel = MakoloCancelHandle();
     _transferCancels[reference] = cancel;
@@ -228,6 +231,7 @@ class ConversationLocalDelivery {
           onProgress: onProgress,
         ),
         cancel,
+        requireResponseId: requireResponseId,
       );
       final result = await FileTransferCoordinator(store).transferToOwner(
         fileId: fileId,
@@ -637,6 +641,7 @@ class ConversationLocalDelivery {
         operation.intentId,
         'api/v1/conversations/points/$pointId/reply-media/',
         fileId: payload['local_file_id']?.toString(),
+        requireResponseId: true,
         fields: {
           'client_reference': operation.intentId,
           'kind': kind,
