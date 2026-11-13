@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../app/runtime/actor_context.dart';
 import '../../design/action_controls.dart';
 import '../../network/api_error.dart';
 
@@ -35,10 +36,13 @@ class ServiceStartScreen extends StatefulWidget {
     super.key,
     required this.runtime,
     required this.serviceId,
+    this.space,
   });
 
   final AppRuntime runtime;
   final String serviceId;
+  /// Explicitly selected applicant Space. Never inferred from the API body.
+  final SpaceActorIdentity? space;
 
   @override
   State<ServiceStartScreen> createState() => _ServiceStartScreenState();
@@ -62,7 +66,17 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
 
   String get _interactionId =>
       'services.start:${widget.runtime.session?.profileId ?? 'guest'}:'
-      '${widget.serviceId}';
+      '${widget.space?.id ?? 'personal'}:${widget.serviceId}';
+
+  bool get _actorValid {
+    if (widget.space == null) return true;
+    final context = widget.runtime.actorContext?.value;
+    return context is SpaceActorContext && context.space == widget.space;
+  }
+
+  String get _startPath => widget.space == null
+      ? 'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/'
+      : 'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.space!.slug)}/beneficiary/services/${Uri.encodeComponent(widget.serviceId)}/start/';
 
   Future<void> _initialize() async {
     if (widget.runtime.isAuthenticated && widget.runtime.interactions != null) {
@@ -114,9 +128,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Session unavailable');
-      final response = await api.get(
-        'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/',
-      );
+      if (!_actorValid) throw StateError('Selected Space changed');
+      final response = await api.get(_startPath);
       final body = response.jsonObject();
       final requirements = body['requirements'];
       final representation = body['representation'];
@@ -166,9 +179,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     setState(() => _searchingOpportunities = true);
     try {
       final query = Uri.encodeQueryComponent(_opportunitySearch.text.trim());
-      final response = await widget.runtime.api!.get(
-        'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/?q=$query',
-      );
+      if (!_actorValid) return;
+      final response = await widget.runtime.api!.get('$_startPath?q=$query');
       final choices = response.jsonObject()['opportunities'];
       final results = choices is Map ? choices['results'] : null;
       if (results is! List) throw const FormatException('Invalid choices');
@@ -218,7 +230,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   }
 
   Future<void> _start() async {
-    if (_loading || _submitting || _requirements == null) return;
+    if (_loading || _submitting || _requirements == null || !_actorValid) return;
     if (_requirements!['opportunity_required'] == true &&
         _selectedOpportunity == null) {
       return;
@@ -246,7 +258,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       // the same key and payload as soon as transport dispatch begins.
       requestDispatched = true;
       final response = await api.post(
-        'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/',
+        _startPath,
         headers: {'Idempotency-Key': _operationKey},
         body: {
           'objective': _objective.text.trim(),
@@ -264,7 +276,13 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       if (store != null) {
         unawaited(store.clear(_interactionId).catchError((Object _) {}));
       }
-      context.push('/journeys/${journey['id']}');
+      if (widget.space == null) {
+        context.push('/journeys/${journey['id']}');
+      } else if (_actorValid) {
+        context.push(
+          '/space/${Uri.encodeComponent(widget.space!.slug)}/beneficiary/journeys/${journey['id']}',
+        );
+      }
     } on MakoloApiError catch (error) {
       if (!mounted) return;
       switch (classifyServiceStartFailure(error)) {
@@ -343,7 +361,14 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     final needsOpportunity = _requirements?['opportunity_required'] == true;
     return Scaffold(
       appBar: AppBar(title: Text(_serviceTitle ?? 'Commencer')),
-      body: ListView(
+      body: !_actorValid
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Sélectionnez de nouveau cet Espace pour poursuivre la demande.'),
+              ),
+            )
+          : ListView(
         padding: const EdgeInsets.all(20),
         children: [
           if (_loading)
@@ -356,6 +381,24 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
               appearance: MakoloActionAppearance.secondary,
             )
           else ...[
+            if (widget.space != null) ...[
+              Text(
+                'Demande au nom de l’Espace sélectionné',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 12),
+            ] else if (widget.runtime.actorContext?.value
+                case SpaceActorContext(:final space)) ...[
+              MakoloActionButton(
+                label: 'Commencer au nom de cet Espace',
+                icon: Icons.business_rounded,
+                appearance: MakoloActionAppearance.secondary,
+                onPressed: () => context.push(
+                  '/space/${Uri.encodeComponent(space.slug)}/services/${Uri.encodeComponent(widget.serviceId)}/start',
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_serviceSummary != null) ...[
               Text(_serviceSummary!),
               const SizedBox(height: 16),
