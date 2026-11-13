@@ -300,10 +300,7 @@ void main() {
     expect(find.text('Formation pratique'), findsOneWidget);
     expect(find.text('Session finale'), findsOneWidget);
     expect(find.byTooltip('Vérifier'), findsNothing);
-    expect(
-      find.byTooltip('Partager le lien de vérification'),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Partager le lien de vérification'), findsOneWidget);
     expect(find.text('Passeport'), findsOneWidget);
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
@@ -390,10 +387,7 @@ void main() {
     expect(find.text('Formation terminée.'), findsOneWidget);
     expect(find.text('Titre remplacé'), findsOneWidget);
     expect(find.byTooltip('Vérifier'), findsNothing);
-    expect(
-      find.byTooltip('Partager le lien de vérification'),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Partager le lien de vérification'), findsOneWidget);
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());

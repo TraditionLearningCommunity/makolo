@@ -471,9 +471,7 @@ void main() {
             },
           ],
         },
-        'links': {
-          'add_version': '/api/v1/me/resources/asset-1/versions/',
-        },
+        'links': {'add_version': '/api/v1/me/resources/asset-1/versions/'},
       },
     );
 
