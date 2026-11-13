@@ -9,7 +9,6 @@ import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../network/api_error.dart';
-import '../questionnaires/questionnaire_form_screen.dart';
 import 'journey_artifact_repository.dart';
 
 /// A Journey with a Space beneficiary is not a personal /me Journey and not
@@ -273,6 +272,7 @@ class _SpaceBeneficiaryJourneyScreenState
                           onTap: form['link'] is String
                               ? () => context.push(
                                   '/space/${Uri.encodeComponent(widget.space.slug)}/beneficiary/journeys/${widget.journeyId}/forms/${form['id']}',
+                                  extra: form,
                                 )
                               : null,
                         ),
