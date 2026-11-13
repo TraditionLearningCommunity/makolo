@@ -154,10 +154,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         ? actor.space.id
         : null;
     Stream<StoredLocalDraft?>? watchDraft(String kind) => widget.drafts?.watch(
-          owner: 'Objectives',
-          resourceKind: 'objective.creation',
-          resourceId: '$kind:${spaceId ?? 'personal'}',
-        );
+      owner: 'Objectives',
+      resourceKind: 'objective.creation',
+      resourceId: '$kind:${spaceId ?? 'personal'}',
+    );
     _dossierDrafts = watchDraft('dossier');
     _projectDrafts = watchDraft('project');
   }
@@ -691,7 +691,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       final state = draft?.payload['submission_state'];
       final pending = state == 'verification_required';
       final confirmed = state == 'confirmed';
-      final editing = state == 'editing' &&
+      final editing =
+          state == 'editing' &&
           (draft?.payload['title']?.toString().trim().isNotEmpty ?? false);
       final hasDraft = pending || confirmed || editing;
       final primary = kind == 'dossier';
