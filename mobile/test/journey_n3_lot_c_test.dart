@@ -166,7 +166,11 @@ void main() {
     await tester.pumpWidget(_journey('journey-one', repo));
     await tester.pumpAndSettle();
     expect(find.text('Recevoir mon badge'), findsOneWidget);
-    expect(find.text('Démarche réalisée'), findsOneWidget);
+    // The cover is the one source of terminal status; no second status card
+    // or empty preparation surface should restate it below.
+    expect(find.text('Réalisée'), findsOneWidget);
+    expect(find.text('Démarche réalisée'), findsNothing);
+    expect(find.text('Ma préparation'), findsNothing);
     expect(find.text('Pour avancer'), findsNothing);
   });
 
