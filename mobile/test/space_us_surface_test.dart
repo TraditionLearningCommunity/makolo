@@ -708,9 +708,7 @@ void main() {
     expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
     expect(find.byKey(const Key('space-us-edit-passport')), findsOneWidget);
   });
-  testWidgets('Nous hides a zero Resource count in grid mode', (
-    tester,
-  ) async {
+  testWidgets('Nous hides a zero Resource count in grid mode', (tester) async {
     final projection = _projection();
     (projection['resources'] as Map<String, dynamic>)['count'] = 0;
     (projection['resources'] as Map<String, dynamic>)['items'] = <Object>[];
