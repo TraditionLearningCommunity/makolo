@@ -289,12 +289,7 @@ void main() {
             'visibility': 'visible',
             'kind': 'document',
             'count': 2,
-            'counts': {
-              'document': 2,
-              'passport': 1,
-              'template': 1,
-              'theme': 0,
-            },
+            'counts': {'document': 2, 'passport': 1, 'template': 1, 'theme': 0},
             'total_count': 4,
             'items': <Object>[],
             'has_more': false,
