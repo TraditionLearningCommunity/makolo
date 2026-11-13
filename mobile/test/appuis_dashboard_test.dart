@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/me/appuis_dashboard.dart';
 
 Map<String, dynamic> account(String id, String name, {int points = 0}) => {
-  'id': 'account-' + id,
+  'id': 'account-$id',
   'program': id,
   'program_name': name,
-  'organization_name': 'Collectif ' + id,
+  'organization_name': 'Collectif $id',
   'points_balance': points,
   'points_name': 'points',
 };
