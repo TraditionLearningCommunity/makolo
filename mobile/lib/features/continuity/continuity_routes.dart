@@ -11,11 +11,21 @@ import 'conversation_screens.dart';
 import 'conversation_details_screen.dart';
 import 'conversation_history_screen.dart';
 import 'history_screen.dart';
+import '../me/me_support_screen.dart';
 import 'dossier_workspace_screen.dart';
 import 'dossier_people_screen.dart';
 import 'project_workspace_screen.dart';
 
 List<RouteBase> continuityRoutes(AppRuntime runtime) => [
+  GoRoute(
+    path: '/appuis',
+    builder: (context, state) => runtime.api == null || runtime.store == null
+        ? const MakoloSecondaryScreen(
+            title: 'Appuis',
+            message: 'Les appuis sont momentanément indisponibles.',
+          )
+        : MeSupportScreen(runtime: runtime),
+  ),
   GoRoute(
     path: '/conversations',
     builder: (context, state) {
