@@ -168,7 +168,11 @@ def submit_requirement_evidence(*, assessment, artifact, actor):
     ).get(pk=assessment.pk)
     if assessment.requirement.revision_id != assessment.context.opportunity_revision_id:
         raise ValidationError("Une preuve ne peut être ajoutée qu’aux Requirements de la révision actuellement pinnée.")
-    if not is_beneficiary(actor, assessment.context.journey):
+    from .space_beneficiary import can_act_for_space_service_journey
+
+    if not is_beneficiary(actor, assessment.context.journey) and not can_act_for_space_service_journey(
+        actor, assessment.context.journey,
+    ):
         ensure_case_access(actor, assessment.context.journey, write=True)
     if artifact.journey_id != assessment.context.journey_id:
         raise PermissionDenied("Cette pièce n’appartient pas au dossier Services.")
