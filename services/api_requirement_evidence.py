@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from journeys.collaboration_models import JourneyArtifactStatus
 from journeys import collaboration_services
 from journeys.models import Journey, WorkflowKind
 from .models import ServiceRequirementAssessment, ServiceRequirementEvidence
@@ -58,6 +59,10 @@ class ServiceRequirementEvidenceAPIView(APIView):
         )
         if artifact is None:
             raise NotFound()
+        if artifact.status == JourneyArtifactStatus.SUPERSEDED:
+            raise ValidationError({
+                "artifact_id": "Cette version a été remplacée. Utilisez la version actuelle.",
+            })
         try:
             evidence = submit_requirement_evidence(
                 assessment=assessment, artifact=artifact, actor=request.user,
