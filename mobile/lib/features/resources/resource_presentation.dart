@@ -300,6 +300,7 @@ class ResourceCollectionScaffold extends StatelessWidget {
       ),
     ),
   );
+}
 
 class ResourceDocumentHeader extends StatelessWidget {
   const ResourceDocumentHeader({
@@ -426,4 +427,3 @@ class ResourceVersionCard extends StatelessWidget {
   );
 }
 
-}
