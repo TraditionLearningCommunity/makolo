@@ -37,8 +37,10 @@ void main() {
     const journeyId = 'journey-1';
     await p1.putProjection(
       kind: SpaceBeneficiaryJourneyRepository.projectionKind,
-      resourceKey:
-          SpaceBeneficiaryJourneyRepository.resourceKey(first, journeyId),
+      resourceKey: SpaceBeneficiaryJourneyRepository.resourceKey(
+        first,
+        journeyId,
+      ),
       schemaVersion: 1,
       payload: const {
         'identity': {
@@ -52,24 +54,30 @@ void main() {
     expect(
       await p1.readProjection(
         SpaceBeneficiaryJourneyRepository.projectionKind,
-        resourceKey:
-            SpaceBeneficiaryJourneyRepository.resourceKey(first, journeyId),
+        resourceKey: SpaceBeneficiaryJourneyRepository.resourceKey(
+          first,
+          journeyId,
+        ),
       ),
       isNotNull,
     );
     expect(
       await p1.readProjection(
         SpaceBeneficiaryJourneyRepository.projectionKind,
-        resourceKey:
-            SpaceBeneficiaryJourneyRepository.resourceKey(second, journeyId),
+        resourceKey: SpaceBeneficiaryJourneyRepository.resourceKey(
+          second,
+          journeyId,
+        ),
       ),
       isNull,
     );
     expect(
       await p2.readProjection(
         SpaceBeneficiaryJourneyRepository.projectionKind,
-        resourceKey:
-            SpaceBeneficiaryJourneyRepository.resourceKey(first, journeyId),
+        resourceKey: SpaceBeneficiaryJourneyRepository.resourceKey(
+          first,
+          journeyId,
+        ),
       ),
       isNull,
     );
