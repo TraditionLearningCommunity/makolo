@@ -49,7 +49,8 @@ def _category_allowed(preferences, category: str, *, channel: str) -> bool:
 
 _EXTERNAL_TEMPLATE_KEYS = frozenset({
     "conversation.entry.message", "conversation.entry.mention", "conversation.entry.reply",
-    "journey.payment.required", "access.issued",
+    "journey.payment.required", "journey.request.rejected",
+    "access.issued", "access.revoked",
     "occurrence.cancelled", "occurrence.rescheduled",
     "conversation.point.action_required", "conversation.point.escalation",
     "form.requested", "form.reopened",
