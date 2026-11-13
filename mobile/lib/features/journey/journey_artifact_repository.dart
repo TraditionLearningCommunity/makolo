@@ -152,6 +152,7 @@ class SpaceBeneficiaryJourneyRepository {
         if (meta is! Map ||
             meta['projection'] != projectionKind ||
             meta['schema_version'] != 1 ||
+            meta['scope'] != 'space' ||
             payload is! Map<String, dynamic> ||
             identity is! Map ||
             identity['kind'] != 'journey' ||
