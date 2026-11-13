@@ -314,12 +314,15 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
           onPressed: () => _load(),
           icon: Icons.refresh_rounded,
         ),
-      ] else if (_loading && _documents.isEmpty)
+        if (_documents.isNotEmpty)
+          const SizedBox(height: MakoloSpacing.md),
+      ],
+      if (_loading && _documents.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
           child: Center(child: CircularProgressIndicator.adaptive()),
         )
-      else if (_documents.isEmpty)
+      else if (_documents.isEmpty && _message == null)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
           child: Center(
