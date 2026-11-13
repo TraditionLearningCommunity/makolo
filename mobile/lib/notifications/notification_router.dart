@@ -35,14 +35,14 @@ class NotificationRouter {
       // The explicit owner UUID remains checked by the destination API.
       if (destination.kind.toLowerCase() == 'conversation' &&
           navigation is Map &&
-          path == '/conversations/' + destination.id) {
+          path == '/conversations/${destination.id}') {
         final pointId = navigation['point_id']?.toString();
         if (pointId != null &&
             pointId.length == 36 &&
             RegExp(
               r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
             ).hasMatch(pointId)) {
-          return path + '?focus=' + Uri.encodeQueryComponent(pointId);
+          return '$path?focus=${Uri.encodeQueryComponent(pointId)}';
         }
       }
       return path;
