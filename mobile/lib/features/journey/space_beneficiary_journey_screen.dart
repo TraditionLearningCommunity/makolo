@@ -765,7 +765,25 @@ class _SpaceBeneficiaryRequirementScreenState
   @override
   void initState() {
     super.initState();
+    widget.runtime.actorContext?.addListener(_actorChanged);
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    widget.runtime.actorContext?.removeListener(_actorChanged);
+    super.dispose();
+  }
+
+  void _actorChanged() {
+    final actor = widget.runtime.actorContext?.value;
+    final selected = actor is SpaceActorContext && actor.space == widget.space;
+    if (!mounted) return;
+    setState(() {
+      _details = null;
+      _error = null;
+    });
+    if (selected) unawaited(_load());
   }
 
   Future<void> _load() async {
