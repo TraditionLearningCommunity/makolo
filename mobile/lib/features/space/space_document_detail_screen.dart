@@ -41,7 +41,6 @@ class SpaceDocumentDetailScreen extends StatefulWidget {
 
 class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   Map<String, dynamic>? _document;
-  List<Map<String, dynamic>> _shares = [];
   bool _canManage = false;
   bool _canUseNetwork = false;
   bool _initializing = true;
@@ -98,7 +97,6 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     if (!mounted) return;
     setState(() {
       _document = null;
-      _shares = [];
       _canManage = false;
       _canUseNetwork = false;
       _initializing = _actor != null;
@@ -633,7 +631,6 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final repository = widget.runtime.space;
     if (actor == null || repository == null) {
       _document = null;
-      _shares = const [];
       _canManage = false;
       _canUseNetwork = false;
       return Scaffold(
@@ -674,20 +671,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                 !sourceState.invalidated;
             final canManage =
                 networkAvailable && payload?['can_manage'] == true;
-            final shares = canManage
-                ? <Map<String, dynamic>>[
-                    for (final raw in payload?['shares'] as List? ?? const [])
-                      if (raw is Map<String, dynamic>)
-                        raw
-                      else if (raw is Map)
-                        raw.map(
-                          (key, value) => MapEntry(key.toString(), value),
-                        ),
-                  ]
-                : const <Map<String, dynamic>>[];
 
             _document = doc;
-            _shares = shares;
             _canManage = canManage;
             _canUseNetwork = networkAvailable;
 
