@@ -2130,18 +2130,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final entry in entries) ...[
-                      if (entry.point.timelineSummary?.isNotEmpty == true)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: MakoloSpacing.inner,
-                            bottom: MakoloSpacing.xs,
-                          ),
-                          child: Text(
-                            entry.point.timelineSummary!,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: muted),
-                          ),
-                        ),
                       _pointWidget(
                         entry.point,
                         readOnly: entry.readOnly,
