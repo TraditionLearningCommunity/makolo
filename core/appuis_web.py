@@ -26,6 +26,7 @@ from partners.selectors import (
     get_payouts_visible_to,
     get_referral_codes_visible_to,
 )
+from recognition.models import RecognitionRedemption
 from recognition.selectors import (
     account_for_profile,
     account_for_space,
@@ -151,10 +152,23 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             recognition_account.ledger_entries.order_by("-created_at", "pk")[:20]
             if recognition_account is not None else ()
         )
-        context["recognition_incoming"] = (
-            redemptions_requiring_beneficiary_response(viewer)[:20]
-            if space is None else ()
-        )
+        if space is None:
+            recognition_incoming = redemptions_requiring_beneficiary_response(
+                viewer
+            )[:20]
+        elif can(
+            viewer, PermissionCode.SPACE_RECOGNITION_SPEND, space=space
+        ):
+            recognition_incoming = (
+                RecognitionRedemption.objects.filter(
+                    beneficiary_space=space,
+                    status="requested",
+                    fulfillment_snapshot__consent_state="pending",
+                ).order_by("created_at", "pk")[:20]
+            )
+        else:
+            recognition_incoming = ()
+        context["recognition_incoming"] = recognition_incoming
         context["recognition_available"] = (
             recognition_account is not None
             or bool(context["recognition_incoming"])
