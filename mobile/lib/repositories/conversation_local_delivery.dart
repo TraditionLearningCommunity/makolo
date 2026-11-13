@@ -73,6 +73,8 @@ class ConversationOutgoing {
     this.retryScheduled = false,
     this.remotePointId,
     this.pointId,
+    this.representedSpaceId,
+    this.responseValue,
     this.mediaKind,
     this.filename,
     this.localFilePath,
@@ -91,6 +93,8 @@ class ConversationOutgoing {
   final bool retryScheduled;
   final String? remotePointId;
   final String? pointId;
+  final String? representedSpaceId;
+  final Object? responseValue;
   final String? mediaKind;
   final String? filename;
   final String? localFilePath;
@@ -359,6 +363,7 @@ class ConversationLocalDelivery {
     String? formVersionId,
     List<String>? questions,
     String? pointId,
+    Object? responseValue,
     String? replyToId,
     List<String>? mentionProfileIds,
     List<Map<String, dynamic>>? references,
@@ -371,8 +376,12 @@ class ConversationLocalDelivery {
     List<Map<String, dynamic>>? semanticMedia,
   }) async {
     if (conversationId.trim().isEmpty ||
-        !{'text', 'point', 'form', 'media', 'semantic_media'}.contains(mode)) {
+        !{'text', 'point', 'form', 'media', 'semantic_media', 'response'}.contains(mode)) {
       throw ArgumentError('Unsupported conversation composition');
+    }
+    if (mode == 'response' &&
+        ((pointId ?? '').isEmpty || responseValue == null)) {
+      throw ArgumentError('A Point and a response value are required');
     }
     final reference = _reference();
     final deviceId = await tokens.deviceInstanceId();
@@ -413,6 +422,7 @@ class ConversationLocalDelivery {
       'form_version_id': ?formVersionId,
       'questions': ?questions,
       'point_id': ?pointId,
+      'value': ?responseValue,
       'reply_to_id': ?replyToId,
       'mention_profile_ids': ?mentionProfileIds,
       'references': ?references,
@@ -504,7 +514,11 @@ class ConversationLocalDelivery {
     return ConversationOutgoing(
       reference: row.intentId,
       pointId: payload['point_id']?.toString(),
-      kind: mode == 'form'
+      representedSpaceId: payload['represented_space_id']?.toString(),
+      responseValue: payload['value'],
+      kind: mode == 'response'
+          ? 'response'
+          : mode == 'form'
           ? 'form_request'
           : mode == 'media'
           ? payload['point_kind']?.toString() ?? 'information'
@@ -559,11 +573,32 @@ class ConversationLocalDelivery {
     final mode = payload['mode']?.toString() ?? '';
     if (conversationId.isEmpty ||
         operation.resourceId != conversationId ||
-        !{'text', 'point', 'form', 'media', 'semantic_media'}.contains(mode)) {
+        !{'text', 'point', 'form', 'media', 'semantic_media', 'response'}.contains(mode)) {
       return OutboxResolution.conflict;
     }
     final Map<String, dynamic> confirmed;
-    if (mode == 'semantic_media') {
+    if (mode == 'response') {
+      final pointId = payload['point_id']?.toString() ?? '';
+      if (pointId.isEmpty || !payload.containsKey('value') ||
+          payload['value'] == null) {
+        return OutboxResolution.conflict;
+      }
+      final response = await api.post(
+        'api/v1/conversations/points/$pointId/respond/',
+        body: {
+          'value': payload['value'],
+          'client_reference': operation.intentId,
+          'represented_space_id': payload['represented_space_id'],
+        },
+        headers: {'X-Makolo-Profile': profileId},
+      );
+      confirmed = response.jsonObject();
+      if (confirmed['point_id']?.toString() != pointId ||
+          confirmed['id'] == null ||
+          !{'active', 'superseded'}.contains(confirmed['status'])) {
+        return OutboxResolution.awaitingConfirmation;
+      }
+    } else if (mode == 'semantic_media') {
       final raw = payload['semantic_media'];
       if (raw is! List || raw.isEmpty || raw.length > 24) {
         return OutboxResolution.conflict;
