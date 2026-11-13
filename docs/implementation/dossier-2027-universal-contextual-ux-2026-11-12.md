@@ -190,3 +190,43 @@ Recette Android sur les mêmes données :
 Ne pas présumer les tests verts : ils restent à exécuter sur un
 environnement Flutter/Django équipé. Ne pas fusionner #522 sans validation
 fonctionnelle et contrôles de sécurité pertinents.
+
+## Ajustements de recette du 13 novembre 2026 — Dossier compact
+
+Les captures Android ont confirmé des espacements excessifs, une hiérarchie
+des commandes inadaptée et la duplication des contrôles de navigation.
+La correction conserve un seul écran Dossier et le propriétaire serveur.
+
+- Densité : espaces de liste réduits, identité plus compacte, lien
+  Projet parent sur une seule ligne, sans grand bouton.
+- Échanger : icône en haut à droite du titre Dossier, pas dans la topbar.
+  Le tooltip précise « Échanger autour du Dossier » ; la décision de
+  Conversations continue à déterminer si l'action est disponible.
+- Menu contextuel : Modifier, Ajouter un prérequis, Rattachement au Projet,
+  Changer l'état sont regroupés dans les trois points de l'AppBar.
+  Le menu flottant au milieu de la page est supprimé.
+- Informations : icône en haut, à côté des statuts, ouvrant une feuille
+  avec les dates de création/modification réellement connues.
+- Démarches : sélecteur de vues iconographique intégré à son en-tête.
+  Le libellé « Explorer le Dossier » n'est plus affiché.
+  Sur écran étroit, les icônes s'alignent en dessous à droite ;
+  sur grand écran, elles partagent la ligne du titre.
+- Lier : libellé court sur bouton tonal compact avec icône. La longue
+  description reste disponible via le tooltip et l'accessibilité.
+  La capacité dossier.journey.link et la confirmation serveur restent
+  nécessaires pour agir.
+- État vide : la liaison est proposée une seule fois, sans grand bouton
+  supplémentaire ni contrôles de vues inutiles.
+
+Test ajouté : mobile/test/dossier_compact_layout_test.dart.
+
+Tests de contrôle local à exécuter :
+
+    cd mobile
+    flutter test test/dossier_compact_layout_test.dart
+    flutter test test/dossier_2027_overview_test.dart
+    flutter test test/dossier_2027_contextual_test.dart
+    flutter analyze
+
+Ce document décrit l'implémentation, pas une exécution attestée de tests
+Flutter ou une validation du rendu sur Samsung/émulateur.
