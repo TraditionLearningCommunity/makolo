@@ -173,12 +173,7 @@ void main() {
       payload: {
         'actor': {'type': 'profile', 'id': 'current'},
         'actor_context': {'kind': 'personal'},
-        'page': {
-          'offset': 0,
-          'limit': 50,
-          'next_offset': 0,
-          'has_more': false,
-        },
+        'page': {'offset': 0, 'limit': 50, 'next_offset': 0, 'has_more': false},
         'items': <Object>[],
       },
     );
@@ -200,5 +195,4 @@ void main() {
     expect(resumed, 'dossier');
     expect(await db.select(db.outboxOperations).get(), isEmpty);
   });
-
 }
