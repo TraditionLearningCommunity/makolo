@@ -8,13 +8,45 @@
     <a href="{% url 'core:participant-me' %}">Moi</a><span>/</span>
     <a href="{% url 'objectives:organizer' %}{{ scope_query }}">Mes démarches</a><span>/</span>
     <span aria-current="page">Projet</span>
+    {% if can_manage %}
+      <details class="mk-project__top-menu" data-project-top-menu>
+        <summary aria-label="Actions du Projet" title="Actions du Projet">
+          <i data-lucide="ellipsis-vertical" aria-hidden="true"></i>
+        </summary>
+        <div class="mk-project__top-menu-items">
+          {% if link_form %}
+            <button type="button" data-dialog-open="project-link">
+              <i data-lucide="folder-open" aria-hidden="true"></i>
+              Rattacher un dossier
+            </button>
+          {% endif %}
+          {% if edit_form %}
+            <button type="button" data-dialog-open="project-edit">
+              <i data-lucide="pencil" aria-hidden="true"></i>
+              Modifier le Projet
+            </button>
+          {% endif %}
+          {% if lifecycle_form %}
+            <button type="button" data-dialog-open="project-lifecycle">
+              <i data-lucide="refresh-ccw" aria-hidden="true"></i>
+              Changer l’état
+            </button>
+          {% endif %}
+        </div>
+      </details>
+    {% endif %}
   </nav>
   <header class="mk-project__hero">
     <div class="mk-project__identity">
       <span class="mk-project__symbol" aria-hidden="true"><i data-lucide="folder-kanban"></i></span>
       <div>
-        <p class="mk-project__eyebrow">Projet</p>
-        <h1>{{ project.title }}</h1>
+        <div class="mk-project__title-row">
+          <h1>{{ project.title }}</h1>
+          <a class="mk-project__exchange" href="{% url 'conversations:by-context' 'project' project.pk %}"
+             aria-label="Échanger autour du Projet" title="Échanger">
+            <i data-lucide="messages-square" aria-hidden="true"></i>
+          </a>
+        </div>
 
         <div class="mk-project__facts">
           <span>{{ project.get_lifecycle_display }}</span>
@@ -23,35 +55,8 @@
         </div>
       </div>
     </div>
-    <div class="mk-project__hero-actions">
-      <a class="mk-project__quiet mk-action-button" data-variant="ghost" href="{% url 'conversations:by-context' 'project' project.pk %}">
-        <i data-lucide="messages-square" aria-hidden="true"></i> Échanges
-      </a>
-      {% if can_manage %}
-      <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost" data-dialog-open="project-edit">
-        <i data-lucide="pencil" aria-hidden="true"></i> Modifier
-      </button>
-      {% endif %}
-    </div>
   </header>
-  {% if can_manage %}
-  <div class="mk-project__commands" aria-label="Actions du Projet">
-    {% if child_form %}
-      <button type="button" class="mk-project__action mk-project__action--primary mk-action-button" data-variant="primary"
-              data-dialog-open="project-create"><i data-lucide="folder-plus"></i> Créer un dossier</button>
-    {% endif %}
-    {% if link_form %}
-      <button type="button" class="mk-project__action mk-action-button" data-variant="secondary" data-dialog-open="project-link">
-        <i data-lucide="link"></i> Rattacher un dossier
-      </button>
-    {% endif %}
-    {% if lifecycle_form %}
-    <button type="button" class="mk-project__action mk-action-button" data-variant="secondary" data-dialog-open="project-lifecycle">
-      <i data-lucide="circle-dot"></i> Changer l’état
-    </button>
-    {% endif %}
-  </div>
-  {% endif %}
+  <div class="mk-project__view-toolbar">
   <div class="mk-project__view-switch mk-interaction-tabs" role="group" aria-label="Vues Projet">
     <button type="button" data-project-view="overview" aria-pressed="true" aria-label="Synthèse" title="Synthèse">
       <i data-lucide="layout-dashboard" aria-hidden="true"></i>
@@ -62,6 +67,13 @@
     <button type="button" data-project-view="calendar" aria-pressed="false" aria-label="Calendrier" title="Calendrier">
       <i data-lucide="calendar-days" aria-hidden="true"></i>
     </button>
+  </div>
+  {% if child_form %}
+    <button type="button" class="mk-project__create-icon"
+            data-dialog-open="project-create" title="Créer un dossier" aria-label="Créer un dossier">
+      <i data-lucide="folder-plus" aria-hidden="true"></i>
+    </button>
+  {% endif %}
   </div>
   {% if project.description %}
   <section class="mk-project__description" data-project-description
