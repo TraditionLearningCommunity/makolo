@@ -179,8 +179,12 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
             journeyId: state.pathParameters['id']!,
             links: QuestionnaireOwnerLinks(
               detail: detail,
-              save: routes?['save'] is String ? routes!['save'] as String : null,
-              submit: routes?['submit'] is String ? routes!['submit'] as String : null,
+              save: routes?['save'] is String
+                  ? routes!['save'] as String
+                  : null,
+              submit: routes?['submit'] is String
+                  ? routes!['submit'] as String
+                  : null,
             ),
             repository: runtime.questionnaires!,
             drafts: runtime.drafts!,
