@@ -279,7 +279,8 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
         )
         context["recognition_credits"] = recognition_credits
         context["has_recognition_appuis"] = bool(
-            recognition_credits is not None or recognition_cards
+            recognition_credits is not None or recognition_cards or
+            context["recognition_recent"]
         )
         context["has_loyalty_appuis"] = bool(loyalty_cards)
         context["has_partner_appuis"] = bool(partner_rows)
