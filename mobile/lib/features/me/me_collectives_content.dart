@@ -480,9 +480,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final relationship = _row(item)?['relationship'];
     final member = relationship == 'membership';
     return Card(
-      key: Key(
-        'me-collective-${item.destination.kind}-${item.destination.id}',
-      ),
+      key: Key('me-collective-${item.destination.kind}-${item.destination.id}'),
       margin: const EdgeInsets.only(bottom: 8),
       color: scheme.surface,
       shape: RoundedRectangleBorder(
