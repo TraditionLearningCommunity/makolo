@@ -134,17 +134,11 @@ final class SpaceSyncKeys {
 
   static const documentDetailProjectionKind = 'space.document.detail';
 
-  static String documentDetailResourceKey(
-    String spaceId,
-    String documentId,
-  ) =>
+  static String documentDetailResourceKey(String spaceId, String documentId) =>
       '${Uri.encodeComponent(spaceId)}|'
       '${Uri.encodeComponent(documentId)}';
 
-  static String documentDetailSourceKey(
-    String spaceId,
-    String documentId,
-  ) =>
+  static String documentDetailSourceKey(String spaceId, String documentId) =>
       'space:${Uri.encodeComponent(spaceId)}:document:'
       '${Uri.encodeComponent(documentId)}';
 
@@ -326,10 +320,7 @@ final class WorkspaceContextRepository {
       throw ArgumentError.value(documentId, 'documentId', 'must not be empty');
     }
     return SyncSourceDefinition(
-      sourceKey: SpaceSyncKeys.documentDetailSourceKey(
-        space.id,
-        normalizedId,
-      ),
+      sourceKey: SpaceSyncKeys.documentDetailSourceKey(space.id, normalizedId),
       owner: 'SpaceDocument',
       actorScope: SyncActorScope.space(spaceId: space.id),
       path:
@@ -342,10 +333,8 @@ final class WorkspaceContextRepository {
       ),
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: surfaceFreshness,
-      parser: (response) => _parseDocumentDetail(
-        response,
-        expectedDocumentId: normalizedId,
-      ),
+      parser: (response) =>
+          _parseDocumentDetail(response, expectedDocumentId: normalizedId),
       applier: applyProjectionSnapshot,
     );
   }
@@ -478,26 +467,18 @@ final class WorkspaceContextRepository {
   Stream<StoredProjection?> watchDocumentDetail(
     SpaceActorIdentity space,
     String documentId,
-  ) =>
-      store.watchProjection(
-        SpaceSyncKeys.documentDetailProjectionKind,
-        resourceKey: SpaceSyncKeys.documentDetailResourceKey(
-          space.id,
-          documentId,
-        ),
-      );
+  ) => store.watchProjection(
+    SpaceSyncKeys.documentDetailProjectionKind,
+    resourceKey: SpaceSyncKeys.documentDetailResourceKey(space.id, documentId),
+  );
 
   Future<StoredProjection?> readDocumentDetail(
     SpaceActorIdentity space,
     String documentId,
-  ) =>
-      store.readProjection(
-        SpaceSyncKeys.documentDetailProjectionKind,
-        resourceKey: SpaceSyncKeys.documentDetailResourceKey(
-          space.id,
-          documentId,
-        ),
-      );
+  ) => store.readProjection(
+    SpaceSyncKeys.documentDetailProjectionKind,
+    resourceKey: SpaceSyncKeys.documentDetailResourceKey(space.id, documentId),
+  );
 
   Stream<List<StoredProjection>> watchDocumentPages(
     SpaceActorIdentity space, {
@@ -719,7 +700,10 @@ final class WorkspaceContextRepository {
     final source = documentDetailSource(space, documentId);
     final state = await readSource(source);
     if (state.invalidated &&
-        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
       return false;
     }
     final projection = await readDocumentDetail(space, documentId);
@@ -748,8 +732,7 @@ final class WorkspaceContextRepository {
   Future<void> refreshDocumentDetail(
     SpaceActorIdentity space,
     String documentId,
-  ) =>
-      _refresh(documentDetailSource(space, documentId));
+  ) => _refresh(documentDetailSource(space, documentId));
 
   Future<bool> shouldRefreshDocumentPage(
     SpaceActorIdentity space, {

@@ -843,10 +843,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   /// Keep view icons attached to Démarches, never in a separate footer.
   Widget _journeysHeading(Map<String, dynamic> data) {
-    final showViews = _mode != _DossierMode.overview ||
+    final showViews =
+        _mode != _DossierMode.overview ||
         _rows(data['visible_journeys']).isNotEmpty ||
         _rows(data['visible_dependencies']).isNotEmpty;
-    final canLink = _cap(data, 'dossier.journey.link') &&
+    final canLink =
+        _cap(data, 'dossier.journey.link') &&
         (_mode == _DossierMode.overview || _mode == _DossierMode.list);
     final theme = Theme.of(context);
     Widget heading() => Row(

@@ -60,8 +60,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       'api/v1/organizations/workspaces/'
       '${Uri.encodeComponent(widget.slug)}/documents/';
 
-  String get _url =>
-      '$_base${Uri.encodeComponent(widget.documentId)}/';
+  String get _url => '$_base${Uri.encodeComponent(widget.documentId)}/';
 
   @override
   void initState() {
@@ -117,10 +116,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final expectedId = actor.space.id;
     if (mounted) setState(() => _initializing = true);
     try {
-      await repository.ensureDocumentDetail(
-        actor.space,
-        widget.documentId,
-      );
+      await repository.ensureDocumentDetail(actor.space, widget.documentId);
     } on Object {
       // The last acquired owner projection remains readable.
     } finally {
@@ -138,10 +134,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final expectedId = actor.space.id;
     setState(() => _refreshing = true);
     try {
-      await repository.refreshDocumentDetail(
-        actor.space,
-        widget.documentId,
-      );
+      await repository.refreshDocumentDetail(actor.space, widget.documentId);
     } on Object {
       // The last acquired owner projection remains readable.
     } finally {
