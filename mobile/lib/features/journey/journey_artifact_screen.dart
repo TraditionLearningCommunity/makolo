@@ -15,7 +15,6 @@ import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/files/system_file_picker.dart';
 import '../../platform/media/private_media_views.dart';
-import '../../sync/owner_source_state.dart';
 import 'journey_artifact_repository.dart';
 
 /// Native private Journey pieces. The owner API validates every mutation.
