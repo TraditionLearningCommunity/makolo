@@ -115,7 +115,7 @@ class PassportEditorFieldRules {
           RegExp(r'\s').hasMatch(withoutScheme)) {
         return input;
       }
-      return Uri(scheme: 'https').toString() + '//' + withoutScheme;
+      return '${Uri(scheme: 'https')}//$withoutScheme';
     }
     if (key == 'bio' || key == 'address') return input;
     return input.replaceAll(RegExp(r'[ \t]+'), ' ');
