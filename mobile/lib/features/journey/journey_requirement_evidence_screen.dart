@@ -94,7 +94,8 @@ class _JourneyRequirementEvidenceScreenState
         await _repository.store.deleteProjection(
           JourneyArtifactRepository.projectionKind,
           resourceKey: JourneyArtifactRepository.resourceKey(
-            widget.journeyId, space: widget.space,
+            widget.journeyId,
+            space: widget.space,
           ),
         );
         if (mounted) setState(() => _denied = true);
@@ -105,7 +106,9 @@ class _JourneyRequirementEvidenceScreenState
       }
     } on Object {
       if (mounted) {
-        setState(() => _message = 'Les pièces connues restent affichées hors réseau.');
+        setState(
+          () => _message = 'Les pièces connues restent affichées hors réseau.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -191,7 +194,11 @@ class _JourneyRequirementEvidenceScreenState
         ],
       ),
       body: !_actorValid || _denied
-          ? const Center(child: Text('Cette condition n’est plus accessible dans ce contexte.'))
+          ? const Center(
+              child: Text(
+                'Cette condition n’est plus accessible dans ce contexte.',
+              ),
+            )
           : StreamBuilder<StoredProjection?>(
               stream: _repository.watch(widget.journeyId, space: widget.space),
               builder: (context, snapshot) {
@@ -200,8 +207,9 @@ class _JourneyRequirementEvidenceScreenState
                 final pieces = raw is List
                     ? raw.whereType<Map>().toList()
                     : <Map>[];
-                final eligible = pieces.where((item) =>
-                    item['status'] != 'superseded').toList();
+                final eligible = pieces
+                    .where((item) => item['status'] != 'superseded')
+                    .toList();
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
@@ -224,9 +232,11 @@ class _JourneyRequirementEvidenceScreenState
                           trailing: _sending
                               ? const SizedBox.shrink()
                               : const Icon(Icons.send_outlined),
-                          onTap: _sending ? null : () => _propose(
-                            Map<String, dynamic>.from(artifact),
-                          ),
+                          onTap: _sending
+                              ? null
+                              : () => _propose(
+                                  Map<String, dynamic>.from(artifact),
+                                ),
                         ),
                       ),
                     if (eligible.isEmpty)
@@ -239,10 +249,12 @@ class _JourneyRequirementEvidenceScreenState
                       label: 'Ajouter une nouvelle pièce',
                       icon: Icons.attach_file_rounded,
                       appearance: MakoloActionAppearance.secondary,
-                      onPressed: _sending ? null : () async {
-                        await context.push(_artifactsRoute);
-                        if (mounted) await _refresh();
-                      },
+                      onPressed: _sending
+                          ? null
+                          : () async {
+                              await context.push(_artifactsRoute);
+                              if (mounted) await _refresh();
+                            },
                     ),
                   ],
                 );
