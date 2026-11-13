@@ -38,6 +38,8 @@ class JourneyDetailScreen extends StatefulWidget {
     this.resourcesRepository,
     this.onOpenPaymentObligation,
     this.onOpenCommerceOrder,
+    this.onOpenArtifacts,
+    this.onOpenArtifacts,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -58,6 +60,8 @@ class JourneyDetailScreen extends StatefulWidget {
   final PreparationResourcesRepository? resourcesRepository;
   final ValueChanged<String>? onOpenPaymentObligation;
   final ValueChanged<String>? onOpenCommerceOrder;
+  final VoidCallback? onOpenArtifacts;
+  final VoidCallback? onOpenArtifacts;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -338,6 +342,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       resourcesKnown: resourcesSnapshot.data != null,
                       onOpenPaymentObligation: widget.onOpenPaymentObligation,
                       onOpenCommerceOrder: widget.onOpenCommerceOrder,
+                      onOpenArtifacts: widget.onOpenArtifacts,
                       invitationEnabled:
                           widget.api != null &&
                           !_respondingInvitation &&
@@ -495,6 +500,20 @@ class _JourneyContent extends StatelessWidget {
                       ],
                     ],
                   ),
+                ),
+              ),
+            ],
+            if (presentation.workflowKind == 'service' &&
+                onOpenArtifacts != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: MakoloActionButton(
+                  label: 'Pièces de ma démarche',
+                  icon: Icons.attach_file_rounded,
+                  onPressed: onOpenArtifacts,
                 ),
               ),
             ],
