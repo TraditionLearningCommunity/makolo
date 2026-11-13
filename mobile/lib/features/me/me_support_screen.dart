@@ -188,8 +188,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         try {
           final response = await api.get(_path(family, actor));
           if (!_current(generation, actor)) return;
-          final json = response.jsonObject();
-          final body = family == 'partners' && !_space ? json['data'] : json;
+          final decoded = jsonDecode(response.body);
+          final body = family == 'partners' && !_space && decoded is Map
+              ? decoded['data'] : decoded;
           if (body is! Map && body is! List) {
             throw const FormatException('Invalid owner projection');
           }
@@ -382,7 +383,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         title: Text(
           action == 'redeem'
               ? 'Utiliser cet avantage ?'
-              : 'Confirmer la réponse ?',
+              : action == 'cancel'
+                  ? 'Annuler cette adhésion ?'
+                  : 'Confirmer la réponse ?',
         ),
         content: Text(_label(row)),
         actions: [
@@ -474,7 +477,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                   ? Wrap(
                       spacing: 0,
                       children: [
-                        for (final command in ['accept', 'decline', 'redeem'])
+                        for (final command in ['accept', 'decline', 'redeem', 'cancel'])
                           if (_action(row, family, command) != null)
                             TextButton(
                               onPressed: _busy
@@ -483,6 +486,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                               child: Text(switch (command) {
                                 'accept' => 'Accepter',
                                 'decline' => 'Refuser',
+                                'cancel' => 'Annuler',
                                 _ => 'Utiliser',
                               }),
                             ),
@@ -573,6 +577,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                 'Mes adhésions',
                 memberships,
                 details: (r) => _text(r['status']),
+                actions: true,
               ),
               _section(
                 family,
@@ -598,7 +603,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               ),
               _section(family, 'Récompenses proposées', program['rewards']),
             ],
-            if (family == 'partners')
+            if (family == 'partners') ...[
               _section(
                 family,
                 'Relations établies',
@@ -611,6 +616,23 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                   ].where((part) => part.isNotEmpty).join(' · ');
                 },
               ),
+              _section(family, 'Campagnes associées', data['campaigns']),
+              _section(
+                family, 'Codes de parrainage', data['codes'],
+                details: (r) => _text(r['partner_name']) + ' · ' +
+                    (r['is_usable'] == true ? 'Utilisable' : 'Non utilisable'),
+              ),
+              _section(
+                family, 'Commissions', data['commissions'],
+                details: (r) => _text(r['amount']) + ' ' +
+                    _text(r['currency']) + ' · ' + _text(r['status']),
+              ),
+              _section(
+                family, 'Versements', data['payouts'],
+                details: (r) => _text(r['amount']) + ' ' +
+                    _text(r['currency']) + ' · ' + _text(r['status']),
+              ),
+            ],
           ],
         ),
       ),
