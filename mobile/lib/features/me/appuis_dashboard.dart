@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// The three owners remain authoritative: this is presentation only.
@@ -554,7 +556,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                 }),
                 onTap: () {
                   Navigator.pop(sheet);
-                  widget.onAction(row, family, action);
+                  unawaited(widget.onAction(row, family, action));
                 },
               ),
           ],
