@@ -406,7 +406,10 @@ class MeSelector {
       }
       items.add(
         MeItemPresentation(
-          destination: StructuredDestination(kind: 'support_collection', id: entry.key),
+          destination: StructuredDestination(
+            kind: 'support_collection',
+            id: entry.key,
+          ),
           title: _supportLabel(entry.key),
           subtitle: value?['needs_response'] == true
               ? 'Une réponse peut être nécessaire.'
