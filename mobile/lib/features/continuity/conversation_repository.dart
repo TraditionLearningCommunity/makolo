@@ -153,8 +153,9 @@ class ConversationRepository {
             .toList();
         final next = page['next_version'] as int;
         more = page['has_more'] as bool;
-        if (more && next <= version)
+        if (more && next <= version) {
           throw const FormatException('Exchange delta did not advance');
+        }
         await database.transaction(() async {
           await exchangeStore.apply(pointId, rows, nextVersion: next);
           await exchangeStore.setScope(pointId, scope);
@@ -174,8 +175,9 @@ class ConversationRepository {
       }
       await refreshExchangeReceipts(pointId);
     } on MakoloApiError catch (error) {
-      if ({401, 403, 404}.contains(error.statusCode))
+      if ({401, 403, 404}.contains(error.statusCode)) {
         await exchangeStore.revoke(pointId);
+      }
       if (error.statusCode == 409) await exchangeStore.revoke(pointId);
       rethrow;
     }
@@ -198,8 +200,9 @@ class ConversationRepository {
     for (final row in await exchangeStore.after(pointId, read)) {
       if (row['own'] != true &&
           row['removed'] != true &&
-          !visible.contains(row['id']))
+          !visible.contains(row['id'])) {
         break;
+      }
       next = row['sequence'] as int;
     }
     if (next <= read) return;
@@ -223,8 +226,9 @@ class ConversationRepository {
       headers: {'X-Makolo-Profile': profileId},
     );
     final receipts = response.jsonObject()['entries'];
-    if (receipts is! List)
+    if (receipts is! List) {
       throw const FormatException('Invalid Exchange receipts');
+    }
     final rows = await exchangeStore.read(pointId, limit: 100);
     final byId = {
       for (final row in receipts)
@@ -293,8 +297,9 @@ class ConversationRepository {
       headers: {'X-Makolo-Profile': profileId},
     );
     final result = response.jsonObject()['results'];
-    if (result is! List)
+    if (result is! List) {
       throw const FormatException('Invalid Exchange options');
+    }
     return result.map((row) => Map<String, dynamic>.from(row as Map)).toList();
   }
 
@@ -312,12 +317,14 @@ class ConversationRepository {
         page['point_id'] != pointId ||
         page['target_id'] != entryId ||
         page['scope'] is! String ||
-        page['results'] is! List)
+        page['results'] is! List) {
       throw const FormatException('Invalid message context');
+    }
     await database.transaction(() async {
       final prior = await exchangeStore.scope(pointId);
-      if (prior != null && prior != page['scope'])
+      if (prior != null && prior != page['scope']) {
         await exchangeStore.revoke(pointId);
+      }
       await exchangeStore.setScope(pointId, page['scope'] as String);
       await exchangeStore.apply(pointId, _entriesForStore(page['results']));
     });
@@ -343,15 +350,17 @@ class ConversationRepository {
     )).jsonObject();
     if (page['viewer_profile_id'] != profileId ||
         page['point_id'] != pointId ||
-        page['scope'] is! String)
+        page['scope'] is! String) {
       throw const FormatException('Invalid search scope');
+    }
     final priorScope = await exchangeStore.scope(pointId);
     if (priorScope != null && priorScope != page['scope']) {
       await exchangeStore.revoke(pointId);
       page['local_scope_changed'] = true;
     }
-    if (page['results'] is! List)
+    if (page['results'] is! List) {
       throw const FormatException('Invalid owner search');
+    }
     return page;
   }
 
@@ -362,8 +371,9 @@ class ConversationRepository {
     bool confirm = false,
   }) async {
     if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(referenceId) ||
-        !{'view', 'download', 'system_share'}.contains(mode))
+        !{'view', 'download', 'system_share'}.contains(mode)) {
       throw const FormatException('Invalid reference');
+    }
     final engine = sync;
     if (engine == null) throw StateError('Connexion indisponible.');
     final directory = await NativeDirectories.temporary();
@@ -412,8 +422,9 @@ class ConversationRepository {
         );
       }
       if (payload['viewer_profile_id'] != null &&
-          payload['viewer_profile_id'] != profileId)
+          payload['viewer_profile_id'] != profileId) {
         throw const FormatException('Conversations Profile changed');
+      }
       realtime?.conversations(
         (payload['results'] as List).whereType<Map>().map(
           (row) => row['id'].toString(),
@@ -1079,17 +1090,20 @@ class ConversationRepository {
       await database.transaction(() async {
         final priorScope = await exchangeStore.scope(pointId);
         final scope = page['scope'];
-        if (scope is! String)
+        if (scope is! String) {
           throw const FormatException('Invalid Exchange history scope');
-        if (priorScope != null && priorScope != scope)
+        }
+        if (priorScope != null && priorScope != scope) {
           await exchangeStore.revoke(pointId);
+        }
         await exchangeStore.setScope(pointId, scope);
         await exchangeStore.apply(pointId, rows);
       });
       return {...page, 'next_cursor': page['before_sequence']?.toString()};
     } on MakoloApiError catch (error) {
-      if ({401, 403, 404}.contains(error.statusCode))
+      if ({401, 403, 404}.contains(error.statusCode)) {
         await exchangeStore.revoke(pointId);
+      }
       rethrow;
     }
   }
@@ -1313,8 +1327,9 @@ class ConversationRepository {
     required String resourceId,
   }) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion requise pour modifier les participants.');
+    }
     final route = switch (operation) {
       'remove' => 'participants/$resourceId/remove/',
       'cancel' => 'invitations/$resourceId/cancel/',
@@ -1432,8 +1447,9 @@ class ConversationRepository {
 
   Future<List<Map<String, dynamic>>> conversationJoinRequests(String id) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion requise pour voir les demandes.');
+    }
     final response = await engine.api.get(
       'api/v1/conversations/$id/join-requests/',
     );
@@ -1452,8 +1468,9 @@ class ConversationRepository {
     required String action,
   }) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion requise pour changer de participation.');
+    }
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/entry/',
       body: {'action': action},
