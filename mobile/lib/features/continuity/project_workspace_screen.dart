@@ -1188,7 +1188,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
       ),
     );
-    if (!mounted || selected == null || selected == _text(member['role_code'])) {
+    if (!mounted ||
+        selected == null ||
+        selected == _text(member['role_code'])) {
       return;
     }
     await _send('${_base}authority/', {

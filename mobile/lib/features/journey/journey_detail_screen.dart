@@ -1643,10 +1643,7 @@ class _JourneyRequirementRow extends StatelessWidget {
       ),
       title: Text(reference.label),
       subtitle: Text(
-        [
-          if (reference.isRequired) 'Obligatoire',
-          ?state,
-        ].join(' · '),
+        [if (reference.isRequired) 'Obligatoire', ?state].join(' · '),
       ),
       trailing: reference.link == null
           ? null

@@ -86,10 +86,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         if (store != null) {
           for (final family in families) {
             unawaited(
-              store.deleteProjection(
-                'appuis.$family',
-                resourceKey: 'personal',
-              ),
+              store.deleteProjection('appuis.$family', resourceKey: 'personal'),
             );
           }
         }
@@ -238,10 +235,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           if (error.statusCode == 401 ||
               error.statusCode == 403 ||
               error.statusCode == 404) {
-            await store.deleteProjection(
-              'appuis.$family',
-              resourceKey: _scope,
-            );
+            await store.deleteProjection('appuis.$family', resourceKey: _scope);
             if (!mounted || !_current(generation, actor)) return;
             setState(() {
               _snapshots.remove(family);
@@ -306,9 +300,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     for (final family in ['codes', 'commissions', 'payouts']) {
       if (!mounted || !_current(generation, actor)) return;
       try {
-        final response = await api.get(
-          'api/v1/partners/$family/$organization',
-        );
+        final response = await api.get('api/v1/partners/$family/$organization');
         if (!mounted || !_current(generation, actor)) return;
         final decoded = jsonDecode(response.body);
         if (decoded is! List) continue;
@@ -394,8 +386,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         uri.pathSegments.contains('..')) {
       return null;
     }
-    if (!uri.path.startsWith('/api/v1/$family/') ||
-        !uri.path.endsWith('/')) {
+    if (!uri.path.startsWith('/api/v1/$family/') || !uri.path.endsWith('/')) {
       return null;
     }
     if (family == 'recognition') {

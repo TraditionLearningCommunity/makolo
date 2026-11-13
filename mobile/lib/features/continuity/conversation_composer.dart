@@ -585,7 +585,17 @@ class _ConversationComposerState extends State<ConversationComposer> {
                   onPressed: _sending ? null : _selectType,
                   icon: const Icon(Icons.tune_rounded, size: 19),
                   label: Text(
-                    (_selectedType == 'information' ? 'Information' : _selectedType == 'form' ? 'Formulaire' : _selectedType == 'poll' ? 'Sondage' : _selectedType == 'request' ? 'Demande' : _selectedType == 'confirmation' ? 'Confirmation' : 'Question'),
+                    (_selectedType == 'information'
+                        ? 'Information'
+                        : _selectedType == 'form'
+                        ? 'Formulaire'
+                        : _selectedType == 'poll'
+                        ? 'Sondage'
+                        : _selectedType == 'request'
+                        ? 'Demande'
+                        : _selectedType == 'confirmation'
+                        ? 'Confirmation'
+                        : 'Question'),
                   ),
                 ),
                 const Spacer(),

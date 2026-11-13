@@ -609,7 +609,8 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     } finally {
       if (mounted) {
         setState(() => _searchBusy = false);
-        if (generation != _searchGeneration && _search.text.trim().length >= 2) {
+        if (generation != _searchGeneration &&
+            _search.text.trim().length >= 2) {
           _searchDebounce = Timer(
             const Duration(milliseconds: 100),
             () => _remoteSearch(_searchGeneration),

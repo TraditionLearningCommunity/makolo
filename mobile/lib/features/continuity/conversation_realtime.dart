@@ -114,9 +114,7 @@ class ConversationRealtime {
 
   void _send(String type, [String? pointId]) {
     if (!_authenticated || _socket?.readyState != WebSocket.open) return;
-    _socket!.add(
-      jsonEncode({'type': type, 'point_id': ?pointId}),
-    );
+    _socket!.add(jsonEncode({'type': type, 'point_id': ?pointId}));
   }
 
   void typing(String pointId) => _send('typing', pointId);

@@ -1435,9 +1435,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 'Conditions et dépendances',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
-              subtitle: Text(
-                '${dependencies.length} relation(s) visible(s)',
-              ),
+              subtitle: Text('${dependencies.length} relation(s) visible(s)'),
               children: [
                 for (final dep in dependencies.take(3))
                   ListTile(
