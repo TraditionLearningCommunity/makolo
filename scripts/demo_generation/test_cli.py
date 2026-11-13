@@ -383,6 +383,8 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertEqual(seeded.call_args.args[0], [
             "--count", "500", "--profiles", "20", "--seed", "7",
             "--points", "3", "--profile-username", "world_011_divine",
+            "--selection", "random", "--max-participants", "8",
+            "--context-types", "all",
         ])
 
     def test_conversations_generate_explicit_apply(self):
