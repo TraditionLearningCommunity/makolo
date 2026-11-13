@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from organizations.models import Organization
 from loyalty.models import LoyaltyAccount, LoyaltyProgram
+from partners.models import Partner
 
 
 class AppuisWebSurfaceTests(TestCase):
@@ -72,3 +73,25 @@ class AppuisWebSurfaceTests(TestCase):
                     kwargs={"slug": space.slug})
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_filters_render_only_for_multiple_real_families(self):
+        space = Organization.objects.create(
+            name="Collectif Mixte", created_by=self.viewer,
+        )
+        program = LoyaltyProgram.objects.create(
+            organization=space, name="Club collectif",
+            created_by=self.viewer,
+        )
+        LoyaltyAccount.objects.create(
+            program=program, user=self.viewer,
+        )
+        Partner.objects.create(
+            organization=space, user=self.viewer,
+            name="Partenariat personnel", created_by=self.viewer,
+        )
+        response = self.client.get(reverse("core:participant-appuis"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-appuis-filter="all"')
+        self.assertContains(response, 'data-appuis-filter="loyalty"')
+        self.assertContains(response, 'data-appuis-filter="partners"')
+        self.assertNotContains(response, 'data-appuis-filter="recognition"')
