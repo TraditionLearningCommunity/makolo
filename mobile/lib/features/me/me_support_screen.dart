@@ -36,7 +36,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   StreamSubscription<OwnerSourceState>? _personalSource;
 
   String get _scope => _actor is SpaceActorContext
-      ? 'space:' + (_actor as SpaceActorContext).space.id
+      ? 'space:${(_actor as SpaceActorContext).space.id}'
       : 'personal';
   bool get _space => _actor is SpaceActorContext;
 
@@ -87,7 +87,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           for (final family in families) {
             unawaited(
               store.deleteProjection(
-                'appuis.' + family,
+                'appuis.$family',
                 resourceKey: 'personal',
               ),
             );
@@ -128,14 +128,11 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (actor is SpaceActorContext) {
       final space = actor.space;
       return switch (family) {
-        'recognition' => 'api/v1/recognition/spaces/' + space.id + '/',
+        'recognition' => 'api/v1/recognition/spaces/${space.id}/',
         'loyalty' =>
-          'api/v1/loyalty/organizations/' +
-              Uri.encodeComponent(space.slug) +
-              '/',
+          'api/v1/loyalty/organizations/${Uri.encodeComponent(space.slug)}/',
         'partners' =>
-          'api/v1/partners/partners/?organization=' +
-              Uri.encodeQueryComponent(space.id),
+          'api/v1/partners/partners/?organization=${Uri.encodeQueryComponent(space.id)}',
         _ => throw ArgumentError.value(family),
       };
     }
@@ -163,7 +160,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       if (!mounted || !_current(generation, actor)) return;
       if (!authorized) {
         for (final family in families) {
-          await store.deleteProjection('appuis.' + family, resourceKey: _scope);
+          await store.deleteProjection('appuis.$family', resourceKey: _scope);
         }
         if (mounted && _current(generation, actor)) {
           setState(() {
@@ -177,7 +174,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     for (final family in families) {
       try {
         final saved = await store.readProjection(
-          'appuis.' + family,
+          'appuis.$family',
           resourceKey: _scope,
         );
         if (!mounted || !_current(generation, actor)) return;
@@ -224,7 +221,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           }
           if (!mounted || !_current(generation, actor)) return;
           await store.putProjection(
-            kind: 'appuis.' + family,
+            kind: 'appuis.$family',
             resourceKey: _scope,
             schemaVersion: 1,
             payload: _cacheSafe(payload),
@@ -242,7 +239,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               error.statusCode == 403 ||
               error.statusCode == 404) {
             await store.deleteProjection(
-              'appuis.' + family,
+              'appuis.$family',
               resourceKey: _scope,
             );
             if (!mounted || !_current(generation, actor)) return;
@@ -304,13 +301,13 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         .toSet();
     if (ids.isEmpty) return;
     final organization = actor is SpaceActorContext
-        ? '?organization=' + Uri.encodeQueryComponent(actor.space.id)
+        ? '?organization=${Uri.encodeQueryComponent(actor.space.id)}'
         : '';
     for (final family in ['codes', 'commissions', 'payouts']) {
       if (!mounted || !_current(generation, actor)) return;
       try {
         final response = await api.get(
-          'api/v1/partners/' + family + '/' + organization,
+          'api/v1/partners/$family/$organization',
         );
         if (!mounted || !_current(generation, actor)) return;
         final decoded = jsonDecode(response.body);
@@ -331,7 +328,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (campaigns.isNotEmpty && _current(generation, actor)) {
       try {
         final response = await api.get(
-          'api/v1/partners/campaigns/' + organization,
+          'api/v1/partners/campaigns/$organization',
         );
         final decoded = jsonDecode(response.body);
         if (decoded is List && _current(generation, actor)) {
@@ -397,14 +394,14 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         uri.pathSegments.contains('..')) {
       return null;
     }
-    if (!uri.path.startsWith('/api/v1/' + family + '/') ||
+    if (!uri.path.startsWith('/api/v1/$family/') ||
         !uri.path.endsWith('/')) {
       return null;
     }
     if (family == 'recognition') {
       if (_space) {
         final id = (_actor as SpaceActorContext).space.id;
-        if (!uri.path.startsWith('/api/v1/recognition/spaces/' + id + '/')) {
+        if (!uri.path.startsWith('/api/v1/recognition/spaces/$id/')) {
           return null;
         }
       } else if (uri.path.contains('/spaces/')) {
@@ -449,7 +446,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (confirmed != true || !_current(generation, actor)) return;
     final api = widget.runtime.api;
     if (api == null) return;
-    final operation = family + ':' + _text(row['id']) + ':' + action;
+    final operation = '$family:${_text(row['id'])}:$action';
     final key = _pendingKeys.putIfAbsent(operation, () {
       final random = Random.secure();
       return List<int>.generate(
