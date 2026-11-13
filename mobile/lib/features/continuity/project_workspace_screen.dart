@@ -1553,6 +1553,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     // Summary = useful next steps + a complementary glimpse, not a repeated
     // rendering of the same Dossiers already shown under "À suivre".
     final followIds = intervention.map((row) => _text(row['id'])).toSet();
+    final upcoming = next.where(
+      (row) => !followIds.contains(_text(row['id'])),
+    ).toList();
     final preview = rows
         .where((row) => !followIds.contains(_text(row['id'])))
         .take(3)
@@ -1596,15 +1599,15 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             ),
           ),
-        if (next.isNotEmpty)
+        if (upcoming.isNotEmpty)
           ListTile(
             leading: const Icon(Icons.event_outlined),
             title: const Text('Prochaine échéance visible'),
             subtitle: Text(
-              '${_text(next.first['title'])} · '
-              '${_humanDate(_dateFrom(next.first['deadline'])!)}',
+              '${_text(upcoming.first['title'])} · '
+              '${_humanDate(_dateFrom(upcoming.first['deadline'])!)}',
             ),
-            onTap: () => widget.onOpenDossier(_text(next.first['id'])),
+            onTap: () => widget.onOpenDossier(_text(upcoming.first['id'])),
           ),
         if (intervention.isNotEmpty) ...[
           const SizedBox(height: 9),
