@@ -389,7 +389,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: kind,
+                      initialValue: kind,
                       decoration: const InputDecoration(
                         labelText: 'Type',
                         border: OutlineInputBorder(),
@@ -766,8 +766,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               ),
               title: Text(member['label']?.toString() ?? 'Profil'),
               subtitle: Text(
-                '@${member['identifier'] ?? ''}' +
-                    (member['is_me'] == true ? ' · Vous' : ''),
+                '@${member['identifier'] ?? ''}${member['is_me'] == true ? ' · Vous' : ''}',
               ),
               trailing: manage && member['participation_id'] != null
                   ? IconButton(
