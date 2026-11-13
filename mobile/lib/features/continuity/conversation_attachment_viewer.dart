@@ -387,8 +387,9 @@ class _ConversationAttachmentViewerState
     }
     // DOC/DOCX are offered only to installed native viewers after explicit
     // action. There is no public URL or silent permanent export.
-    if (!widget.allowDownload)
+    if (!widget.allowDownload) {
       return const Text('Aperçu indisponible pour ce format.');
+    }
     return Center(
       child: FilledButton.icon(
         onPressed: () async {
@@ -404,15 +405,17 @@ class _ConversationAttachmentViewerState
               );
             }
           } on Object {
-            if (mounted)
+            if (mounted) {
               setState(
                 () => _error = 'Ouverture non autorisée ou indisponible.',
               );
+            }
           } finally {
             if (authorized != null &&
                 authorized != file &&
-                await authorized.exists())
+                await authorized.exists()) {
               await authorized.delete();
+            }
           }
         },
         icon: const Icon(Icons.open_in_new_rounded),
