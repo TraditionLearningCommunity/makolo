@@ -623,6 +623,7 @@ String? _mime(String? filename) {
 
 class JourneyOwnerFileReader extends StatefulWidget {
   const JourneyOwnerFileReader({
+    super.key,
     required this.api,
     required this.profileId,
     required this.path,
