@@ -137,7 +137,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
         _attempted ||
         _submitting ||
         _restoring ||
-        _restoreFailed) return;
+        _restoreFailed)
+      return;
     setState(() {
       switch (field) {
         case 'start':
@@ -634,7 +635,11 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     controller: _title,
                     autofocus: true,
                     maxLength: 220,
-                    enabled: !_submitting && !_restoring && !_restoreFailed && !_attempted,
+                    enabled:
+                        !_submitting &&
+                        !_restoring &&
+                        !_restoreFailed &&
+                        !_attempted,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: project
@@ -650,7 +655,11 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   TextFormField(
                     controller: _description,
                     maxLines: 4,
-                    enabled: !_submitting && !_restoring && !_restoreFailed && !_attempted,
+                    enabled:
+                        !_submitting &&
+                        !_restoring &&
+                        !_restoreFailed &&
+                        !_attempted,
                     decoration: const InputDecoration(
                       labelText: 'Description (facultative)',
                       border: OutlineInputBorder(),

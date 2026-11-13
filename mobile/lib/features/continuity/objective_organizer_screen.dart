@@ -691,11 +691,19 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       final state = draft?.payload['submission_state'];
       final pending = state == 'verification_required';
       final confirmed = state == 'confirmed';
-      final editing = state == 'editing' &&
+      final editing =
+          state == 'editing' &&
           draft != null &&
-          const ['title', 'description', 'starts_on', 'ends_on', 'deadline']
-              .any((field) =>
-                  draft.payload[field]?.toString().trim().isNotEmpty ?? false);
+          const [
+            'title',
+            'description',
+            'starts_on',
+            'ends_on',
+            'deadline',
+          ].any(
+            (field) =>
+                draft.payload[field]?.toString().trim().isNotEmpty ?? false,
+          );
       final hasDraft = pending || confirmed || editing;
       final primary = kind == 'dossier';
       final scheme = Theme.of(context).colorScheme;
