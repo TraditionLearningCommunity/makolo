@@ -77,13 +77,16 @@ class JourneyComposition {
       situation: situation,
       interventions: interventions,
       hasBranches: hasBranches,
+      // Terminal Journey readiness no longer requires user preparation.
+      // Keep only real owner forms and Requirements in that case.
       hasPreparation:
-          p.ready.isNotEmpty ||
-          p.waiting.isNotEmpty ||
-          p.blockers.isNotEmpty ||
-          interventions.isNotEmpty ||
           p.forms.isNotEmpty ||
-          p.requirements.isNotEmpty,
+          p.requirements.isNotEmpty ||
+          (!p.isTerminal &&
+              (p.ready.isNotEmpty ||
+                  p.waiting.isNotEmpty ||
+                  p.blockers.isNotEmpty ||
+                  interventions.isNotEmpty)),
       hasDocuments:
           p.resourcesLink != null && (!resourcesKnown || resourcesCount > 0),
       hasEngagements:
