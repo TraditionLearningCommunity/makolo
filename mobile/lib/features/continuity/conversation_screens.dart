@@ -1441,6 +1441,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           Navigator.of(sheetContext).pop();
           _afterPublish(pointId);
         },
+        onQueued: () => Navigator.of(sheetContext).pop(),
       ),
     );
   }
