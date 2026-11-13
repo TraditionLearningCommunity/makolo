@@ -1224,7 +1224,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final shown = people.take(4).toList();
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1247,7 +1247,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 2),
           Row(
             children: [
               if (owner['kind'] == 'space') ...[
@@ -1278,65 +1278,58 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     );
   }
 
-  Widget _actionBar(Map<String, dynamic> project) {
-    final create = _has(project, 'project.dossier.create');
+  /// The only Project actions menu lives in the top bar. The owner
+  /// capabilities (never actor context labels) decide its entries.
+  Widget _projectTopActions(Map<String, dynamic> project) {
     final actions = [
       if (_has(project, 'project.dossier.link')) 'link',
       if (_has(project, 'project.edit')) 'edit',
       if (_has(project, 'project.lifecycle')) 'lifecycle',
     ];
-    if (!create && actions.isEmpty) return const SizedBox.shrink();
-    return Row(
-      children: [
-        if (create)
-          MakoloActionButton(
-            label: 'Créer un dossier',
-            onPressed: _enabled ? _create : null,
-            icon: Icons.create_new_folder_outlined,
-            appearance: MakoloActionAppearance.primary,
+    if (actions.isEmpty) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      tooltip: 'Actions du Projet',
+      enabled: _enabled,
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: (choice) {
+        switch (choice) {
+          case 'link':
+            _link(project);
+          case 'edit':
+            _edit(project);
+          case 'lifecycle':
+            _lifecycle(project);
+        }
+      },
+      itemBuilder: (_) => [
+        if (actions.contains('link'))
+          const PopupMenuItem(
+            value: 'link',
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.folder_symlink_outlined),
+              title: Text('Rattacher un dossier'),
+            ),
           ),
-        if (create && actions.isNotEmpty) const SizedBox(width: 8),
-        if (actions.isNotEmpty)
-          PopupMenuButton<String>(
-            tooltip: 'Actions du Projet',
-            enabled: _enabled,
-            onSelected: (choice) {
-              switch (choice) {
-                case 'link':
-                  _link(project);
-                case 'edit':
-                  _edit(project);
-                case 'lifecycle':
-                  _lifecycle(project);
-              }
-            },
-            itemBuilder: (_) => [
-              if (actions.contains('link'))
-                const PopupMenuItem(
-                  value: 'link',
-                  child: Text('Rattacher un Dossier'),
-                ),
-              if (actions.contains('edit'))
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Modifier le Projet'),
-                ),
-              if (actions.contains('lifecycle'))
-                const PopupMenuItem(
-                  value: 'lifecycle',
-                  child: Text('Changer l’état'),
-                ),
-            ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.more_horiz_rounded, size: 20),
-                  SizedBox(width: 4),
-                  Text('Actions'),
-                ],
-              ),
+        if (actions.contains('edit'))
+          const PopupMenuItem(
+            value: 'edit',
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.edit_outlined),
+              title: Text('Modifier le Projet'),
+            ),
+          ),
+        if (actions.contains('lifecycle'))
+          const PopupMenuItem(
+            value: 'lifecycle',
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.sync_alt_rounded),
+              title: Text('Changer l’état'),
             ),
           ),
       ],
@@ -1355,19 +1348,19 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(11),
                 color: theme.colorScheme.primary.withValues(alpha: .08),
               ),
               child: Icon(
                 Icons.folder_special_outlined,
-                size: 23,
+                size: 21,
                 color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1378,7 +1371,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     _humanState(_map(project['state'])['code']),
                     style: theme.textTheme.bodySmall,
@@ -1386,11 +1379,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 ],
               ),
             ),
+            if (widget.conversations != null &&
+                widget.onOpenConversation != null)
+              ConversationContextAction(
+                repository: widget.conversations!,
+                kind: 'project',
+                contextId: widget.id,
+                onOpen: widget.onOpenConversation!,
+                iconOnly: true,
+              ),
           ],
         ),
         if (start != null || end != null)
           Padding(
-            padding: const EdgeInsets.only(top: 7),
+            padding: const EdgeInsets.only(top: 4),
             child: Text(
               [
                 if (start != null) 'Début : ${_humanDate(start)}',
@@ -1399,40 +1401,45 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               style: theme.textTheme.bodySmall,
             ),
           ),
-        if (widget.conversations != null && widget.onOpenConversation != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: ConversationContextAction(
-              repository: widget.conversations!,
-              kind: 'project',
-              contextId: widget.id,
-              onOpen: widget.onOpenConversation!,
-            ),
-          ),
       ],
     );
   }
 
-  Widget _tabs() => ObjectiveWorkspaceViewSwitcher<_ProjectMode>(
-    selected: _mode,
-    options: const [
-      ObjectiveViewOption(
-        _ProjectMode.summary,
-        Icons.dashboard_outlined,
-        'Synthèse',
+  Widget _tabs(Map<String, dynamic> project) => Row(
+    children: [
+      Expanded(
+        child: ObjectiveWorkspaceViewSwitcher<_ProjectMode>(
+          selected: _mode,
+          options: const [
+            ObjectiveViewOption(
+              _ProjectMode.summary, Icons.dashboard_outlined, 'Synthèse',
+            ),
+            ObjectiveViewOption(
+              _ProjectMode.dossiers, Icons.folder_copy_outlined, 'Dossiers',
+            ),
+            ObjectiveViewOption(
+              _ProjectMode.calendar, Icons.calendar_month_outlined, 'Calendrier',
+            ),
+          ],
+          onSelected: (mode) => setState(() => _mode = mode),
+        ),
       ),
-      ObjectiveViewOption(
-        _ProjectMode.dossiers,
-        Icons.folder_copy_outlined,
-        'Dossiers',
-      ),
-      ObjectiveViewOption(
-        _ProjectMode.calendar,
-        Icons.calendar_month_outlined,
-        'Calendrier',
-      ),
+      if (_has(project, 'project.dossier.create')) ...[
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          tooltip: 'Créer un dossier',
+          onPressed: _enabled ? _create : null,
+          icon: const Icon(Icons.create_new_folder_outlined, size: 21),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            maximumSize: const Size(44, 44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
     ],
-    onSelected: (mode) => setState(() => _mode = mode),
   );
 
   Widget _dossierCard(Map<String, dynamic> row, Map<String, dynamic> project) {
@@ -1963,6 +1970,24 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           onPressed: _refreshing ? null : _refresh,
           icon: Icons.refresh_rounded,
         ),
+        StreamBuilder<OwnerSourceState>(
+          stream: _source,
+          initialData: OwnerSourceState.unknown,
+          builder: (context, sourceSnapshot) {
+            if (sourceSnapshot.data?.invalidated == true) {
+              return const SizedBox.shrink();
+            }
+            return StreamBuilder<StoredProjection?>(
+              stream: _detail,
+              builder: (context, snapshot) {
+                final project = snapshot.data?.payload;
+                return project == null
+                    ? const SizedBox.shrink()
+                    : _projectTopActions(project);
+              },
+            );
+          },
+        ),
       ],
     ),
     body: StreamBuilder<OwnerSourceState>(
@@ -2029,7 +2054,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         'project-workspace-scroll:${_spaceSlug ?? 'personal'}',
                       ),
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
                       children: [
                         Center(
                           child: ConstrainedBox(
@@ -2038,14 +2063,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _header(project),
-                                const SizedBox(height: 9),
-                                _actionBar(project),
-                                const SizedBox(height: 14),
-                                _tabs(),
+                                const SizedBox(height: 7),
+                                _tabs(project),
                                 if (_text(
                                   _map(project['horizon'])['description'],
                                 ).trim().isNotEmpty) ...[
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 7),
                                   ProjectDescription(
                                     key: ValueKey(
                                       'project-description:${widget.id}',
@@ -2055,9 +2078,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 5),
                                 _peoplePreview(project),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 3),
                                 if (_mode == _ProjectMode.summary)
                                   _summary(project, rows, more)
                                 else if (_mode == _ProjectMode.dossiers)
