@@ -685,9 +685,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                 if (row is Map<String, dynamic>)
                   row
                 else if (row is Map)
-                  row.map(
-                    (key, value) => MapEntry(key.toString(), value),
-                  ),
+                  row.map((key, value) => MapEntry(key.toString(), value)),
             ];
             final currentVersion = versions.isEmpty ? null : versions.first;
             final previousVersions = versions.length <= 1
@@ -699,47 +697,46 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                 version['mime_type'] == 'image/jpeg' ||
                 version['mime_type'] == 'image/png';
 
-            List<Widget> previousVersionActions(
-              Map<String, dynamic> version,
-            ) => [
-              MakoloIconActionButton(
-                tooltip: 'Télécharger',
-                onPressed: _working || !networkAvailable
-                    ? null
-                    : () => _download(version),
-                icon: Icons.download_rounded,
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Plus',
-                enabled: !_working && networkAvailable,
-                onSelected: (value) {
-                  if (value == 'share') {
-                    _share(version);
-                  } else if (value == 'reuse') {
-                    _reuse(version);
-                  }
-                },
-                itemBuilder: (context) => [
-                  if (canManage)
-                    const PopupMenuItem(
-                      value: 'share',
-                      child: ListTile(
-                        leading: Icon(Icons.share_outlined),
-                        title: Text('Partager'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  const PopupMenuItem(
-                    value: 'reuse',
-                    child: ListTile(
-                      leading: Icon(Icons.drive_file_move_outline),
-                      title: Text('Utiliser dans une démarche'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+            List<Widget> previousVersionActions(Map<String, dynamic> version) =>
+                [
+                  MakoloIconActionButton(
+                    tooltip: 'Télécharger',
+                    onPressed: _working || !networkAvailable
+                        ? null
+                        : () => _download(version),
+                    icon: Icons.download_rounded,
                   ),
-                ],
-              ),
-            ];
+                  PopupMenuButton<String>(
+                    tooltip: 'Plus',
+                    enabled: !_working && networkAvailable,
+                    onSelected: (value) {
+                      if (value == 'share') {
+                        _share(version);
+                      } else if (value == 'reuse') {
+                        _reuse(version);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      if (canManage)
+                        const PopupMenuItem(
+                          value: 'share',
+                          child: ListTile(
+                            leading: Icon(Icons.share_outlined),
+                            title: Text('Partager'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      const PopupMenuItem(
+                        value: 'reuse',
+                        child: ListTile(
+                          leading: Icon(Icons.drive_file_move_outline),
+                          title: Text('Utiliser dans une démarche'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                ];
 
             return Scaffold(
               appBar: AppBar(
@@ -756,9 +753,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                   if (currentVersion != null && canManage)
                     MakoloIconActionButton(
                       tooltip: 'Partager',
-                      onPressed: _working
-                          ? null
-                          : () => _share(currentVersion),
+                      onPressed: _working ? null : () => _share(currentVersion),
                       icon: Icons.share_outlined,
                     ),
                   PopupMenuButton<String>(
@@ -820,9 +815,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
               body: sourceState.invalidated
                   ? const Center(child: Text('Document indisponible.'))
                   : doc == null && _initializing
-                  ? const Center(
-                      child: CircularProgressIndicator.adaptive(),
-                    )
+                  ? const Center(child: CircularProgressIndicator.adaptive())
                   : doc == null
                   ? Center(
                       child: Column(
@@ -919,9 +912,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                                               networkAvailable
                                           ? () => _preview(version)
                                           : null,
-                                      actions: previousVersionActions(
-                                        version,
-                                      ),
+                                      actions: previousVersionActions(version),
                                     ),
                                   ),
                               ],
@@ -937,9 +928,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                                     leading: const Icon(
                                       Icons.person_outline_rounded,
                                     ),
-                                    title: Text(
-                                      '@${share['recipient'] ?? ''}',
-                                    ),
+                                    title: Text('@${share['recipient'] ?? ''}'),
                                     subtitle: Text(
                                       share['active'] == true
                                           ? 'Actif'

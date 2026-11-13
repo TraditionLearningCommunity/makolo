@@ -352,10 +352,7 @@ void main() {
         if (phase == 'denied') {
           return MockResponse(
             jsonEncode({
-              'error': {
-                'code': 'not_found',
-                'message': 'Unavailable',
-              },
+              'error': {'code': 'not_found', 'message': 'Unavailable'},
             }),
             404,
           );
@@ -389,10 +386,7 @@ void main() {
     await repository.refreshDocumentDetail(space, documentId);
     final acquired = await repository.readDocumentDetail(space, documentId);
     expect(acquired, isNotNull);
-    expect(
-      (acquired!.payload['document'] as Map)['title'],
-      'Statuts',
-    );
+    expect((acquired!.payload['document'] as Map)['title'], 'Statuts');
 
     phase = 'offline';
     await repository.refreshDocumentDetail(space, documentId);
