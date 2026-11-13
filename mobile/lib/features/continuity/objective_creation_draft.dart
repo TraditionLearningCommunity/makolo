@@ -12,8 +12,7 @@ class ObjectiveCreationDraft {
     required this.kind,
     String? spaceId,
   }) : resourceId = '$kind:${spaceId ?? 'personal'}',
-       draftId =
-           'objectives:create:$profileId:$kind:${spaceId ?? 'personal'}' {
+       draftId = 'objectives:create:$profileId:$kind:${spaceId ?? 'personal'}' {
     if (profileId.isEmpty ||
         repository.profileId != profileId ||
         (kind != 'project' && kind != 'dossier')) {
