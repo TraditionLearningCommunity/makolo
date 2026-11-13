@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/action_controls.dart';
 import 'package:makolo_mobile/features/continuity/objective_create_screen.dart';
 import 'package:makolo_mobile/features/continuity/objective_creation_draft.dart';
 import 'package:makolo_mobile/features/continuity/objective_repository.dart';
@@ -161,7 +162,7 @@ void main() {
     await tester.pumpWidget(createScreen());
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'Dossier incertain');
-    await tester.tap(find.text('Créer un dossier'));
+    await tester.tap(find.widgetWithText(MakoloActionButton, 'Créer un dossier'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
     expect(api.calls, 1);
@@ -190,7 +191,7 @@ void main() {
     await tester.pumpWidget(createScreen());
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, 'Dossier confirmé');
-    await tester.tap(find.text('Créer un dossier'));
+    await tester.tap(find.widgetWithText(MakoloActionButton, 'Créer un dossier'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
     expect(api.calls, 1);
