@@ -112,9 +112,11 @@ class SpaceDocumentCollectionAPIView(SpaceDocumentBase):
             queryset = queryset.filter(title__icontains=query)
         offset = _int_offset(request)
         queryset = queryset.order_by("-updated_at", "id")
+        count = queryset.count()
         rows = list(queryset[offset:offset + PAGE_SIZE + 1])
         return self.respond({
             "space_id": str(space.pk),
+            "count": count,
             "items": [_document_item(item) for item in rows[:PAGE_SIZE]],
             "has_more": len(rows) > PAGE_SIZE,
             "next_offset": offset + min(PAGE_SIZE, len(rows)),
