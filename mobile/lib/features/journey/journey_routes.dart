@@ -6,6 +6,7 @@ import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import 'journey_detail_screen.dart';
 import 'journey_artifact_screen.dart';
+import 'journey_requirement_evidence_screen.dart';
 import 'space_beneficiary_journey_screen.dart';
 import 'space_beneficiary_resources_screen.dart';
 import 'space_beneficiary_journeys_screen.dart';
@@ -29,6 +30,44 @@ SpaceActorIdentity? _activeSpace(AppRuntime runtime, String slug) {
 }
 
 List<RouteBase> journeyRoutes(AppRuntime runtime) => [
+  GoRoute(
+    path: '/journeys/:id/requirements/:assessmentId/evidence',
+    builder: (context, state) {
+      if (runtime.database == null || runtime.store == null ||
+          runtime.session == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Preuve',
+          message: 'Cette démarche privée n’est pas disponible sur cet appareil.',
+        );
+      }
+      return JourneyRequirementEvidenceScreen(
+        key: ValueKey('profile-evidence:${runtime.session!.profileId}:${state.pathParameters['assessmentId']}'),
+        runtime: runtime,
+        journeyId: state.pathParameters['id']!,
+        assessmentId: state.pathParameters['assessmentId']!,
+      );
+    },
+  ),
+  GoRoute(
+    path: '/space/:slug/beneficiary/journeys/:id/requirements/:assessmentId/evidence',
+    builder: (context, state) {
+      final space = _activeSpace(runtime, state.pathParameters['slug']!);
+      if (space == null || runtime.database == null ||
+          runtime.store == null || runtime.session == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Proposer une preuve',
+          message: 'Sélectionnez cet Espace pour poursuivre.',
+        );
+      }
+      return JourneyRequirementEvidenceScreen(
+        key: ValueKey('space-evidence:${runtime.session!.profileId}:${space.id}:${state.pathParameters['assessmentId']}'),
+        runtime: runtime,
+        space: space,
+        journeyId: state.pathParameters['id']!,
+        assessmentId: state.pathParameters['assessmentId']!,
+      );
+    },
+  ),
   GoRoute(
     path: '/journeys/:id/artifacts',
     builder: (context, state) {
