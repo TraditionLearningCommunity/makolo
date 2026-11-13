@@ -985,7 +985,8 @@ final class WorkspaceContextRepository {
         'Space resources response does not match Space id.',
       );
     }
-    if (payload['counts'] is! Map ||
+    if (payload['visibility'] != 'visible' ||
+        payload['counts'] is! Map ||
         payload['items'] is! List ||
         payload['total_count'] is! num ||
         payload['count'] is! num ||
