@@ -102,3 +102,65 @@ python manage.py test services.test_t35_participant_web services.test_t35_partic
 cd mobile
 flutter test test/service_start_failure_test.dart test/service_resumable_intent_test.dart test/journey_history_projection_test.dart test/journey_n3_lot_c_test.dart
 ```
+
+## Parcours Space demandeur et JourneyArtifacts natifs — implémentation
+
+Cette extension s'ajoute à la PR #522 sur la branche `fix/discover-a-continuation-context-20261014`, sans fusion vers `main`. La politique propriétaire reste Django ; le local Flutter reste une projection privée, jamais un décideur d'autorité.
+
+### Space bénéficiaire d'une demande Services
+
+- Un Space **demandeur** se distingue du Space **prestataire** et du Profile personnel. `Journey.beneficiary_space` et la création canonique Journey sont réutilisés, sans modèle parallèle ni migration.
+- `services/space_beneficiary.py` décide de la consultation et de l'action avec **Mandate/Permission** actuels : `SPACE_ACTIVITIES_VIEW`, `SPACE_ACTIVITIES_MANAGE`, `SPACE_MANAGE` selon l'acte. Une appartenance à un Groupe, une Team ou une Assignment ne donne pas cette autorité. Les permissions d'opérateur Activity ne deviennent jamais automatiquement des droits sur le demandeur.
+- Les GET/POST de démarrage réutilisent `ServiceStartForm` et `start_service_journey_idempotently` ; l'empreinte intègre le Space représenté et préserve exactement les clés des anciennes demandes Profile. Les gates d'éligibilité **Groups de Profiles** ne sont pas transférés implicitement au Space.
+- L'intake Service, son brouillon et sa soumission restent propriétaires ; les réponses ont un actor Profile réel. Les formulaires `FormRequest` liés à la Journey collective autorisent l'enregistrement/soumission seulement pour les mandataires d'action actuels, le `FormResponse.respondent` conserve l'identité réelle de la personne.
+- Les exigences et la préparation se lisent par des API Space strictement scopées. Une ressource réservée à l'opérateur n'est pas révélée à un Space client. Une Journey collective n'est pas ajoutée de force aux routes personnelles `/me`.
+- Liste de reprise des demandes dans l'Espace : `/api/v1/organizations/workspaces/<slug>/beneficiary/journeys/` et projection Flutter local-first correspondante. Les routes mobiles exigent un Espace **explicitement sélectionné**.
+
+### Pièces JourneyArtifact et preuve de Requirement
+
+- `journeys/api_artifacts.py` expose, dans le périmètre strict de la Journey, la liste, l'ajout multipart, la nouvelle version et un téléchargement privé. Les services JourneyArtifact existants gardent signatures MIME, empreintes, versionnement, audit et fichier sur stockage privé. `FileResponse` désactive le cache partagé et refuse l'exposition directe de chemins de stockage.
+- Profile et Space ont des scopes de lecture distincts. Une pièce restreinte impose un mandat Space de gestion ; les nouvelles versions ne peuvent déclasser une pièce déjà restreinte. Une pièce d'identité ne peut être déclarée « normale » par l'API. Les anciens parcours Web conservent leurs garde-fous.
+- Flutter conserve localement les **métadonnées propriétaires** avec source Space/Profil vérifiée, et copie le brouillon fichier sous le Profile actuel. La synchronisation ne prend pas un upload en attente pour une action confirmée. Le lecteur privé temporaire est effacé après usage ; une confirmation précède sa consultation. Les formats PDF/image/texte sont prévisualisés ; les autres types restent transmissibles mais ne sont pas présentés comme lisibles nativement sans lecteur.
+- `services/api_requirement_evidence.py` permet au bénéficiaire autorisé de sélectionner une pièce existante et la proposer explicitement à un `ServiceRequirementAssessment`. L'owner `submit_requirement_evidence` conserve la preuve et son provenance. **Aucune satisfaction automatique** n'en découle. La décision d'Assessment reste chez le prestataire autorisé.
+- Flutter offre cette action depuis le détail d'une condition personnelle ou d'un Space ; en cas d'absence de pièce, l'utilisateur peut d'abord en ajouter une. L'API vérifie que pièce et Assessment appartiennent exactement à la même Journey.
+
+### Contrats API nouveaux
+
+- `POST /api/v1/organizations/workspaces/<slug>/beneficiary/services/<service_id>/start/`
+- `GET /api/v1/organizations/workspaces/<slug>/beneficiary/journeys/`
+- `GET /api/v1/organizations/workspaces/<slug>/beneficiary/journeys/<journey_id>/`
+- `GET/POST .../beneficiary/journeys/<journey_id>/intake/`
+- `GET .../beneficiary/journeys/<journey_id>/requirements/<assessment_id>/`
+- `GET .../beneficiary/journeys/<journey_id>/resources/`
+- `GET .../beneficiary/journeys/<journey_id>/resources/<resource_id>/download/`
+- `GET/POST /api/v1/me/journeys/<journey_id>/artifacts/` et `GET/POST .../beneficiary/journeys/<journey_id>/artifacts/` pour un Space
+- `POST .../artifacts/<artifact_id>/versions/` ; `GET .../artifacts/<artifact_id>/download/`
+- `POST .../requirements/<assessment_id>/evidence/` : pièce → preuve en attente, pas de décision automatique
+
+Les routes exactes côté Space sont assemblées par `organizations/api/urls.py`, celles des Journeys personnelles par `core/api/detail_urls.py`.
+
+### Tests ajoutés / recette restant à attester
+
+- `services/test_space_beneficiary_api.py` : Space mandaté, replay indépendant d'un Profile, IDOR, group gate non transféré, intake, révocation, versions, upload, copie privée, téléchargement, formulaire et respondent réel.
+- `services/test_task34a_requirements.py` : POST preuve idempotent et Requirement non satisfait, refus de bénéficiaire étranger.
+- `mobile/test/space_beneficiary_journey_local_first_test.dart` : séparation des identités de source, Space et Profile.
+- Les autres tests Journeys/Services, autorisations, synchronisation, opérations de pièces et questionnaires de la PR existante doivent rester actifs. Ne supprimer ni affaiblir aucun test.
+- À vérifier avant toute déclaration « production validée » : Django tests ciblés et PostgreSQL, `python manage.py check`, `flutter analyze`, widget tests/formatage canonique, usages Android et reprise hors connexion, permissions révoquées pendant l'affichage et partage d'un appareil entre Profiles.
+
+Commandes de recette ciblée PowerShell après vérification des modifications locales :
+
+```powershell
+cd C:\Users\Public\makolo
+git status --short --branch
+git fetch origin
+git switch fix/discover-a-continuation-context-20261014
+git pull --ff-only
+python manage.py check
+python manage.py test services.test_space_beneficiary_api services.test_task34a_requirements questionnaires.tests journeys.test_space_beneficiary
+cd mobile
+bash tool/dart_format.sh check
+flutter analyze
+flutter test test/space_beneficiary_journey_local_first_test.dart
+```
+
+**Preuve d'intégration au dépôt :** fichiers et tests enregistrés sur la branche de PR #522, pas de merge. **Preuve de tests exécutés par cette passe :** aucune suite Django/PostgreSQL/Flutter locale exécutée dans cet environnement connecté à GitHub. Les workflows de formatage sont séparés de la recette produit et ne remplacent pas les tests. Ne pas présenter ce checkpoint comme une validation de production.
