@@ -121,6 +121,7 @@ def _serialize(request, journey, artifact, *, slug=None):
         ],
         "capabilities": {
             "download": _may_download(request, journey, artifact),
+            "download_requires_confirmation": _may_download(request, journey, artifact),
             "new_version": can_write and artifact.status != JourneyArtifactStatus.SUPERSEDED,
         },
         "links": {
