@@ -82,6 +82,20 @@ class EmptyObjectivePresentationTests(TestCase):
         self.assertLess(description, people)
         self.assertIn('Description courte du Projet', html)
         self.assertNotIn('>Informations du Projet</h2>', html)
+        self.assertIn('class="mk-project__title-row"', html)
+        self.assertIn('class="mk-project__exchange"', html)
+        self.assertIn('aria-label="Échanger autour du Projet"', html)
+        self.assertIn('data-project-top-menu', html)
+        self.assertIn('class="mk-project__view-toolbar"', html)
+        self.assertIn('class="mk-project__create-icon"', html)
+        self.assertNotIn('class="mk-project__commands"', html)
+        self.assertNotIn('class="mk-project__hero-actions"', html)
+        # The header owns the conversation action; the top bar owns management.
+        self.assertLess(
+            html.index('class="mk-project__title-row"'),
+            html.index('class="mk-project__view-toolbar"'),
+        )
+
 
     def test_web_project_people_are_one_preview_with_on_demand_depth(self):
         project = create_project(
