@@ -286,30 +286,36 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ? (AppuisViewData.map(loyalty['program']).isNotEmpty ? 1 : 0)
         : AppuisViewData.programs(loyalty).length;
     final recognition = _data('recognition');
-    final rewards =
-        AppuisViewData.rows(recognition['rewards']).length +
-        (widget.space
-            ? 0
-            : AppuisViewData.rows(loyalty['available_rewards']).length);
-    final partners = AppuisViewData.rows(_data('partners')['relationships'])
-        .length;
+    final achievements = AppuisViewData.rows(recognition['achievements']).length;
+    final recognitionRewards = AppuisViewData.rows(recognition['rewards']).length;
+    final loyaltyRewards = widget.space ? 0 :
+        AppuisViewData.rows(loyalty['available_rewards']).length;
+    final credits = AppuisViewData.map(
+        recognition['summary'])['available_credits'];
+    final partnerCount = AppuisViewData.rows(
+        _data('partners')['relationships']).length;
+    // Each metric has one owner; never aggregate unrelated reward catalogs.
     final metrics = <Widget>[
       if (available.contains('loyalty') && programCount > 0)
-        _metric(
-          Icons.loyalty_outlined,
-          programCount,
-          'Programme',
-          'Programmes',
-        ),
-      if (rewards > 0)
-        _metric(Icons.redeem_outlined, rewards, 'Récompense', 'Récompenses'),
-      if (available.contains('partners') && partners > 0)
-        _metric(
-          Icons.handshake_outlined,
-          partners,
-          'Partenariat',
-          'Partenariats',
-        ),
+        _metric(Icons.loyalty_outlined, programCount,
+            'Programme', 'Programmes'),
+      if (available.contains('recognition') && achievements > 0)
+        _metric(Icons.workspace_premium_outlined, achievements,
+            'Reconnaissance', 'Reconnaissances')
+      else if (available.contains('recognition') && recognitionRewards > 0)
+        _metric(Icons.redeem_outlined, recognitionRewards,
+            'Récompense Recognition', 'Récompenses Recognition')
+      else if (loyaltyRewards > 0)
+        _metric(Icons.redeem_outlined, loyaltyRewards,
+            'Avantage fidélité', 'Avantages fidélité')
+      else if (available.contains('recognition') &&
+          AppuisViewData.positive(credits))
+        _metric(Icons.stars_outlined,
+            int.tryParse(AppuisViewData.text(credits)) ?? 0,
+            'Crédit Recognition', 'Crédits Recognition'),
+      if (available.contains('partners') && partnerCount > 0)
+        _metric(Icons.handshake_outlined, partnerCount,
+            'Partenariat', 'Partenariats'),
     ];
     if (metrics.isEmpty) return const SizedBox.shrink();
     return Container(
