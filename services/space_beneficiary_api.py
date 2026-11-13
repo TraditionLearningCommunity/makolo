@@ -325,6 +325,11 @@ class SpaceBeneficiaryRequirementAPIView(APIView):
                 "consequence": consequence.value if consequence else None,
             },
             "note": "Posséder une pièce n’établit pas la satisfaction de cette condition.",
+            "capabilities": {
+                "submit_evidence": can_act_for_space_service_journey(
+                    request.user, journey,
+                ) and assessment.status not in {"satisfied", "not_applicable"},
+            },
         })
 
 
