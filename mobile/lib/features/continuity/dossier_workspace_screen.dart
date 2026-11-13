@@ -904,58 +904,95 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (parent.isNotEmpty && widget.onOpenProject != null)
-          MakoloActionButton(
-            label: widget.sourceProjectId == _text(parent['id'])
-                ? 'Retour au Projet · ${_text(parent['title'])}'
-                : 'Ouvrir le Projet · ${_text(parent['title'])}',
-            onPressed: () {
-              if (widget.sourceProjectId == _text(parent['id']) &&
-                  widget.onReturnToProject != null) {
-                widget.onReturnToProject!();
-              } else {
-                widget.onOpenProject!(_text(parent['id']));
-              }
-            },
-            appearance: MakoloActionAppearance.quiet,
-            icon: widget.sourceProjectId == _text(parent['id'])
-                ? Icons.arrow_back_rounded
-                : Icons.folder_special_outlined,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                if (widget.sourceProjectId == _text(parent['id']) &&
+                    widget.onReturnToProject != null) {
+                  widget.onReturnToProject!();
+                } else {
+                  widget.onOpenProject!(_text(parent['id']));
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.sourceProjectId == _text(parent['id'])
+                          ? Icons.arrow_back_rounded
+                          : Icons.folder_special_outlined,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _text(parent['title']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 17,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 53,
-              height: 53,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(12),
                 color: theme.colorScheme.primary.withValues(alpha: .085),
               ),
               child: Icon(
                 Icons.folder_open_outlined,
                 color: theme.colorScheme.primary,
-                size: 28,
+                size: 24,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _text(objective['title']),
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
             ),
+            if (widget.conversations != null &&
+                widget.onOpenConversation != null)
+              ConversationContextAction(
+                repository: widget.conversations!,
+                kind: 'dossier',
+                contextId: widget.id,
+                onOpen: widget.onOpenConversation!,
+                iconOnly: true,
+              ),
           ],
         ),
         if (_text(owner['label']).isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: 2),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: owner['kind'] == 'space' && _text(owner['slug']).isNotEmpty
@@ -964,7 +1001,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         : () => widget.onOpenOwnerSpace!(_text(owner['slug'])))
                   : null,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
                     Icon(
@@ -990,37 +1027,46 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ),
         if (_text(objective['description']).isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
           Text(
             _text(objective['description']),
             style: theme.textTheme.bodyMedium,
           ),
         ],
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
+        const SizedBox(height: 6),
+        Row(
           children: [
-            Chip(label: Text(_humanState(_map(data['state'])['code']))),
-            if (deadline != null)
-              Chip(label: Text('Échéance · ${_dateLabel(context, deadline)}')),
-            if (_text(readiness['state']).isNotEmpty &&
-                _text(readiness['label']).isNotEmpty)
-              Chip(label: Text(_text(readiness['label']))),
-            if (readiness['partial'] == true)
-              const Chip(label: Text('Vue partielle')),
+            Expanded(
+              child: Wrap(
+                spacing: 5,
+                runSpacing: 2,
+                children: [
+                  Chip(
+                    label: Text(_humanState(_map(data['state'])['code'])),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  if (deadline != null)
+                    Chip(
+                      label: Text('Échéance · ' + _dateLabel(context, deadline)),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  if (_text(readiness['state']).isNotEmpty &&
+                      _text(readiness['label']).isNotEmpty)
+                    Chip(
+                      label: Text(_text(readiness['label'])),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  if (readiness['partial'] == true)
+                    const Chip(
+                      label: Text('Vue partielle'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
+            ),
+            _dossierInformation(data),
           ],
         ),
-        if (widget.conversations != null && widget.onOpenConversation != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: ConversationContextAction(
-              repository: widget.conversations!,
-              kind: 'dossier',
-              contextId: widget.id,
-              onOpen: widget.onOpenConversation!,
-            ),
-          ),
       ],
     );
   }
