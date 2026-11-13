@@ -233,6 +233,49 @@ void main() {
     expect(find.text('Créer un dossier'), findsWidgets);
   });
 
+  test('stale screens cannot downgrade pending or confirmed drafts', () async {
+    final first = ObjectiveCreationDraft(
+      repository: drafts, profileId: 'viewer', kind: 'dossier',
+    );
+    final second = ObjectiveCreationDraft(
+      repository: drafts, profileId: 'viewer', kind: 'dossier',
+    );
+    await first.save({'title': 'En préparation', 'submission_state': 'editing'});
+    await second.save({
+      'title': 'En préparation',
+      'submission_state': 'verification_required',
+    });
+    await expectLater(
+      first.save({'title': 'Ancien écran', 'submission_state': 'editing'}),
+      throwsStateError,
+    );
+    expect(
+      (await second.read())?.payload['submission_state'],
+      'verification_required',
+    );
+    await second.save(
+      {'title': 'Vérifié', 'submission_state': 'editing'},
+      verifiedReopen: true,
+    );
+    await second.save({
+      'title': 'Vérifié',
+      'submission_state': 'verification_required',
+    });
+    await second.save({
+      'title': 'Vérifié',
+      'submission_state': 'confirmed',
+      'confirmed_id': 'owner-id',
+    });
+    await expectLater(
+      first.save(
+        {'title': 'Autre', 'submission_state': 'editing'},
+        verifiedReopen: true,
+      ),
+      throwsStateError,
+    );
+    expect((await first.read())?.payload['confirmed_id'], 'owner-id');
+  });
+
   test('creation drafts are isolated by Profile, kind and Space', () async {
     final dossier = ObjectiveCreationDraft(
       repository: drafts,
