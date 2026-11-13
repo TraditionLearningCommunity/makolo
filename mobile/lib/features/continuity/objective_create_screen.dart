@@ -587,7 +587,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     const SizedBox(height: 8),
                     MakoloActionButton(
                       label: 'Créer un autre',
-                      onPressed: !_actorValid || _submitting ? null : _startAnother,
+                      onPressed: !_actorValid || _submitting
+                          ? null
+                          : _startAnother,
                       appearance: MakoloActionAppearance.quiet,
                       icon: Icons.add_rounded,
                     ),
@@ -665,7 +667,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                           Icon(
                             Icons.schedule_outlined,
                             size: 18,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -703,7 +707,11 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   ],
                   MakoloActionButton(
                     label: _submitting ? 'Confirmation…' : title,
-                    onPressed: _submitting || _restoring || _restoreFailed || _attempted
+                    onPressed:
+                        _submitting ||
+                            _restoring ||
+                            _restoreFailed ||
+                            _attempted
                         ? null
                         : _submit,
                     busy: _submitting,
