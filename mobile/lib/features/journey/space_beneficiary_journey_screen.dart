@@ -810,8 +810,9 @@ class _SpaceBeneficiaryRequirementScreenState
         _error = null;
       });
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Condition actuellement indisponible.');
+      }
     }
   }
 
