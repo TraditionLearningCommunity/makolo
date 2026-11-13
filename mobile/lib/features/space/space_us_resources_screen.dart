@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
-import '../../design/makolo_theme.dart';
 import '../../sync/owner_source_state.dart';
 import '../resources/resource_presentation.dart';
 
