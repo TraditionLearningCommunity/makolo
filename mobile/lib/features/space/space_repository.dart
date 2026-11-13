@@ -132,6 +132,22 @@ final class SpaceSyncKeys {
   static String resourcesSourceKey(String spaceId) =>
       'space:${Uri.encodeComponent(spaceId)}:resources';
 
+  static const documentDetailProjectionKind = 'space.document.detail';
+
+  static String documentDetailResourceKey(
+    String spaceId,
+    String documentId,
+  ) =>
+      '${Uri.encodeComponent(spaceId)}|'
+      '${Uri.encodeComponent(documentId)}';
+
+  static String documentDetailSourceKey(
+    String spaceId,
+    String documentId,
+  ) =>
+      'space:${Uri.encodeComponent(spaceId)}:document:'
+      '${Uri.encodeComponent(documentId)}';
+
   static String documentsResourceKey(
     String spaceId, {
     required String query,
@@ -301,6 +317,39 @@ final class WorkspaceContextRepository {
     );
   }
 
+  SyncSourceDefinition documentDetailSource(
+    SpaceActorIdentity space,
+    String documentId,
+  ) {
+    final normalizedId = documentId.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError.value(documentId, 'documentId', 'must not be empty');
+    }
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.documentDetailSourceKey(
+        space.id,
+        normalizedId,
+      ),
+      owner: 'SpaceDocument',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path:
+          '${_spaceSegmentPath(space.slug, 'documents')}'
+          '${Uri.encodeComponent(normalizedId)}/',
+      projectionKind: SpaceSyncKeys.documentDetailProjectionKind,
+      resourceKey: SpaceSyncKeys.documentDetailResourceKey(
+        space.id,
+        normalizedId,
+      ),
+      category: SyncSourceCategory.keyedDetail,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseDocumentDetail(
+        response,
+        expectedDocumentId: normalizedId,
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
   SyncSourceDefinition documentsSource(
     SpaceActorIdentity space, {
     String query = '',
@@ -424,6 +473,30 @@ final class WorkspaceContextRepository {
       store.readProjection(
         SpaceSyncKeys.resourcesProjectionKind,
         resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      );
+
+  Stream<StoredProjection?> watchDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) =>
+      store.watchProjection(
+        SpaceSyncKeys.documentDetailProjectionKind,
+        resourceKey: SpaceSyncKeys.documentDetailResourceKey(
+          space.id,
+          documentId,
+        ),
+      );
+
+  Future<StoredProjection?> readDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) =>
+      store.readProjection(
+        SpaceSyncKeys.documentDetailProjectionKind,
+        resourceKey: SpaceSyncKeys.documentDetailResourceKey(
+          space.id,
+          documentId,
+        ),
       );
 
   Stream<List<StoredProjection>> watchDocumentPages(
@@ -637,6 +710,46 @@ final class WorkspaceContextRepository {
 
   Future<void> refreshResources(SpaceActorIdentity space) =>
       _refresh(resourcesSource(space));
+
+  Future<bool> shouldRefreshDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId, {
+    DateTime? now,
+  }) async {
+    final source = documentDetailSource(space, documentId);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readDocumentDetail(space, documentId);
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) async {
+    if (await shouldRefreshDocumentDetail(space, documentId)) {
+      await refreshDocumentDetail(space, documentId);
+    }
+  }
+
+  Future<void> refreshDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) =>
+      _refresh(documentDetailSource(space, documentId));
 
   Future<bool> shouldRefreshDocumentPage(
     SpaceActorIdentity space, {
@@ -994,6 +1107,27 @@ final class WorkspaceContextRepository {
         payload['next_offset'] is! num ||
         payload['kind'] != 'document') {
       throw const FormatException('Space resources response is incomplete.');
+    }
+    return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseDocumentDetail(
+    ApiResponse response, {
+    required String expectedDocumentId,
+  }) {
+    final payload = response.jsonObject();
+    final document = _requiredMap(payload, 'document');
+    if (_requiredString(document, 'id') != expectedDocumentId) {
+      throw const FormatException(
+        'Space document detail does not match document id.',
+      );
+    }
+    if (document['versions'] is! List ||
+        payload['can_manage'] is! bool ||
+        payload['shares'] is! List) {
+      throw const FormatException(
+        'Space document detail response is incomplete.',
+      );
     }
     return AcquiredProjection(schemaVersion: 1, payload: payload);
   }
