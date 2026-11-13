@@ -1581,9 +1581,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     'Informations du Dossier',
-                    style: Theme.of(sheet).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(sheet).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
                 if (created != null)
