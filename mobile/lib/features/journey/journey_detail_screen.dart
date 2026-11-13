@@ -1123,7 +1123,8 @@ class _JourneyOutcomeCard extends StatelessWidget {
   }
 }
 
-/// The top of N3 reads as a human objective, not a collection of owners.
+/// Full-width cover for the person's objective. Time, place and Journey
+/// status are presented once; details and authority remain with their owners.
 class _JourneyIdentity extends StatelessWidget {
   const _JourneyIdentity({
     required this.presentation,
@@ -1137,26 +1138,17 @@ class _JourneyIdentity extends StatelessWidget {
   final ValueChanged<String> onOpenDayOf;
   final ValueChanged<String> onOpenLive;
 
-  IconData get _symbol => switch (presentation.workflowKind) {
-    'purchase' => Icons.shopping_bag_outlined,
-    'reservation' => Icons.event_available_outlined,
-    'registration' => Icons.badge_outlined,
-    'invitation' => Icons.mail_outline_rounded,
-    'service' => Icons.handyman_outlined,
-    'fulfillment' => Icons.task_alt_outlined,
-    _ => Icons.route_outlined,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final palette = Theme.of(context).colorScheme;
     final facts = presentation.practical;
     final date =
         JourneyDayPresentation.civilDate(facts?.startDate) ??
         facts?.startAt?.toLocal();
-    final dateLabel = date == null
-        ? null
-        : MaterialLocalizations.of(context).formatMediumDate(date);
+    final endDate = JourneyDayPresentation.civilDate(facts?.endDate);
+    final locale = MaterialLocalizations.of(context);
+    final dateLabel = date == null ? null : locale.formatMediumDate(date);
+    final sameDay =
+        facts?.endDate == null || facts?.endDate == facts?.startDate;
     final startTime =
         JourneyDayPresentation.clock(facts?.startTime) ??
         (facts?.startAt == null
@@ -1166,138 +1158,210 @@ class _JourneyIdentity extends StatelessWidget {
                 '${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
               ));
     final endTime = JourneyDayPresentation.clock(facts?.endTime);
-    final sameDay =
-        facts?.endDate == null || facts?.endDate == facts?.startDate;
-    String shorten(String value) =>
+    String compactTime(String value) =>
         value.endsWith('h00') ? value.substring(0, value.length - 2) : value;
     final timeLabel = startTime == null
         ? null
         : sameDay && endTime != null
-        ? '${shorten(startTime)}–${shorten(endTime)}'
-        : shorten(startTime);
-    final placeLabel = JourneyDayPresentation.place(
+        ? '${compactTime(startTime)}–${compactTime(endTime)}'
+        : compactTime(startTime);
+    final endLabel = !sameDay && endDate != null
+        ? 'Jusqu’au ${locale.formatMediumDate(endDate)}'
+          '${endTime == null ? '' : ' · ${compactTime(endTime)}'}'
+        : null;
+    final place = JourneyDayPresentation.place(
       name: facts?.placeName,
       locality: facts?.placeLocality,
+    );
+    final placeDetail = JourneyDayPresentation.additionalPlace(
+      name: facts?.placeName,
+      locality: facts?.placeLocality,
+      address: facts?.placeAddress,
     );
     final status = MakoloHumanization.presentationLabel(
       presentation.journeyState,
     );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.inner,
-        MakoloSpacing.sm,
-        MakoloSpacing.inner,
-        0,
-      ),
-      child: DecoratedBox(
-        key: const Key('journey-identity'),
-        decoration: BoxDecoration(
-          color: palette.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: palette.outlineVariant),
+    final style = Theme.of(context).textTheme;
+
+    return Container(
+      key: const Key('journey-identity'),
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [MakoloColors.deep, MakoloColors.indigo],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(MakoloSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(22),
+          bottomRight: Radius.circular(22),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MakoloSpacing.md,
+        vertical: MakoloSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(_symbol, color: _journeyAccent(context), size: 24),
-                  const SizedBox(width: MakoloSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'MON OBJECTIF',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: palette.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          presentation.title,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
+              const Icon(
+                Icons.track_changes_rounded,
+                color: Colors.white,
+                size: 24,
+                semanticLabel: 'Objectif',
+              ),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Text(
+                  'MON OBJECTIF',
+                  style: style.labelMedium?.copyWith(
+                    color: const Color(0xFFE0D9FF),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
                   ),
-                  if (facts?.startDate != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: JourneyDayBadge(
-                        occurrenceDate: facts!.startDate!,
-                        timezoneName: facts.timezone,
-                        onOpenDayOf: presentation.dayOfLink == null
-                            ? null
-                            : () => onOpenDayOf(presentation.dayOfLink!),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: MakoloSpacing.xs),
-              Row(
-                children: [
-                  if (status != null) ...[
-                    MakoloStatus(label: status),
-                    const SizedBox(width: MakoloSpacing.xs),
-                  ],
-                  if (conversationEntry != null) conversationEntry!,
-                  if (presentation.liveLink != null)
-                    IconButton(
-                      tooltip: 'Ouvrir Makolo Live',
-                      icon: const Icon(Icons.sensors_rounded),
-                      onPressed: () => onOpenLive(presentation.liveLink!),
-                    ),
-                ],
-              ),
-              if (dateLabel != null ||
-                  timeLabel != null ||
-                  placeLabel != null) ...[
-                const SizedBox(height: MakoloSpacing.xs),
-                Divider(color: palette.outlineVariant, height: 12),
-                Wrap(
-                  spacing: MakoloSpacing.md,
-                  runSpacing: MakoloSpacing.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (dateLabel != null)
-                      _JourneyHeroFact(
-                        icon: Icons.calendar_today_outlined,
-                        label: dateLabel,
-                      ),
-                    if (timeLabel != null)
-                      _JourneyHeroFact(
-                        icon: Icons.schedule_outlined,
-                        label: timeLabel,
-                      ),
-                    if (placeLabel != null)
-                      _JourneyHeroFact(
-                        icon: Icons.place_outlined,
-                        label: placeLabel,
-                      ),
-                  ],
                 ),
-              ],
+              ),
+              if (facts?.startDate != null)
+                JourneyDayBadge(
+                  occurrenceDate: facts!.startDate!,
+                  timezoneName: facts.timezone,
+                  onCover: true,
+                  onOpenDayOf: presentation.dayOfLink == null
+                      ? null
+                      : () => onOpenDayOf(presentation.dayOfLink!),
+                ),
             ],
           ),
-        ),
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(
+            presentation.title,
+            style: style.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          if (status != null ||
+              conversationEntry != null ||
+              presentation.liveLink != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Row(
+              children: [
+                if (status != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Text(
+                      status,
+                      style: style.labelMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (conversationEntry != null)
+                  IconTheme(
+                    data: const IconThemeData(color: Colors.white, size: 23),
+                    child: conversationEntry!,
+                  ),
+                if (presentation.liveLink != null)
+                  IconButton(
+                    tooltip: 'Ouvrir Makolo Live',
+                    color: Colors.white,
+                    icon: const Icon(Icons.sensors_rounded),
+                    onPressed: () => onOpenLive(presentation.liveLink!),
+                  ),
+              ],
+            ),
+          ],
+          if (dateLabel != null ||
+              timeLabel != null ||
+              place != null ||
+              placeDetail != null ||
+              endLabel != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Divider(
+              height: MakoloSpacing.md,
+              color: Colors.white.withValues(alpha: 0.25),
+            ),
+            Wrap(
+              spacing: MakoloSpacing.compact,
+              runSpacing: MakoloSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (dateLabel != null)
+                  _JourneyHeroFact(
+                    icon: Icons.calendar_today_outlined,
+                    label: dateLabel,
+                  ),
+                if (timeLabel != null)
+                  _JourneyHeroFact(
+                    icon: Icons.schedule_outlined,
+                    label: timeLabel,
+                  ),
+                if (place != null)
+                  _JourneyHeroFact(
+                    icon: Icons.place_outlined,
+                    label: place,
+                  ),
+              ],
+            ),
+            if (placeDetail != null || endLabel != null) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Wrap(
+                spacing: MakoloSpacing.md,
+                runSpacing: MakoloSpacing.xs,
+                children: [
+                  if (placeDetail != null)
+                    _JourneyHeroFact(
+                      icon: Icons.directions_outlined,
+                      label: placeDetail,
+                      secondary: true,
+                    ),
+                  if (endLabel != null)
+                    _JourneyHeroFact(
+                      icon: Icons.event_available_outlined,
+                      label: endLabel,
+                      secondary: true,
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ],
       ),
     );
   }
 }
 
 class _JourneyHeroFact extends StatelessWidget {
-  const _JourneyHeroFact({required this.icon, required this.label});
+  const _JourneyHeroFact({
+    required this.icon,
+    required this.label,
+    this.secondary = false,
+  });
 
   final IconData icon;
   final String label;
+  final bool secondary;
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final color = secondary
+        ? const Color(0xFFE0D9FF)
+        : Colors.white;
     return Semantics(
       label: label,
       child: ExcludeSemantics(
@@ -1306,7 +1370,15 @@ class _JourneyHeroFact extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: color),
             const SizedBox(width: 4),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            Flexible(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: secondary ? FontWeight.w400 : FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
       ),
