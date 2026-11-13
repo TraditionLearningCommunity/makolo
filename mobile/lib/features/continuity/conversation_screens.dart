@@ -3160,7 +3160,8 @@ class _PointCardState extends State<_PointCard> {
   Widget build(BuildContext context) {
     final point = widget.point;
     final responseIntent = widget.responseIntent;
-    final waitingForOwner = responseIntent != null &&
+    final waitingForOwner =
+        responseIntent != null &&
         (!responseIntent.isConfirmed ||
             !point.hasRespondedForScope(widget.representedSpaceId));
     final canRespond =
@@ -3448,8 +3449,7 @@ class _PointCardState extends State<_PointCard> {
               Icon(
                 responseIntent.isConfirmed
                     ? Icons.check_rounded
-                    : responseIntent.isBlocked &&
-                        !responseIntent.retryScheduled
+                    : responseIntent.isBlocked && !responseIntent.retryScheduled
                     ? Icons.error_outline_rounded
                     : Icons.schedule_rounded,
                 size: 15,
@@ -3459,8 +3459,7 @@ class _PointCardState extends State<_PointCard> {
               Text(
                 responseIntent.isConfirmed
                     ? 'Envoyé'
-                    : responseIntent.isBlocked &&
-                        !responseIntent.retryScheduled
+                    : responseIntent.isBlocked && !responseIntent.retryScheduled
                     ? 'Non confirmé'
                     : 'En attente',
                 style: theme.labelSmall?.copyWith(color: muted),
