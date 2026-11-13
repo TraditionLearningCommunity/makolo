@@ -7,7 +7,12 @@ import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/features/resources/resource_presentation.dart';
 import 'package:makolo_mobile/features/space/space_documents_screen.dart';
+import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/features/space/space_us_resources_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'dio_testing.dart';
@@ -31,6 +36,88 @@ class _LocalActorStore implements ActorContextStore {
 }
 
 void main() {
+  testWidgets('Nous resources uses the shared Resources hub presentation', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final actor = await ActorContextController.restore(
+      profileId: 'profile-a',
+      store: _LocalActorStore(),
+    );
+    addTearDown(actor.dispose);
+    await actor.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
+    );
+    final repository = WorkspaceContextRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      actorContext: actor,
+    );
+    await store.putProjection(
+      kind: SpaceProjectionKind.us.wireValue,
+      resourceKey: SpaceSyncKeys.resourceKey('space-a'),
+      schemaVersion: 1,
+      payload: {
+        'resources': {
+          'visibility': 'visible',
+          'count': 6,
+          'counts': {
+            'document': 2,
+            'passport': 1,
+            'template': 2,
+            'theme': 1,
+          },
+          'items': const [],
+        },
+        'handoffs': {
+          'resources': '/space/atelier/us/resources',
+          'passport': '/space/atelier/us/passport',
+        },
+      },
+    );
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+      recovery: SessionRecoveryController(),
+      actorContext: actor,
+      database: database,
+      store: store,
+      space: repository,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SpaceUsResourcesScreen(runtime: runtime, slug: 'atelier'),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Nos ressources'), findsOneWidget);
+    expect(find.byType(ResourceHubEntry), findsNWidgets(4));
+    expect(find.text('Nos documents'), findsOneWidget);
+    expect(find.text('Passeports émis'), findsOneWidget);
+    expect(find.text('Modèles de présentation'), findsOneWidget);
+    expect(find.text('Thèmes de présentation'), findsOneWidget);
+    expect(find.text('Ressources de cet Espace'), findsNothing);
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(find.byTooltip('Actualiser'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'Space documents retain prior list on outage but revoke on 403 or switch',
     (tester) async {
