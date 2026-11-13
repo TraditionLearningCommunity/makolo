@@ -447,7 +447,7 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                                                 Navigator.of(context).push(
                                                   MaterialPageRoute<void>(
                                                     builder: (_) =>
-                                                        _PrivatePieceReader(
+                                                        JourneyOwnerFileReader(
                                                           api: widget
                                                               .runtime
                                                               .api!,
@@ -590,8 +590,8 @@ String? _mime(String? filename) {
   };
 }
 
-class _PrivatePieceReader extends StatefulWidget {
-  const _PrivatePieceReader({
+class JourneyOwnerFileReader extends StatefulWidget {
+  const JourneyOwnerFileReader({
     required this.api,
     required this.profileId,
     required this.path,
@@ -606,10 +606,10 @@ class _PrivatePieceReader extends StatefulWidget {
   final String mime;
 
   @override
-  State<_PrivatePieceReader> createState() => _PrivatePieceReaderState();
+  State<JourneyOwnerFileReader> createState() => JourneyOwnerFileReaderState();
 }
 
-class _PrivatePieceReaderState extends State<_PrivatePieceReader> {
+class JourneyOwnerFileReaderState extends State<JourneyOwnerFileReader> {
   String? _path;
   bool _busy = true;
   String? _error;
