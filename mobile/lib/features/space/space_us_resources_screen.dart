@@ -1,18 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-
-import '../../design/action_controls.dart';
-
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
-import '../../network/api_error.dart';
+import '../../sync/owner_source_state.dart';
+import '../resources/resource_presentation.dart';
 
-/// Nous N2: real institutional assets belonging to the active Space.
+/// Nous N2: institutional Resources projected for the active Space.
 ///
-/// Resource metadata stays in its owner (Sharing or Presentation). The client
-/// never treats a member's PersonalAsset or an ActivityResource as Space owned.
+/// The presentation is shared with Moi. Owners and authority are not: Space
+/// resources remain viewer-aware projections and Flutter never derives access
+/// from membership, role labels or cached counts.
 class SpaceUsResourcesScreen extends StatefulWidget {
   const SpaceUsResourcesScreen({
     super.key,
@@ -28,34 +29,22 @@ class SpaceUsResourcesScreen extends StatefulWidget {
 }
 
 class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
-  static const _families = <String, String>{
-    'document': 'Documents',
-    'passport': 'Passeports émis',
-    'template': 'Modèles',
-    'theme': 'Thèmes',
-  };
+  bool _refreshing = false;
 
-  String _family = 'document';
-  List<Map<String, dynamic>> _items = [];
-  Map<String, dynamic> _counts = {};
-  bool _loading = true;
-  bool _more = false;
-  bool _denied = false;
-  bool _accessConfirmed = false;
-  String? _error;
-  int _nextOffset = 0;
-  int _requestVersion = 0;
-
-  bool get _authorized {
+  SpaceActorContext? get _actor {
     final actor = widget.runtime.actorContext?.value;
-    return actor is SpaceActorContext && actor.space.slug == widget.slug;
+    return actor is SpaceActorContext && actor.space.slug == widget.slug
+        ? actor
+        : null;
   }
 
   @override
   void initState() {
     super.initState();
     widget.runtime.actorContext?.addListener(_onActorChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load(reset: true));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_refresh());
+    });
   }
 
   @override
@@ -64,249 +53,178 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     if (oldWidget.runtime != widget.runtime || oldWidget.slug != widget.slug) {
       oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
       widget.runtime.actorContext?.addListener(_onActorChanged);
-      _requestVersion++;
-      _items = [];
-      _counts = {};
-      _denied = false;
-      _accessConfirmed = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _load(reset: true));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_refresh());
+      });
     }
   }
 
   @override
   void dispose() {
-    _requestVersion++;
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     super.dispose();
   }
 
   void _onActorChanged() {
-    _requestVersion++;
     if (!mounted) return;
-    setState(() {
-      _items = [];
-      _counts = {};
-      _more = false;
-      _nextOffset = 0;
-      _denied = !_authorized;
-      _accessConfirmed = false;
-      _error = null;
-      _loading = _authorized;
-    });
-    if (_authorized) _load(reset: true);
+    setState(() {});
+    unawaited(_refresh());
   }
 
-  Future<void> _load({required bool reset}) async {
-    final current = widget.runtime.actorContext?.value;
-    final api = widget.runtime.api;
-    final ticket = ++_requestVersion;
-    if (current is! SpaceActorContext ||
-        current.space.slug != widget.slug ||
-        api == null) {
-      if (!mounted) return;
-      setState(() {
-        _items = [];
-        _more = false;
-        _loading = false;
-        _denied =
-            current is! SpaceActorContext || current.space.slug != widget.slug;
-        _error = _denied
-            ? null
-            : 'Connexion nécessaire pour consulter ces ressources.';
-      });
-      return;
-    }
-    final expectedId = current.space.id;
-    final kind = _family;
-    final offset = reset ? 0 : _nextOffset;
-    setState(() {
-      _loading = true;
-      _error = null;
-      if (reset) {
-        _items = [];
-        _more = false;
-        _nextOffset = 0;
-      }
-    });
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null || repository.sync == null) return;
+    final expectedId = actor.space.id;
+    setState(() => _refreshing = true);
     try {
-      final result = await api.get(
-        'api/v1/organizations/workspaces/'
-        '${Uri.encodeComponent(widget.slug)}/us/resources/'
-        '?kind=$kind&offset=$offset',
-      );
-      final data = result.jsonObject();
-      final active = widget.runtime.actorContext?.value;
-      if (!mounted ||
-          ticket != _requestVersion ||
-          active is! SpaceActorContext ||
-          active.space.id != expectedId ||
-          active.space.slug != widget.slug) {
-        return;
-      }
-      if (data['space_id'] != expectedId ||
-          data['kind'] != kind ||
-          data['items'] is! List) {
-        throw const FormatException('Incohérence de la projection Ressources.');
-      }
-      final rows = <Map<String, dynamic>>[
-        for (final item in data['items'] as List)
-          if (item is Map<String, dynamic>) item,
-      ];
-      setState(() {
-        _accessConfirmed = true;
-        _counts = data['counts'] is Map<String, dynamic>
-            ? data['counts'] as Map<String, dynamic>
-            : {};
-        _items = reset ? rows : [..._items, ...rows];
-        _more = data['has_more'] == true;
-        _nextOffset = data['next_offset'] is int
-            ? data['next_offset'] as int
-            : _items.length;
-        _loading = false;
-      });
-    } on MakoloApiError catch (error) {
-      if (!mounted || ticket != _requestVersion || !_authorized) return;
-      setState(() {
-        _loading = false;
-        _accessConfirmed = false;
-        _denied =
-            error.statusCode == 401 ||
-            error.statusCode == 403 ||
-            error.statusCode == 404;
-        _items = [];
-        _more = false;
-        _error = _denied
-            ? 'Vos droits ont changé. Ressources indisponibles.'
-            : 'Impossible de charger les ressources.';
-      });
+      await repository.refreshUs(actor.space);
     } on Object {
-      if (!mounted || ticket != _requestVersion || !_authorized) return;
-      setState(() {
-        _loading = false;
-        _items = [];
-        _more = false;
-        _accessConfirmed = false;
-        _error = 'Impossible de charger les ressources.';
-      });
-    }
-  }
-
-  String? _resourceTarget(Map<String, dynamic> item) {
-    final expected = '/space/${widget.slug}/us/passport';
-    // A route must come from the current Space owner projection and match
-    // this Space; item kind or an old local URL never grants navigation.
-    if (item['kind'] == 'passport' && item['handoff'] == expected) {
-      return expected;
-    }
-    if (item['kind'] == 'document') {
-      final id = item['id']?.toString();
-      if (id == null || !RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id)) {
-        return null;
+      // Local-first: preserve the last acquired projection.
+    } finally {
+      if (mounted && _actor?.space.id == expectedId) {
+        setState(() => _refreshing = false);
       }
-      final documentRoute = '/space/${widget.slug}/us/documents/$id';
-      return item['handoff'] == documentRoute ? documentRoute : null;
     }
-    return null;
-  }
-
-  void _select(String family) {
-    if (family == _family) return;
-    setState(() {
-      _family = family;
-      _error = null;
-    });
-    _load(reset: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Nos ressources')),
-      body: ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.lg),
-        children: [
-          Text(
-            'Ressources de cet Espace',
-            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          const Text('Les ressources de notre collectif.'),
-          const SizedBox(height: MakoloSpacing.lg),
-          if (_authorized && !_denied && _accessConfirmed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-              child: MakoloActionButton(
-                label: 'Documents de l’Espace',
-                appearance: MakoloActionAppearance.secondary,
-                onPressed: () =>
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null) {
+      return ResourceHubScaffold(
+        title: 'Nos ressources',
+        refreshing: false,
+        onRefresh: _refresh,
+        entries: const [],
+        emptyMessage: 'Choisissez cet Espace pour consulter ses ressources.',
+      );
+    }
+
+    final source = repository.usSource(actor.space);
+    return StreamBuilder<OwnerSourceState>(
+      stream: repository.watchSource(source),
+      initialData: OwnerSourceState.unknown,
+      builder: (context, sourceSnapshot) {
+        final state = sourceSnapshot.data ?? OwnerSourceState.unknown;
+        return StreamBuilder(
+          stream: repository.watchUs(actor.space),
+          builder: (context, snapshot) {
+            final payload = snapshot.data?.payload;
+            final resources = _map(payload?['resources']);
+            final visibility = _text(resources['visibility']);
+            final counts = _map(resources['counts']);
+            final handoffs = _map(payload?['handoffs']);
+
+            if (state.invalidated || visibility == 'restricted') {
+              return ResourceHubScaffold(
+                title: 'Nos ressources',
+                refreshing: _refreshing,
+                onRefresh: _refresh,
+                entries: const [],
+                emptyMessage:
+                    'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+              );
+            }
+
+            final entries = <ResourceHubEntryData>[
+              ResourceHubEntryData(
+                key: const Key('space-resources-documents'),
+                icon: Icons.folder_copy_outlined,
+                title: 'Nos documents',
+                subtitle: 'Fichiers et pièces de cet Espace',
+                count: _int(counts['document']),
+                onTap: () =>
                     context.push('/space/${widget.slug}/us/documents'),
-                icon: Icons.folder_open_outlined,
               ),
-            ),
-          Wrap(
-            spacing: MakoloSpacing.sm,
-            runSpacing: MakoloSpacing.sm,
-            children: [
-              for (final entry in _families.entries)
-                ChoiceChip(
-                  label: Text('${entry.value} (${_counts[entry.key] ?? 0})'),
-                  selected: _family == entry.key,
-                  onSelected: _denied || !_authorized
-                      ? null
-                      : (_) => _select(entry.key),
+            ];
+
+            final passportCount = _int(counts['passport']) ?? 0;
+            final passportHandoff = _text(handoffs['passport']);
+            if (passportCount > 0) {
+              entries.add(
+                ResourceHubEntryData(
+                  key: const Key('space-resources-passports'),
+                  icon: Icons.badge_outlined,
+                  title: 'Passeports émis',
+                  subtitle: 'Documents institutionnels émis par cet Espace',
+                  count: passportCount,
+                  onTap:
+                      passportHandoff == '/space/${widget.slug}/us/passport'
+                      ? () => context.push(passportHandoff!)
+                      : null,
                 ),
-            ],
-          ),
-          const SizedBox(height: MakoloSpacing.lg),
-          if (_denied)
-            const Text('Vous n’avez pas accès à ces ressources.')
-          else if (_error != null) ...[
-            Text(_error!),
-            MakoloActionButton(
-              label: 'Réessayer',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => _load(reset: true),
-              icon: Icons.refresh_rounded,
-            ),
-          ] else if (_loading && _items.isEmpty)
-            const Center(child: CircularProgressIndicator())
-          else if (_items.isEmpty)
-            const Text('Aucune ressource dans cette catégorie.')
-          else
-            for (final item in _items)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    item['kind'] == 'document'
-                        ? Icons.description_outlined
-                        : item['kind'] == 'passport'
-                        ? Icons.badge_outlined
-                        : Icons.layers_outlined,
-                    color: colors.primary,
+              );
+            }
+
+            final templateCount = _int(counts['template']) ?? 0;
+            if (templateCount > 0) {
+              entries.add(
+                ResourceHubEntryData(
+                  key: const Key('space-resources-templates'),
+                  icon: Icons.content_copy_outlined,
+                  title: 'Modèles de présentation',
+                  subtitle: 'Modèles publiés appartenant à cet Espace',
+                  count: templateCount,
+                ),
+              );
+            }
+
+            final themeCount = _int(counts['theme']) ?? 0;
+            if (themeCount > 0) {
+              entries.add(
+                ResourceHubEntryData(
+                  key: const Key('space-resources-themes'),
+                  icon: Icons.palette_outlined,
+                  title: 'Thèmes de présentation',
+                  subtitle: 'Thèmes publiés appartenant à cet Espace',
+                  count: themeCount,
+                ),
+              );
+            }
+
+            Widget? notice;
+            if (visibility == 'unavailable' || state.lastErrorCode != null) {
+              notice = Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Les ressources affichées proviennent de la dernière '
+                  'projection disponible.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  title: Text(item['title']?.toString() ?? 'Ressource'),
-                  subtitle: Text(item['detail']?.toString() ?? ''),
-                  trailing: _resourceTarget(item) != null
-                      ? const Icon(Icons.chevron_right_rounded)
-                      : null,
-                  onTap: _resourceTarget(item) != null
-                      ? () => context.push(_resourceTarget(item)!)
-                      : null,
                 ),
-              ),
-          if (_loading && _items.isNotEmpty)
-            const Center(child: CircularProgressIndicator()),
-          if (_more && !_loading)
-            MakoloActionButton(
-              label: 'Voir les ressources suivantes',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => _load(reset: false),
-              icon: Icons.expand_more_rounded,
-            ),
-        ],
-      ),
+              );
+            }
+
+            return ResourceHubScaffold(
+              title: 'Nos ressources',
+              refreshing: _refreshing,
+              onRefresh: _refresh,
+              notice: notice,
+              entries: entries,
+            );
+          },
+        );
+      },
     );
   }
 }
+
+Map<String, dynamic> _map(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const {};
+}
+
+String? _text(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}
+
+int? _int(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('${value ?? ''}');
