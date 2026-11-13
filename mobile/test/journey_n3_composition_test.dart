@@ -48,9 +48,15 @@ void main() {
             'timing': {
               'start_date': '2026-12-11',
               'start_time': '09:00:00',
+              'end_date': '2026-12-11',
+              'end_time': '14:00:00',
               'timezone': 'Africa/Lubumbashi',
             },
-            'place': {'name': 'Lubumbashi', 'locality': 'Lubumbashi'},
+            'place': {
+            'name': 'Lubumbashi',
+            'locality': 'Lubumbashi',
+            'address': 'Centre-ville, Lubumbashi',
+          },
           },
           'resources': {
             'link': '/api/v1/preparation/journeys/journey-visual/resources/',
@@ -109,11 +115,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("Recevoir un badge d'accès conférence"), findsOneWidget);
-      expect(find.text('09h'), findsOneWidget);
+      expect(find.text('09h–14h'), findsOneWidget);
       expect(find.text('Lubumbashi'), findsOneWidget);
       expect(find.byKey(const Key('journey-relative-day')), findsOneWidget);
       expect(find.text('Africa/Lubumbashi'), findsNothing);
       expect(find.text('À retenir'), findsNothing);
+      expect(find.text('À savoir'), findsNothing);
+      expect(find.text('Sur place'), findsNothing);
+      expect(find.text('Fin prévue'), findsNothing);
+      expect(find.text('Centre-ville'), findsOneWidget);
+      expect(find.byIcon(Icons.track_changes_rounded), findsOneWidget);
+      final cover = tester.getRect(find.byKey(const Key('journey-identity')));
+      expect(cover.left, 0);
+      expect(cover.width, 340);
       expect(find.text('De votre côté'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('Guide de préparation'),
