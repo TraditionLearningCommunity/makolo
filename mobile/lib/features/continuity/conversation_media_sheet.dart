@@ -288,16 +288,16 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     });
     try {
       final delivery = widget.repository.delivery;
-      if (widget.responsePointId == null && delivery != null) {
+      if (delivery != null) {
         await delivery.queue(
           conversationId: widget.conversationId,
-          mode: 'media',
+          mode: widget.responsePointId == null ? 'media' : 'media_response',
           filePath: _path!,
           filename: _filename!,
           mediaKind: _kind!,
-          body: _caption.text.trim(),
-          pointId: _selectedPointId,
-          audienceId: _selectedAudienceId,
+          body: widget.responsePointId == null ? _caption.text.trim() : null,
+          pointId: widget.responsePointId ?? _selectedPointId,
+          audienceId: widget.responsePointId == null ? _selectedAudienceId : null,
           representedSpaceId: _representedSpace,
         );
         if (mounted) widget.onQueued?.call();
