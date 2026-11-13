@@ -161,8 +161,9 @@ class ConversationLocalDelivery {
   final Map<String, ConversationTransfer> _transfers = {};
   final Map<String, MakoloCancelHandle> _transferCancels = {};
   Future<ProfileFileStore> _fileStore() => _files ??= () async {
-    if (mediaDirectory == null)
+    if (mediaDirectory == null) {
       return ProfileFileStore.open(database: database, profileId: profileId);
+    }
     final root = await mediaDirectory!();
     return ProfileFileStore(
       database: database,
@@ -209,7 +210,7 @@ class ConversationLocalDelivery {
       const ConversationTransfer(FileTransferState.transferring),
     );
     try {
-      if (fileId == null)
+      if (fileId == null) {
         return await api.upload(
           path,
           fields: fields,
@@ -218,6 +219,7 @@ class ConversationLocalDelivery {
           cancel: cancel,
           onProgress: progress,
         );
+      }
       final store = await _fileStore();
       final owner = _ConversationMediaOwner(
         (file, onProgress) => api.upload(
@@ -243,8 +245,9 @@ class ConversationLocalDelivery {
         onProgress: progress,
         onState: (state) => _transfer(reference, ConversationTransfer(state)),
       );
-      if (result.receipt?.confirmed != true && owner.response == null)
+      if (result.receipt?.confirmed != true && owner.response == null) {
         throw StateError('Owner confirmation unavailable');
+      }
       return owner.response!;
     } on Object {
       _transfer(
