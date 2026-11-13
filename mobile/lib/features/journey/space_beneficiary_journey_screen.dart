@@ -424,7 +424,9 @@ class _SpaceBeneficiaryIntakeScreenState
       );
       if (cached?.payload['journey_id'] == widget.journeyId &&
           cached?.payload['questions'] is List &&
-          mounted && epoch == _epoch && _actorValid) {
+          mounted &&
+          epoch == _epoch &&
+          _actorValid) {
         final localQuestions = _rows(cached!.payload['questions']);
         setState(() {
           _owner = cached.payload;
@@ -515,7 +517,8 @@ class _SpaceBeneficiaryIntakeScreenState
             _owner = null;
             _answers.clear();
             _loading = false;
-            _error = 'Ce formulaire n’est plus accessible avec votre mandat actuel.';
+            _error =
+                'Ce formulaire n’est plus accessible avec votre mandat actuel.';
           });
         }
       } else if (mounted && epoch == _epoch) {
