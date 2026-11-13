@@ -114,6 +114,7 @@
 [data-mk-surface="appuis"] .ap-card > svg {
   width: 18px; height: 18px; flex: 0 0 auto; color: var(--ap-primary);
 }
+[data-mk-surface="appuis"] [data-appuis-more][hidden] { display: none; }
 [data-mk-surface="appuis"] .ap-additional[hidden] { display: none; }
 [data-mk-surface="appuis"] .ap-expand {
   display: inline-flex; gap: 7px; align-items: center;
