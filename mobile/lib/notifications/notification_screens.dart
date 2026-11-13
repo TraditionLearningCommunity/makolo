@@ -742,8 +742,9 @@ String? _visualUrl(Object? raw) {
   if (uri == null ||
       uri.scheme != 'https' ||
       uri.host.isEmpty ||
-      uri.userInfo.isNotEmpty)
+      uri.userInfo.isNotEmpty) {
     return null;
+  }
   return value;
 }
 
