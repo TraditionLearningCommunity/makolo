@@ -15,12 +15,12 @@ class RuntimeCloseBarrier {
   void release<T>(Future<T> pending, Future<void> Function(T) close) {
     _previousClosed = pending.then<void>(
       (resource) => close(resource),
-      onError: (Object _, StackTrace __) {
+      onError: (Object _, StackTrace _) {
         // Failed initialization returned no successfully built resource.
       },
     );
     // Observe an eventual close failure even if there is no replacement. The
     // original future still carries the failure to the next open().
-    unawaited(_previousClosed.catchError((Object _, StackTrace __) {}));
+    unawaited(_previousClosed.catchError((Object _, StackTrace _) {}));
   }
 }
