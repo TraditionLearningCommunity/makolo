@@ -114,8 +114,18 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await page.locator('textarea[name="description"]').fill('Horizon durable du smoke Objectives.');
   await page.getByRole('button', { name: /Créer le projet/i }).click();
   await expect(page.getByRole('heading', { name: 'Projet D6 bis E2E' })).toBeVisible();
+  await expect(page.locator('.mk-project__title-row .mk-project__exchange'))
+    .toHaveAttribute('aria-label', 'Échanger autour du Projet');
+  await expect(page.locator('.mk-project__view-toolbar .mk-project__create-icon'))
+    .toHaveAttribute('aria-label', 'Créer un dossier');
+  await expect(page.locator('.mk-project__commands')).toHaveCount(0);
+  await expect(page.locator('.mk-project__description'))
+    .toContainText('Horizon durable du smoke Objectives.');
+  await expect(page.locator('[data-project-top-menu] > summary'))
+    .toHaveAttribute('aria-label', 'Actions du Projet');
 
-  await page.locator('[data-dialog-open="project-link"]').click();
+  await page.locator('[data-project-top-menu] > summary').click();
+  await page.locator('[data-project-top-menu] [data-dialog-open="project-link"]').click();
   await page.locator('#project-link select[name="dossier"]')
     .selectOption({ label: 'Préparer le départ D6 bis' });
   await page.locator('#project-link button[type="submit"]').click();
@@ -143,8 +153,12 @@ test('authorized Space owner can create Space Dossier and Project', async ({ pag
   await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
   await page.getByRole('button', { name: /Créer le projet/i }).click();
   await expect(page.getByRole('heading', { name: 'Projet Espace D6 bis' })).toBeVisible();
+  await expect(page.locator('.mk-project__title-row .mk-project__exchange')).toBeVisible();
+  await expect(page.locator('.mk-project__view-toolbar .mk-project__create-icon')).toBeVisible();
+  await expect(page.locator('.mk-project__commands')).toHaveCount(0);
 
-  await page.locator('[data-dialog-open="project-link"]').click();
+  await page.locator('[data-project-top-menu] > summary').click();
+  await page.locator('[data-project-top-menu] [data-dialog-open="project-link"]').click();
   await page.locator('#project-link select[name="dossier"]')
     .selectOption({ label: 'Dossier Espace D6 bis' });
   await page.locator('#project-link button[type="submit"]').click();
