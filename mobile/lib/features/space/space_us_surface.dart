@@ -195,7 +195,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           target: route('ownership'),
           people: [
             for (final item in ownershipRows)
-              if (_value(_map(item['profile'])?['name']) case final name?) name,
+              ?_value(_map(item['profile'])?['name']),
           ],
           previews: [
             for (final item in ownershipRows.take(3))
