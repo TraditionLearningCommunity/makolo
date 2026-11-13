@@ -791,6 +791,7 @@ class _SpaceBeneficiaryRequirementScreenState
     final actor = widget.runtime.actorContext?.value;
     final allowed = actor is SpaceActorContext && actor.space == widget.space;
     final requirement = _row(_details?['requirement']);
+    final abilities = _row(_details?['capabilities']);
     return Scaffold(
       appBar: AppBar(title: const Text('Condition de la demande')),
       body: !allowed
@@ -813,6 +814,17 @@ class _SpaceBeneficiaryRequirementScreenState
                     const Text(
                       'Avoir un document ne signifie pas que la condition est validée.',
                     ),
+                    if (abilities['submit_evidence'] == true) ...[
+                      const SizedBox(height: 16),
+                      MakoloActionButton(
+                        label: 'Proposer une pièce comme preuve',
+                        icon: Icons.attach_file_rounded,
+                        appearance: MakoloActionAppearance.primary,
+                        onPressed: () => context.push(
+                          '/space/${Uri.encodeComponent(widget.space.slug)}/beneficiary/journeys/${widget.journeyId}/requirements/${widget.assessmentId}/evidence',
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),
