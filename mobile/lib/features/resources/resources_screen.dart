@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
-import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../sync/freshness.dart';
+import 'resource_presentation.dart';
 import 'resource_repository.dart';
 import 'trust_resource_repository.dart';
 
@@ -109,175 +109,85 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes ressources'),
-        actions: [
-          MakoloIconActionButton(
-            tooltip: 'Actualiser',
-            icon: Icons.refresh_rounded,
-            onPressed: _refreshing ? null : _refresh,
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<StoredProjection>>(
-        stream: _pages,
-        initialData: const [],
-        builder: (context, documentSnapshot) {
-          return StreamBuilder<List<StoredProjection>>(
-            stream: _proofPages,
-            initialData: const [],
-            builder: (context, proofSnapshot) {
-              return StreamBuilder<List<StoredProjection>>(
-                stream: _titlePages,
-                initialData: const [],
-                builder: (context, titleSnapshot) {
-                  final counts = _ResourceCounts.fromPages(
-                    documentSnapshot.data ?? const [],
-                    proofPages: proofSnapshot.data ?? const [],
-                    titlePages: titleSnapshot.data ?? const [],
-                  );
-                  return StreamBuilder<ResourceSourceState>(
-                    stream: _source,
-                    initialData: ResourceSourceState.unknown,
-                    builder: (context, sourceSnapshot) {
-                      final source =
-                          sourceSnapshot.data ?? ResourceSourceState.unknown;
-                      return RefreshIndicator(
-                        onRefresh: _refresh,
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 860),
-                            child: ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.all(
-                                MakoloSpacing.inner,
-                              ),
-                              children: [
-                                if (source.reachability ==
-                                        ReachabilityState.unreachable ||
-                                    source.invalidated) ...[
-                                  Semantics(
-                                    liveRegion: true,
-                                    child: Text(
-                                      source.ownerDenied
-                                          ? 'Les compteurs de ressources ne sont plus disponibles.'
-                                          : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
+    return StreamBuilder<List<StoredProjection>>(
+      stream: _pages,
+      initialData: const [],
+      builder: (context, documentSnapshot) {
+        return StreamBuilder<List<StoredProjection>>(
+          stream: _proofPages,
+          initialData: const [],
+          builder: (context, proofSnapshot) {
+            return StreamBuilder<List<StoredProjection>>(
+              stream: _titlePages,
+              initialData: const [],
+              builder: (context, titleSnapshot) {
+                final counts = _ResourceCounts.fromPages(
+                  documentSnapshot.data ?? const [],
+                  proofPages: proofSnapshot.data ?? const [],
+                  titlePages: titleSnapshot.data ?? const [],
+                );
+                return StreamBuilder<ResourceSourceState>(
+                  stream: _source,
+                  initialData: ResourceSourceState.unknown,
+                  builder: (context, sourceSnapshot) {
+                    final source =
+                        sourceSnapshot.data ?? ResourceSourceState.unknown;
+                    final unavailable =
+                        source.reachability == ReachabilityState.unreachable ||
+                        source.invalidated;
+                    return ResourceHubScaffold(
+                      title: 'Mes ressources',
+                      refreshing: _refreshing,
+                      onRefresh: _refresh,
+                      notice: unavailable
+                          ? Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                source.ownerDenied
+                                    ? 'Les compteurs de ressources ne sont plus disponibles.'
+                                    : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
                                     ),
-                                  ),
-                                  const SizedBox(height: MakoloSpacing.md),
-                                ],
-                                _ResourceEntry(
-                                  icon: Icons.folder_copy_outlined,
-                                  title: 'Mes documents',
-                                  subtitle: 'Fichiers et pièces personnelles',
-                                  count: counts.documents,
-                                  onTap: widget.onOpenDocuments,
-                                ),
-                                const SizedBox(height: MakoloSpacing.md),
-                                _ResourceEntry(
-                                  icon: Icons.verified_outlined,
-                                  title: 'Mes preuves',
-                                  subtitle: 'Participations et faits attestés',
-                                  count: counts.proofs,
-                                  onTap: widget.onOpenProofs,
-                                ),
-                                const SizedBox(height: MakoloSpacing.md),
-                                _ResourceEntry(
-                                  icon: Icons.workspace_premium_outlined,
-                                  title: 'Mes titres',
-                                  subtitle:
-                                      'Attestations et certificats délivrés',
-                                  count: counts.titles,
-                                  onTap: widget.onOpenTitles,
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            )
+                          : null,
+                      entries: [
+                        ResourceHubEntryData(
+                          icon: Icons.folder_copy_outlined,
+                          title: 'Mes documents',
+                          subtitle: 'Fichiers et pièces personnelles',
+                          count: counts.documents,
+                          onTap: widget.onOpenDocuments,
                         ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                        ResourceHubEntryData(
+                          icon: Icons.verified_outlined,
+                          title: 'Mes preuves',
+                          subtitle: 'Participations et faits attestés',
+                          count: counts.proofs,
+                          onTap: widget.onOpenProofs,
+                        ),
+                        ResourceHubEntryData(
+                          icon: Icons.workspace_premium_outlined,
+                          title: 'Mes titres',
+                          subtitle: 'Attestations et certificats délivrés',
+                          count: counts.titles,
+                          onTap: widget.onOpenTitles,
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
-}
-
-class _ResourceEntry extends StatelessWidget {
-  const _ResourceEntry({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.count,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final int? count;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => MakoloCard(
-    onTap: onTap,
-    child: Row(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        ),
-        const SizedBox(width: MakoloSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MakoloSpacing.xs),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (count != null && count! > 0) ...[
-          const SizedBox(width: MakoloSpacing.sm),
-          Text(
-            '$count',
-            style: Theme.of(context).textTheme.labelLarge
-                ?.copyWith(color: Theme.of(context).colorScheme.primary),
-          ),
-        ],
-        if (onTap != null) ...[
-          const SizedBox(width: MakoloSpacing.xs),
-          const Icon(Icons.chevron_right_rounded),
-        ],
-      ],
-    ),
-  );
-}
 
 class _ResourceCounts {
   const _ResourceCounts({this.documents, this.proofs, this.titles});
