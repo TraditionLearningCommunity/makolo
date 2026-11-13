@@ -1,0 +1,99 @@
+{% extends 'base/app.html' %}
+{% block title %}{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %} | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-4xl space-y-6 px-4 py-6" data-mk-surface="appuis" data-appuis-actor="{% if is_space %}space{% else %}profile{% endif %}">
+  <header class="space-y-3">
+    <a class="mk-action-button" data-variant="link" href="{{ back_url }}">Revenir à {% if is_space %}Nous{% else %}Moi{% endif %}</a>
+    <h1 class="text-3xl font-bold">{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %}</h1>
+    <p>Ce qui est déjà disponible grâce aux contributions, à la fidélité et aux relations établies{% if is_space %} de cet Espace{% endif %}.</p>
+  </header>
+
+  {% if appuis_available %}
+  {% if recognition_available %}
+  <section class="mk-panel space-y-4 p-5" aria-labelledby="appuis-recognition">
+    <div class="flex items-center justify-between gap-3">
+      <h2 id="appuis-recognition" class="text-xl font-semibold">Reconnaissance</h2>
+      {% if recognition_url %}<a class="mk-action-button" data-variant="link" href="{{ recognition_url }}">Ouvrir <span aria-hidden="true">›</span></a>{% endif %}
+    </div>
+    {% if recognition_account %}
+      <p><strong>{{ recognition_account.points_balance }}</strong> crédits Recognition disponibles</p>
+      {% if recognition_achievements %}
+        <h3 class="font-semibold">Contributions reconnues</h3>
+        <ul class="space-y-2">{% for row in recognition_achievements %}<li><strong>{{ row.achievement.name }}</strong>{% if row.achievement.badge_label %} · {{ row.achievement.badge_label }}{% endif %}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if recognition_rewards %}
+        <h3 class="font-semibold">Récompenses disponibles</h3>
+        <ul class="space-y-2">{% for row in recognition_rewards %}<li><strong>{{ row.name }}</strong> · {{ row.points_cost }} crédits</li>{% endfor %}</ul>
+      {% endif %}
+      {% if recognition_recent %}
+        <details>
+          <summary class="cursor-pointer font-semibold">Historique des mouvements</summary>
+          <ul class="mt-3 space-y-2">{% for row in recognition_recent %}<li>{{ row.description }} · {{ row.points }} crédits</li>{% endfor %}</ul>
+        </details>
+      {% endif %}
+    {% endif %}
+    {% if recognition_incoming %}
+      <p>Une réponse peut être nécessaire pour une proposition reçue.</p>
+      {% if recognition_url %}<a class="mk-action-button" data-variant="secondary" href="{{ recognition_url }}">Voir les demandes</a>{% endif %}
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if loyalty_program or loyalty_accounts or loyalty_memberships or loyalty_rewards %}
+  <section class="mk-panel space-y-4 p-5" aria-labelledby="appuis-loyalty">
+    <div class="flex items-center justify-between gap-3">
+      <h2 id="appuis-loyalty" class="text-xl font-semibold">{% if is_space %}Fidélité de l’Espace{% else %}Fidélité{% endif %}</h2>
+      {% if loyalty_url %}<a class="mk-action-button" data-variant="link" href="{{ loyalty_url }}">Ouvrir <span aria-hidden="true">›</span></a>{% endif %}
+    </div>
+    {% if loyalty_program %}
+      <p><strong>{{ loyalty_program.name }}</strong></p>
+      {% if loyalty_program.membership_plans.all %}
+      <h3 class="font-semibold">Formules proposées</h3>
+      <ul class="space-y-2">{% for plan in loyalty_program.membership_plans.all %}<li>{{ plan.name }} · {{ plan.benefits }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if loyalty_program.rewards.all %}
+      <h3 class="font-semibold">Récompenses proposées</h3>
+      <ul class="space-y-2">{% for reward in loyalty_program.rewards.all %}<li>{{ reward.name }} · {{ reward.points_cost }} {{ loyalty_program.points_name }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% else %}
+      {% for account in loyalty_accounts %}
+      <article class="border-b pb-3 last:border-0" aria-label="{{ account.program.name }}">
+        <h3 class="font-semibold">{{ account.program.organization.name }}</h3>
+        <p>{{ account.program.name }} · <strong>{{ account.points_balance }}</strong> {{ account.program.points_name }}{% if account.current_tier %} · {{ account.current_tier.name }}{% endif %}</p>
+        <a class="mk-action-button" data-variant="link" href="{% url 'loyalty:portal' account.program.organization.slug %}">Voir mes avantages</a>
+      </article>
+      {% endfor %}
+      {% if loyalty_memberships %}
+      <h3 class="font-semibold">Mes adhésions</h3>
+      <ul class="space-y-2">{% for row in loyalty_memberships %}<li>{{ row.plan.name }} · {{ row.program.organization.name }} · {{ row.get_status_display }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if loyalty_rewards %}
+      <h3 class="font-semibold">Récompenses mobilisables</h3>
+      <ul class="space-y-2">{% for reward in loyalty_rewards %}<li><strong>{{ reward.name }}</strong> · {{ reward.points_cost }} {{ reward.program.points_name }} <a class="mk-action-button" data-variant="link" href="{% url 'loyalty:portal' reward.program.organization.slug %}">Voir</a></li>{% endfor %}</ul>
+      {% endif %}
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if partners %}
+  <section class="mk-panel space-y-4 p-5" aria-labelledby="appuis-partners">
+    <h2 id="appuis-partners" class="text-xl font-semibold">Partenariats établis</h2>
+    <ul class="space-y-3">
+    {% for partner in partners %}
+      <li>
+        <strong>{{ partner.display_name }}</strong>
+        <span> · {{ partner.organization.name }}</span>
+        <a class="mk-action-button" data-variant="link" href="{% if partner_is_personal %}{% url 'partners:my-detail' partner.pk %}{% else %}{% url 'partners:partner-detail' partner.pk %}{% endif %}">Consulter</a>
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% else %}
+  <section class="mk-panel p-5" role="status">
+    <h2 class="font-semibold">Aucun appui établi à afficher pour le moment.</h2>
+    <p>Les avantages et relations apparaîtront ici lorsqu’ils seront disponibles dans leur domaine propriétaire.</p>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}
