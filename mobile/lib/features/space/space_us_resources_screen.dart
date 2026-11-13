@@ -118,6 +118,16 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
             final counts = _map(resources['counts']);
             final handoffs = _map(payload?['handoffs']);
 
+            if (payload == null) {
+              return ResourceHubScaffold(
+                title: 'Nos ressources',
+                refreshing: _refreshing,
+                onRefresh: _refresh,
+                entries: const [],
+                emptyMessage: 'Ressources en cours de chargement.',
+              );
+            }
+
             if (state.invalidated || visibility == 'restricted') {
               return ResourceHubScaffold(
                 title: 'Nos ressources',
@@ -126,6 +136,17 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                 entries: const [],
                 emptyMessage:
                     'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+              );
+            }
+
+            if (visibility != 'visible') {
+              return ResourceHubScaffold(
+                title: 'Nos ressources',
+                refreshing: _refreshing,
+                onRefresh: _refresh,
+                entries: const [],
+                emptyMessage:
+                    'Ces ressources ne peuvent pas être actualisées pour le moment.',
               );
             }
 
@@ -186,7 +207,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
             }
 
             Widget? notice;
-            if (visibility == 'unavailable' || state.lastErrorCode != null) {
+            if (state.lastErrorCode != null) {
               notice = Semantics(
                 liveRegion: true,
                 child: Text(
