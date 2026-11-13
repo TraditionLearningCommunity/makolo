@@ -235,12 +235,19 @@ void main() {
 
   test('stale screens cannot downgrade pending or confirmed drafts', () async {
     final first = ObjectiveCreationDraft(
-      repository: drafts, profileId: 'viewer', kind: 'dossier',
+      repository: drafts,
+      profileId: 'viewer',
+      kind: 'dossier',
     );
     final second = ObjectiveCreationDraft(
-      repository: drafts, profileId: 'viewer', kind: 'dossier',
+      repository: drafts,
+      profileId: 'viewer',
+      kind: 'dossier',
     );
-    await first.save({'title': 'En préparation', 'submission_state': 'editing'});
+    await first.save({
+      'title': 'En préparation',
+      'submission_state': 'editing',
+    });
     await second.save({
       'title': 'En préparation',
       'submission_state': 'verification_required',
@@ -253,10 +260,10 @@ void main() {
       (await second.read())?.payload['submission_state'],
       'verification_required',
     );
-    await second.save(
-      {'title': 'Vérifié', 'submission_state': 'editing'},
-      verifiedReopen: true,
-    );
+    await second.save({
+      'title': 'Vérifié',
+      'submission_state': 'editing',
+    }, verifiedReopen: true);
     await second.save({
       'title': 'Vérifié',
       'submission_state': 'verification_required',
@@ -267,10 +274,10 @@ void main() {
       'confirmed_id': 'owner-id',
     });
     await expectLater(
-      first.save(
-        {'title': 'Autre', 'submission_state': 'editing'},
-        verifiedReopen: true,
-      ),
+      first.save({
+        'title': 'Autre',
+        'submission_state': 'editing',
+      }, verifiedReopen: true),
       throwsStateError,
     );
     expect((await first.read())?.payload['confirmed_id'], 'owner-id');
