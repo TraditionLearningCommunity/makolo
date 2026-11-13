@@ -160,12 +160,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       final authorized =
           workspace != null &&
           await workspace.hasAcquiredSpaceContext(actor.space);
-      if (!_current(generation, actor)) return;
+      if (!mounted || !_current(generation, actor)) return;
       if (!authorized) {
         for (final family in families) {
           await store.deleteProjection('appuis.' + family, resourceKey: _scope);
         }
-        if (_current(generation, actor)) {
+        if (mounted && _current(generation, actor)) {
           setState(() {
             _denied = true;
             _loading = false;
@@ -180,7 +180,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           'appuis.' + family,
           resourceKey: _scope,
         );
-        if (!_current(generation, actor)) return;
+        if (!mounted || !_current(generation, actor)) return;
         if (saved != null) _snapshots[family] = saved.payload;
       } on Object {
         // The other family snapshots remain available.
@@ -207,7 +207,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         if (!_current(generation, actor)) break;
         try {
           final response = await api.get(_path(family, actor));
-          if (!_current(generation, actor)) return;
+          if (!mounted || !_current(generation, actor)) return;
           final decoded = jsonDecode(response.body);
           final body = family == 'partners' && !_space && decoded is Map
               ? decoded['data']
@@ -221,7 +221,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           if (family == 'partners') {
             await _includePartnerActivity(payload, actor, generation);
           }
-          if (!_current(generation, actor)) return;
+          if (!mounted || !_current(generation, actor)) return;
           await store.putProjection(
             kind: 'appuis.' + family,
             resourceKey: _scope,
@@ -230,13 +230,13 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
             lastVerifiedOnlineAt: DateTime.now().toUtc(),
             freshnessPolicyId: 'swr',
           );
-          if (!_current(generation, actor)) return;
+          if (!mounted || !_current(generation, actor)) return;
           setState(() {
             _snapshots[family] = payload;
             _errors.remove(family);
           });
         } on MakoloApiError catch (error) {
-          if (!_current(generation, actor)) return;
+          if (!mounted || !_current(generation, actor)) return;
           if (error.statusCode == 401 ||
               error.statusCode == 403 ||
               error.statusCode == 404) {
@@ -244,7 +244,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               'appuis.' + family,
               resourceKey: _scope,
             );
-            if (!_current(generation, actor)) return;
+            if (!mounted || !_current(generation, actor)) return;
             setState(() {
               _snapshots.remove(family);
               if (error.statusCode == 404) {
@@ -259,7 +259,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
             );
           }
         } on Object {
-          if (_current(generation, actor)) {
+          if (mounted && _current(generation, actor)) {
             setState(
               () => _errors[family] = 'Actualisation impossible. Les informations connues restent visibles.',
             );
@@ -306,12 +306,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         ? '?organization=' + Uri.encodeQueryComponent(actor.space.id)
         : '';
     for (final family in ['codes', 'commissions', 'payouts']) {
-      if (!_current(generation, actor)) return;
+      if (!mounted || !_current(generation, actor)) return;
       try {
         final response = await api.get(
           'api/v1/partners/' + family + '/' + organization,
         );
-        if (!_current(generation, actor)) return;
+        if (!mounted || !_current(generation, actor)) return;
         final decoded = jsonDecode(response.body);
         if (decoded is! List) continue;
         payload[family] = decoded
@@ -459,18 +459,18 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         path,
         body: action == 'redeem' ? {'idempotency_key': key} : {},
       );
-      if (!_current(generation, actor)) return;
+      if (!mounted || !_current(generation, actor)) return;
       _pendingKeys.remove(operation);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Réponse confirmée par le serveur.')),
       );
     } on MakoloApiError catch (error) {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } on Object {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -480,7 +480,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         );
       }
     } finally {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         setState(() => _busy = false);
         unawaited(_refresh());
       }
