@@ -360,9 +360,14 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   Future<void> _submit() async {
     if (_submitting ||
+        _restoring ||
+        _restoreFailed ||
+        _attempted ||
+        _confirmedId != null ||
         !_actorValid ||
-        !(_form.currentState?.validate() ?? false))
+        !(_form.currentState?.validate() ?? false)) {
       return;
+    }
     if (_isProject &&
         _start != null &&
         _end != null &&
@@ -370,42 +375,82 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       setState(() => _error = 'La fin ne peut pas précéder le début.');
       return;
     }
+
     final submittedKind = widget.kind;
-    final submittedSpaceSlug = widget.spaceActor?.slug;
+    final submittedSpace = widget.spaceActor;
+    final submittedSpaceSlug = submittedSpace?.slug;
     final submittedRepository = widget.repository;
+    final submittedDraft = _draft;
     final submittedApi = widget.api;
+    final values = _snapshot('verification_required');
+    _autosave?.cancel();
     setState(() {
       _submitting = true;
+      _attempted = true;
       _error = null;
     });
+
+    var requestStarted = false;
     try {
+      // This must be durable BEFORE the non-idempotent owner POST. Restoring
+      // this state never schedules a replay or silently enables another send.
+      await submittedDraft.save(values);
+      if (!mounted ||
+          !_actorValid ||
+          widget.kind != submittedKind ||
+          widget.spaceActor != submittedSpace ||
+          !identical(widget.repository, submittedRepository)) {
+        // Nothing reached Django. Restore the editable draft for that scope.
+        await submittedDraft.save({
+          ...values,
+          'submission_state': 'editing',
+        });
+        if (mounted) setState(() => _attempted = false);
+        return;
+      }
+      requestStarted = true;
       final result = await submittedApi.post(
         'api/v1/objectives/${submittedKind == 'project' ? 'projects' : 'dossiers'}/'
         '${ObjectiveRepository.contextQuery(submittedSpaceSlug)}',
         body: {
-          'title': _title.text.trim(),
-          'description': _description.text.trim(),
-          if (_isProject && _start != null) 'starts_on': _iso(_start),
-          if (_isProject && _end != null) 'ends_on': _iso(_end),
-          if (!_isProject && _deadline != null) 'deadline': _iso(_deadline),
+          'title': (values['title'] as String).trim(),
+          'description': (values['description'] as String).trim(),
+          if (submittedKind == 'project' && values['starts_on'] != null)
+            'starts_on': values['starts_on'],
+          if (submittedKind == 'project' && values['ends_on'] != null)
+            'ends_on': values['ends_on'],
+          if (submittedKind != 'project' && values['deadline'] != null)
+            'deadline': values['deadline'],
         },
       );
       final id = result.jsonObject()['id']?.toString();
       if (id == null || id.isEmpty) {
         throw const FormatException('Invalid Objectives owner response');
       }
-      // Keep the owner's confirmed identity even if the active actor changes
-      // while the list is revalidating. Otherwise the result disappears and
-      // the human may repeat a mutation that already succeeded.
+
+      // A confirmed identity survives actor switches, screen disposal and a
+      // failed organizer refresh. Persistence failure leaves verification_required
+      // on disk (safe), never silently restores an editable duplicate.
       if (mounted) {
         setState(() {
           _confirmedId = id;
           _confirmedSpaceSlug = submittedSpaceSlug;
           _confirmedKind = submittedKind;
           _confirmedRepository = submittedRepository;
+          _attempted = false;
+          _draftSaveFailed = false;
         });
       }
-      // The mutation is confirmed. The parent list is now revalidated.
+      try {
+        await submittedDraft.save({
+          ...values,
+          'submission_state': 'confirmed',
+          'confirmed_id': id,
+        });
+      } on Object {
+        if (mounted) setState(() => _draftSaveFailed = true);
+      }
+
       try {
         await submittedRepository.refreshOrganizerPage(
           0,
@@ -415,26 +460,51 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           try {
             await submittedRepository.refreshOrganizerPage(0);
           } on Object {
-            // Refreshing Moi is secondary to the confirmed Space creation.
+            // Personal collection refresh is secondary to confirmed creation.
           }
         }
       } on Object {
-        // The new detail still opens; the organizer can retry its refresh.
+        // The owner-confirmed detail may still be opened directly.
       }
       if (mounted &&
           _actorValid &&
           widget.kind == submittedKind &&
-          widget.spaceActor?.slug == submittedSpaceSlug &&
+          widget.spaceActor == submittedSpace &&
           identical(widget.repository, submittedRepository)) {
         widget.onCreated(id);
       }
+    } on MakoloApiError catch (error) {
+      final definitive = requestStarted &&
+          const {400, 401, 403, 404, 422}.contains(error.statusCode);
+      if (definitive) {
+        try {
+          await submittedDraft.save({
+            ...values,
+            'submission_state': 'editing',
+          });
+          if (mounted) {
+            setState(() {
+              _attempted = false;
+              _error = 'Vérifiez les informations saisies.';
+            });
+          }
+        } on Object {
+          if (mounted) setState(() => _draftSaveFailed = true);
+        }
+      } else if (!requestStarted && mounted) {
+        setState(() {
+          _attempted = false;
+          _draftSaveFailed = true;
+        });
+      }
+      // After an uncertain send, the saved draft remains À vérifier.
+      // Never automatically retry a Project/Dossier creation.
     } on Object {
-      if (mounted) {
-        setState(
-          () => _error = _confirmedId == null
-              ? 'Création non confirmée. Vérifiez votre connexion et les informations saisies.'
-              : 'Création confirmée, mais ouverture indisponible.',
-        );
+      if (!requestStarted && mounted) {
+        setState(() {
+          _attempted = false;
+          _draftSaveFailed = true;
+        });
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
