@@ -8,7 +8,6 @@ import 'appuis_dashboard.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../app/runtime/actor_context.dart';
-import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
 import '../../sync/sync_status.dart';
 import '../../sync/owner_source_state.dart';
