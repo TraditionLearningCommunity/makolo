@@ -455,7 +455,7 @@ class _MeHubListEntry extends StatelessWidget {
     tapKey: Key('me-entry-${entry.kind}'),
     title: entry.title,
     subtitle: entry.subtitle,
-    count: entry.count,
+    count: entry.count != null && entry.count! > 0 ? entry.count : null,
     symbol:
         entry.kind == 'follows_collection' &&
             entry.previews.any((item) => item.destination.kind == 'profile')
