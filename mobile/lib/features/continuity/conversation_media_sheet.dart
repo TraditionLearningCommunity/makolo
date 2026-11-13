@@ -297,7 +297,9 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
           mediaKind: _kind!,
           body: widget.responsePointId == null ? _caption.text.trim() : null,
           pointId: widget.responsePointId ?? _selectedPointId,
-          audienceId: widget.responsePointId == null ? _selectedAudienceId : null,
+          audienceId: widget.responsePointId == null
+              ? _selectedAudienceId
+              : null,
           representedSpaceId: _representedSpace,
         );
         if (mounted) widget.onQueued?.call();

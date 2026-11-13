@@ -623,7 +623,9 @@ class ConversationLocalDelivery {
       final path = payload['local_file_path']?.toString() ?? '';
       final filename = payload['filename']?.toString() ?? '';
       final kind = payload['media_kind']?.toString() ?? '';
-      if (pointId.isEmpty || path.isEmpty || filename.isEmpty ||
+      if (pointId.isEmpty ||
+          path.isEmpty ||
+          filename.isEmpty ||
           !{'file', 'image', 'voice', 'audio'}.contains(kind) ||
           !await File(path).exists()) {
         return OutboxResolution.conflict;
@@ -639,11 +641,7 @@ class ConversationLocalDelivery {
           'represented_space_id': payload['represented_space_id'],
         },
         files: [
-          MakoloUploadFile(
-            fieldName: 'file',
-            path: path,
-            filename: filename,
-          ),
+          MakoloUploadFile(fieldName: 'file', path: path, filename: filename),
         ],
       );
       confirmed = response.jsonObject();
