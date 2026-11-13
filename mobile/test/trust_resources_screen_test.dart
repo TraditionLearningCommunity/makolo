@@ -299,21 +299,18 @@ void main() {
     expect(find.text('Journey accomplie'), findsOneWidget);
     expect(find.text('Formation pratique'), findsOneWidget);
     expect(find.text('Session finale'), findsOneWidget);
-    expect(find.byTooltip('Vérifier'), findsOneWidget);
-    expect(find.byTooltip('Partager'), findsOneWidget);
+    expect(find.byTooltip('Vérifier'), findsNothing);
+    expect(
+      find.byTooltip('Partager le lien de vérification'),
+      findsOneWidget,
+    );
     expect(find.text('Passeport'), findsOneWidget);
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
 
-    await tester.tap(find.byTooltip('Vérifier'));
+    await tester.tap(find.byTooltip('Partager le lien de vérification'));
     await tester.pump();
-    expect(
-      sharing.opened.single.toString(),
-      'https://makolo.test/trust/proofs/verify/public-proof/',
-    );
-
-    await tester.tap(find.byTooltip('Partager'));
-    await tester.pump();
+    expect(sharing.opened, isEmpty);
     expect(sharing.texts.single, contains('Journey accomplie'));
     expect(
       sharing.texts.single,
@@ -392,8 +389,11 @@ void main() {
     expect(find.text('Institut Makolo'), findsWidgets);
     expect(find.text('Formation terminée.'), findsOneWidget);
     expect(find.text('Titre remplacé'), findsOneWidget);
-    expect(find.byTooltip('Vérifier'), findsOneWidget);
-    expect(find.byTooltip('Partager'), findsOneWidget);
+    expect(find.byTooltip('Vérifier'), findsNothing);
+    expect(
+      find.byTooltip('Partager le lien de vérification'),
+      findsOneWidget,
+    );
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
