@@ -415,12 +415,58 @@ class _SpaceBeneficiaryIntakeScreenState
           restored = null;
         }
       }
+      // The owner schema was previously verified on this Profile and Space.
+      // Useful local questions render before any new network response.
+      final cached = await widget.runtime.store?.readProjection(
+        'space.service.intake',
+        resourceKey: '${widget.space.id}:${widget.journeyId}',
+      );
+      if (cached?.payload['journey_id'] == widget.journeyId &&
+          cached?.payload['questions'] is List &&
+          mounted && epoch == _epoch && _actorValid) {
+        final localQuestions = _rows(cached!.payload['questions']);
+        setState(() {
+          _owner = cached.payload;
+          _answers.clear();
+          for (final q in localQuestions) {
+            final id = q['id']?.toString();
+            if (id == null) continue;
+            final saved = restored is Map ? restored[id] : null;
+            if (saved != null) {
+              _answers[id] = saved;
+            } else if (q['value'] != null) {
+              _answers[id] = q['value'];
+            }
+          }
+          for (final field in _textFields.values) {
+            field.dispose();
+          }
+          _textFields.clear();
+          for (final q in localQuestions) {
+            final id = q['id']?.toString();
+            if (id != null &&
+                const {'short_text', 'long_text'}.contains(q['type'])) {
+              _textFields[id] = TextEditingController(
+                text: _answers[id]?.toString() ?? '',
+              );
+            }
+          }
+          _loading = false;
+        });
+      }
       final response = await widget.runtime.api!.get(_path);
       final payload = response.jsonObject();
       if (payload['journey_id'] != widget.journeyId ||
           payload['questions'] is! List) {
         throw const FormatException('Incorrect Services Intake owner');
       }
+      if (!mounted || epoch != _epoch || !_actorValid) return;
+      await widget.runtime.store?.putProjection(
+        kind: 'space.service.intake',
+        resourceKey: '${widget.space.id}:${widget.journeyId}',
+        schemaVersion: 1,
+        payload: payload,
+      );
       if (!mounted || epoch != _epoch || !_actorValid) return;
       final questions = _rows(payload['questions']);
       setState(() {
@@ -459,7 +505,9 @@ class _SpaceBeneficiaryIntakeScreenState
       if (mounted && epoch == _epoch) {
         setState(() {
           _loading = false;
-          _error = 'Les questions ne sont pas accessibles actuellement.';
+          _error = _owner == null
+              ? 'Les questions ne sont pas accessibles actuellement.'
+              : 'Les questions locales restent disponibles. La connexion a échoué.';
         });
       }
     }
