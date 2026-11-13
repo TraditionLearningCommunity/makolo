@@ -60,6 +60,12 @@ class AppuisViewData {
         .length;
   }
 
+  static List<Map<String, dynamic>> activePartners(
+      Map<String, dynamic> data) =>
+      rows(data['relationships']).where(
+        (row) => text(row['status']).toLowerCase() == 'active',
+      ).toList(growable: false);
+
   static bool visible(String family, Map<String, dynamic> data, bool space) {
     if (family == 'loyalty') {
       return space
@@ -72,9 +78,10 @@ class AppuisViewData {
           rows(data['rewards']).isNotEmpty ||
           rows(data['achievements']).isNotEmpty ||
           rows(data['benefits_received']).isNotEmpty ||
-          rows(data['redemptions']).isNotEmpty;
+          rows(data['redemptions']).isNotEmpty ||
+          rows(data['recent_activity']).isNotEmpty;
     }
-    return family == 'partners' && rows(data['relationships']).isNotEmpty;
+    return family == 'partners' && activePartners(data).isNotEmpty;
   }
 
   static List<String> available(
@@ -323,8 +330,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     final credits = AppuisViewData.map(
       recognition['summary'],
     )['available_credits'];
-    final partnerCount = AppuisViewData.rows(_data('partners')['relationships'])
-        .length;
+    final partnerCount = AppuisViewData.activePartners(_data('partners')).length;
     // Each metric has one owner; never aggregate unrelated reward catalogs.
     final metrics = <Widget>[
       if (available.contains('loyalty') && programCount > 0)
@@ -501,7 +507,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ],
       );
     }
-    final rows = AppuisViewData.rows(data['relationships']);
+    final rows = AppuisViewData.activePartners(data);
     return Column(
       children: [
         for (final row in (all ? rows : rows.take(3)))
