@@ -3206,7 +3206,8 @@ class _PointCardState extends State<_PointCard> {
         (!responseIntent.isConfirmed ||
             !point.hasRespondedForScope(widget.representedSpaceId));
     final canRespond =
-        !_locallyQueued && !waitingForOwner &&
+        !_locallyQueued &&
+        !waitingForOwner &&
         (widget.representedSpaceId == null
             ? point.canRespond
             : point.responseWindowOpen) &&
