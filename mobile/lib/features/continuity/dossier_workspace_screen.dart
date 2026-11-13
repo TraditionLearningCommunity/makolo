@@ -1047,7 +1047,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   ),
                   if (deadline != null)
                     Chip(
-                      label: Text('Échéance · ' + _dateLabel(context, deadline)),
+                      label: Text(
+                        'Échéance · ' + _dateLabel(context, deadline),
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                   if (_text(readiness['state']).isNotEmpty &&
