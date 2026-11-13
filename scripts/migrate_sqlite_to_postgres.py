@@ -58,9 +58,9 @@ def source_inventory(source, *, verify_integrity=True):
         columns = [row[1] for row in source.execute(
             "PRAGMA table_info(" + quote_ident(name) + ")"
         )]
-        # SQLite has no identifier bind parameters; quote_ident doubles quotes.
-        count = source.execute(  # nosec B608: tested quoted SQLite identifier
-            "SELECT COUNT(*) FROM " + quote_ident(name)
+        # SQLite cannot bind identifiers; quote_ident escapes embedded quotes.
+        count = source.execute(
+            "SELECT COUNT(*) FROM " + quote_ident(name)  # nosec B608
         ).fetchone()[0]
         inventory[name] = {"columns": columns, "count": count}
     if "django_migrations" not in inventory:
@@ -226,9 +226,9 @@ def copy_data(source, cursor, inventory, *, batch_size=500):
             sql.Identifier("public", table),
             sql.SQL(", ").join(sql.Identifier(c) for c in columns),
         )
-        # Identifiers come from SQLite schema inventory and are quoted above.
-        source_cursor = source.execute(  # nosec B608: tested quoted SQLite identifiers
-            "SELECT " + ", ".join(quote_ident(c) for c in columns)
+        # Names come from SQLite schema introspection and are safely quoted.
+        source_cursor = source.execute(
+            "SELECT " + ", ".join(quote_ident(c) for c in columns)  # nosec B608
             + " FROM " + quote_ident(table)
         )
         copied = 0
