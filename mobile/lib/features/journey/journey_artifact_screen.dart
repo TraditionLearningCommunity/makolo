@@ -425,6 +425,9 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                 final canUpload =
                     payload?['capabilities'] is Map &&
                     (payload!['capabilities'] as Map)['upload'] == true;
+                final canUploadRestricted =
+                    payload?['capabilities'] is Map &&
+                    (payload!['capabilities'] as Map)['upload_restricted'] == true;
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
@@ -546,6 +549,7 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                           ),
                           DropdownMenuItem(
                             value: 'restricted',
+                            enabled: canUploadRestricted,
                             child: Text('Restreinte'),
                           ),
                         ],
@@ -572,7 +576,12 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                             : 'Envoyer cette version',
                         icon: Icons.file_upload_outlined,
                         appearance: MakoloActionAppearance.primary,
-                        onPressed: _busy || _staged == null ? null : _send,
+                        onPressed: _busy ||
+                                _staged == null ||
+                                (_sensitivity == 'restricted' &&
+                                    !canUploadRestricted)
+                            ? null
+                            : _send,
                         busy: _busy,
                       ),
                     ],
