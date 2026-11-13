@@ -205,6 +205,7 @@ void main() {
       expect(find.text('Statuts du collectif'), findsOneWidget);
       expect(find.text('Version 1'), findsOneWidget);
       expect(find.text('Versions précédentes'), findsNothing);
+      expect(find.byTooltip('Historique des versions'), findsNothing);
       expect(find.text('Nouvelle version'), findsNothing);
       await tester.pumpWidget(const SizedBox.shrink());
     },
