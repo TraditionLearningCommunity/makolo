@@ -253,6 +253,10 @@ class JourneyArtifactVersionAPIView(APIView):
         sensitivity = request.data.get("sensitivity") or artifact.sensitivity
         if sensitivity not in JourneyArtifactSensitivity.values:
             raise ValidationError({"sensitivity": "Sensibilité invalide."})
+        if artifact.kind == JourneyArtifactKind.IDENTITY_DOCUMENT and sensitivity != JourneyArtifactSensitivity.RESTRICTED:
+            raise ValidationError({"sensitivity": "Une pièce d’identité doit rester restreinte."})
+        if artifact.sensitivity == JourneyArtifactSensitivity.RESTRICTED and sensitivity != JourneyArtifactSensitivity.RESTRICTED:
+            raise ValidationError({"sensitivity": "Une version ne peut pas déclasser une pièce restreinte."})
         try:
             _data, _mime, sha256 = owner.validate_artifact_upload(uploaded)
         except DomainValidationError as exc:
