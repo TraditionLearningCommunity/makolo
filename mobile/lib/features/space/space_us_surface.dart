@@ -159,6 +159,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final resourceRows = resourcesVisible
         ? _rows(resources?['items'])
         : const <Map<String, dynamic>>[];
+    final resourceCount = _nonNegativeCount(resources?['count']);
+    final displayedResourceCount =
+        resourceCount != null && resourceCount > 0 ? resourceCount : null;
 
     final settingsTarget = limited ? null : route('settings');
     final pilotTarget = limited ? null : route('pilot');
@@ -176,7 +179,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Documents et outils de cet Espace',
           icon: Icons.folder_copy_outlined,
           target: resourcesTarget,
-          count: _nonNegativeCount(resources?['count']),
+          count: displayedResourceCount,
           previews: [
             if (resourceRows.isEmpty) 'Aucune ressource dans cet aperçu.',
             for (final item in resourceRows.take(3))
