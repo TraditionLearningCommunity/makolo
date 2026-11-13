@@ -1,5 +1,10 @@
 from django.urls import path
 
+from preparation.space_api_views import (
+    SpaceBeneficiaryResourcesAPIView,
+    SpaceBeneficiaryResourceDownloadAPIView,
+)
+
 from journeys.api_artifacts import (
     JourneyArtifactCollectionAPIView,
     JourneyArtifactDownloadAPIView,
@@ -67,6 +72,16 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/resources/",
+        SpaceBeneficiaryResourcesAPIView.as_view(),
+        name="workspace-beneficiary-resources",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/resources/<uuid:resource_id>/download/",
+        SpaceBeneficiaryResourceDownloadAPIView.as_view(),
+        name="workspace-beneficiary-resource-download",
+    ),
     path(
         "workspaces/<slug:slug>/beneficiary/services/<uuid:pk>/start/",
         SpaceBeneficiaryServiceStartAPIView.as_view(),
