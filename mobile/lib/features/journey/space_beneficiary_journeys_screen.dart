@@ -155,11 +155,16 @@ class _SpaceBeneficiaryJourneysScreenState
         );
         if (mounted) setState(() => _denied = true);
       } else if (mounted) {
-        setState(() => _message = 'Les demandes suivantes sont momentanément indisponibles.');
+        setState(
+          () => _message =
+              'Les demandes suivantes sont momentanément indisponibles.',
+        );
       }
     } on Object {
       if (mounted) {
-        setState(() => _message = 'Les demandes suivantes n’ont pas été récupérées.');
+        setState(
+          () => _message = 'Les demandes suivantes n’ont pas été récupérées.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingMore = false);
