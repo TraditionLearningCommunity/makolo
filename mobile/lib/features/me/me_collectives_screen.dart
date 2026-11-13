@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
-import '../../design/makolo_patterns.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
@@ -195,7 +194,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                 });
                 return ListView(
                   key: PageStorageKey<String>(
-                    'me-collectives-' + widget.personal.store.profileId,
+                    'me-collectives-${widget.personal.store.profileId}',
                   ),
                   controller: _scroll,
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -203,8 +202,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                   children: [
                     MeCollectivesContent(
                       key: ValueKey<String>(
-                        'me-collectives-content-' +
-                            widget.personal.store.profileId,
+                        'me-collectives-content-${widget.personal.store.profileId}',
                       ),
                       items: territory.items,
                       collectives: projection.payload['collectives'],
