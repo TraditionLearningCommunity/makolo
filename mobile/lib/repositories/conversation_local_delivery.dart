@@ -391,8 +391,11 @@ class ConversationLocalDelivery {
         ((pointId ?? '').isEmpty || responseValue == null)) {
       throw ArgumentError('A Point and a response value are required');
     }
-    if (mode == 'media_response' && (pointId ?? '').isEmpty) {
-      throw ArgumentError('A Point is required for a media response');
+    if (mode == 'media_response') {
+      if ((pointId ?? '').isEmpty ||
+          !{'file', 'image', 'voice', 'audio'}.contains(mediaKind)) {
+        throw ArgumentError('A compatible Point media response is required');
+      }
     }
     final reference = _reference();
     final deviceId = await tokens.deviceInstanceId();
