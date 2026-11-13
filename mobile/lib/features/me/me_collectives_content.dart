@@ -85,10 +85,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final space = _map(_row(item)?['space']);
     final id = space?['id'];
     final slug = space?['slug'];
-    if (id is! String ||
-        id.isEmpty ||
-        slug is! String ||
-        slug.isEmpty) {
+    if (id is! String || id.isEmpty || slug is! String || slug.isEmpty) {
       return null;
     }
     return StructuredDestination(kind: 'space', id: id, link: slug);
@@ -127,8 +124,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
 
   void _preview(MeItemPresentation item) {
     final teamSpace = _teamSpace(item);
-    final destination = teamSpace ??
-        (item.canOpen ? item.destination : null);
+    final destination = teamSpace ?? (item.canOpen ? item.destination : null);
     showMakoloQuickPreview(
       context,
       title: item.title,
@@ -217,9 +213,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            total != null && total > 0
-                ? '$total collectifs'
-                : 'Mes collectifs',
+            total != null && total > 0 ? '$total collectifs' : 'Mes collectifs',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -238,12 +232,20 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             children: [
               if (spaces != null && spaces > 0)
                 _summaryStat(
-                  context, 'Espaces', spaces, Icons.apartment_rounded,
+                  context,
+                  'Espaces',
+                  spaces,
+                  Icons.apartment_rounded,
                 ),
               if (teams != null && teams > 0)
                 _summaryStat(context, 'Équipes', teams, Icons.groups_outlined),
               if (groups != null && groups > 0)
-                _summaryStat(context, 'Groupes', groups, Icons.group_work_outlined),
+                _summaryStat(
+                  context,
+                  'Groupes',
+                  groups,
+                  Icons.group_work_outlined,
+                ),
             ],
           ),
           if (widget.offline) ...[
@@ -315,14 +317,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
               initialValue: _alphabetical,
               onSelected: (value) => setState(() => _alphabetical = value),
               itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: false,
-                  child: Text('Ordre actuel'),
-                ),
-                PopupMenuItem(
-                  value: true,
-                  child: Text('Nom A à Z'),
-                ),
+                PopupMenuItem(value: false, child: Text('Ordre actuel')),
+                PopupMenuItem(value: true, child: Text('Nom A à Z')),
               ],
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -479,13 +475,13 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final scheme = Theme.of(context).colorScheme;
     final isTeam = item.destination.kind == 'team';
     final teamSpace = _teamSpace(item);
-    final destination = teamSpace ??
-        (item.canOpen ? item.destination : null);
+    final destination = teamSpace ?? (item.canOpen ? item.destination : null);
     final relationship = _row(item)?['relationship'];
     final member = relationship == 'membership';
     return Card(
-      key: Key('me-collective-' + item.destination.kind + '-' +
-          item.destination.id),
+      key: Key(
+        'me-collective-' + item.destination.kind + '-' + item.destination.id,
+      ),
       margin: const EdgeInsets.only(bottom: 8),
       color: scheme.surface,
       shape: RoundedRectangleBorder(
@@ -534,7 +530,9 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                 const Spacer(),
                 MakoloActionButton(
                   label: destination != null
-                      ? isTeam ? 'Voir l’Espace' : 'Ouvrir'
+                      ? isTeam
+                            ? 'Voir l’Espace'
+                            : 'Ouvrir'
                       : 'Aperçu',
                   icon: destination != null
                       ? Icons.open_in_new_rounded
@@ -619,9 +617,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Retrouve ici les Espaces, équipes et groupes liés à toi.',
-        ),
+        const Text('Retrouve ici les Espaces, équipes et groupes liés à toi.'),
         const SizedBox(height: 16),
         _summary(context),
         const SizedBox(height: 14),
@@ -633,8 +629,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             child: Text(
               _search.text.trim().isNotEmpty
                   ? widget.hasMore
-                      ? 'Aucun résultat parmi les collectifs déjà chargés.'
-                      : 'Aucun collectif ne correspond à cette recherche.'
+                        ? 'Aucun résultat parmi les collectifs déjà chargés.'
+                        : 'Aucun collectif ne correspond à cette recherche.'
                   : widget.hasMore
                   ? 'Les autres collectifs seront affichés après chargement.'
                   : 'Aucun collectif dans cette catégorie.',
