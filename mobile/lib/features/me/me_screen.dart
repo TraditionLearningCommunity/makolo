@@ -558,7 +558,8 @@ class _MeTerritory extends StatelessWidget {
                       MeItemPresentation(
                         destination: StructuredDestination(
                           kind: presentation.key == 'support'
-                              ? 'support_collection' : presentation.key,
+                              ? 'support_collection'
+                              : presentation.key,
                           id: 'mine',
                         ),
                         title: presentation.label,
@@ -594,7 +595,7 @@ class _MeTerritory extends StatelessWidget {
                     if (hasOwnerNavigation &&
                         (presentation.key == 'considerations' ||
                             presentation.key == 'collectives' ||
-                          presentation.key == 'support'))
+                            presentation.key == 'support'))
                       const Padding(
                         padding: EdgeInsetsDirectional.only(start: 6),
                         child: Icon(Icons.chevron_right_rounded),
