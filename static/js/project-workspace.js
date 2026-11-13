@@ -472,6 +472,20 @@
       state.view = button.dataset.projectView; render();
     });
   }
+  const topMenu = root.querySelector('[data-project-top-menu]');
+  if (topMenu) {
+    document.addEventListener('pointerdown', (event) => {
+      if (topMenu.open && !topMenu.contains(event.target)) {
+        topMenu.removeAttribute('open');
+      }
+    });
+    topMenu.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        topMenu.removeAttribute('open');
+        topMenu.querySelector('summary')?.focus();
+      }
+    });
+  }
   for (const opener of root.querySelectorAll('[data-dialog-open]')) {
     opener.addEventListener('click', () => {
       const dialog = document.getElementById(opener.dataset.dialogOpen);
