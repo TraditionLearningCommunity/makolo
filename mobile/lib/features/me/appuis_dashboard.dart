@@ -458,7 +458,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             _card(
               Icons.workspace_premium_outlined,
               'Récompenses obtenues',
-              highlight: obtained.length.toString() + ' récompense(s)',
+              highlight: '${obtained.length} récompense(s)',
               open: () => _openFamily(family),
             ),
           for (final row in (all ? programs : programs.take(3)))
@@ -472,9 +472,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                   : '',
               highlight: [
                 if (AppuisViewData.positive(row['points_balance']))
-                  AppuisViewData.text(row['points_balance']) +
-                      ' ' +
-                      AppuisViewData.text(row['points_name']),
+                  '${AppuisViewData.text(row['points_balance'])} ${AppuisViewData.text(row['points_name'])}',
                 if (AppuisViewData.text(
                   AppuisViewData.map(row['current_tier'])['name'],
                 ).isNotEmpty)
@@ -482,8 +480,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                     AppuisViewData.map(row['current_tier'])['name'],
                   ),
                 if (AppuisViewData.availableRewardCount(data, row) > 0)
-                  AppuisViewData.availableRewardCount(data, row).toString() +
-                      ' avantage(s) disponible(s)',
+                  '${AppuisViewData.availableRewardCount(data, row)} avantage(s) disponible(s)',
               ].join(' · '),
               open: () => _openProgram(row),
             ),
@@ -499,7 +496,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             _card(
               Icons.stars_outlined,
               'Crédits Recognition',
-              highlight: AppuisViewData.text(credits) + ' disponibles',
+              highlight: '${AppuisViewData.text(credits)} disponibles',
               open: () => _openFamily(family),
             ),
           if (rows.isEmpty &&
@@ -654,9 +651,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
           Icons.storefront_outlined,
           AppuisViewData.text(account['organization_name']),
           highlight: AppuisViewData.positive(account['points_balance'])
-              ? AppuisViewData.text(account['points_balance']) +
-                    ' ' +
-                    AppuisViewData.text(account['points_name'])
+              ? '${AppuisViewData.text(account['points_balance'])} ${AppuisViewData.text(account['points_name'])}'
               : '',
         ),
       _details(
