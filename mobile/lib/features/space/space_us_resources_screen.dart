@@ -11,9 +11,8 @@ import '../resources/resource_presentation.dart';
 
 /// Nous N2: institutional Resources projected for the active Space.
 ///
-/// The presentation is shared with Moi. Owners and authority are not: Space
-/// resources remain viewer-aware projections and Flutter never derives access
-/// from membership, role labels or cached counts.
+/// Moi and Nous share the same presentation. The underlying owners remain
+/// distinct and viewer-aware; cached Space resources are observations only.
 class SpaceUsResourcesScreen extends StatefulWidget {
   const SpaceUsResourcesScreen({
     super.key,
@@ -43,7 +42,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     super.initState();
     widget.runtime.actorContext?.addListener(_onActorChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_refresh());
+      if (mounted) unawaited(_ensure());
     });
   }
 
@@ -54,7 +53,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
       widget.runtime.actorContext?.addListener(_onActorChanged);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_refresh());
+        if (mounted) unawaited(_ensure());
       });
     }
   }
@@ -67,8 +66,19 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
 
   void _onActorChanged() {
     if (!mounted) return;
-    setState(() {});
-    unawaited(_refresh());
+    setState(() => _refreshing = false);
+    unawaited(_ensure());
+  }
+
+  Future<void> _ensure() async {
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null || repository.sync == null) return;
+    try {
+      await repository.ensureResources(actor.space);
+    } on Object {
+      // Keep the last acquired projection.
+    }
   }
 
   Future<void> _refresh() async {
@@ -79,9 +89,13 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     final expectedId = actor.space.id;
     setState(() => _refreshing = true);
     try {
+      await repository.refreshResources(actor.space);
+      // Nous owns the institutional handoffs shown alongside Resource counts.
+      // Reconcile it too, without making its availability a prerequisite for
+      // keeping the Resource snapshot visible.
       await repository.refreshUs(actor.space);
     } on Object {
-      // Local-first: preserve the last acquired projection.
+      // Local-first: preserve the last acquired Resource projection.
     } finally {
       if (mounted && _actor?.space.id == expectedId) {
         setState(() => _refreshing = false);
@@ -103,125 +117,127 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       );
     }
 
-    final source = repository.usSource(actor.space);
+    final resourceSource = repository.resourcesSource(actor.space);
     return StreamBuilder<OwnerSourceState>(
-      stream: repository.watchSource(source),
+      stream: repository.watchSource(resourceSource),
       initialData: OwnerSourceState.unknown,
       builder: (context, sourceSnapshot) {
         final state = sourceSnapshot.data ?? OwnerSourceState.unknown;
         return StreamBuilder(
-          stream: repository.watchUs(actor.space),
-          builder: (context, snapshot) {
-            final payload = snapshot.data?.payload;
-            final resources = _map(payload?['resources']);
-            final visibility = _text(resources['visibility']);
-            final counts = _map(resources['counts']);
-            final handoffs = _map(payload?['handoffs']);
+          stream: repository.watchResources(actor.space),
+          builder: (context, resourceSnapshot) {
+            final resourcePayload = resourceSnapshot.data?.payload;
+            return StreamBuilder(
+              stream: repository.watchUs(actor.space),
+              builder: (context, usSnapshot) {
+                final usPayload = usSnapshot.data?.payload;
+                final handoffs = _map(usPayload?['handoffs']);
 
-            if (payload == null) {
-              return ResourceHubScaffold(
-                title: 'Nos ressources',
-                refreshing: _refreshing,
-                onRefresh: _refresh,
-                entries: const [],
-                emptyMessage: 'Ressources en cours de chargement.',
-              );
-            }
+                if (state.invalidated) {
+                  return ResourceHubScaffold(
+                    title: 'Nos ressources',
+                    refreshing: _refreshing,
+                    onRefresh: _refresh,
+                    entries: const [],
+                    emptyMessage:
+                        'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+                  );
+                }
 
-            if (state.invalidated || visibility == 'restricted') {
-              return ResourceHubScaffold(
-                title: 'Nos ressources',
-                refreshing: _refreshing,
-                onRefresh: _refresh,
-                entries: const [],
-                emptyMessage: 'Ces ressources ne sont pas accessibles avec vos droits actuels.',
-              );
-            }
+                if (resourcePayload == null) {
+                  return ResourceHubScaffold(
+                    title: 'Nos ressources',
+                    refreshing: _refreshing,
+                    onRefresh: _refresh,
+                    entries: const [],
+                    emptyMessage: state.lastErrorCode == null
+                        ? 'Ressources en cours de chargement.'
+                        : 'Ces ressources ne peuvent pas être actualisées pour le moment.',
+                  );
+                }
 
-            if (visibility != 'visible') {
-              return ResourceHubScaffold(
-                title: 'Nos ressources',
-                refreshing: _refreshing,
-                onRefresh: _refresh,
-                entries: const [],
-                emptyMessage: 'Ces ressources ne peuvent pas être actualisées pour le moment.',
-              );
-            }
-
-            final entries = <ResourceHubEntryData>[
-              ResourceHubEntryData(
-                key: const Key('space-resources-documents'),
-                icon: Icons.folder_copy_outlined,
-                title: 'Nos documents',
-                subtitle: 'Fichiers et pièces de cet Espace',
-                count: _int(counts['document']),
-                onTap: () => context.push('/space/${widget.slug}/us/documents'),
-              ),
-            ];
-
-            final passportCount = _int(counts['passport']) ?? 0;
-            final passportHandoff = _text(handoffs['passport']);
-            if (passportCount > 0) {
-              entries.add(
-                ResourceHubEntryData(
-                  key: const Key('space-resources-passports'),
-                  icon: Icons.badge_outlined,
-                  title: 'Passeports émis',
-                  subtitle: 'Documents institutionnels émis par cet Espace',
-                  count: passportCount,
-                  onTap: passportHandoff == '/space/${widget.slug}/us/passport'
-                      ? () => context.push(passportHandoff!)
-                      : null,
-                ),
-              );
-            }
-
-            final templateCount = _int(counts['template']) ?? 0;
-            if (templateCount > 0) {
-              entries.add(
-                ResourceHubEntryData(
-                  key: const Key('space-resources-templates'),
-                  icon: Icons.content_copy_outlined,
-                  title: 'Modèles de présentation',
-                  subtitle: 'Modèles publiés appartenant à cet Espace',
-                  count: templateCount,
-                ),
-              );
-            }
-
-            final themeCount = _int(counts['theme']) ?? 0;
-            if (themeCount > 0) {
-              entries.add(
-                ResourceHubEntryData(
-                  key: const Key('space-resources-themes'),
-                  icon: Icons.palette_outlined,
-                  title: 'Thèmes de présentation',
-                  subtitle: 'Thèmes publiés appartenant à cet Espace',
-                  count: themeCount,
-                ),
-              );
-            }
-
-            Widget? notice;
-            if (state.lastErrorCode != null) {
-              notice = Semantics(
-                liveRegion: true,
-                child: Text(
-                  'Les ressources affichées proviennent de la dernière '
-                  'projection disponible.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                final counts = _map(resourcePayload['counts']);
+                final entries = <ResourceHubEntryData>[
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-documents'),
+                    icon: Icons.folder_copy_outlined,
+                    title: 'Nos documents',
+                    subtitle: 'Fichiers et pièces de cet Espace',
+                    count: _int(counts['document']),
+                    onTap: () =>
+                        context.push('/space/${widget.slug}/us/documents'),
                   ),
-                ),
-              );
-            }
+                ];
 
-            return ResourceHubScaffold(
-              title: 'Nos ressources',
-              refreshing: _refreshing,
-              onRefresh: _refresh,
-              notice: notice,
-              entries: entries,
+                final passportCount = _int(counts['passport']) ?? 0;
+                final passportHandoff = _text(handoffs['passport']);
+                if (passportCount > 0) {
+                  entries.add(
+                    ResourceHubEntryData(
+                      key: const Key('space-resources-passports'),
+                      icon: Icons.badge_outlined,
+                      title: 'Passeports émis',
+                      subtitle:
+                          'Documents institutionnels émis par cet Espace',
+                      count: passportCount,
+                      onTap:
+                          passportHandoff ==
+                              '/space/${widget.slug}/us/passport'
+                          ? () => context.push(passportHandoff!)
+                          : null,
+                    ),
+                  );
+                }
+
+                final templateCount = _int(counts['template']) ?? 0;
+                if (templateCount > 0) {
+                  entries.add(
+                    ResourceHubEntryData(
+                      key: const Key('space-resources-templates'),
+                      icon: Icons.content_copy_outlined,
+                      title: 'Modèles de présentation',
+                      subtitle: 'Modèles publiés appartenant à cet Espace',
+                      count: templateCount,
+                    ),
+                  );
+                }
+
+                final themeCount = _int(counts['theme']) ?? 0;
+                if (themeCount > 0) {
+                  entries.add(
+                    ResourceHubEntryData(
+                      key: const Key('space-resources-themes'),
+                      icon: Icons.palette_outlined,
+                      title: 'Thèmes de présentation',
+                      subtitle: 'Thèmes publiés appartenant à cet Espace',
+                      count: themeCount,
+                    ),
+                  );
+                }
+
+                final notice = state.lastErrorCode != null
+                    ? Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          'Les ressources affichées proviennent de la '
+                          'dernière consultation disponible.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    : null;
+
+                return ResourceHubScaffold(
+                  title: 'Nos ressources',
+                  refreshing: _refreshing,
+                  onRefresh: _refresh,
+                  notice: notice,
+                  entries: entries,
+                );
+              },
             );
           },
         );
