@@ -651,6 +651,15 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   @override
   Widget build(BuildContext context) {
     final filtered = _matchingRows();
+    // Distinguish homonymous Conversations only with owner-provided facts.
+    // A shared title never implies that two Conversations are duplicates.
+    String identity(_ConversationSummary item) =>
+        '${item.title.toLowerCase()}|${item.subtitle?.toLowerCase() ?? ''}';
+    final identityCounts = <String, int>{};
+    for (final item in filtered) {
+      final key = identity(item);
+      identityCounts[key] = (identityCounts[key] ?? 0) + 1;
+    }
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchInvitations(),
       builder: (context, invitationsSnapshot) {
@@ -768,7 +777,12 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                           key: Key('conversation-tile-${item.id}'),
                           title: item.title,
                           contextKind: item.contextKind,
-                          subtitle: item.subtitle,
+                          subtitle: (identityCounts[identity(item)] ?? 0) > 1 &&
+                                  (item.purpose ?? '').trim().isNotEmpty &&
+                                  item.purpose != item.preview &&
+                                  item.purpose != item.title
+                              ? item.purpose
+                              : item.subtitle,
                           preview: item.preview,
                           previewKind: item.previewKind,
                           mediaKinds: item.mediaKinds,
