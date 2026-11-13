@@ -168,6 +168,8 @@ class _SpaceBeneficiaryResourcesScreenState
                                 builder: (_) => JourneyOwnerFileReader(
                                   api: widget.runtime.api!,
                                   profileId: _repository.profileId,
+                                  actorContext: widget.runtime.actorContext,
+                                  space: widget.space,
                                   path: path,
                                   title:
                                       resource['title']?.toString() ??
