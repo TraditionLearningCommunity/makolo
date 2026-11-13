@@ -17,6 +17,7 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../platform/media/private_media_views.dart';
+import '../resources/resource_presentation.dart';
 
 /// Space-owned document N3: owner actions and versioned private file transfer.
 class SpaceDocumentDetailScreen extends StatefulWidget {
@@ -570,145 +571,186 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       for (final row in doc?['versions'] as List? ?? [])
         if (row is Map<String, dynamic>) row,
     ];
-    final colors = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final currentVersion = versions.isEmpty ? null : versions.first;
+    final previousVersions = versions.length <= 1
+        ? const <Map<String, dynamic>>[]
+        : versions.skip(1).toList(growable: false);
+
+    List<Widget> versionActions(Map<String, dynamic> version) => [
+      if (version['mime_type'] == 'application/pdf' ||
+          version['mime_type'] == 'image/jpeg' ||
+          version['mime_type'] == 'image/png')
+        MakoloIconActionButton(
+          tooltip: 'Ouvrir',
+          onPressed: _working ? null : () => _preview(version),
+          icon: Icons.visibility_outlined,
+        ),
+      MakoloIconActionButton(
+        tooltip: 'Télécharger',
+        onPressed: _working ? null : () => _download(version),
+        icon: Icons.download_rounded,
+      ),
+      if (_canManage)
+        MakoloIconActionButton(
+          tooltip: 'Partager',
+          onPressed: _working ? null : () => _share(version),
+          icon: Icons.share_outlined,
+        ),
+      MakoloIconActionButton(
+        tooltip: 'Utiliser dans une démarche',
+        onPressed: _working ? null : () => _reuse(version),
+        icon: Icons.drive_file_move_outline,
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Document'),
         actions: [
+          MakoloIconActionButton(
+            tooltip: 'Actualiser',
+            onPressed: _loading || _working ? null : _load,
+            icon: Icons.refresh_rounded,
+          ),
           if (_canManage)
-            MakoloIconActionButton(
-              tooltip: 'Modifier',
-              onPressed: _working ? null : _edit,
-              icon: Icons.edit_outlined,
-            ),
-          if (_canManage)
-            MakoloIconActionButton(
-              tooltip: 'Archiver',
-              onPressed: _working ? null : _archive,
-              icon: Icons.archive_outlined,
+            PopupMenuButton<String>(
+              tooltip: 'Plus',
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _edit();
+                } else if (value == 'archive') {
+                  _archive();
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('Modifier'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'archive',
+                  child: ListTile(
+                    leading: Icon(Icons.archive_outlined),
+                    title: Text('Archiver'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
+      body: _loading && doc == null
+          ? const Center(child: CircularProgressIndicator.adaptive())
+          : _error != null && doc == null
           ? Center(child: Text(_error!))
           : doc == null
           ? const Center(child: Text('Document indisponible.'))
-          : ListView(
-              padding: const EdgeInsets.all(MakoloSpacing.lg),
-              children: [
-                Icon(
-                  Icons.description_outlined,
-                  size: 44,
-                  color: colors.primary,
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                Text(
-                  doc['title']?.toString() ?? 'Document',
-                  style: text.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  doc['visibility'] == 'restricted'
-                      ? 'Confidentiel'
-                      : 'Équipe autorisée',
-                ),
-                const SizedBox(height: MakoloSpacing.xl),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Versions',
-                        style: text.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(MakoloSpacing.inner),
+                    children: [
+                      ResourceDocumentHeader(
+                        title: doc['title']?.toString() ?? 'Document',
+                        subtitle: doc['visibility'] == 'restricted'
+                            ? 'Confidentiel'
+                            : 'Équipe autorisée',
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          _error!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ),
-                    if (_canManage)
-                      MakoloIconActionButton(
-                        tooltip: 'Nouvelle version',
-                        onPressed: _working ? null : _replace,
-                        icon: Icons.add_circle_outline,
-                      ),
-                  ],
+                      ],
+                      const SizedBox(height: MakoloSpacing.lg),
+                      if (currentVersion != null)
+                        ResourceVersionCard(
+                          leading: Icons.description_outlined,
+                          title:
+                              'Version ${currentVersion['number'] ?? doc['latest_version'] ?? 1}',
+                          subtitle:
+                              currentVersion['mime_type']?.toString() ??
+                              'Document',
+                          actions: versionActions(currentVersion),
+                        ),
+                      if (_canManage) ...[
+                        const SizedBox(height: MakoloSpacing.md),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: MakoloActionButton(
+                            label: 'Nouvelle version',
+                            icon: Icons.add_rounded,
+                            appearance: MakoloActionAppearance.quiet,
+                            onPressed: _working ? null : _replace,
+                          ),
+                        ),
+                      ],
+                      if (previousVersions.isNotEmpty) ...[
+                        const SizedBox(height: MakoloSpacing.xl),
+                        ResourceSectionHeader(
+                          title: 'Versions précédentes',
+                          count: previousVersions.length,
+                        ),
+                        const SizedBox(height: MakoloSpacing.sm),
+                        for (final version in previousVersions)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: MakoloSpacing.sm,
+                            ),
+                            child: ResourceVersionCard(
+                              title: 'v${version['number']}',
+                              subtitle:
+                                  version['mime_type']?.toString() ??
+                                  'Document',
+                              actions: versionActions(version),
+                            ),
+                          ),
+                      ],
+                      if (_canManage && _shares.isNotEmpty) ...[
+                        const SizedBox(height: MakoloSpacing.xl),
+                        ResourceSectionHeader(
+                          title: 'Partages',
+                          count: _shares.length,
+                        ),
+                        const SizedBox(height: MakoloSpacing.sm),
+                        for (final share in _shares)
+                          ListTile(
+                            leading: const Icon(Icons.person_outline_rounded),
+                            title: Text('@${share['recipient'] ?? ''}'),
+                            subtitle: Text(
+                              share['active'] == true ? 'Actif' : 'Terminé',
+                            ),
+                            trailing: share['active'] == true
+                                ? MakoloIconActionButton(
+                                    tooltip: 'Révoquer',
+                                    onPressed: _working
+                                        ? null
+                                        : () => _revoke(
+                                            share['id'].toString(),
+                                          ),
+                                    icon: Icons.close_rounded,
+                                  )
+                                : null,
+                          ),
+                      ],
+                      const SizedBox(height: 70),
+                    ],
+                  ),
                 ),
-                for (final version in versions)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.history_rounded),
-                      title: Text('Version ${version['number']}'),
-                      subtitle: Text(
-                        version['mime_type']?.toString() ?? 'Document',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (version['mime_type'] == 'application/pdf' ||
-                              version['mime_type'] == 'image/jpeg' ||
-                              version['mime_type'] == 'image/png')
-                            MakoloIconActionButton(
-                              tooltip: 'Ouvrir',
-                              onPressed: _working
-                                  ? null
-                                  : () => _preview(version),
-                              icon: Icons.visibility_outlined,
-                            ),
-                          MakoloIconActionButton(
-                            tooltip: 'Télécharger',
-                            onPressed: _working
-                                ? null
-                                : () => _download(version),
-                            icon: Icons.download_rounded,
-                          ),
-                          if (_canManage)
-                            MakoloIconActionButton(
-                              tooltip: 'Partager',
-                              onPressed: _working
-                                  ? null
-                                  : () => _share(version),
-                              icon: Icons.share_outlined,
-                            ),
-                          MakoloIconActionButton(
-                            tooltip: 'Utiliser',
-                            onPressed: _working ? null : () => _reuse(version),
-                            icon: Icons.arrow_outward_rounded,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (_canManage && _shares.isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.xl),
-                  Text(
-                    'Partages',
-                    style: text.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  for (final share in _shares)
-                    ListTile(
-                      leading: const Icon(Icons.person_outline_rounded),
-                      title: Text('@${share['recipient'] ?? ''}'),
-                      subtitle: Text(
-                        share['active'] == true ? 'Actif' : 'Terminé',
-                      ),
-                      trailing: share['active'] == true
-                          ? MakoloIconActionButton(
-                              tooltip: 'Révoquer',
-                              onPressed: _working
-                                  ? null
-                                  : () => _revoke(share['id'].toString()),
-                              icon: Icons.close_rounded,
-                            )
-                          : null,
-                    ),
-                ],
-                const SizedBox(height: 70),
-              ],
+              ),
             ),
     );
   }
