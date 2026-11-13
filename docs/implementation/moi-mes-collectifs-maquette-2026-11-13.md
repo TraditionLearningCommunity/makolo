@@ -23,7 +23,7 @@ Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un 
 
 ## Actions réellement branchées
 
-- **Space autorisé :** Agir ouvre le sélecteur d'acteur Makolo existant. Il ne bascule pas silencieusement vers une autre identité ; le sélecteur revalide le contexte Space acquis et l'utilisateur doit confirmer le Space voulu. Si cette action n'est pas disponible, Ouvrir donne accès à la fiche Space existante, lorsque son slug est disponible.
+- **Space autorisé :** Agir ouvre le sélecteur d'acteur Makolo existant. Il ne bascule pas silencieusement vers une autre identité : le sélecteur n'affiche que le Space ciblé parmi les contextes réellement présents dans l'inventaire, revalide le contexte acquis et demande une sélection explicite. Si cette action n'est pas disponible, Ouvrir donne accès à la fiche Space existante, lorsque son slug est disponible.
 - **Team :** aucune route native Team N3 autorisée n'existe sur cette page. Lorsque le Space parent possède un identifiant et un slug reçus du serveur, Voir l'Espace ouvre sa fiche ; sinon, Aperçu restitue les faits locaux. Cette action ne prétend pas ouvrir l'annuaire de l'équipe.
 - **Group :** Ouvrir utilise le détail natif /groups/:id existant, validé à nouveau par le propriétaire Groups. Aucune mutation d'adhésion ou de gestion n'est inventée.
 - Toutes les actions de gestion, invitation, sortie, ownership, responsabilité et composition d'équipe restent réservées aux profondeurs et owners déjà autorisés, jusqu'à vérification de leurs capacités explicites.
@@ -42,7 +42,8 @@ Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un 
 
 - mobile/lib/features/me/me_collectives_content.dart : composition et interactions visuelles opt-in, sans nouveau propriétaire.
 - mobile/lib/features/me/me_collectives_screen.dart : intégration à la profondeur local-first, conservation de la pagination et du refus.
-- mobile/lib/features/me/me_routes.dart : réemploi du picker d'acteur Makolo pour l'action Agir.
+- mobile/lib/features/me/me_routes.dart : réemploi du picker d'acteur Makolo ciblé pour l'action Agir.
+- mobile/lib/navigation/actor_selector.dart : filtre opt-in sur l'identifiant du Space demandé ; le sélecteur général reste inchangé.
 - mobile/test/me_collectives_content_test.dart : tests de regroupement, absence de zéro, filtres, recherche partielle, Team≠autorité, offline et navigation Group.
 
 ## Tests et recette avant merge
@@ -54,4 +55,4 @@ Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un 
 5. Dans le picker, vérifier que Agir n'accorde jamais un contexte non acquis ou révoqué.
 6. Vérifier la CI de #522 et éviter tout merge si une gate obligatoire reste rouge.
 
-**Limite connue :** Agir passe par le picker existant et ne présélectionne pas automatiquement le Space de la carte. Une présélection ne pourra être envisagée qu'en réutilisant la validation propriétaire du picker, sans logique parallèle. Une vraie profondeur Team nécessitera de prouver une destination et sa permission ; la fiche du Space parent ne s'y substitue pas.
+**Limite connue :** Agir passe par le picker existant, filtré sur le Space de la carte, mais exige toujours une confirmation humaine et la revalidation du contexte acquis. Aucun passage automatique et aucune autorité supplémentaire ne sont créés. Une vraie profondeur Team nécessitera de prouver une destination et sa permission ; la fiche du Space parent ne s'y substitue pas.
