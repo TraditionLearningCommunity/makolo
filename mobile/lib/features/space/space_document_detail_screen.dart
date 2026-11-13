@@ -13,6 +13,8 @@ import '../../platform/files/native_directories.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
+import '../../sync/owner_source_state.dart';
+import 'space_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
@@ -41,11 +43,11 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   Map<String, dynamic>? _document;
   List<Map<String, dynamic>> _shares = [];
   bool _canManage = false;
-  bool _loading = true;
+  bool _canUseNetwork = false;
+  bool _initializing = true;
+  bool _refreshing = false;
   bool _working = false;
   bool _previewOpen = false;
-  int _request = 0;
-  String? _error;
 
   SpaceActorContext? get _actor {
     final actor = widget.runtime.actorContext?.value;
@@ -55,20 +57,35 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   String get _base =>
-      'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/documents/';
+      'api/v1/organizations/workspaces/'
+      '${Uri.encodeComponent(widget.slug)}/documents/';
 
-  String get _url => '$_base${Uri.encodeComponent(widget.documentId)}/';
+  String get _url =>
+      '$_base${Uri.encodeComponent(widget.documentId)}/';
 
   @override
   void initState() {
     super.initState();
     widget.runtime.actorContext?.addListener(_actorChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_ensure());
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant SpaceDocumentDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.slug != widget.slug ||
+        oldWidget.documentId != widget.documentId) {
+      oldWidget.runtime.actorContext?.removeListener(_actorChanged);
+      widget.runtime.actorContext?.addListener(_actorChanged);
+      _actorChanged();
+    }
   }
 
   @override
   void dispose() {
-    _request++;
     widget.runtime.actorContext?.removeListener(_actorChanged);
     super.dispose();
   }
@@ -78,64 +95,84 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       _previewOpen = false;
       Navigator.of(context).maybePop();
     }
-    _request++;
     if (!mounted) return;
     setState(() {
       _document = null;
       _shares = [];
       _canManage = false;
-      _error = _actor == null ? 'Cet Espace n’est plus actif.' : null;
-      _loading = _actor != null;
+      _canUseNetwork = false;
+      _initializing = _actor != null;
+      _refreshing = false;
     });
-    if (_actor != null) _load();
+    if (_actor != null) unawaited(_ensure());
+  }
+
+  Future<void> _ensure() async {
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null || repository.sync == null) {
+      if (mounted) setState(() => _initializing = false);
+      return;
+    }
+    final expectedId = actor.space.id;
+    if (mounted) setState(() => _initializing = true);
+    try {
+      await repository.ensureDocumentDetail(
+        actor.space,
+        widget.documentId,
+      );
+    } on Object {
+      // The last acquired owner projection remains readable.
+    } finally {
+      if (mounted && _actor?.space.id == expectedId) {
+        setState(() => _initializing = false);
+      }
+    }
   }
 
   Future<void> _load() async {
-    final api = widget.runtime.api;
-    final id = _actor?.space.id;
-    final ticket = ++_request;
-    if (api == null || id == null) {
-      if (!mounted) return;
-      setState(() {
-        _document = null;
-        _loading = false;
-        _error = id == null
-            ? 'Cet Espace n’est plus actif.'
-            : 'Connexion nécessaire.';
-      });
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (_refreshing) return;
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null || repository.sync == null) return;
+    final expectedId = actor.space.id;
+    setState(() => _refreshing = true);
     try {
-      final payload = (await api.get(_url)).jsonObject();
-      if (!mounted || ticket != _request || _actor?.space.id != id) return;
-      final doc = payload['document'];
-      if (doc is! Map<String, dynamic> || doc['id'] != widget.documentId) {
-        throw const FormatException('Document incohérent');
-      }
-      setState(() {
-        _document = doc;
-        _canManage = payload['can_manage'] == true;
-        _shares = _canManage
-            ? [
-                for (final share in payload['shares'] as List? ?? [])
-                  if (share is Map<String, dynamic>) share,
-              ]
-            : [];
-        _loading = false;
-      });
+      await repository.refreshDocumentDetail(
+        actor.space,
+        widget.documentId,
+      );
     } on Object {
-      if (!mounted || ticket != _request || _actor?.space.id != id) return;
-      setState(() {
-        _document = null;
-        _shares = [];
-        _canManage = false;
-        _error = 'Document indisponible.';
-        _loading = false;
-      });
+      // The last acquired owner projection remains readable.
+    } finally {
+      if (mounted && _actor?.space.id == expectedId) {
+        setState(() => _refreshing = false);
+      }
+    }
+  }
+
+  Future<void> _reconcileAfterMutation({
+    bool collection = false,
+    bool resources = false,
+  }) async {
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null || repository.sync == null) return;
+    await _load();
+    if (collection) {
+      try {
+        await repository.refreshDocumentPage(actor.space, query: '', offset: 0);
+      } on Object {
+        // Mutation is already confirmed; collection refresh is best effort.
+      }
+    }
+    if (resources) {
+      try {
+        await repository.refreshResources(actor.space);
+        await repository.refreshUs(actor.space);
+      } on Object {
+        // Hub reconciliation is best effort after owner confirmation.
+      }
     }
   }
 
