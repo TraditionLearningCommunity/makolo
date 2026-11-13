@@ -135,7 +135,7 @@
             <li class="py-4">
               {% if row.url %}<a class="flex flex-wrap justify-between items-center gap-3 group" href="{{ row.url }}">{% else %}<div class="flex flex-wrap justify-between items-center gap-3">{% endif %}
                 <span class="min-w-0">
-                  <strong class="block group-hover:underline">{{ row.title|default:row.label }}</strong>
+                  <strong class="block group-hover:underline">{% if row.title %}{{ row.title }}{% else %}{{ row.label|default:'' }}{% endif %}</strong>
                   <span class="block mt-1 text-sm" style="color:var(--mk-muted)">
                     {% if row.quantity %}{{ row.quantity }} × {{ row.unit_price }} {{ row.currency }} · {% endif %}
                     {% if row.line_total %}Total : {{ row.line_total }} {{ row.currency }} · {% endif %}
