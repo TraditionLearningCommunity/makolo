@@ -41,6 +41,7 @@ class ServiceStartScreen extends StatefulWidget {
 
   final AppRuntime runtime;
   final String serviceId;
+
   /// Explicitly selected applicant Space. Never inferred from the API body.
   final SpaceActorIdentity? space;
 
@@ -230,7 +231,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   }
 
   Future<void> _start() async {
-    if (_loading || _submitting || _requirements == null || !_actorValid) return;
+    if (_loading || _submitting || _requirements == null || !_actorValid)
+      return;
     if (_requirements!['opportunity_required'] == true &&
         _selectedOpportunity == null) {
       return;
@@ -365,156 +367,160 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Sélectionnez de nouveau cet Espace pour poursuivre la demande.'),
+                child: Text(
+                  'Sélectionnez de nouveau cet Espace pour poursuivre la demande.',
+                ),
               ),
             )
           : ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (_loading)
-            const Center(child: CircularProgressIndicator())
-          else if (_requirements == null)
-            MakoloActionButton(
-              onPressed: _prevalidate,
-              icon: Icons.refresh_rounded,
-              label: 'Réessayer',
-              appearance: MakoloActionAppearance.secondary,
-            )
-          else ...[
-            if (widget.space != null) ...[
-              Text(
-                'Demande au nom de l’Espace sélectionné',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 12),
-            ] else if (widget.runtime.actorContext?.value
-                case SpaceActorContext(:final space)) ...[
-              MakoloActionButton(
-                label: 'Commencer au nom de cet Espace',
-                icon: Icons.business_rounded,
-                appearance: MakoloActionAppearance.secondary,
-                onPressed: () => context.push(
-                  '/space/${Uri.encodeComponent(space.slug)}/services/${Uri.encodeComponent(widget.serviceId)}/start',
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (_serviceSummary != null) ...[
-              Text(_serviceSummary!),
-              const SizedBox(height: 16),
-            ],
-            Text(
-              'Votre objectif',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _objective,
-              maxLength: 1000,
-              enabled: !_attempted,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Quel résultat souhaitez-vous obtenir ?',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            if (_requirements?['opportunity_policy'] != 'none') ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: _opportunitySearch,
-                enabled: !_attempted,
-                decoration: InputDecoration(
-                  labelText: 'Rechercher une opportunité',
-                  suffixIcon: IconButton(
-                    tooltip: 'Rechercher',
-                    onPressed: _searchingOpportunities || _attempted
-                        ? null
-                        : _searchOpportunities,
-                    icon: const Icon(Icons.search),
+              padding: const EdgeInsets.all(20),
+              children: [
+                if (_loading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_requirements == null)
+                  MakoloActionButton(
+                    onPressed: _prevalidate,
+                    icon: Icons.refresh_rounded,
+                    label: 'Réessayer',
+                    appearance: MakoloActionAppearance.secondary,
+                  )
+                else ...[
+                  if (widget.space != null) ...[
+                    Text(
+                      'Demande au nom de l’Espace sélectionné',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (widget.runtime.actorContext?.value
+                      case SpaceActorContext(:final space)) ...[
+                    MakoloActionButton(
+                      label: 'Commencer au nom de cet Espace',
+                      icon: Icons.business_rounded,
+                      appearance: MakoloActionAppearance.secondary,
+                      onPressed: () => context.push(
+                        '/space/${Uri.encodeComponent(space.slug)}/services/${Uri.encodeComponent(widget.serviceId)}/start',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (_serviceSummary != null) ...[
+                    Text(_serviceSummary!),
+                    const SizedBox(height: 16),
+                  ],
+                  Text(
+                    'Votre objectif',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ),
-                onSubmitted: (_) => _searchOpportunities(),
-              ),
-              DropdownButtonFormField<String>(
-                key: ValueKey(
-                  'service-opportunity-${_selectedOpportunity ?? 'none'}',
-                ),
-                initialValue: _selectedOpportunity,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: needsOpportunity
-                      ? 'Opportunité requise'
-                      : 'Opportunité (facultatif)',
-                ),
-                items: [
-                  if (_selectedOpportunity != null &&
-                      !_opportunities.any(
-                        (row) => row['id'] == _selectedOpportunity,
-                      ))
-                    DropdownMenuItem<String>(
-                      value: _selectedOpportunity,
-                      child: const Text('Choix précédent'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _objective,
+                    maxLength: 1000,
+                    enabled: !_attempted,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: 'Quel résultat souhaitez-vous obtenir ?',
+                      border: OutlineInputBorder(),
                     ),
-                  if (!needsOpportunity)
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text('Sans opportunité'),
-                    ),
-                  for (final opportunity in _opportunities)
-                    DropdownMenuItem<String>(
-                      value: opportunity['id']?.toString() ?? '',
-                      child: Text(
-                        opportunity['title']?.toString() ?? 'Opportunité',
+                  ),
+                  if (_requirements?['opportunity_policy'] != 'none') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _opportunitySearch,
+                      enabled: !_attempted,
+                      decoration: InputDecoration(
+                        labelText: 'Rechercher une opportunité',
+                        suffixIcon: IconButton(
+                          tooltip: 'Rechercher',
+                          onPressed: _searchingOpportunities || _attempted
+                              ? null
+                              : _searchOpportunities,
+                          icon: const Icon(Icons.search),
+                        ),
                       ),
+                      onSubmitted: (_) => _searchOpportunities(),
                     ),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey(
+                        'service-opportunity-${_selectedOpportunity ?? 'none'}',
+                      ),
+                      initialValue: _selectedOpportunity,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: needsOpportunity
+                            ? 'Opportunité requise'
+                            : 'Opportunité (facultatif)',
+                      ),
+                      items: [
+                        if (_selectedOpportunity != null &&
+                            !_opportunities.any(
+                              (row) => row['id'] == _selectedOpportunity,
+                            ))
+                          DropdownMenuItem<String>(
+                            value: _selectedOpportunity,
+                            child: const Text('Choix précédent'),
+                          ),
+                        if (!needsOpportunity)
+                          const DropdownMenuItem<String>(
+                            value: '',
+                            child: Text('Sans opportunité'),
+                          ),
+                        for (final opportunity in _opportunities)
+                          DropdownMenuItem<String>(
+                            value: opportunity['id']?.toString() ?? '',
+                            child: Text(
+                              opportunity['title']?.toString() ?? 'Opportunité',
+                            ),
+                          ),
+                      ],
+                      onChanged: _attempted
+                          ? null
+                          : (value) => setState(
+                              () => _selectedOpportunity =
+                                  value == null || value.isEmpty ? null : value,
+                            ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  MakoloActionButton(
+                    onPressed:
+                        _submitting ||
+                            _conflicted ||
+                            (needsOpportunity && _selectedOpportunity == null)
+                        ? null
+                        : _start,
+                    icon: Icons.play_arrow_rounded,
+                    appearance: MakoloActionAppearance.primary,
+                    label: _submitting
+                        ? 'Démarrage…'
+                        : _attempted
+                        ? 'Reprendre la demande'
+                        : 'Commencer',
+                  ),
                 ],
-                onChanged: _attempted
-                    ? null
-                    : (value) => setState(
-                        () => _selectedOpportunity =
-                            value == null || value.isEmpty ? null : value,
-                      ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            MakoloActionButton(
-              onPressed:
-                  _submitting ||
-                      _conflicted ||
-                      (needsOpportunity && _selectedOpportunity == null)
-                  ? null
-                  : _start,
-              icon: Icons.play_arrow_rounded,
-              appearance: MakoloActionAppearance.primary,
-              label: _submitting
-                  ? 'Démarrage…'
-                  : _attempted
-                  ? 'Reprendre la demande'
-                  : 'Commencer',
+                if (_conflicted) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Une demande a peut-être déjà été enregistrée. Consultez En cours avant d’en créer une autre.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                  MakoloActionButton(
+                    onPressed: _submitting ? null : _newIntention,
+                    label: 'Créer une nouvelle demande',
+                    appearance: MakoloActionAppearance.secondary,
+                  ),
+                ],
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-          if (_conflicted) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Une demande a peut-être déjà été enregistrée. Consultez En cours avant d’en créer une autre.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            MakoloActionButton(
-              onPressed: _submitting ? null : _newIntention,
-              label: 'Créer une nouvelle demande',
-              appearance: MakoloActionAppearance.secondary,
-            ),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
