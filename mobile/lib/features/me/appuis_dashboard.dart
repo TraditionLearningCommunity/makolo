@@ -493,7 +493,11 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               highlight: AppuisViewData.text(credits) + ' disponibles',
               open: () => _openFamily(family),
             ),
-          for (final row in (all ? rows : rows.take(3)))
+          if (rows.isEmpty && !AppuisViewData.positive(credits) &&
+          AppuisViewData.rows(data['recent_activity']).isNotEmpty)
+        _card(Icons.history_outlined, 'Historique des reconnaissances',
+            open: () => _openFamily(family)),
+      for (final row in (all ? rows : rows.take(3)))
             _card(
               row['_icon'] == 'incoming'
                   ? Icons.mark_email_unread_outlined
@@ -516,6 +520,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             AppuisViewData.label(row),
             subtitle: AppuisViewData.text(
               AppuisViewData.map(row['organization'])['name'] ??
+                  AppuisViewData.map(row['space'])['name'] ??
                   row['organization_name'] ??
                   row['status_label'],
             ),
