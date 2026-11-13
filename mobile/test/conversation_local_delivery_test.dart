@@ -263,8 +263,10 @@ void main() {
       await worker.run();
       await worker.run();
       expect(requests.length, 1);
-      expect(requests.single.url.path,
-          '/api/v1/conversations/points/point-vote/reply-media/');
+      expect(
+        requests.single.url.path,
+        '/api/v1/conversations/points/point-vote/reply-media/',
+      );
       final rows = await database.select(database.outboxOperations).get();
       expect(rows.single.ownerIdempotencyKey, reference);
       expect(rows.single.state, OutboxState.confirmed.wireValue);
