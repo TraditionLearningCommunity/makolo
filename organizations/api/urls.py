@@ -13,6 +13,7 @@ from journeys.api_artifacts import (
 from services.space_beneficiary_api import (
     SpaceBeneficiaryServiceStartAPIView,
     SpaceBeneficiaryJourneyAPIView,
+    SpaceBeneficiaryJourneyListAPIView,
     SpaceBeneficiaryIntakeAPIView,
     SpaceBeneficiaryRequirementAPIView,
 )
@@ -73,6 +74,11 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/",
+        SpaceBeneficiaryJourneyListAPIView.as_view(),
+        name="workspace-beneficiary-journeys",
+    ),
     path(
         "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/requirements/<uuid:assessment_id>/",
         SpaceBeneficiaryRequirementAPIView.as_view(),
