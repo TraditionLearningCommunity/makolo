@@ -29,7 +29,11 @@ class ConversationTransfer {
 }
 
 class _ConversationMediaOwner implements FileOwnerTransfer {
-  _ConversationMediaOwner(this.send, this.cancelHandle, {this.requireResponseId = false});
+  _ConversationMediaOwner(
+    this.send,
+    this.cancelHandle, {
+    this.requireResponseId = false,
+  });
   final Future<ApiResponse> Function(
     StoredLocalFile file,
     FileTransferProgress? progress,
