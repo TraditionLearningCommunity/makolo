@@ -17,16 +17,16 @@ import 'fakes.dart';
 
 class _CreateApi extends MakoloApiClient {
   _CreateApi()
-      : super(
-          baseUri: Uri.parse('https://makolo.invalid/'),
-          tokenStore: MemoryTokenStore(
-            session: const AuthSession(
-              accessToken: 'test',
-              refreshToken: 'test',
-              profileId: 'viewer',
-            ),
+    : super(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'test',
+            refreshToken: 'test',
+            profileId: 'viewer',
           ),
-        );
+        ),
+      );
 
   final Completer<ApiResponse> response = Completer<ApiResponse>();
   int calls = 0;
@@ -70,14 +70,14 @@ void main() {
   });
 
   Widget createScreen({String kind = 'dossier'}) => MaterialApp(
-        home: ObjectiveCreateScreen(
-          kind: kind,
-          api: api,
-          drafts: drafts,
-          repository: objectives,
-          onCreated: (_) {},
-        ),
-      );
+    home: ObjectiveCreateScreen(
+      kind: kind,
+      api: api,
+      drafts: drafts,
+      repository: objectives,
+      onCreated: (_) {},
+    ),
+  );
 
   testWidgets('unsent Objectives fields resume quietly on cold entry', (
     tester,
@@ -161,8 +161,13 @@ void main() {
   ) async {
     await tester.pumpWidget(createScreen());
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).first, 'Dossier incertain');
-    await tester.tap(find.widgetWithText(MakoloActionButton, 'Créer un dossier'));
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'Dossier incertain',
+    );
+    await tester.tap(
+      find.widgetWithText(MakoloActionButton, 'Créer un dossier'),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
     expect(api.calls, 1);
@@ -175,8 +180,10 @@ void main() {
       profileId: 'viewer',
       kind: 'dossier',
     );
-    expect((await draft.read())?.payload['submission_state'],
-        'verification_required');
+    expect(
+      (await draft.read())?.payload['submission_state'],
+      'verification_required',
+    );
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await tester.pumpAndSettle();
     await tester.pumpWidget(createScreen());
@@ -190,8 +197,13 @@ void main() {
   ) async {
     await tester.pumpWidget(createScreen());
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField).first, 'Dossier confirmé');
-    await tester.tap(find.widgetWithText(MakoloActionButton, 'Créer un dossier'));
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'Dossier confirmé',
+    );
+    await tester.tap(
+      find.widgetWithText(MakoloActionButton, 'Créer un dossier'),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
     expect(api.calls, 1);
@@ -207,8 +219,7 @@ void main() {
       kind: 'dossier',
     );
     expect((await draft.read())?.payload['submission_state'], 'confirmed');
-    expect((await draft.read())?.payload['confirmed_id'],
-        'dossier-confirmed');
+    expect((await draft.read())?.payload['confirmed_id'], 'dossier-confirmed');
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await tester.pumpAndSettle();
     await tester.pumpWidget(createScreen());
@@ -224,14 +235,20 @@ void main() {
 
   test('creation drafts are isolated by Profile, kind and Space', () async {
     final dossier = ObjectiveCreationDraft(
-      repository: drafts, profileId: 'viewer', kind: 'dossier',
+      repository: drafts,
+      profileId: 'viewer',
+      kind: 'dossier',
     );
     final project = ObjectiveCreationDraft(
-      repository: drafts, profileId: 'viewer', kind: 'project',
+      repository: drafts,
+      profileId: 'viewer',
+      kind: 'project',
     );
     final inSpace = ObjectiveCreationDraft(
-      repository: drafts, profileId: 'viewer',
-      kind: 'dossier', spaceId: 'space-a',
+      repository: drafts,
+      profileId: 'viewer',
+      kind: 'dossier',
+      spaceId: 'space-a',
     );
     final anotherProfile = DraftRepository(
       database: db,
