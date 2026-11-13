@@ -280,9 +280,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             'Mes documents',
             maxLines: 1,
             overflow: TextOverflow.clip,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         if (total != null) ...[
