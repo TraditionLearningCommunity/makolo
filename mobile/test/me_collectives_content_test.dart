@@ -134,11 +134,7 @@ void main() {
     tester,
   ) async {
     MeItemPresentation? acted;
-    await _show(
-      tester,
-      collectives: _data(),
-      onAct: (item) => acted = item,
-    );
+    await _show(tester, collectives: _data(), onAct: (item) => acted = item);
     await tester.tap(find.text('Agir'));
     expect(acted?.destination.id, 'space-1');
   });
@@ -201,14 +197,12 @@ void main() {
     expect(find.textContaining('D’autres collectifs'), findsOneWidget);
   });
 
-  testWidgets('zero is not displayed as an ornamental counter', (
-    tester,
-  ) async {
-    await _show(tester, collectives: _data(
-      spaces: 0,
-      teams: 0,
-      groups: 0,
-    ), items: const []);
+  testWidgets('zero is not displayed as an ornamental counter', (tester) async {
+    await _show(
+      tester,
+      collectives: _data(spaces: 0, teams: 0, groups: 0),
+      items: const [],
+    );
     expect(find.text('0 collectifs'), findsNothing);
     expect(find.text('0 Espaces'), findsNothing);
     expect(find.text('0 Équipes'), findsNothing);
@@ -226,7 +220,9 @@ void main() {
         return true;
       },
     );
-    await tester.ensureVisible(find.byKey(const Key('me-collective-group-group-1')));
+    await tester.ensureVisible(
+      find.byKey(const Key('me-collective-group-group-1')),
+    );
     await tester.tap(find.text('Ouvrir').last);
     expect(opened?.kind, 'group');
     expect(opened?.id, 'group-1');

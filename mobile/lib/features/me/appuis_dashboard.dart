@@ -60,11 +60,10 @@ class AppuisViewData {
         .length;
   }
 
-  static List<Map<String, dynamic>> activePartners(
-      Map<String, dynamic> data) =>
-      rows(data['relationships']).where(
-        (row) => text(row['status']).toLowerCase() == 'active',
-      ).toList(growable: false);
+  static List<Map<String, dynamic>> activePartners(Map<String, dynamic> data) =>
+      rows(data['relationships'])
+          .where((row) => text(row['status']).toLowerCase() == 'active')
+          .toList(growable: false);
 
   static bool visible(String family, Map<String, dynamic> data, bool space) {
     if (family == 'loyalty') {
@@ -330,7 +329,8 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     final credits = AppuisViewData.map(
       recognition['summary'],
     )['available_credits'];
-    final partnerCount = AppuisViewData.activePartners(_data('partners')).length;
+    final partnerCount = AppuisViewData.activePartners(_data('partners'))
+        .length;
     // Each metric has one owner; never aggregate unrelated reward catalogs.
     final metrics = <Widget>[
       if (available.contains('loyalty') && programCount > 0)
@@ -454,10 +454,12 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
       return Column(
         children: [
           if (programs.isEmpty && obtained.isNotEmpty)
-            _card(Icons.workspace_premium_outlined,
+            _card(
+              Icons.workspace_premium_outlined,
               'Récompenses obtenues',
               highlight: obtained.length.toString() + ' récompense(s)',
-              open: () => _openFamily(family)),
+              open: () => _openFamily(family),
+            ),
           for (final row in (all ? programs : programs.take(3)))
             _card(
               Icons.card_giftcard_outlined,
@@ -499,11 +501,15 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               highlight: AppuisViewData.text(credits) + ' disponibles',
               open: () => _openFamily(family),
             ),
-          if (rows.isEmpty && !AppuisViewData.positive(credits) &&
-          AppuisViewData.rows(data['recent_activity']).isNotEmpty)
-        _card(Icons.history_outlined, 'Historique des reconnaissances',
-            open: () => _openFamily(family)),
-      for (final row in (all ? rows : rows.take(3)))
+          if (rows.isEmpty &&
+              !AppuisViewData.positive(credits) &&
+              AppuisViewData.rows(data['recent_activity']).isNotEmpty)
+            _card(
+              Icons.history_outlined,
+              'Historique des reconnaissances',
+              open: () => _openFamily(family),
+            ),
+          for (final row in (all ? rows : rows.take(3)))
             _card(
               row['_icon'] == 'incoming'
                   ? Icons.mark_email_unread_outlined
