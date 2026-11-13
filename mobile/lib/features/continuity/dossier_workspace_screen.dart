@@ -1015,7 +1015,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        'Porteur · ' + _text(owner['label']),
+                        'Porteur · ${_text(owner['label'])}',
                         style: theme.textTheme.bodySmall,
                       ),
                     ),
@@ -1049,7 +1049,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   if (deadline != null)
                     Chip(
                       label: Text(
-                        'Échéance · ' + _dateLabel(context, deadline),
+                        'Échéance · ${_dateLabel(context, deadline)}',
                       ),
                       visualDensity: VisualDensity.compact,
                     ),
@@ -1303,7 +1303,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             child: CircleAvatar(
                               radius: 18,
                               child: Text(
-                                '+' + remaining.toString(),
+                                '+$remaining',
                                 style: const TextStyle(fontSize: 11),
                               ),
                             ),
@@ -1400,10 +1400,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         if (items.isNotEmpty) ...[
           if (complete) ...[
             Text(
-              completed.toString() +
-                  ' sur ' +
-                  items.length.toString() +
-                  ' démarches visibles terminées',
+              '$completed sur ${items.length} démarches visibles terminées',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
@@ -1431,7 +1428,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   if (requiringAction > 0)
                     ActionChip(
                       avatar: const Icon(Icons.bolt_rounded, size: 17),
-                      label: Text(requiringAction.toString() + ' à traiter'),
+                      label: Text('$requiringAction à traiter'),
                       onPressed: () {
                         setState(() => _filter = 'action');
                         _selectMode(_DossierMode.list);
@@ -1440,7 +1437,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   if (completed > 0)
                     ActionChip(
                       avatar: const Icon(Icons.check_circle_outline, size: 17),
-                      label: Text(completed.toString() + ' terminée(s)'),
+                      label: Text('$completed terminée(s)'),
                       onPressed: () {
                         setState(() => _filter = 'fulfilled');
                         _selectMode(_DossierMode.list);
@@ -1478,7 +1475,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
-                dependencies.length.toString() + ' relation(s) visible(s)',
+                '${dependencies.length} relation(s) visible(s)',
               ),
               children: [
                 for (final dep in dependencies.take(3))
@@ -2231,7 +2228,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   @override
   Widget build(BuildContext context) => StreamBuilder<OwnerSourceState>(
     key: ValueKey<String>(
-      'dossier-owner:' + widget.id + ':' + (_spaceSlug ?? 'personal'),
+      'dossier-owner:${widget.id}:${_spaceSlug ?? 'personal'}',
     ),
     stream: _owner,
     initialData: OwnerSourceState.unknown,
@@ -2239,7 +2236,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       final owner = ownerSnapshot.data ?? OwnerSourceState.unknown;
       return StreamBuilder<StoredProjection?>(
         key: ValueKey<String>(
-          'dossier-detail:' + widget.id + ':' + (_spaceSlug ?? 'personal'),
+          'dossier-detail:${widget.id}:${_spaceSlug ?? 'personal'}',
         ),
         stream: _detail,
         builder: (context, detailSnapshot) {
@@ -2278,8 +2275,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                     child: ListView(
                       controller: _pageScroll,
                       key: PageStorageKey<String>(
-                        'dossier-workspace-scroll:' +
-                            (_spaceSlug ?? 'personal'),
+                        'dossier-workspace-scroll:${_spaceSlug ?? 'personal'}',
                       ),
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(14, 6, 14, 22),
