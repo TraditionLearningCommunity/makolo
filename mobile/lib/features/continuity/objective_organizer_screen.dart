@@ -685,45 +685,88 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   Widget _createQuickAction(String kind, String label) {
-    final primary = kind == 'dossier';
-    final scheme = Theme.of(context).colorScheme;
-    final child = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.add_rounded, size: 17),
-        const SizedBox(width: 3),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        ),
-      ],
-    );
-    final style = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
-      padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 9),
-      ),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-      ),
-    );
-    return Tooltip(
-      message: 'Créer un ${label.toLowerCase()}',
-      child: primary
-          ? FilledButton(
-              style: style,
-              onPressed: () => widget.onCreate(kind),
-              child: child,
-            )
-          : OutlinedButton(
-              style: style.copyWith(
-                foregroundColor: WidgetStatePropertyAll(scheme.primary),
-              ),
-              onPressed: () => widget.onCreate(kind),
-              child: child,
+    final stream = kind == 'dossier' ? _dossierDrafts : _projectDrafts;
+
+    Widget action(StoredLocalDraft? draft) {
+      final state = draft?.payload['submission_state'];
+      final pending = state == 'verification_required';
+      final confirmed = state == 'confirmed';
+      final editing = state == 'editing' &&
+          (draft?.payload['title']?.toString().trim().isNotEmpty ?? false);
+      final hasDraft = pending || confirmed || editing;
+      final primary = kind == 'dossier';
+      final scheme = Theme.of(context).colorScheme;
+      final child = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add_rounded, size: 17),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          if (hasDraft) ...[
+            const SizedBox(width: 5),
+            Icon(
+              pending
+                  ? Icons.schedule_outlined
+                  : confirmed
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.edit_note_rounded,
+              size: 16,
+              semanticLabel: pending
+                  ? 'À vérifier'
+                  : confirmed
+                  ? 'Confirmé'
+                  : 'Brouillon',
             ),
+          ],
+        ],
+      );
+      final style = ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 9),
+        ),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+        ),
+      );
+      final tooltip = pending
+          ? 'À vérifier : $label'
+          : confirmed
+          ? 'Ouvrir la création confirmée'
+          : editing
+          ? 'Reprendre le brouillon $label'
+          : 'Créer un ${label.toLowerCase()}';
+      return Tooltip(
+        message: tooltip,
+        child: primary
+            ? FilledButton(
+                style: style,
+                onPressed: () => widget.onCreate(kind),
+                child: child,
+              )
+            : OutlinedButton(
+                style: style.copyWith(
+                  foregroundColor: WidgetStatePropertyAll(scheme.primary),
+                ),
+                onPressed: () => widget.onCreate(kind),
+                child: child,
+              ),
+      );
+    }
+
+    if (stream == null) return action(null);
+    return StreamBuilder<StoredLocalDraft?>(
+      key: ValueKey(
+        'objective-draft-action:${widget.repository.profileId}:'
+        '${widget.spaceSlug ?? 'personal'}:$kind',
+      ),
+      stream: stream,
+      builder: (context, snapshot) => action(snapshot.data),
     );
   }
 
