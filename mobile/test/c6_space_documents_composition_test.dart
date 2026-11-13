@@ -64,6 +64,7 @@ void main() {
           return MockResponse(
             jsonEncode({
               'space_id': 'space-a',
+              'count': 1,
               'items': [
                 {
                   'id': '00000000-0000-4000-8000-000000000001',
@@ -98,22 +99,26 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.text('Nos documents'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
       expect(find.text('Document déjà connu'), findsOneWidget);
-      expect(find.text('Ajouter'), findsOneWidget);
+      expect(find.byTooltip('Ajouter'), findsOneWidget);
+      expect(find.byTooltip('Rechercher'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
 
       failure = 503;
-      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.tap(find.byTooltip('Actualiser'));
       await tester.pumpAndSettle();
       expect(find.text('Document déjà connu'), findsOneWidget);
       expect(find.textContaining('dernière consultation'), findsOneWidget);
       expect(
-        find.text('Ajouter'),
+        find.byTooltip('Ajouter'),
         findsNothing,
         reason: 'Old list never grants fresh upload authority',
       );
 
       failure = 403;
-      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.tap(find.byTooltip('Actualiser'));
       await tester.pumpAndSettle();
       expect(find.text('Document déjà connu'), findsNothing);
       expect(find.textContaining('non accessibles'), findsOneWidget);
