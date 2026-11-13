@@ -576,30 +576,46 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         ? const <Map<String, dynamic>>[]
         : versions.skip(1).toList(growable: false);
 
-    List<Widget> versionActions(Map<String, dynamic> version) => [
-      if (version['mime_type'] == 'application/pdf' ||
-          version['mime_type'] == 'image/jpeg' ||
-          version['mime_type'] == 'image/png')
-        MakoloIconActionButton(
-          tooltip: 'Ouvrir',
-          onPressed: _working ? null : () => _preview(version),
-          icon: Icons.visibility_outlined,
-        ),
+    bool canPreview(Map<String, dynamic> version) =>
+        version['mime_type'] == 'application/pdf' ||
+        version['mime_type'] == 'image/jpeg' ||
+        version['mime_type'] == 'image/png';
+
+    List<Widget> previousVersionActions(Map<String, dynamic> version) => [
       MakoloIconActionButton(
         tooltip: 'Télécharger',
         onPressed: _working ? null : () => _download(version),
         icon: Icons.download_rounded,
       ),
-      if (_canManage)
-        MakoloIconActionButton(
-          tooltip: 'Partager',
-          onPressed: _working ? null : () => _share(version),
-          icon: Icons.share_outlined,
-        ),
-      MakoloIconActionButton(
-        tooltip: 'Utiliser dans une démarche',
-        onPressed: _working ? null : () => _reuse(version),
-        icon: Icons.drive_file_move_outline,
+      PopupMenuButton<String>(
+        tooltip: 'Plus',
+        enabled: !_working,
+        onSelected: (value) {
+          if (value == 'share') {
+            _share(version);
+          } else if (value == 'reuse') {
+            _reuse(version);
+          }
+        },
+        itemBuilder: (context) => [
+          if (_canManage)
+            const PopupMenuItem(
+              value: 'share',
+              child: ListTile(
+                leading: Icon(Icons.share_outlined),
+                title: Text('Partager'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          const PopupMenuItem(
+            value: 'reuse',
+            child: ListTile(
+              leading: Icon(Icons.drive_file_move_outline),
+              title: Text('Utiliser dans une démarche'),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ],
       ),
     ];
 
@@ -607,23 +623,44 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       appBar: AppBar(
         title: const Text('Document'),
         actions: [
-          MakoloIconActionButton(
-            tooltip: 'Actualiser',
-            onPressed: _loading || _working ? null : _load,
-            icon: Icons.refresh_rounded,
-          ),
-          if (_canManage)
-            PopupMenuButton<String>(
-              tooltip: 'Plus',
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _edit();
-                } else if (value == 'archive') {
-                  _archive();
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
+          if (currentVersion != null)
+            MakoloIconActionButton(
+              tooltip: 'Télécharger',
+              onPressed: _working ? null : () => _download(currentVersion),
+              icon: Icons.download_rounded,
+            ),
+          if (currentVersion != null && _canManage)
+            MakoloIconActionButton(
+              tooltip: 'Partager',
+              onPressed: _working ? null : () => _share(currentVersion),
+              icon: Icons.share_outlined,
+            ),
+          PopupMenuButton<String>(
+            tooltip: 'Plus',
+            enabled: !_working,
+            onSelected: (value) {
+              if (value == 'reuse' && currentVersion != null) {
+                _reuse(currentVersion);
+              } else if (value == 'edit') {
+                _edit();
+              } else if (value == 'archive') {
+                _archive();
+              } else if (value == 'refresh') {
+                _load();
+              }
+            },
+            itemBuilder: (context) => [
+              if (currentVersion != null)
+                const PopupMenuItem(
+                  value: 'reuse',
+                  child: ListTile(
+                    leading: Icon(Icons.drive_file_move_outline),
+                    title: Text('Utiliser dans une démarche'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              if (_canManage)
+                const PopupMenuItem(
                   value: 'edit',
                   child: ListTile(
                     leading: Icon(Icons.edit_outlined),
@@ -631,7 +668,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-                PopupMenuItem(
+              if (_canManage)
+                const PopupMenuItem(
                   value: 'archive',
                   child: ListTile(
                     leading: Icon(Icons.archive_outlined),
@@ -639,8 +677,16 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
-              ],
-            ),
+              const PopupMenuItem(
+                value: 'refresh',
+                child: ListTile(
+                  leading: Icon(Icons.refresh_rounded),
+                  title: Text('Actualiser'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: _loading && doc == null
@@ -684,7 +730,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                           subtitle:
                               currentVersion['mime_type']?.toString() ??
                               'Document',
-                          actions: versionActions(currentVersion),
+                          onTap: canPreview(currentVersion) && !_working
+                              ? () => _preview(currentVersion)
+                              : null,
                         ),
                       if (_canManage) ...[
                         const SizedBox(height: MakoloSpacing.md),
@@ -715,7 +763,10 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                               subtitle:
                                   version['mime_type']?.toString() ??
                                   'Document',
-                              actions: versionActions(version),
+                              onTap: canPreview(version) && !_working
+                                  ? () => _preview(version)
+                                  : null,
+                              actions: previousVersionActions(version),
                             ),
                           ),
                       ],
