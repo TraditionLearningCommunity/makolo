@@ -77,6 +77,10 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
         await _refresh();
       } else {
         setState(() => _attempted = true);
+        // A locally fresh snapshot does not imply that new notifications
+        // have not been created on the server since the last acquisition.
+        // Preserve the cached list while revalidating the owner discreetly.
+        unawaited(_refresh());
       }
     } on Object {
       if (mounted) {
@@ -532,6 +536,20 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                                               : FontWeight.w700,
                                                         ),
                                                   ),
+                                                  if (row.isDemo) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Démonstration',
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelSmall
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
                                                   if (row
                                                       .message
                                                       .isNotEmpty) ...[
@@ -660,6 +678,7 @@ class _NotificationRow {
     this.confirmed = false,
     this.visualImageUrl,
     this.category = 'system',
+    this.isDemo = false,
   });
 
   final String id;
@@ -671,6 +690,7 @@ class _NotificationRow {
   final bool confirmed;
   final String? visualImageUrl;
   final String category;
+  final bool isDemo;
 
   static List<_NotificationRow> fromProjection(StoredProjection? projection) {
     final raw = projection?.payload['results'];
@@ -704,6 +724,7 @@ class _NotificationRow {
             destinationPath: path,
             visualImageUrl: _visualUrl(row['visual']),
             category: row['category']?.toString() ?? 'system',
+            isDemo: row['is_demo'] == true,
           );
         })
         .where((row) => row.id.isNotEmpty)
