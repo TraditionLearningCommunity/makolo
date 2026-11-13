@@ -306,6 +306,11 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
                 "label": "partenariat" if len(partner_rows) == 1 else "partenariats",
             })
         context["appuis_metrics"] = metrics
+        context["appuis_family_count"] = sum((
+            bool(context["has_recognition_appuis"]),
+            bool(context["has_loyalty_appuis"]),
+            bool(context["has_partner_appuis"]),
+        ))
         context["appuis_available"] = bool(
             context["has_recognition_appuis"] or
             context["has_loyalty_appuis"] or
