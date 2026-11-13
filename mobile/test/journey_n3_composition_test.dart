@@ -53,10 +53,10 @@ void main() {
               'timezone': 'Africa/Lubumbashi',
             },
             'place': {
-            'name': 'Lubumbashi',
-            'locality': 'Lubumbashi',
-            'address': 'Centre-ville, Lubumbashi',
-          },
+              'name': 'Lubumbashi',
+              'locality': 'Lubumbashi',
+              'address': 'Centre-ville, Lubumbashi',
+            },
           },
           'resources': {
             'link': '/api/v1/preparation/journeys/journey-visual/resources/',
