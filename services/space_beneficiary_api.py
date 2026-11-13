@@ -228,6 +228,20 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
         )
         observed_at = timezone.now()
         readiness = resolve_journey_readiness(journey, viewer=None, observed_at=observed_at)
+        readiness_payload = serialize_readiness(readiness)
+        # Readiness belongs to the owner. Its generic personal /me actions
+        # cannot be reused as Space authority or as a false handoff.
+        for group in ("ready", "actor_interventions", "waiting", "blockers"):
+            for check in readiness_payload[group]:
+                next_action = check.get("next")
+                if next_action and (next_action.get("link") or "").startswith(
+                    "/api/v1/me/"
+                ):
+                    next_action["link"] = None
+        if readiness_payload["next"] and (
+            readiness_payload["next"].get("link") or ""
+        ).startswith("/api/v1/me/"):
+            readiness_payload["next"]["link"] = None
         write = can_act_for_space_service_journey(request.user, journey)
         context = journey.service_context
         forms = list(journey.form_requests.select_related("form_version").order_by("created_at", "pk"))
@@ -243,7 +257,7 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
                 "summary": journey.activity.short_description or None,
             },
             "state": {"code": journey.status, "label": journey.get_status_display()},
-            "readiness": serialize_readiness(readiness),
+            "readiness": readiness_payload,
             "steps": _journey_step_summaries(journey),
             "requirements": [
                 {
