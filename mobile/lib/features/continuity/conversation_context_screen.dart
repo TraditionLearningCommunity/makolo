@@ -272,6 +272,8 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
         return IconButton(
           tooltip: widget.kind == 'project'
               ? 'Échanger autour du Projet'
+              : widget.kind == 'dossier'
+              ? 'Échanger autour du Dossier'
               : 'Conversation de cette démarche',
           onPressed: open,
           icon: const Icon(Icons.forum_outlined),
