@@ -233,9 +233,17 @@ class FormResponse(models.Model):
         if self.request_id and self.form_version_id and self.request.form_version_id != self.form_version_id:
             errors["form_version"] = "La réponse doit rester liée à la version demandée."
         if self.request_id and self.respondent_id:
-            expected_id = self.request.target_profile_id or (self.request.journey.beneficiary_id if self.request.journey_id else None)
-            if expected_id != self.respondent_id:
-                errors["respondent"] = "Le répondant doit être le Profile ciblé par la demande."
+            journey = self.request.journey if self.request.journey_id else None
+            if journey is not None and journey.beneficiary_space_id:
+                from services.space_beneficiary import can_act_for_space_service_journey
+                if not can_act_for_space_service_journey(self.respondent, journey):
+                    errors["respondent"] = "Le répondant doit posséder un mandat actuel de cet Espace."
+            else:
+                expected_id = self.request.target_profile_id or (
+                    journey.beneficiary_id if journey else None
+                )
+                if expected_id != self.respondent_id:
+                    errors["respondent"] = "Le répondant doit être le Profile ciblé par la demande."
         if errors:
             raise ValidationError(errors)
 
