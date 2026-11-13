@@ -1168,8 +1168,7 @@ class _JourneyOutcomeCard extends StatelessWidget {
                   outcome.$1,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (presentation.journeyState.trim().isNotEmpty)
-                  Text(presentation.journeyState),
+
               ],
             ),
           ),
@@ -1831,38 +1830,28 @@ class _JourneyResourceTile extends StatelessWidget {
     return Semantics(
       label: '${resource.title}. $type',
       child: ExcludeSemantics(
-        child: Container(
-          width: 154,
-          padding: const EdgeInsets.all(MakoloSpacing.sm),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: ListTile(
+          dense: true,
+          visualDensity: VisualDensity.compact,
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            _resourceIcon(resource),
+            size: 22,
+            color: _journeyAccent(context),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                _resourceIcon(resource),
-                size: 22,
-                color: _journeyAccent(context),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                resource.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              if (resource.description != null)
-                Text(
+          title: Text(
+            resource.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          subtitle: resource.description == null
+              ? null
+              : Text(
                   resource.description!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall,
                 ),
-            ],
-          ),
         ),
       ),
     );
