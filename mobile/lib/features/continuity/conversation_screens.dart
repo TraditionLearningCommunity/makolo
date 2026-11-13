@@ -3419,23 +3419,7 @@ class _PointCardState extends State<_PointCard> {
               style: theme.bodySmall?.copyWith(color: muted),
             ),
           ),
-        if (!widget.readOnly)
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              key: Key('conversation-point-revisit-${point.id}'),
-              tooltip: point.revisit
-                  ? 'Ne plus revoir plus tard'
-                  : 'Revoir plus tard',
-              icon: Icon(
-                point.revisit
-                    ? Icons.bookmark_added_rounded
-                    : Icons.bookmark_add_outlined,
-              ),
-              color: muted,
-              onPressed: _busy ? null : _toggleRevisit,
-            ),
-          ),
+
         if (point.acknowledged)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
@@ -3564,44 +3548,6 @@ class _PointCardState extends State<_PointCard> {
               onPressed: _busy ? null : _respond,
             ),
         ],
-        if ((point.canCloseResponses || point.canResolve) && !widget.readOnly)
-          Padding(
-            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-            child: ExpansionTile(
-              key: Key('conversation-point-management-${point.id}'),
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-              title: const Text('Gérer ce Point'),
-              leading: const Icon(Icons.tune_rounded, size: 20),
-              dense: true,
-              initiallyExpanded: false,
-              children: [
-                Text(
-                  'Terminer les réponses ou noter une conclusion.',
-                  style: theme.bodySmall?.copyWith(color: muted),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-                Wrap(
-                  spacing: MakoloSpacing.sm,
-                  runSpacing: MakoloSpacing.sm,
-                  children: [
-                    if (point.canCloseResponses)
-                      OutlinedButton.icon(
-                        onPressed: _busy ? null : _closeResponses,
-                        icon: const Icon(Icons.lock_clock_outlined),
-                        label: const Text('Clore les réponses'),
-                      ),
-                    if (point.canResolve)
-                      FilledButton.tonalIcon(
-                        onPressed: _busy ? null : _resolvePoint,
-                        icon: const Icon(Icons.fact_check_outlined),
-                        label: const Text('Consigner le résultat'),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
       ],
     );
     return ConversationPointShell(
@@ -3612,6 +3558,58 @@ class _PointCardState extends State<_PointCard> {
       representedSpace: point.representedSpace,
       representedSpaceLabel: point.representedSpaceLabel,
       publishedAt: point.publishedAt ?? point.updatedAt,
+      headerActions: widget.readOnly
+          ? null
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  key: Key('conversation-point-revisit-${point.id}'),
+                  tooltip: point.revisit
+                      ? 'Ne plus revoir plus tard'
+                      : 'Revoir plus tard',
+                  onPressed: _busy ? null : _toggleRevisit,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                  iconSize: 19,
+                  icon: Icon(
+                    point.revisit
+                        ? Icons.bookmark_added_rounded
+                        : Icons.bookmark_add_outlined,
+                  ),
+                ),
+                if (point.canCloseResponses || point.canResolve)
+                  PopupMenuButton<String>(
+                    key: Key('conversation-point-management-${point.id}'),
+                    tooltip: 'Options du Point',
+                    enabled: !_busy,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                    onSelected: (choice) {
+                      if (choice == 'close') {
+                        _closeResponses();
+                      } else if (choice == 'resolve') {
+                        _resolvePoint();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      if (point.canCloseResponses)
+                        const PopupMenuItem(
+                          value: 'close',
+                          child: Text('Clore les réponses'),
+                        ),
+                      if (point.canResolve)
+                        const PopupMenuItem(
+                          value: 'resolve',
+                          child: Text('Consigner le résultat'),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
       // Owner-confirmed publication is known. Delivery/read receipts need
       // separate authenticated evidence and are never inferred here.
       statusIcon: point.isMine && point.publishedAt != null
