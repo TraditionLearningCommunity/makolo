@@ -194,3 +194,63 @@ class SpaceBeneficiaryJourneyRepository {
     await engine.refreshSource(sourceFor(space, journeyId));
   }
 }
+
+class SpaceBeneficiaryResourcesRepository {
+  const SpaceBeneficiaryResourcesRepository({
+    required this.database,
+    required this.store,
+    required this.profileId,
+    this.sync,
+  });
+
+  static const projectionKind = 'space.service.journey.resources';
+  static const freshnessPolicy = FreshnessPolicy(
+    id: 'space-journey-preparation',
+    refreshRecommendedAfter: Duration(hours: 2),
+    usableButOldAfter: Duration(hours: 12),
+  );
+  final MakoloDatabase database;
+  final ProfileStore store;
+  final String profileId;
+  final SyncEngine? sync;
+
+  static String resourceKey(SpaceActorIdentity space, String journeyId) =>
+      '${space.id}:$journeyId';
+
+  SyncSourceDefinition sourceFor(SpaceActorIdentity space, String journeyId) =>
+      SyncSourceDefinition(
+        sourceKey: 'space-journey-resources:${resourceKey(space, journeyId)}',
+        owner: 'Preparation',
+        path: 'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/$journeyId/resources/',
+        projectionKind: projectionKind,
+        resourceKey: resourceKey(space, journeyId),
+        actorScope: SyncActorScope.space(spaceId: space.id),
+        category: SyncSourceCategory.keyedDetail,
+        freshnessPolicy: freshnessPolicy,
+        parser: (response) {
+          final payload = response.jsonObject();
+          final scope = payload['space'];
+          if (scope is! Map ||
+              scope['id'] != space.id ||
+              scope['slug'] != space.slug ||
+              payload['journey_id'] != journeyId ||
+              payload['resources'] is! List) {
+            throw const FormatException('Unexpected Space Preparation owner');
+          }
+          return AcquiredProjection(schemaVersion: 1, payload: payload);
+        },
+        applier: applyProjectionSnapshot,
+      );
+
+  Stream<StoredProjection?> watch(SpaceActorIdentity space, String journeyId) =>
+      store.watchProjection(
+        projectionKind,
+        resourceKey: resourceKey(space, journeyId),
+      );
+
+  Future<void> refresh(SpaceActorIdentity space, String journeyId) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Preparation sync is unavailable');
+    await engine.refreshSource(sourceFor(space, journeyId));
+  }
+}
