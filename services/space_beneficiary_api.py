@@ -209,7 +209,7 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
                 {
                     "id": str(row.pk), "title": row.form_version.title,
                     "status": row.status, "required": row.required,
-                    "link": reverse("questionnaires-api:request-detail", kwargs={"pk": row.pk}),
+                    "link": reverse("questionnaire-request-detail", kwargs={"pk": row.pk}),
                 }
                 for row in forms
             ],
