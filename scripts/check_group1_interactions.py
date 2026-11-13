@@ -45,7 +45,20 @@ def inspect(root: Path = ROOT) -> list[str]:
     for path, markers in WEB_SURFACES.items():
         source = (root / path).read_text(encoding="utf-8")
         for marker in markers:
-            if marker not in source:
+            # Discovery delegates its actions to a partial. Require the exact
+            # include and shared control in that partial, rather than a second
+            # button or a non-functional marker in the parent template.
+            in_included_action_bar = (
+                path == "templates/discovery/_universal_card.html"
+                and marker == "mk-action-button"
+                and "{% include 'discovery/_action_bar.html' with card=card detail=False %}"
+                in source
+                and marker
+                in (root / "templates/discovery/_action_bar.html").read_text(
+                    encoding="utf-8"
+                )
+            )
+            if marker not in source and not in_included_action_bar:
                 errors.append(f"{path}: shared control marker missing: {marker}")
 
     for path in (
