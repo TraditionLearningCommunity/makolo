@@ -412,15 +412,18 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
 
   List<Map<String, dynamic>> _recognitionRows() {
     final data = _data('recognition');
+    final incoming = AppuisViewData.rows(data['incoming']);
+    final incomingIds = incoming.map((row) => AppuisViewData.text(row['id'])).toSet();
     return [
-      for (final row in AppuisViewData.rows(data['incoming']))
+      for (final row in incoming)
         {...row, '_kind': 'Réponse attendue', '_icon': 'incoming'},
       for (final row in AppuisViewData.rows(data['rewards']))
         {...row, '_kind': 'Récompense', '_icon': 'reward'},
       for (final row in AppuisViewData.rows(data['achievements']))
         {...row, '_kind': 'Contribution reconnue', '_icon': 'achievement'},
       for (final row in AppuisViewData.rows(data['benefits_received']))
-        {...row, '_kind': 'Avantage reçu', '_icon': 'benefit'},
+        if (!incomingIds.contains(AppuisViewData.text(row['id'])))
+          {...row, '_kind': 'Avantage reçu', '_icon': 'benefit'},
     ];
   }
 
