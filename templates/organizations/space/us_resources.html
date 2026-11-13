@@ -15,23 +15,25 @@
   </a>
 
   <nav class="mk-ws4-actions" aria-label="Catégories de ressources">
-    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=document"><i data-lucide="files" aria-hidden="true"></i><span><strong>Documents</strong><small>{{ resources_depth.counts.document }} disponibles</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
-    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=passport"><i data-lucide="badge-check" aria-hidden="true"></i><span><strong>Passeports émis</strong><small>{{ resources_depth.counts.passport }} disponibles</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
-    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=template"><i data-lucide="layout-template" aria-hidden="true"></i><span><strong>Modèles de présentation</strong><small>{{ resources_depth.counts.template }} publiés</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
-    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=theme"><i data-lucide="palette" aria-hidden="true"></i><span><strong>Thèmes de présentation</strong><small>{{ resources_depth.counts.theme }} publiés</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=document"><i data-lucide="files" aria-hidden="true"></i><span><strong>Documents</strong>{% if resources_depth.counts.document %}<small>{{ resources_depth.counts.document }} disponibles</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=asset"><i data-lucide="images" aria-hidden="true"></i><span><strong>Médias de présentation</strong>{% if resources_depth.counts.asset %}<small>{{ resources_depth.counts.asset }} disponibles</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=template"><i data-lucide="layout-template" aria-hidden="true"></i><span><strong>Modèles de présentation</strong>{% if resources_depth.counts.template %}<small>{{ resources_depth.counts.template }} publiés</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=theme"><i data-lucide="palette" aria-hidden="true"></i><span><strong>Thèmes de présentation</strong>{% if resources_depth.counts.theme %}<small>{{ resources_depth.counts.theme }} publiés</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=passport"><i data-lucide="badge-check" aria-hidden="true"></i><span><strong>Passeports émis</strong>{% if resources_depth.counts.passport %}<small>{{ resources_depth.counts.passport }} disponibles</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=credential"><i data-lucide="award" aria-hidden="true"></i><span><strong>Titres émis</strong>{% if resources_depth.counts.credential %}<small>{{ resources_depth.counts.credential }} délivrés</small>{% endif %}</span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
   </nav>
 
   <section class="mk-ws4-card" aria-labelledby="space-us-resources-items">
     <div class="mk-ws4-card-head">
       <div><span class="mk-ws4-eyebrow">Ressources existantes</span><h3 id="space-us-resources-items">
-      {% if resources_depth.kind == 'document' %}Documents de l'Espace{% elif resources_depth.kind == 'passport' %}Passeports émis{% elif resources_depth.kind == 'template' %}Modèles de présentation{% else %}Thèmes de présentation{% endif %}
+      {% if resources_depth.kind == 'document' %}Documents de l'Espace{% elif resources_depth.kind == 'asset' %}Médias de présentation{% elif resources_depth.kind == 'passport' %}Passeports émis{% elif resources_depth.kind == 'credential' %}Titres émis{% elif resources_depth.kind == 'template' %}Modèles de présentation{% else %}Thèmes de présentation{% endif %}
       </h3></div>
     </div>
     {% if resources_depth.items %}
       <ul class="mk-ws4-list">
       {% for resource in resources_depth.items %}
         <li>
-          <span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="{% if resource.kind == 'passport' %}badge-check{% else %}layers{% endif %}"></i></span>
+          <span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="{% if resource.kind == 'passport' %}badge-check{% elif resource.kind == 'credential' %}award{% elif resource.kind == 'asset' %}images{% else %}layers{% endif %}"></i></span>
           <div>
             <strong>{{ resource.title }}</strong>
             <small>{{ resource.detail }}</small>
@@ -49,7 +51,7 @@
       <a class="mk-action-button" data-variant="link" href="{{ resources_documents_url }}">Ouvrir les documents <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% elif resources_depth.kind == 'passport' %}
       <a class="mk-action-button" data-variant="link" href="{{ resources_passport_url }}">Ouvrir le Passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-    {% else %}
+    {% elif resources_depth.kind == 'asset' or resources_depth.kind == 'template' or resources_depth.kind == 'theme' %}
       <a class="mk-action-button" data-variant="link" href="{{ resources_presentation_url }}">Ouvrir la bibliothèque de présentation <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% endif %}
   </section>
