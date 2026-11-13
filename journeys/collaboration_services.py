@@ -474,6 +474,27 @@ def _validate_file_signature(data, mime_type):
     return False
 
 
+def can_write_space_beneficiary_artifact(actor, journey, *, restricted=False):
+    """A Space applicant may manage *its own* files, never provider case ops.
+
+    This exception is intentionally local to artifact creation/versioning:
+    can_access_case(write=True) remains reserved for owner Activity authority.
+    """
+    space = getattr(journey, "beneficiary_space", None)
+    if (
+        not space or getattr(space, "lifecycle", None) != "active"
+        or getattr(journey, "workflow", None) != "service"
+    ):
+        return False
+    if can(actor, PermissionCode.SPACE_MANAGE, space, include_platform=False):
+        return True
+    return (
+        not restricted
+        and can(actor, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                space, include_platform=False)
+    )
+
+
 def validate_artifact_upload(uploaded_file):
     if uploaded_file is None:
         raise ValidationError("Un fichier est obligatoire.")
@@ -498,7 +519,9 @@ def validate_artifact_upload(uploaded_file):
 
 @transaction.atomic
 def create_artifact(*, journey, uploaded_file, uploaded_by, kind, title, step=None, sensitivity=JourneyArtifactSensitivity.NORMAL, status=JourneyArtifactStatus.DRAFT):
-    if not is_beneficiary(uploaded_by, journey):
+    if not is_beneficiary(uploaded_by, journey) and not can_write_space_beneficiary_artifact(
+        uploaded_by, journey, restricted=sensitivity == JourneyArtifactSensitivity.RESTRICTED,
+    ):
         ensure_case_access(uploaded_by, journey, write=True, restricted=sensitivity == JourneyArtifactSensitivity.RESTRICTED)
     if step is not None and step.journey_id != journey.pk:
         raise ValidationError("La Step et l’Artifact doivent appartenir à la même Journey.")
@@ -518,7 +541,10 @@ def create_artifact(*, journey, uploaded_file, uploaded_by, kind, title, step=No
 @transaction.atomic
 def create_artifact_version(*, artifact, uploaded_file, uploaded_by, sensitivity=None):
     previous = JourneyArtifact.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "step").order_by().get(pk=artifact.pk)
-    if not is_beneficiary(uploaded_by, previous.journey):
+    if not is_beneficiary(uploaded_by, previous.journey) and not can_write_space_beneficiary_artifact(
+        uploaded_by, previous.journey,
+        restricted=(sensitivity or previous.sensitivity) == JourneyArtifactSensitivity.RESTRICTED,
+    ):
         ensure_case_access(uploaded_by, previous.journey, write=True, restricted=(sensitivity or previous.sensitivity) == JourneyArtifactSensitivity.RESTRICTED)
     if JourneyArtifact.objects.filter(supersedes=previous).exists():
         raise ValidationError("Cet Artifact a déjà une version suivante.")
