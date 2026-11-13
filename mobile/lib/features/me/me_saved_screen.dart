@@ -108,13 +108,13 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
           _hasMore = payload['has_more'] as bool;
           _hasKnownCollection = true;
         });
-      } else if (_stillSame(version, personal)) {
+      } else if (mounted && _stillSame(version, personal)) {
         await _restoreRootPreview();
       }
     } on Object {
       // Missing owner collection does not become an authoritative empty list.
     }
-    if (_stillSame(version, personal)) {
+    if (mounted && _stillSame(version, personal)) {
       setState(() => _bootstrapping = false);
       await _next(reset: true);
     }
@@ -125,7 +125,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
     final personal = widget.personal;
     try {
       final snapshot = await personal.store.readProjection('personal.me');
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       final local = MeLocalPreview.forProfile(
         snapshot,
         personal.store.profileId,
@@ -193,7 +193,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         },
       );
       final response = await widget.api.get(uri.toString());
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'personal.me.preview',
@@ -213,7 +213,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
           (part['has_more'] == true && (part['items'] as List).isEmpty)) {
         throw const FormatException('Invalid saved collection');
       }
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       final known = <String>{
         for (final row in reset ? <Map<String, dynamic>>[] : _rows)
           if (row['id'] != null) row['id'].toString(),
@@ -242,7 +242,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         if (_stillSame(version, personal)) _checkEnd();
       });
     } on Object {
-      if (_stillSame(version, personal)) {
+      if (mounted && _stillSame(version, personal)) {
         setState(() {
           _loading = false;
           _failed = true;
@@ -263,7 +263,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       await widget.api.delete(
         'api/v1/discovery/items/activity/${Uri.encodeComponent(activityId)}/saved/',
       );
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       // The server confirmed removal. Preserve other known rows if refresh
       // fails; do not replace the entire offline collection with an error.
       setState(() {
@@ -286,16 +286,16 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       } on Object {
         // The owner confirmed removal. The next sync remains authoritative.
       }
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       try {
         await personal.reflectMeBookmarkRemoved(activityId: activityId);
       } on Object {
         // The owner already confirmed removal; never report it as failed
         // because the read-model reflection could not be written.
       }
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       await _next(reset: true);
-      if (!_stillSame(version, personal)) return;
+      if (!mounted || !_stillSame(version, personal)) return;
       // Invalidate the single personal read model, not a duplicate save store.
       // In the composed app, all Me mutations reconcile via one canonical
       // owner source instead of re-parsing and writing a separate root in UI.
@@ -330,7 +330,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         }
       }
     } on Object {
-      if (_stillSame(version, personal)) {
+      if (mounted && _stillSame(version, personal)) {
         setState(() {
           _removing = null;
           _removeFailedFor = activityId;
