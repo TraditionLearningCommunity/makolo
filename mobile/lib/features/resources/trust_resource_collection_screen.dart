@@ -416,9 +416,12 @@ class _TrustResourceCollectionScreenState
           child: ChoiceChip(
             label: Text(value.$2),
             selected: _status == value.$1,
+            visualDensity: VisualDensity.compact,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
             onSelected: (_) => _setScope(status: value.$1),
           ),
         ),
+      const SizedBox(width: MakoloSpacing.md),
     ];
   }
 
