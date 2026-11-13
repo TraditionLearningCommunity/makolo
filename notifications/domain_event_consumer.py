@@ -5,13 +5,13 @@ from zoneinfo import ZoneInfo
 from django.urls import reverse
 from django.utils import timezone
 
-from access.models import Access
+from access.models import Access, AccessStatus
 from activities.models import Activity, Occurrence, OccurrenceTimingKind
 from commerce.models import PaymentMode
 from presentations.product_language import occurrence_change_copy, vocabulary_for
 from domain_events.contracts import DomainEventType
 from domain_events.registry import register_consumer
-from journeys.models import Journey, JourneyRequest, WorkflowKind
+from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind
 from payments.models import Payment
 
 from .domain_event_selectors import occurrence_recipients
@@ -22,9 +22,13 @@ from .services import create_notification
 CONSUMER_NAME = "notifications.system"
 SYSTEM_EVENT_TYPES = {
     DomainEventType.JOURNEY_CONFIRMED,
+    DomainEventType.JOURNEY_CANCELLED,
+    DomainEventType.JOURNEY_EXPIRED,
     DomainEventType.JOURNEY_PENDING_PAYMENT,
     DomainEventType.REQUEST_APPROVED,
+    DomainEventType.REQUEST_REJECTED,
     DomainEventType.ACCESS_ISSUED,
+    DomainEventType.ACCESS_REVOKED,
     DomainEventType.PAYMENT_SUCCEEDED,
     DomainEventType.PAYMENT_FAILED,
     DomainEventType.PAYMENT_REFUNDED,
@@ -134,6 +138,92 @@ def _notify_request_approved(domain_event):
         domain_event=domain_event,
         activity=request.journey.activity,
         journey=request.journey,
+        template_key=template_key,
+    )
+
+
+def _notify_request_rejected(domain_event):
+    """A decision is a fact, not a client-inferred Journey status."""
+    request = (
+        JourneyRequest.objects.select_related("requester", "journey__activity")
+        .filter(pk=domain_event.payload.get("request_id"), status=RequestStatus.REJECTED)
+        .first()
+    )
+    if request is None or not request.requester_id:
+        return
+    journey = request.journey
+    template_key = "journey.request.rejected"
+    create_notification(
+        recipient=request.requester,
+        kind=NotificationKind.SYSTEM,
+        category=_category_for(journey.activity),
+        title="Demande refusée",
+        message=f"Votre demande pour « {journey.activity.title} » n’a pas été acceptée.",
+        action_url=_journey_action(journey),
+        dedup_key=_domain_dedup(domain_event, request.requester, template_key),
+        metadata={"request_id": str(request.pk), "journey_id": str(journey.pk)},
+        domain_event=domain_event,
+        activity=journey.activity,
+        journey=journey,
+        template_key=template_key,
+    )
+
+
+def _notify_journey_ended(domain_event):
+    expected, label, template_key = {
+        DomainEventType.JOURNEY_CANCELLED: (
+            JourneyStatus.CANCELLED, "annulée", "journey.cancelled",
+        ),
+        DomainEventType.JOURNEY_EXPIRED: (
+            JourneyStatus.EXPIRED, "expirée", "journey.expired",
+        ),
+    }[domain_event.event_type]
+    journey = (
+        Journey.objects.select_related("beneficiary", "activity")
+        .filter(pk=domain_event.payload.get("journey_id"), status=expected)
+        .first()
+    )
+    if journey is None or not journey.beneficiary_id:
+        return
+    noun = vocabulary_for(activity=journey.activity, workflow=journey.workflow).journey_noun
+    create_notification(
+        recipient=journey.beneficiary,
+        kind=NotificationKind.SYSTEM,
+        category=_category_for(journey.activity),
+        title=f"{noun} {label}",
+        message=f"Votre {noun.lower()} pour « {journey.activity.title} » est {label}.",
+        action_url=_journey_action(journey),
+        dedup_key=_domain_dedup(domain_event, journey.beneficiary, template_key),
+        metadata={"journey_id": str(journey.pk), "activity_id": str(journey.activity_id)},
+        domain_event=domain_event,
+        activity=journey.activity,
+        journey=journey,
+        template_key=template_key,
+    )
+
+
+def _notify_access_revoked(domain_event):
+    access = (
+        Access.objects.select_related("beneficiary", "activity", "journey")
+        .filter(pk=domain_event.payload.get("access_id"), status=AccessStatus.REVOKED)
+        .first()
+    )
+    if access is None or not access.beneficiary_id:
+        return
+    template_key = "access.revoked"
+    create_notification(
+        recipient=access.beneficiary,
+        kind=NotificationKind.SYSTEM,
+        category=_category_for(access.activity),
+        title="Accès révoqué",
+        message=f"Votre accès pour « {access.activity.title} » n’est plus valide.",
+        action_url=_access_action(access),
+        dedup_key=_domain_dedup(domain_event, access.beneficiary, template_key),
+        metadata={"access_id": str(access.pk), "activity_id": str(access.activity_id)},
+        domain_event=domain_event,
+        activity=access.activity,
+        journey=access.journey,
+        access=access,
         template_key=template_key,
     )
 
@@ -305,9 +395,13 @@ def _notify_occurrence(domain_event):
 def consume_system_notification_event(domain_event):
     handlers = {
         DomainEventType.JOURNEY_CONFIRMED: _notify_journey_confirmed,
+        DomainEventType.JOURNEY_CANCELLED: _notify_journey_ended,
+        DomainEventType.JOURNEY_EXPIRED: _notify_journey_ended,
         DomainEventType.JOURNEY_PENDING_PAYMENT: _notify_payment_required,
         DomainEventType.REQUEST_APPROVED: _notify_request_approved,
+        DomainEventType.REQUEST_REJECTED: _notify_request_rejected,
         DomainEventType.ACCESS_ISSUED: _notify_access_issued,
+        DomainEventType.ACCESS_REVOKED: _notify_access_revoked,
         DomainEventType.PAYMENT_SUCCEEDED: _notify_payment,
         DomainEventType.PAYMENT_FAILED: _notify_payment,
         DomainEventType.PAYMENT_REFUNDED: _notify_payment,
