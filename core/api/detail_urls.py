@@ -1,3 +1,4 @@
+from services.api_requirement_evidence import ServiceRequirementEvidenceAPIView
 from journeys.api_artifacts import (
     JourneyArtifactCollectionAPIView,
     JourneyArtifactDownloadAPIView,
@@ -16,6 +17,12 @@ from .detail_views import (
 app_name = "personal-detail-projections"
 
 urlpatterns = [
+    path(
+        "journeys/<uuid:journey_id>/requirements/<uuid:assessment_id>/evidence/",
+        ServiceRequirementEvidenceAPIView.as_view(),
+        name="journey-requirement-evidence",
+    ),
+
     path(
         "journeys/<uuid:journey_id>/artifacts/",
         JourneyArtifactCollectionAPIView.as_view(),
