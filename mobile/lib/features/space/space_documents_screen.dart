@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../platform/media/native_media_picker.dart';
 
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
+import '../resources/resource_presentation.dart';
 import '../../network/makolo_api_client.dart';
 import '../../network/api_error.dart';
 
@@ -29,7 +32,10 @@ class SpaceDocumentsScreen extends StatefulWidget {
 
 class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
   final _search = TextEditingController();
+  Timer? _searchDebounce;
   List<Map<String, dynamic>> _documents = [];
+  int? _count;
+  bool _searching = false;
   bool _loading = true;
   bool _more = false;
   bool _canManage = false;
@@ -69,6 +75,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
   void dispose() {
     _request++;
     widget.runtime.actorContext?.removeListener(_actorChanged);
+    _searchDebounce?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -78,6 +85,9 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
     if (!mounted) return;
     setState(() {
       _documents = [];
+      _count = null;
+      _searching = false;
+      _search.clear();
       _canManage = false;
       _more = false;
       _offset = 0;
@@ -130,6 +140,9 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       ];
       setState(() {
         _documents = append ? [..._documents, ...items] : items;
+        _count = payload['count'] is num
+            ? (payload['count'] as num).toInt()
+            : int.tryParse('${payload['count'] ?? ''}');
         _more = payload['has_more'] == true;
         _offset = payload['next_offset'] is int
             ? payload['next_offset'] as int
@@ -151,6 +164,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
         // but never leaves management rights enabled without revalidation.
         if (withdrawn) {
           _documents = [];
+          _count = null;
           _more = false;
         }
         _canManage = false;
@@ -162,6 +176,26 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   'proviennent de votre dernière consultation.';
       });
     }
+  }
+
+  void _openSearch() {
+    if (_searching) return;
+    setState(() => _searching = true);
+  }
+
+  void _closeSearch() {
+    _searchDebounce?.cancel();
+    final hadQuery = _search.text.trim().isNotEmpty;
+    _search.clear();
+    setState(() => _searching = false);
+    if (hadQuery) unawaited(_load());
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) unawaited(_load());
+    });
   }
 
   Future<void> _add() async {
@@ -269,95 +303,101 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Documents')),
-      floatingActionButton: _canManage && !_busy
-          ? FloatingActionButton.extended(
-              onPressed: _add,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Ajouter'),
-            )
-          : null,
-      body: ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.lg),
-        children: [
-          Text(
-            'Documents de l’Espace',
-            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: MakoloSpacing.md),
-          TextField(
-            controller: _search,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _load(),
-            decoration: InputDecoration(
-              hintText: 'Rechercher',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: MakoloIconActionButton(
-                tooltip: 'Rechercher',
-                onPressed: () => _load(),
-                icon: Icons.arrow_forward_rounded,
-              ),
-              border: const OutlineInputBorder(),
+    final body = <Widget>[
+      if (_message != null) ...[
+        Text(_message!),
+        const SizedBox(height: MakoloSpacing.sm),
+        MakoloActionButton(
+          label: 'Réessayer',
+          appearance: MakoloActionAppearance.quiet,
+          onPressed: () => _load(),
+          icon: Icons.refresh_rounded,
+        ),
+      ] else if (_loading && _documents.isEmpty)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+          child: Center(child: CircularProgressIndicator.adaptive()),
+        )
+      else if (_documents.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+          child: Center(
+            child: Text(
+              _search.text.trim().isEmpty
+                  ? 'Aucun document pour le moment.'
+                  : 'Aucun résultat',
             ),
           ),
-          const SizedBox(height: MakoloSpacing.lg),
-          if (_message != null) ...[
-            Text(_message!),
-            const SizedBox(height: MakoloSpacing.sm),
-            MakoloActionButton(
-              label: 'Réessayer',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => _load(),
-              icon: Icons.refresh_rounded,
-            ),
-          ] else if (_loading && _documents.isEmpty)
-            const Center(child: CircularProgressIndicator())
-          else if (_documents.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(MakoloSpacing.xl),
-                child: Text('Aucun document pour le moment.'),
-              ),
-            )
-          else
-            for (final doc in _documents)
-              Card(
-                child: ListTile(
-                  leading: Icon(
-                    Icons.description_outlined,
-                    color: colors.primary,
-                  ),
-                  title: Text(doc['title']?.toString() ?? 'Document'),
-                  subtitle: Text(
-                    doc['visibility'] == 'restricted'
-                        ? 'Confidentiel · v${doc['latest_version'] ?? '1'}'
-                        : 'Équipe · v${doc['latest_version'] ?? '1'}',
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    final id = doc['id']?.toString();
-                    if (id != null &&
-                        RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id)) {
-                      context.push('/space/${widget.slug}/us/documents/$id');
-                    }
-                  },
+        )
+      else
+        for (final doc in _documents)
+          Padding(
+            padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+            child: Card(
+              child: ListTile(
+                leading: Icon(
+                  Icons.description_outlined,
+                  color: colors.primary,
                 ),
+                title: Text(doc['title']?.toString() ?? 'Document'),
+                subtitle: Text(
+                  doc['visibility'] == 'restricted'
+                      ? 'Confidentiel · v${doc['latest_version'] ?? '1'}'
+                      : 'Équipe · v${doc['latest_version'] ?? '1'}',
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  final id = doc['id']?.toString();
+                  if (id != null &&
+                      RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id)) {
+                    context.push('/space/${widget.slug}/us/documents/$id');
+                  }
+                },
               ),
-          if (_loading && _documents.isNotEmpty)
-            const Center(child: CircularProgressIndicator()),
-          if (_more && !_loading)
-            MakoloActionButton(
-              label: 'Voir plus',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => _load(append: true),
-              icon: Icons.expand_more_rounded,
             ),
-          const SizedBox(height: 90),
-        ],
+          ),
+      if (_loading && _documents.isNotEmpty)
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(MakoloSpacing.md),
+            child: CircularProgressIndicator.adaptive(),
+          ),
+        ),
+      if (_more && !_loading)
+        Center(
+          child: MakoloActionButton(
+            label: 'Voir plus',
+            appearance: MakoloActionAppearance.quiet,
+            onPressed: () => _load(append: true),
+            icon: Icons.expand_more_rounded,
+          ),
+        ),
+    ];
+
+    return ResourceCollectionScaffold(
+      title: 'Nos documents',
+      count: _count,
+      searching: _searching,
+      searchController: _search,
+      searchHint: 'Rechercher dans nos documents',
+      onSearchChanged: _onSearchChanged,
+      onOpenSearch: _openSearch,
+      onCloseSearch: _closeSearch,
+      onRefresh: () => _load(),
+      refreshing: _loading && _documents.isNotEmpty,
+      actions: [
+        if (_canManage)
+          MakoloIconActionButton(
+            tooltip: 'Ajouter',
+            icon: Icons.add_rounded,
+            onPressed: _busy ? null : _add,
+          ),
+      ],
+      storageKey: PageStorageKey<String>(
+        'space-documents:${widget.slug}:${_search.text.trim()}',
       ),
+      children: body,
     );
   }
 }
