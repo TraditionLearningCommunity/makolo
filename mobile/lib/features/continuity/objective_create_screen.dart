@@ -148,6 +148,179 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     });
   }
 
+  DateTime? _restoredDate(Object? value) =>
+      value is String ? DateTime.tryParse(value) : null;
+
+  Map<String, dynamic> _snapshot(
+    String submissionState, {
+    String? confirmedId,
+  }) => {
+    'title': _title.text,
+    'description': _description.text,
+    'starts_on': _iso(_start),
+    'ends_on': _iso(_end),
+    'deadline': _iso(_deadline),
+    'submission_state': submissionState,
+    if (confirmedId != null) 'confirmed_id': confirmedId,
+  };
+
+  Future<void> _restoreDraft() async {
+    try {
+      final stored = await _draft.read();
+      if (!mounted) return;
+      final data = stored?.payload;
+      final state = data?['submission_state'];
+      final id = data?['confirmed_id'];
+      setState(() {
+        if (data != null) {
+          _title.text = data['title'] is String ? data['title'] as String : '';
+          _description.text = data['description'] is String
+              ? data['description'] as String
+              : '';
+          _start = _restoredDate(data['starts_on']);
+          _end = _restoredDate(data['ends_on']);
+          _deadline = _restoredDate(data['deadline']);
+        }
+        _attempted = state == 'verification_required' ||
+            (state == 'confirmed' && (id is! String || id.isEmpty));
+        if (state == 'confirmed' && id is String && id.isNotEmpty) {
+          _confirmedId = id;
+          _confirmedSpaceSlug = widget.spaceActor?.slug;
+          _confirmedKind = widget.kind;
+          _confirmedRepository = widget.repository;
+        }
+        _restoring = false;
+        _restoreFailed = false;
+        _draftSaveFailed = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _restoring = false;
+        _restoreFailed = true;
+      });
+    }
+  }
+
+  void _scheduleDraft() {
+    if (_restoring || _attempted || _submitting || _confirmedId != null) {
+      return;
+    }
+    _autosave?.cancel();
+    _autosave = Timer(const Duration(milliseconds: 350), () {
+      final values = _snapshot('editing');
+      unawaited(_draft.save(values).then((_) {
+        if (mounted && _draftSaveFailed) {
+          setState(() => _draftSaveFailed = false);
+        }
+      }).catchError((Object _) {
+        if (mounted) setState(() => _draftSaveFailed = true);
+      }));
+    });
+  }
+
+  Future<void> _retryRestore() async {
+    if (_restoring || _submitting) return;
+    setState(() => _restoring = true);
+    await _restoreDraft();
+  }
+
+  Future<void> _resumeAfterReview() async {
+    if (!_attempted || _submitting) return;
+    final reviewed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Reprendre ?'),
+        content: const Text(
+          'Vérifiez d’abord dans Mes démarches si la création existe déjà. '
+          'Renvoyer pourrait créer un doublon.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('J’ai vérifié'),
+          ),
+        ],
+      ),
+    );
+    if (reviewed != true || !mounted || !_actorValid) return;
+    try {
+      await _draft.save(_snapshot('editing'));
+      if (mounted) {
+        setState(() {
+          _attempted = false;
+          _error = null;
+          _draftSaveFailed = false;
+        });
+      }
+    } on Object {
+      if (mounted) setState(() => _draftSaveFailed = true);
+    }
+  }
+
+  Future<void> _startAnother() async {
+    if (_confirmedId == null || _submitting) return;
+    try {
+      await _draft.clear();
+    } on Object {
+      if (mounted) setState(() => _draftSaveFailed = true);
+      return;
+    }
+    if (!mounted) return;
+    _autosave?.cancel();
+    setState(() {
+      _title.clear();
+      _description.clear();
+      _start = null;
+      _end = null;
+      _deadline = null;
+      _confirmedId = null;
+      _confirmedKind = null;
+      _confirmedSpaceSlug = null;
+      _confirmedRepository = null;
+      _attempted = false;
+      _error = null;
+      _draftSaveFailed = false;
+    });
+  }
+
+  Widget _draftMark() {
+    final String label;
+    final IconData symbol;
+    if (_restoring) {
+      label = 'Reprise';
+      symbol = Icons.hourglass_empty_rounded;
+    } else if (_restoreFailed || _draftSaveFailed) {
+      label = 'Sauvegarde indisponible';
+      symbol = Icons.error_outline_rounded;
+    } else if (_attempted) {
+      label = 'À vérifier avant de renvoyer';
+      symbol = Icons.schedule_outlined;
+    } else if (_confirmedId != null) {
+      label = 'Création confirmée';
+      symbol = Icons.check_circle_outline_rounded;
+    } else {
+      label = 'Brouillon';
+      symbol = Icons.edit_note_rounded;
+    }
+    return Tooltip(
+      message: label,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Icon(
+          symbol,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          semanticLabel: label,
+        ),
+      ),
+    );
+  }
+
   Widget _dateField(String field, String label, DateTime? value) => ListTile(
     contentPadding: EdgeInsets.zero,
     dense: true,
