@@ -391,6 +391,15 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: 12),
+                    MakoloActionButton(
+                      label: 'Retrouver les demandes de cet Espace',
+                      icon: Icons.history_rounded,
+                      appearance: MakoloActionAppearance.quiet,
+                      onPressed: () => context.push(
+                        '/space/${Uri.encodeComponent(widget.space!.slug)}/beneficiary/journeys',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                   ] else if (widget.runtime.actorContext?.value
                       case SpaceActorContext(:final space)) ...[
                     MakoloActionButton(
@@ -399,6 +408,15 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                       appearance: MakoloActionAppearance.secondary,
                       onPressed: () => context.push(
                         '/space/${Uri.encodeComponent(space.slug)}/services/${Uri.encodeComponent(widget.serviceId)}/start',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    MakoloActionButton(
+                      label: 'Voir les demandes de cet Espace',
+                      icon: Icons.history_rounded,
+                      appearance: MakoloActionAppearance.quiet,
+                      onPressed: () => context.push(
+                        '/space/${Uri.encodeComponent(space.slug)}/beneficiary/journeys',
                       ),
                     ),
                     const SizedBox(height: 12),
