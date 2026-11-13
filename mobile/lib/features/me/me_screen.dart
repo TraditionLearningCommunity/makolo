@@ -552,11 +552,13 @@ class _MeTerritory extends StatelessWidget {
               onTap:
                   hasOwnerNavigation &&
                       (presentation.key == 'considerations' ||
-                          presentation.key == 'collectives')
+                          presentation.key == 'collectives' ||
+                          presentation.key == 'support')
                   ? () => onSelectItem(
                       MeItemPresentation(
                         destination: StructuredDestination(
-                          kind: presentation.key,
+                          kind: presentation.key == 'support'
+                              ? 'support_collection' : presentation.key,
                           id: 'mine',
                         ),
                         title: presentation.label,
@@ -591,7 +593,8 @@ class _MeTerritory extends StatelessWidget {
                       ),
                     if (hasOwnerNavigation &&
                         (presentation.key == 'considerations' ||
-                            presentation.key == 'collectives'))
+                            presentation.key == 'collectives' ||
+                          presentation.key == 'support'))
                       const Padding(
                         padding: EdgeInsetsDirectional.only(start: 6),
                         child: Icon(Icons.chevron_right_rounded),
