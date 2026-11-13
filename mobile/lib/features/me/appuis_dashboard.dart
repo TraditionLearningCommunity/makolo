@@ -34,7 +34,7 @@ class AppuisViewData {
       ...rows(loyalty['available_rewards']),
     ]) {
       final id = programId(row);
-      if (id.isNotEmpty)
+      if (id.isNotEmpty) {
         grouped.putIfAbsent(
           id,
           () => {
@@ -45,6 +45,7 @@ class AppuisViewData {
             ),
           },
         );
+      }
     }
     return grouped.values.toList(growable: false);
   }
