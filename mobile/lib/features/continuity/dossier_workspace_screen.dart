@@ -250,8 +250,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (!mounted ||
           widget.id != id ||
           widget.repository != repo ||
-          revision != _contextRevision)
+          revision != _contextRevision) {
         return;
+      }
       // A cached Space lens is not proof that its Mandates still exist.
       // Always ask the owner when entering this Space depth.
       if (spaceSlug != null ||
