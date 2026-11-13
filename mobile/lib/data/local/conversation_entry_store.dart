@@ -153,8 +153,9 @@ class ConversationEntryStore {
     }
     if (nextVersion != null) {
       final current = await version(pointId);
-      if (nextVersion < current)
+      if (nextVersion < current) {
         throw const FormatException('Exchange watermark regressed');
+      }
       await database
           .into(database.syncSources)
           .insertOnConflictUpdate(
