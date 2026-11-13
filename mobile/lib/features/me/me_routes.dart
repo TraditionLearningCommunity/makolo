@@ -283,10 +283,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeCollectivesScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
-                  onActSpace: (_) async {
-                    // Le picker existant revalide le contexte acquis avant
-                    // toute selection. Cette action ne confere aucun droit.
-                    await showMakoloActorPicker(context, runtime: runtime);
+                  onActSpace: (item) async {
+                    // Le picker valide le contexte acquis de cet Espace.
+                    // Aucune appartenance Team/Group ne confere un droit.
+                    await showMakoloActorPicker(
+                      context,
+                      runtime: runtime,
+                      preferredSpaceId: item.destination.id,
+                    );
                   },
                   onOpenDestination: (destination) {
                     if (destination.kind == 'group') {
