@@ -111,16 +111,22 @@ class _SpaceBeneficiaryJourneyScreenState
         await _repository.store.deleteProjection(
           SpaceBeneficiaryJourneyRepository.projectionKind,
           resourceKey: SpaceBeneficiaryJourneyRepository.resourceKey(
-            widget.space, widget.journeyId,
+            widget.space,
+            widget.journeyId,
           ),
         );
         if (mounted) setState(() => _denied = true);
       } else {
-        setState(() => _error = 'La synchronisation a échoué. Les données locales sont conservées.');
+        setState(
+          () => _error = 'La synchronisation a échoué. Les données locales sont conservées.',
+        );
       }
     } on Object {
       if (mounted && revision == _epoch) {
-        setState(() => _error = 'Les informations récentes sont momentanément indisponibles.');
+        setState(
+          () => _error =
+              'Les informations récentes sont momentanément indisponibles.',
+        );
       }
     } finally {
       if (mounted && revision == _epoch) setState(() => _busy = false);
@@ -140,10 +146,14 @@ class _SpaceBeneficiaryJourneyScreenState
       ],
     ),
     body: !_actorValid || _denied
-        ? const Center(child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Cette demande n’est plus accessible avec le contexte sélectionné.'),
-          ))
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Cette demande n’est plus accessible avec le contexte sélectionné.',
+              ),
+            ),
+          )
         : StreamBuilder<StoredProjection?>(
             stream: _repository.watch(widget.space, widget.journeyId),
             builder: (context, snapshot) {
@@ -162,14 +172,17 @@ class _SpaceBeneficiaryJourneyScreenState
                 padding: const EdgeInsets.all(20),
                 children: [
                   if (_busy) const LinearProgressIndicator(),
-                  if (_error != null) Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(_error!),
-                  ),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(_error!),
+                    ),
                   if (raw == null)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 28),
-                      child: Text('Cette demande n’est pas encore disponible localement.'),
+                      child: Text(
+                        'Cette demande n’est pas encore disponible localement.',
+                      ),
                     )
                   else ...[
                     Text(
@@ -183,28 +196,38 @@ class _SpaceBeneficiaryJourneyScreenState
                     if (service['objective'] is String &&
                         (service['objective'] as String).trim().isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Text('Votre objectif',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Votre objectif',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(service['objective'] as String),
                     ],
                     if (opportunity['title'] is String) ...[
                       const SizedBox(height: 16),
-                      Text('Opportunité concernée',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Opportunité concernée',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(opportunity['title'] as String),
                       if (opportunity['publication_state'] != 'published')
-                        const Text('La référence est conservée, mais l’opportunité n’est plus publiée.'),
+                        const Text(
+                          'La référence est conservée, mais l’opportunité n’est plus publiée.',
+                        ),
                     ],
                     if (result['label'] is String) ...[
                       const SizedBox(height: 16),
-                      Text('Réponse de l’organisme',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Réponse de l’organisme',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(result['label'] as String),
                     ],
                     if (steps.isNotEmpty) ...[
                       const SizedBox(height: 20),
-                      Text('Progression de la demande',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Progression de la demande',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       for (final step in steps)
                         ListTile(
                           title: Text(step['title']?.toString() ?? 'Étape'),
@@ -213,13 +236,19 @@ class _SpaceBeneficiaryJourneyScreenState
                     ],
                     if (requirements.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Text('Conditions',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Conditions',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       for (final requirement in requirements)
                         ListTile(
                           leading: const Icon(Icons.fact_check_outlined),
-                          title: Text(requirement['label']?.toString() ?? 'Condition'),
-                          subtitle: Text(requirement['state']?.toString() ?? ''),
+                          title: Text(
+                            requirement['label']?.toString() ?? 'Condition',
+                          ),
+                          subtitle: Text(
+                            requirement['state']?.toString() ?? '',
+                          ),
                           onTap: () {
                             final link = requirement['link'];
                             if (link is String && link.isNotEmpty) {
@@ -230,12 +259,16 @@ class _SpaceBeneficiaryJourneyScreenState
                     ],
                     if (forms.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Text('Formulaires',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Formulaires',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       for (final form in forms)
                         ListTile(
                           leading: const Icon(Icons.description_outlined),
-                          title: Text(form['title']?.toString() ?? 'Formulaire'),
+                          title: Text(
+                            form['title']?.toString() ?? 'Formulaire',
+                          ),
                           subtitle: Text(form['status']?.toString() ?? ''),
                           onTap: form['link'] is String
                               ? () => context.push(
@@ -278,10 +311,8 @@ class _SpaceBeneficiaryJourneyScreenState
   );
 
   void _openDetail(BuildContext context, String link) {
-    final id = Uri.tryParse(link)?.pathSegments.lastWhere(
-      (piece) => piece.isNotEmpty,
-      orElse: () => '',
-    );
+    final id = Uri.tryParse(link)?.pathSegments
+        .lastWhere((piece) => piece.isNotEmpty, orElse: () => '');
     if (id != null && id.isNotEmpty) {
       context.push(
         '/space/${Uri.encodeComponent(widget.space.slug)}/beneficiary/journeys/${widget.journeyId}/requirements/$id',
@@ -293,9 +324,11 @@ class _SpaceBeneficiaryJourneyScreenState
 Map<String, dynamic> _row(Object? value) =>
     value is Map ? Map<String, dynamic>.from(value) : const {};
 
-List<Map<String, dynamic>> _rows(Object? value) =>
-    value is List
-    ? value.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
+List<Map<String, dynamic>> _rows(Object? value) => value is List
+    ? value
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList()
     : const [];
 
 /// The owner keeps the actual Intake answers and submission state. A local
@@ -374,9 +407,7 @@ class _SpaceBeneficiaryIntakeScreenState
     try {
       final local = await widget.runtime.interactions?.read(_draftKey);
       final serialized = local?['answers'];
-      final restored = serialized is String
-          ? jsonDecode(serialized)
-          : null;
+      final restored = serialized is String ? jsonDecode(serialized) : null;
       final response = await widget.runtime.api!.get(_path);
       final payload = response.jsonObject();
       if (payload['journey_id'] != widget.journeyId ||
@@ -470,7 +501,8 @@ class _SpaceBeneficiaryIntakeScreenState
     } on Object {
       if (mounted) {
         setState(() {
-          _error = 'Aucune confirmation reçue. Votre brouillon reste disponible.';
+          _error =
+              'Aucune confirmation reçue. Votre brouillon reste disponible.';
         });
       }
     } finally {
@@ -548,48 +580,56 @@ class _SpaceBeneficiaryIntakeScreenState
       return MakoloActionButton(
         label: value?.toString() ?? 'Choisir une date',
         icon: Icons.event_outlined,
-        onPressed: enabled ? () async {
-          final selected = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime(1900),
-            lastDate: DateTime(2200),
-          );
-          if (selected != null) {
-            _edit(
-              id,
-              '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}',
-            );
-          }
-        } : null,
+        onPressed: enabled
+            ? () async {
+                final selected = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime(2200),
+                );
+                if (selected != null) {
+                  _edit(
+                    id,
+                    '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}',
+                  );
+                }
+              }
+            : null,
       );
     }
     if (type == 'single_choice') {
       return DropdownButtonFormField<String>(
         initialValue: choices.contains(value) ? value as String : null,
-        items: choices.map((choice) => DropdownMenuItem(
-          value: choice, child: Text(choice),
-        )).toList(),
+        items: choices
+            .map(
+              (choice) => DropdownMenuItem(value: choice, child: Text(choice)),
+            )
+            .toList(),
         onChanged: enabled ? (choice) => _edit(id, choice) : null,
       );
     }
     if (type == 'multiple_choice') {
-      final selected = value is List ? value.map((item) => item.toString()).toSet() : <String>{};
+      final selected = value is List
+          ? value.map((item) => item.toString()).toSet()
+          : <String>{};
       return Column(
         children: [
           for (final choice in choices)
             CheckboxListTile(
               title: Text(choice),
               value: selected.contains(choice),
-              onChanged: enabled ? (checked) {
-                final next = Set<String>.from(selected);
-                if (checked == true) {
-                  next.add(choice);
-                } else {
-                  next.remove(choice);
-                }
-                _edit(id, next.toList());
-              } : null,
+              onChanged: enabled
+                  ? (checked) {
+                      final next = Set<String>.from(selected);
+                      if (checked == true) {
+                        next.add(choice);
+                      } else {
+                        next.remove(choice);
+                      }
+                      _edit(id, next.toList());
+                    }
+                  : null,
             ),
         ],
       );
@@ -607,8 +647,11 @@ class _SpaceBeneficiaryIntakeScreenState
 /// Small owner-only read depth. No local Requirement satisfaction is computed.
 class SpaceBeneficiaryRequirementScreen extends StatefulWidget {
   const SpaceBeneficiaryRequirementScreen({
-    super.key, required this.runtime, required this.space,
-    required this.journeyId, required this.assessmentId,
+    super.key,
+    required this.runtime,
+    required this.space,
+    required this.journeyId,
+    required this.assessmentId,
   });
 
   final AppRuntime runtime;
@@ -645,7 +688,8 @@ class _SpaceBeneficiaryRequirementScreenState
         _error = null;
       });
     } on Object {
-      if (mounted) setState(() => _error = 'Condition actuellement indisponible.');
+      if (mounted)
+        setState(() => _error = 'Condition actuellement indisponible.');
     }
   }
 
@@ -673,7 +717,9 @@ class _SpaceBeneficiaryRequirementScreenState
                     const SizedBox(height: 12),
                     Text(requirement['status']?.toString() ?? ''),
                     const SizedBox(height: 12),
-                    const Text('Avoir un document ne signifie pas que la condition est validée.'),
+                    const Text(
+                      'Avoir un document ne signifie pas que la condition est validée.',
+                    ),
                   ],
                 ],
               ),
