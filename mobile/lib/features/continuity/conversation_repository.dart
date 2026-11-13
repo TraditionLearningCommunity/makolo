@@ -275,8 +275,7 @@ class ConversationRepository {
           'body': body,
           'expected_edit_version': expectedVersion,
           'client_reference': reference,
-          if (mentionProfileIds != null)
-            'mention_profile_ids': mentionProfileIds,
+          'mention_profile_ids': ?mentionProfileIds,
         },
       );
     }
