@@ -22,6 +22,7 @@ void main() {
   late ConversationLocalDelivery delivery;
   late List<MockRequest> requests;
   late bool reachable;
+  late bool completeMediaReplyAck;
   late Directory mediaDirectory;
 
   setUp(() {
@@ -42,6 +43,7 @@ void main() {
     );
     requests = [];
     reachable = true;
+    completeMediaReplyAck = true;
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       tokenStore: tokens,
@@ -62,9 +64,11 @@ void main() {
           );
         }
         if (request.url.path.endsWith('/reply-media/')) {
-          return const MockResponse(
-            '{"point_id":"point-vote","response_id":"response-voice",'
-            '"attachment":{"id":"attachment-voice"}}',
+          return MockResponse(
+            completeMediaReplyAck
+                ? '{"point_id":"point-vote","response_id":"response-voice",'
+                      '"attachment":{"id":"attachment-voice"}}'
+                : '{"point_id":"point-vote","attachment":{"id":"attachment-voice"}}',
             200,
           );
         }
@@ -270,6 +274,31 @@ void main() {
       final rows = await database.select(database.outboxOperations).get();
       expect(rows.single.ownerIdempotencyKey, reference);
       expect(rows.single.state, OutboxState.confirmed.wireValue);
+    },
+  );
+
+  test(
+    'incomplete owner receipt never confirms a Point media response',
+    () async {
+      completeMediaReplyAck = false;
+      final recorded = File('${mediaDirectory.path}/vocal-incomplete.m4a');
+      await recorded.writeAsBytes([5, 6, 7]);
+      await delivery.queue(
+        conversationId: 'conv-1',
+        mode: 'media_response',
+        pointId: 'point-vote',
+        filePath: recorded.path,
+        filename: 'vocal-incomplete.m4a',
+        mediaKind: 'voice',
+      );
+      await processor().run();
+      final rows = await database.select(database.outboxOperations).get();
+      expect(rows.single.state, isNot(OutboxState.confirmed.wireValue));
+      final pending = await delivery.watchOutgoing('conv-1').first;
+      expect(pending.single.isConfirmed, isFalse);
+      final owned = File(pending.single.localFilePath!);
+      expect(await owned.exists(), isTrue);
+      expect(await owned.readAsBytes(), [5, 6, 7]);
     },
   );
 
