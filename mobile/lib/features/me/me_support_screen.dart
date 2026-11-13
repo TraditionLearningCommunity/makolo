@@ -190,7 +190,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           if (!_current(generation, actor)) return;
           final decoded = jsonDecode(response.body);
           final body = family == 'partners' && !_space && decoded is Map
-              ? decoded['data'] : decoded;
+              ? decoded['data']
+              : decoded;
           if (body is! Map && body is! List) {
             throw const FormatException('Invalid owner projection');
           }
@@ -384,8 +385,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           action == 'redeem'
               ? 'Utiliser cet avantage ?'
               : action == 'cancel'
-                  ? 'Annuler cette adhésion ?'
-                  : 'Confirmer la réponse ?',
+              ? 'Annuler cette adhésion ?'
+              : 'Confirmer la réponse ?',
         ),
         content: Text(_label(row)),
         actions: [
@@ -477,7 +478,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                   ? Wrap(
                       spacing: 0,
                       children: [
-                        for (final command in ['accept', 'decline', 'redeem', 'cancel'])
+                        for (final command in [
+                          'accept',
+                          'decline',
+                          'redeem',
+                          'cancel',
+                        ])
                           if (_action(row, family, command) != null)
                             TextButton(
                               onPressed: _busy
@@ -618,19 +624,35 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               ),
               _section(family, 'Campagnes associées', data['campaigns']),
               _section(
-                family, 'Codes de parrainage', data['codes'],
-                details: (r) => _text(r['partner_name']) + ' · ' +
+                family,
+                'Codes de parrainage',
+                data['codes'],
+                details: (r) =>
+                    _text(r['partner_name']) +
+                    ' · ' +
                     (r['is_usable'] == true ? 'Utilisable' : 'Non utilisable'),
               ),
               _section(
-                family, 'Commissions', data['commissions'],
-                details: (r) => _text(r['amount']) + ' ' +
-                    _text(r['currency']) + ' · ' + _text(r['status']),
+                family,
+                'Commissions',
+                data['commissions'],
+                details: (r) =>
+                    _text(r['amount']) +
+                    ' ' +
+                    _text(r['currency']) +
+                    ' · ' +
+                    _text(r['status']),
               ),
               _section(
-                family, 'Versements', data['payouts'],
-                details: (r) => _text(r['amount']) + ' ' +
-                    _text(r['currency']) + ' · ' + _text(r['status']),
+                family,
+                'Versements',
+                data['payouts'],
+                details: (r) =>
+                    _text(r['amount']) +
+                    ' ' +
+                    _text(r['currency']) +
+                    ' · ' +
+                    _text(r['status']),
               ),
             ],
           ],
