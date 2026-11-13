@@ -143,23 +143,26 @@ void main() {
     expect(presentation.payments.single.obligationId, 'payment-obligation');
   });
 
-  test('a terminal Journey without Forms or Requirements has no preparation', () {
-    final projection = StoredProjection(
-      kind: JourneyRepository.projectionKind,
-      resourceKey: 'journey-done',
-      schemaVersion: 1,
-      receivedAt: DateTime.utc(2026, 11, 13),
-      payload: _payload('Une démarche terminée', status: 'fulfilled'),
-    );
-    final presentation = const JourneyDetailSelector().select(
-      projection: projection,
-      source: JourneySourceState.unknown,
-      now: DateTime.utc(2026, 11, 13),
-    );
-    final composition = JourneyComposition.from(presentation);
-    expect(presentation.isTerminal, isTrue);
-    expect(composition.hasPreparation, isFalse);
-  });
+  test(
+    'a terminal Journey without Forms or Requirements has no preparation',
+    () {
+      final projection = StoredProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: 'journey-done',
+        schemaVersion: 1,
+        receivedAt: DateTime.utc(2026, 11, 13),
+        payload: _payload('Une démarche terminée', status: 'fulfilled'),
+      );
+      final presentation = const JourneyDetailSelector().select(
+        projection: projection,
+        source: JourneySourceState.unknown,
+        now: DateTime.utc(2026, 11, 13),
+      );
+      final composition = JourneyComposition.from(presentation);
+      expect(presentation.isTerminal, isTrue);
+      expect(composition.hasPreparation, isFalse);
+    },
+  );
 
   testWidgets('a terminal Journey has an outcome and no fabricated action', (
     tester,
