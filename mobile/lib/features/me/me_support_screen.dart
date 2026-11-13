@@ -154,6 +154,25 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       if (_current(generation, actor)) setState(() => _loading = false);
       return;
     }
+    if (actor is SpaceActorContext) {
+      final workspace = widget.runtime.space;
+      final authorized = workspace != null &&
+          await workspace.hasAcquiredSpaceContext(actor.space);
+      if (!_current(generation, actor)) return;
+      if (!authorized) {
+        for (final family in families) {
+          await store.deleteProjection('appuis.' + family,
+              resourceKey: _scope);
+        }
+        if (_current(generation, actor)) {
+          setState(() {
+            _denied = true;
+            _loading = false;
+          });
+        }
+        return;
+      }
+    }
     for (final family in families) {
       try {
         final saved = await store.readProjection(
@@ -206,7 +225,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
             kind: 'appuis.' + family,
             resourceKey: _scope,
             schemaVersion: 1,
-            payload: payload,
+            payload: _cacheSafe(payload),
             lastVerifiedOnlineAt: DateTime.now().toUtc(),
             freshnessPolicyId: 'swr',
           );
@@ -249,6 +268,24 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     } finally {
       if (_current(generation, actor)) setState(() => _busy = false);
     }
+  }
+
+  /// Voucher codes are private owner secrets; do not persist their raw value
+  /// in the general-purpose projection snapshot (online reads remain intact).
+  static Map<String, dynamic> _cacheSafe(Map<String, dynamic> payload) {
+    Object? clean(Object? value) {
+      if (value is List) return value.map(clean).toList(growable: false);
+      if (value is Map) {
+        return <String, dynamic>{
+          for (final entry in value.entries)
+            if (entry.key != 'benefit_code' &&
+                entry.key != 'promotion_code')
+              entry.key.toString(): clean(entry.value),
+        };
+      }
+      return value;
+    }
+    return clean(payload) as Map<String, dynamic>;
   }
 
   /// Owner datasets stay separate, filtered by this actor's Partner IDs.
@@ -340,6 +377,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
 
   String? _action(Map<String, dynamic> row, String family, String name) {
     if (family != 'recognition' && family != 'loyalty') return null;
+    if (SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline) {
+      return null;
+    }
     if (row['capabilities'] is! List ||
         !(row['capabilities'] as List).contains(name))
       return null;
