@@ -3609,19 +3609,22 @@ class _PointCardState extends State<_PointCard> {
           const SizedBox(height: MakoloSpacing.md),
           if (point.responseMode == 'boolean')
             Wrap(
-              spacing: MakoloSpacing.sm,
+              spacing: MakoloSpacing.xs,
+              runSpacing: MakoloSpacing.xs,
               children: [
-                MakoloActionButton(
-                  label: point.kind == 'request'
-                      ? "Je m'en charge"
-                      : 'Oui, je confirme',
+                OutlinedButton(
+                  key: Key('conversation-boolean-yes-${point.id}'),
                   onPressed: _busy ? null : () => _submitResponse(true),
+                  child: Text(
+                    point.kind == 'request' ? "Je m'en charge" : 'Oui',
+                  ),
                 ),
-                MakoloActionButton(
-                  label: point.kind == 'request'
-                      ? 'Je ne peux pas'
-                      : 'Non, je ne confirme pas',
+                OutlinedButton(
+                  key: Key('conversation-boolean-no-${point.id}'),
                   onPressed: _busy ? null : () => _submitResponse(false),
+                  child: Text(
+                    point.kind == 'request' ? 'Je ne peux pas' : 'Non',
+                  ),
                 ),
               ],
             )
