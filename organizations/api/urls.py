@@ -1,4 +1,5 @@
 from django.urls import path
+from services.api_requirement_evidence import ServiceRequirementEvidenceAPIView
 
 from preparation.space_api_views import (
     SpaceBeneficiaryResourcesAPIView,
@@ -74,6 +75,12 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/requirements/<uuid:assessment_id>/evidence/",
+        ServiceRequirementEvidenceAPIView.as_view(),
+        name="workspace-beneficiary-requirement-evidence",
+    ),
+
     path(
         "workspaces/<slug:slug>/beneficiary/journeys/",
         SpaceBeneficiaryJourneyListAPIView.as_view(),
