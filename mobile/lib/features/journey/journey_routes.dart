@@ -8,6 +8,8 @@ import 'journey_detail_screen.dart';
 import 'journey_artifact_screen.dart';
 import 'space_beneficiary_journey_screen.dart';
 import 'space_beneficiary_resources_screen.dart';
+import '../questionnaires/questionnaire_form_screen.dart';
+import '../questionnaires/questionnaire_repository.dart';
 
 String? _ownerResourceId(String link, String collection) {
   final uri = Uri.tryParse(link);
@@ -133,6 +135,60 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         runtime: runtime,
         space: space,
         journeyId: state.pathParameters['id']!,
+      );
+    },
+  ),
+  GoRoute(
+    path: '/space/:slug/beneficiary/journeys/:id/forms/:requestId',
+    builder: (context, state) {
+      final slug = state.pathParameters['slug']!;
+      final space = _activeSpace(runtime, slug);
+      final owner = state.extra;
+      final form = owner is Map ? owner : null;
+      final links = form?['links'];
+      final routes = links is Map ? links : null;
+      final detail = routes?['detail'];
+      if (space == null ||
+          form?['id'] != state.pathParameters['requestId'] ||
+          detail is! String ||
+          runtime.questionnaires == null ||
+          runtime.drafts == null ||
+          runtime.outbox == null ||
+          runtime.questionnaireSubmit == null ||
+          runtime.actorContext == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Formulaire',
+          message: 'Sélectionnez cet Espace et rouvrez le formulaire depuis sa démarche.',
+        );
+      }
+      // Changing the selected Space hides retained private answers immediately.
+      return ListenableBuilder(
+        listenable: runtime.actorContext!,
+        builder: (context, child) {
+          if (_activeSpace(runtime, slug) != space) {
+            return const MakoloSecondaryScreen(
+              title: 'Formulaire',
+              message: 'Cet Espace n’est plus sélectionné.',
+            );
+          }
+          return QuestionnaireFormScreen(
+            key: ValueKey(
+              'space-form:${runtime.session?.profileId}:${space.id}:${form!['id']}',
+            ),
+            requestId: state.pathParameters['requestId']!,
+            journeyId: state.pathParameters['id']!,
+            links: QuestionnaireOwnerLinks(
+              detail: detail,
+              save: routes?['save'] is String ? routes!['save'] as String : null,
+              submit: routes?['submit'] is String ? routes!['submit'] as String : null,
+            ),
+            repository: runtime.questionnaires!,
+            drafts: runtime.drafts!,
+            outbox: runtime.outbox!,
+            submitCoordinator: runtime.questionnaireSubmit!,
+            outboxProcessor: runtime.outboxProcessor,
+          );
+        },
       );
     },
   ),
