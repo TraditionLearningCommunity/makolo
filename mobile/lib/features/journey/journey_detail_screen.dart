@@ -1721,22 +1721,30 @@ class _ReadinessGroups extends StatelessWidget {
   }
 }
 
-bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) {
-  if (facts == null) return false;
-  final location = JourneyDayPresentation.additionalPlace(
-    name: facts.placeName,
-    locality: facts.placeLocality,
-    address: facts.placeAddress,
-  );
-  final endIsDifferent =
-      facts.endDate != null &&
-      (facts.endDate != facts.startDate || facts.endTime != facts.startTime);
-  final hasEndTime = facts.endTime != null && facts.endTime != facts.startTime;
-  return location != null ||
-      (facts.accessInstructions?.trim().isNotEmpty ?? false) ||
-      endIsDifferent ||
-      hasEndTime;
+String? _additionalJourneyInstructions(JourneyPracticalFacts? facts) {
+  if (facts == null) return null;
+  final text = facts.accessInstructions?.trim();
+  if (text == null || text.isEmpty) return null;
+  final known = [
+    facts.placeName,
+    facts.placeLocality,
+    facts.placeAddress,
+    JourneyDayPresentation.additionalPlace(
+      name: facts.placeName,
+      locality: facts.placeLocality,
+      address: facts.placeAddress,
+    ),
+  ];
+  if (known.any(
+    (value) => value?.trim().toLowerCase() == text.toLowerCase(),
+  )) {
+    return null;
+  }
+  return text;
 }
+
+bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) =>
+    _additionalJourneyInstructions(facts) != null;
 
 /// The hero already owns the main date, hour and location; show only genuinely
 /// additional practical information here.
@@ -1807,6 +1815,8 @@ class _JourneyResourceTile extends StatelessWidget {
   }
 }
 
+/// The header already contains the calendar, complete time range and venue.
+/// Only distinct arrival instructions remain below it.
 class _JourneyPracticalCard extends StatelessWidget {
   const _JourneyPracticalCard({required this.facts});
 
@@ -1814,58 +1824,25 @@ class _JourneyPracticalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final additionalPlace = JourneyDayPresentation.additionalPlace(
-      name: facts.placeName,
-      locality: facts.placeLocality,
-      address: facts.placeAddress,
-    );
-    final endDate = JourneyDayPresentation.civilDate(facts.endDate);
-    final endTime = JourneyDayPresentation.clock(facts.endTime);
-    final showEnd =
-        facts.endDate != null &&
-        (facts.endDate != facts.startDate || facts.endTime != facts.startTime);
-    final showTimeOnly =
-        endTime != null &&
-        endTime != JourneyDayPresentation.clock(facts.startTime);
-    final endLabel = [
-      if (showEnd && endDate != null)
-        MaterialLocalizations.of(context).formatMediumDate(endDate),
-      if (showTimeOnly) endTime,
-    ].join(' · ');
-    return MakoloCard(
-      child: Column(
+    final instructions = _additionalJourneyInstructions(facts);
+    if (instructions == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (additionalPlace != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.directions_outlined,
-                color: _journeyAccent(context),
-              ),
-              title: const Text('Adresse'),
-              subtitle: Text(additionalPlace),
+          Icon(
+            Icons.info_outline_rounded,
+            color: _journeyAccent(context),
+            size: 20,
+          ),
+          const SizedBox(width: MakoloSpacing.sm),
+          Expanded(
+            child: Text(
+              instructions,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          if (endLabel.isNotEmpty)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.event_available_outlined,
-                color: _journeyAccent(context),
-              ),
-              title: const Text('Fin prévue'),
-              subtitle: Text(endLabel),
-            ),
-          if (facts.accessInstructions?.trim().isNotEmpty == true)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.info_outline_rounded,
-                color: _journeyAccent(context),
-              ),
-              title: const Text('Sur place'),
-              subtitle: Text(facts.accessInstructions!),
-            ),
+          ),
         ],
       ),
     );
