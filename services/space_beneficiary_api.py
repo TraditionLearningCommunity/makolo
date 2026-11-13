@@ -223,6 +223,12 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
                     "id": str(row.pk), "title": row.form_version.title,
                     "status": row.status, "required": row.required,
                     "link": reverse("questionnaire-request-detail", kwargs={"pk": row.pk}),
+                    "links": {
+                        "detail": reverse("questionnaire-request-detail", kwargs={"pk": row.pk}),
+                        "save": reverse("questionnaire-response-save", kwargs={"pk": row.pk}) if write and row.status != "completed" else None,
+                        "submit": reverse("questionnaire-response-submit", kwargs={"pk": row.pk}) if write and row.status != "completed" else None,
+                    },
+                    "capabilities": ["complete_form"] if write and row.status != "completed" else [],
                 }
                 for row in forms
             ],
