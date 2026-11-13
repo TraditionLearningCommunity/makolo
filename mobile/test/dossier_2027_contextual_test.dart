@@ -20,9 +20,9 @@ void main() {
     final people = List.generate(
       5,
       (i) => {
-        'label': 'Personne ' + (i + 1).toString(),
-        'profile_id': 'profile-' + i.toString(),
-        'profile_url': '/people/profile-' + i.toString(),
+        'label': 'Personne ${i + 1}',
+        'profile_id': 'profile-$i',
+        'profile_url': '/people/profile-$i',
       },
     );
     await store.putProjection(
