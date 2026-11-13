@@ -53,10 +53,11 @@ class ConversationRealtime {
     }
     _points.remove(pointId);
     _send('unsubscribe', pointId);
-    if (!_hasScopes)
+    if (!_hasScopes) {
       scheduleMicrotask(() {
         if (!_hasScopes) _stop();
       });
+    }
   }
 
   void acquireInbox() {
@@ -73,10 +74,11 @@ class ConversationRealtime {
       _inboxPoll?.cancel();
       _inboxPoll = null;
     }
-    if (!_hasScopes)
+    if (!_hasScopes) {
       scheduleMicrotask(() {
         if (!_hasScopes) _stop();
       });
+    }
   }
 
   void conversations(Iterable<String> ids) {
@@ -84,18 +86,21 @@ class ConversationRealtime {
     final desired = _knownConversations
         .take(max(0, 20 - _points.length))
         .toSet();
-    for (final id in _conversations.difference(desired))
+    for (final id in _conversations.difference(desired)) {
       _sendConversation('unsubscribe', id);
-    for (final id in desired.difference(_conversations))
+    }
+    for (final id in desired.difference(_conversations)) {
       _sendConversation('subscribe', id);
+    }
     _conversations
       ..clear()
       ..addAll(desired);
   }
 
   void _sendConversation(String type, String id) {
-    if (_authenticated && _socket?.readyState == WebSocket.open)
+    if (_authenticated && _socket?.readyState == WebSocket.open) {
       _socket!.add(jsonEncode({'type': type, 'conversation_id': id}));
+    }
   }
 
   Future<void> _refreshInbox() async {
@@ -141,8 +146,9 @@ class ConversationRealtime {
         !_foreground ||
         !_hasScopes ||
         _connecting ||
-        _socket != null)
+        _socket != null) {
       return;
+    }
     _connecting = true;
     final generation = _generation;
     try {
@@ -152,8 +158,9 @@ class ConversationRealtime {
         body: {},
       );
       final ticket = response.jsonObject();
-      if (ticket['profile_id'] != profileId)
+      if (ticket['profile_id'] != profileId) {
         throw const FormatException('Realtime Profile changed');
+      }
       final base = api.baseUri;
       final path = ticket['websocket_path'];
       if (path is! String ||
@@ -191,16 +198,18 @@ class ConversationRealtime {
           if (_disposed ||
               generation != _generation ||
               !identical(_socket, socket) ||
-              raw is! String)
+              raw is! String) {
             return;
+          }
           try {
             final value = jsonDecode(raw);
             if (value is! Map<String, dynamic>) return;
             if (value['type'] == 'authenticated') {
               _authenticated = true;
               _signals.add({'type': 'connected'});
-              for (final id in _conversations)
+              for (final id in _conversations) {
                 _sendConversation('subscribe', id);
+              }
               unawaited(_refreshInbox());
               _attempt = 0;
               for (final point in _points.keys) {
@@ -215,10 +224,12 @@ class ConversationRealtime {
             final point = value['point_id'];
             if (point is String && _points.containsKey(point)) {
               if (value['type'] == 'point_changed') unawaited(_refresh(point));
-              if (value['type'] == 'receipt_changed')
+              if (value['type'] == 'receipt_changed') {
                 unawaited(_refresh(point));
-              if (value['code'] == 'access_revoked')
+              }
+              if (value['code'] == 'access_revoked') {
                 unawaited(onRevoked(point));
+              }
               _signals.add(value);
             }
           } on FormatException {
@@ -233,7 +244,9 @@ class ConversationRealtime {
       );
       _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
         _send('ping');
-        for (final point in _points.keys) _send('presence', point);
+        for (final point in _points.keys) {
+          _send('presence', point);
+        }
       });
     } on Object {
       if (!_disposed) _signals.add({'type': 'transport_unavailable'});
@@ -244,8 +257,9 @@ class ConversationRealtime {
           _foreground &&
           _hasScopes &&
           _socket == null &&
-          _retry?.isActive != true)
+          _retry?.isActive != true) {
         _schedule();
+      }
     }
   }
 
