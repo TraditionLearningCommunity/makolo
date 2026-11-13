@@ -39,19 +39,45 @@ class ObjectiveCreationDraft {
     );
   }
 
-  Future<void> save(Map<String, dynamic> values) {
+  Future<void> save(
+    Map<String, dynamic> values, {
+    bool verifiedReopen = false,
+  }) {
     // Capture at invocation time: editing autosave cannot overwrite a later
     // verification_required or confirmed snapshot.
     final snapshot = Map<String, dynamic>.from(values);
-    final operation = _writes.then(
-      (_) => repository.saveLocal(
+    final operation = _writes.then((_) => repository.database.transaction(() async {
+      // The row is shared by every screen for this Profile and owner scope.
+      // A stale screen must never downgrade a potentially sent or confirmed
+      // draft, even if it uses another ObjectiveCreationDraft instance.
+      final prior = await repository.read(
+        owner: owner,
+        resourceKind: resourceKind,
+        resourceId: resourceId,
+      );
+      final previousState = prior?.payload['submission_state'];
+      final nextState = snapshot['submission_state'];
+      if (previousState == 'confirmed' && nextState != 'confirmed') {
+        throw StateError('A confirmed creation must be cleared explicitly');
+      }
+      if (previousState == 'verification_required' &&
+          nextState != 'confirmed' &&
+          !verifiedReopen) {
+        throw StateError('Review is required before resubmitting creation');
+      }
+      if (previousState == 'confirmed' &&
+          nextState == 'confirmed' &&
+          prior?.payload['confirmed_id'] != snapshot['confirmed_id']) {
+        throw StateError('A confirmed creation cannot change identity');
+      }
+      await repository.saveLocal(
         draftId: draftId,
         owner: owner,
         resourceKind: resourceKind,
         resourceId: resourceId,
         payload: snapshot,
-      ),
-    );
+      );
+    }));
     _writes = operation.then<void>(
       (_) {},
       onError: (Object _, StackTrace _) {},
