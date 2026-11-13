@@ -54,7 +54,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     path: '/space/:slug/beneficiary/journeys',
     builder: (context, state) {
       final space = _activeSpace(runtime, state.pathParameters['slug']!);
-      if (space == null || runtime.database == null || runtime.store == null ||
+      if (space == null ||
+          runtime.database == null ||
+          runtime.store == null ||
           runtime.session == null) {
         return const MakoloSecondaryScreen(
           title: 'Demandes de cet Espace',
@@ -62,7 +64,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         );
       }
       return SpaceBeneficiaryJourneysScreen(
-        key: ValueKey('space-journey-list:${runtime.session!.profileId}:${space.id}'),
+        key: ValueKey(
+          'space-journey-list:${runtime.session!.profileId}:${space.id}',
+        ),
         runtime: runtime,
         space: space,
       );
