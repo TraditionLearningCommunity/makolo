@@ -1,5 +1,16 @@
 from django.urls import path
 
+from journeys.api_artifacts import (
+    JourneyArtifactCollectionAPIView,
+    JourneyArtifactDownloadAPIView,
+    JourneyArtifactVersionAPIView,
+)
+from services.space_beneficiary_api import (
+    SpaceBeneficiaryServiceStartAPIView,
+    SpaceBeneficiaryJourneyAPIView,
+    SpaceBeneficiaryIntakeAPIView,
+)
+
 from space_assets.api_views import (
     SpaceDocumentCollectionAPIView,
     SpaceDocumentDetailAPIView,
@@ -56,6 +67,36 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path(
+        "workspaces/<slug:slug>/beneficiary/services/<uuid:pk>/start/",
+        SpaceBeneficiaryServiceStartAPIView.as_view(),
+        name="workspace-service-applicant-start",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/",
+        SpaceBeneficiaryJourneyAPIView.as_view(),
+        name="workspace-beneficiary-journey",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/intake/",
+        SpaceBeneficiaryIntakeAPIView.as_view(),
+        name="workspace-beneficiary-intake",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/artifacts/",
+        JourneyArtifactCollectionAPIView.as_view(),
+        name="workspace-beneficiary-artifacts",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/artifacts/<uuid:artifact_id>/versions/",
+        JourneyArtifactVersionAPIView.as_view(),
+        name="workspace-beneficiary-artifact-version",
+    ),
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/artifacts/<uuid:artifact_id>/download/",
+        JourneyArtifactDownloadAPIView.as_view(),
+        name="workspace-beneficiary-artifact-download",
+    ),
     path("public-spaces/", PublicSpacesAPIView.as_view(), name="public-spaces"),
     path("public-spaces/<slug:slug>/", PublicSpaceDetailAPIView.as_view(), name="public-space-detail"),
     path("workspaces/", SpaceWorkspaceListAPIView.as_view(), name="workspaces"),
