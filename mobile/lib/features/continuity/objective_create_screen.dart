@@ -72,12 +72,35 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   @override
   void initState() {
     super.initState();
+    _draft = ObjectiveCreationDraft(
+      repository: widget.drafts,
+      profileId: widget.repository.profileId,
+      kind: widget.kind,
+      spaceId: widget.spaceActor?.id,
+    );
     widget.actorContext?.addListener(_onActorChanged);
+    _title.addListener(_scheduleDraft);
+    _description.addListener(_scheduleDraft);
+    unawaited(_restoreDraft());
   }
 
   @override
   void dispose() {
+    _autosave?.cancel();
+    if (!_restoring &&
+        !_attempted &&
+        !_submitting &&
+        _confirmedId == null &&
+        (_title.text.isNotEmpty ||
+            _description.text.isNotEmpty ||
+            _start != null ||
+            _end != null ||
+            _deadline != null)) {
+      unawaited(_draft.save(_snapshot('editing')).catchError((Object _) {}));
+    }
     widget.actorContext?.removeListener(_onActorChanged);
+    _title.removeListener(_scheduleDraft);
+    _description.removeListener(_scheduleDraft);
     _title.dispose();
     _description.dispose();
     super.dispose();
