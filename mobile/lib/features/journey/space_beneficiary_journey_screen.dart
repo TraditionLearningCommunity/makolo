@@ -407,7 +407,14 @@ class _SpaceBeneficiaryIntakeScreenState
     try {
       final local = await widget.runtime.interactions?.read(_draftKey);
       final serialized = local?['answers'];
-      final restored = serialized is String ? jsonDecode(serialized) : null;
+      dynamic restored;
+      if (serialized is String) {
+        try {
+          restored = jsonDecode(serialized);
+        } on FormatException {
+          restored = null;
+        }
+      }
       final response = await widget.runtime.api!.get(_path);
       final payload = response.jsonObject();
       if (payload['journey_id'] != widget.journeyId ||
@@ -570,10 +577,22 @@ class _SpaceBeneficiaryIntakeScreenState
         ? (question['options'] as List).map((item) => item.toString()).toList()
         : <String>[];
     if (type == 'boolean') {
-      return SwitchListTile(
-        title: Text(value == true ? 'Oui' : 'Non'),
-        value: value == true,
-        onChanged: enabled ? (selected) => _edit(id, selected) : null,
+      return DropdownButtonFormField<String>(
+        initialValue: value == true
+            ? 'yes'
+            : value == false
+            ? 'no'
+            : null,
+        decoration: const InputDecoration(labelText: 'Choisir une réponse'),
+        items: const [
+          DropdownMenuItem(value: 'yes', child: Text('Oui')),
+          DropdownMenuItem(value: 'no', child: Text('Non')),
+        ],
+        onChanged: enabled
+            ? (choice) {
+                if (choice != null) _edit(id, choice == 'yes');
+              }
+            : null,
       );
     }
     if (type == 'date') {
