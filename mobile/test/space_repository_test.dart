@@ -286,6 +286,7 @@ void main() {
         return MockResponse(
           jsonEncode({
             'space_id': 'space-x',
+            'visibility': 'visible',
             'kind': 'document',
             'count': 2,
             'counts': {
