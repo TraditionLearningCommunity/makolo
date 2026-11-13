@@ -182,13 +182,17 @@ class SpaceBeneficiaryJourneyListAPIView(APIView):
 
     def get(self, request, slug):
         space = _space(request, slug)
+        raw_offset = request.query_params.get("offset", "0")
+        if not raw_offset.isdecimal() or len(raw_offset) > 5:
+            raise ValidationError({"offset": "Position de page invalide."})
+        offset = int(raw_offset)
         rows = list(
             Journey.objects.filter(
                 beneficiary_space=space, workflow=WorkflowKind.SERVICE,
                 service_context__isnull=False,
             )
             .select_related("activity", "service_context")
-            .order_by("-created_at", "-pk")[:51]
+            .order_by("-created_at", "-pk")[offset:offset + 51]
         )
         return _reply({
             "space": {
@@ -209,6 +213,7 @@ class SpaceBeneficiaryJourneyListAPIView(APIView):
                 for row in rows[:50]
             ],
             "has_more": len(rows) > 50,
+            "next_offset": offset + 50 if len(rows) > 50 else None,
         })
 
 
