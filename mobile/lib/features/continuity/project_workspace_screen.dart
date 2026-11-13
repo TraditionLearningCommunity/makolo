@@ -1412,13 +1412,19 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           selected: _mode,
           options: const [
             ObjectiveViewOption(
-              _ProjectMode.summary, Icons.dashboard_outlined, 'Synthèse',
+              _ProjectMode.summary,
+              Icons.dashboard_outlined,
+              'Synthèse',
             ),
             ObjectiveViewOption(
-              _ProjectMode.dossiers, Icons.folder_copy_outlined, 'Dossiers',
+              _ProjectMode.dossiers,
+              Icons.folder_copy_outlined,
+              'Dossiers',
             ),
             ObjectiveViewOption(
-              _ProjectMode.calendar, Icons.calendar_month_outlined, 'Calendrier',
+              _ProjectMode.calendar,
+              Icons.calendar_month_outlined,
+              'Calendrier',
             ),
           ],
           onSelected: (mode) => setState(() => _mode = mode),
