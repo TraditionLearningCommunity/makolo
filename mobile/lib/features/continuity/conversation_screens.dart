@@ -777,7 +777,8 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                           key: Key('conversation-tile-${item.id}'),
                           title: item.title,
                           contextKind: item.contextKind,
-                          subtitle: (identityCounts[identity(item)] ?? 0) > 1 &&
+                          subtitle:
+                              (identityCounts[identity(item)] ?? 0) > 1 &&
                                   (item.purpose ?? '').trim().isNotEmpty &&
                                   item.purpose != item.preview &&
                                   item.purpose != item.title
