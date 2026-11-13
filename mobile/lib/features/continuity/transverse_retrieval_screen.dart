@@ -806,6 +806,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                       if (_loading && rows.isEmpty)
                         const MakoloSkeleton(lines: 3),
+                      if (_unavailableSources.isNotEmpty)
+                        const Text(
+                          'Certaines sources sont momentanément indisponibles. Les résultats déjà connus restent consultables.',
+                        ),
                       if (_limitedSources.isNotEmpty)
                         const Text(
                           'D’autres résultats peuvent être disponibles dans les recherches détaillées.',
