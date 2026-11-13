@@ -170,9 +170,10 @@ def install_service_authorization_policy():
                     and cs.can_write_space_beneficiary_artifact(
                         actor, journey,
                         restricted=(
-                            kwargs.get("sensitivity")
+                            kwargs.get("sensitivity") == JourneyArtifactSensitivity.RESTRICTED
                             or getattr(kwargs.get("artifact"), "sensitivity", None)
-                        ) == JourneyArtifactSensitivity.RESTRICTED,
+                            == JourneyArtifactSensitivity.RESTRICTED
+                        ),
                     )
                 )
                 if not (
