@@ -145,6 +145,9 @@ class SpaceDocumentTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         document_id = response.data["document"]["id"]
         version_id = response.data["version_id"]
+        collection = self.client.get(self.base)
+        self.assertEqual(collection.status_code, 200, collection.data)
+        self.assertEqual(collection.data["count"], 1)
         detail = self.client.get(f"{self.base}{document_id}/")
         self.assertEqual(detail.status_code, 200, detail.data)
         self.assertEqual(detail.data["document"]["latest_version"], 1)
