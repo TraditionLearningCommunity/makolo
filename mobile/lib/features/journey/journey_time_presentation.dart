@@ -115,8 +115,9 @@ class JourneyDayPresentation {
     final shown = place(name: name, locality: locality);
     final candidates = <String>[];
     for (final candidate in [address, locality]) {
-      var value = candidate?.trim();
-      if (value == null || value.isEmpty) continue;
+      final trimmed = candidate?.trim();
+      if (trimmed == null || trimmed.isEmpty) continue;
+      String value = trimmed;
       // An owner's address may already include the city. Present it once.
       for (final repeated in [shown, locality]) {
         if (repeated == null || repeated.trim().isEmpty) continue;
