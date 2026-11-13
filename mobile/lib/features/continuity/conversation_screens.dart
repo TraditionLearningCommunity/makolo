@@ -1496,21 +1496,43 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final count = focus['action_count'] is num
         ? (focus['action_count'] as num).toInt()
         : 0;
-    final mine = _maps(focus['for_me']);
-    final decisions = _maps(focus['to_resolve']);
-    final knowledge = _maps(focus['to_know']);
-    if (count == 0 && knowledge.isEmpty) return const SizedBox.shrink();
+    // Preserve distinct owner Points; collapse only duplicate IDs in a
+    // previously cached lens, without manufacturing any ranking.
+    final seenPoints = <String>{};
+    List<Map<String, dynamic>> uniquePoints(List<Map<String, dynamic>> rows) => [
+      for (final row in rows)
+        if (row['id'] == null || seenPoints.add(row['id'].toString())) row,
+    ];
+    final mine = uniquePoints(_maps(focus['for_me']));
+    final decisions = uniquePoints(_maps(focus['to_resolve']));
+    final knowledge = uniquePoints(_maps(focus['to_know']));
+    if (mine.isEmpty && decisions.isEmpty && knowledge.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final duplicateLabels = <String, int>{};
+    for (final item in [...mine, ...decisions, ...knowledge]) {
+      final label = item['label']?.toString() ?? '';
+      duplicateLabels[label] = (duplicateLabels[label] ?? 0) + 1;
+    }
     final theme = Theme.of(context);
     String subtitleFor(Map<String, dynamic> item) {
       final reason = item['reason_label']?.toString() ?? '';
-      final raw = item['deadline_at']?.toString();
-      final date = raw == null ? null : DateTime.tryParse(raw)?.toLocal();
-      if (date == null) return reason;
       final local = MaterialLocalizations.of(context);
-      final deadline =
-          '${local.formatShortDate(date)} '
-          '${local.formatTimeOfDay(TimeOfDay.fromDateTime(date), alwaysUse24HourFormat: true)}';
-      return '$reason · Échéance : $deadline';
+      final deadline = DateTime.tryParse(
+        item['deadline_at']?.toString() ?? '',
+      )?.toLocal();
+      if (deadline != null) {
+        return '${reason} · ${local.formatShortDate(deadline)}';
+      }
+      final label = item['label']?.toString() ?? '';
+      final published = DateTime.tryParse(
+        item['published_at']?.toString() ?? '',
+      )?.toLocal();
+      if ((duplicateLabels[label] ?? 0) > 1 && published != null) {
+        return '${reason} · ${local.formatShortDate(published)} '
+            '${local.formatTimeOfDay(TimeOfDay.fromDateTime(published), alwaysUse24HourFormat: true)}';
+      }
+      return reason;
     }
 
     Widget group(String name, List<Map<String, dynamic>> entries) =>
