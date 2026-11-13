@@ -202,7 +202,20 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
             "state": {"code": journey.status, "label": journey.get_status_display()},
             "readiness": serialize_readiness(readiness),
             "steps": _journey_step_summaries(journey),
-            "requirements": _service_requirements(journey),
+            "requirements": [
+                {
+                    **row,
+                    "link": reverse(
+                        "organizations_api:workspace-beneficiary-requirement",
+                        kwargs={
+                            "slug": space.slug,
+                            "journey_id": journey.pk,
+                            "assessment_id": row["id"],
+                        },
+                    ),
+                }
+                for row in _service_requirements(journey)
+            ],
             "service_request": _service_request(journey),
             "service_result": _service_result(journey),
             "forms": [
@@ -238,6 +251,37 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
             data=details,
             generated_at=observed_at,
         ))
+
+
+class SpaceBeneficiaryRequirementAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug, journey_id, assessment_id):
+        space, journey = _journey(request, slug, journey_id)
+        from services.models import ServiceRequirementAssessment
+        from services.requirement_services import derive_requirement_consequence
+
+        assessment = (
+            ServiceRequirementAssessment.objects.select_related("requirement")
+            .filter(pk=assessment_id, context__journey=journey)
+            .first()
+        )
+        if assessment is None:
+            raise NotFound()
+        consequence = derive_requirement_consequence(assessment)
+        return _reply({
+            "owner": {"kind": "journey", "id": str(journey.pk)},
+            "space": {"id": str(space.pk), "slug": space.slug},
+            "requirement": {
+                "id": str(assessment.pk),
+                "title": assessment.requirement.title,
+                "kind": assessment.requirement.kind,
+                "required": assessment.requirement.is_mandatory,
+                "status": assessment.status,
+                "consequence": consequence.value if consequence else None,
+            },
+            "note": "Posséder une pièce n’établit pas la satisfaction de cette condition.",
+        })
 
 
 class SpaceBeneficiaryIntakeAPIView(APIView):
