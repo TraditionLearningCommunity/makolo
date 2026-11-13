@@ -169,7 +169,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     'ends_on': _iso(_end),
     'deadline': _iso(_deadline),
     'submission_state': submissionState,
-    if (confirmedId != null) 'confirmed_id': confirmedId,
+    'confirmed_id': ?confirmedId,
   };
 
   Future<void> _restoreDraft() async {
