@@ -14,6 +14,7 @@ import '../../sync/sync_status.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/freshness.dart';
 import 'me_selector.dart';
+import 'me_collectives_content.dart';
 
 /// Owner-backed personal collective relationships, not an authority editor.
 class MeCollectivesScreen extends StatefulWidget {
@@ -22,11 +23,13 @@ class MeCollectivesScreen extends StatefulWidget {
     required this.personal,
     required this.api,
     required this.onOpenDestination,
+    this.onActSpace,
   });
 
   final PersonalRepository personal;
   final MakoloApiClient api;
   final bool Function(StructuredDestination destination) onOpenDestination;
+  final ValueChanged<MeItemPresentation>? onActSpace;
 
   @override
   State<MeCollectivesScreen> createState() => _MeCollectivesScreenState();
@@ -192,63 +195,24 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                 });
                 return ListView(
                   key: PageStorageKey<String>(
-                    'me-collectives-${widget.personal.store.profileId}',
+                    'me-collectives-' + widget.personal.store.profileId,
                   ),
                   controller: _scroll,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
                   children: [
-                    for (final item in territory.items)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          child: Icon(
-                            item.destination.kind == 'space'
-                                ? Icons.apartment_rounded
-                                : Icons.groups_outlined,
-                          ),
-                        ),
-                        title: Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: item.subtitle == null
-                            ? null
-                            : Text(
-                                item.subtitle!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                        onTap: item.canOpen
-                            ? () => widget.onOpenDestination(item.destination)
-                            : null,
-                        onLongPress: () => showMakoloQuickPreview(
-                          context,
-                          title: item.title,
-                          eyebrow: item.destination.kind == 'space'
-                              ? 'Espace'
-                              : 'Collectif',
-                          summary: item.subtitle,
-                          icon: item.destination.kind == 'space'
-                              ? Icons.apartment_rounded
-                              : Icons.groups_outlined,
-                          facts: item.metadata,
-                          onOpen: item.canOpen
-                              ? () => widget.onOpenDestination(item.destination)
-                              : null,
-                        ),
-                        trailing: item.canOpen
-                            ? const Icon(Icons.chevron_right_rounded)
-                            : null,
+                    MeCollectivesContent(
+                      key: ValueKey<String>(
+                        'me-collectives-content-' +
+                            widget.personal.store.profileId,
                       ),
-                    if (territory.items.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                          child: Text('Aucun collectif pour le moment.'),
-                        ),
-                      ),
+                      items: territory.items,
+                      collectives: projection.payload['collectives'],
+                      offline: _offline,
+                      hasMore: territory.hasMore,
+                      onOpen: widget.onOpenDestination,
+                      onActSpace: widget.onActSpace,
+                    ),
                     if (_offline && _hasMore)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
