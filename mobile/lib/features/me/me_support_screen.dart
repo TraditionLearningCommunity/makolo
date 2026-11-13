@@ -32,6 +32,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   bool _loading = true;
   bool _busy = false;
   bool _denied = false;
+  bool _showAllPrograms = false;
   StreamSubscription<OwnerSourceState>? _personalSource;
 
   String get _scope => _actor is SpaceActorContext
@@ -65,6 +66,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     _snapshots.clear();
     _errors.clear();
     _pendingKeys.clear();
+    _showAllPrograms = false;
     _denied = false;
     setState(() => _loading = true);
     unawaited(_load());
@@ -670,7 +672,20 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (cards.isNotEmpty) _heading('Fidélité', Icons.loyalty_outlined),
-      ...cards,
+      ...(_showAllPrograms ? cards : cards.take(3)),
+      if (cards.length > 3)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: Icon(_showAllPrograms
+                ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+            onPressed: () => setState(() {
+              _showAllPrograms = !_showAllPrograms;
+            }),
+            label: Text(_showAllPrograms ? 'Voir moins' :
+                'Voir les ' + cards.length.toString() + ' programmes'),
+          ),
+        ),
       _section('loyalty', 'Récompenses obtenues', history,
           icon: Icons.workspace_premium_outlined),
     ]);
@@ -745,11 +760,30 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     ]);
   }
 
+  bool _hasVisible(String family, Map<String, dynamic> data) {
+    if (family == 'recognition') {
+      return _map(data['account']).isNotEmpty ||
+          _rows(data['incoming']).isNotEmpty ||
+          _rows(data['benefits_received']).isNotEmpty ||
+          _rows(data['achievements']).isNotEmpty;
+    }
+    if (family == 'loyalty') {
+      return _space ? _map(data['program']).isNotEmpty :
+          _rows(data['accounts']).isNotEmpty ||
+          _rows(data['memberships']).isNotEmpty ||
+          _rows(data['available_rewards']).isNotEmpty ||
+          _rows(data['rewards']).isNotEmpty;
+    }
+    return _rows(data['relationships']).isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final offline =
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
-    final hasRows = _snapshots.values.any((value) => value.isNotEmpty);
+    final hasRows = families.any((family) =>
+        _snapshots[family] != null &&
+        _hasVisible(family, _snapshots[family]!));
     return Scaffold(
       appBar: AppBar(
         title: Text(_space ? 'Nos appuis' : 'Mes appuis'),
