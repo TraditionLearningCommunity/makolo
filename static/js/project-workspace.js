@@ -226,8 +226,8 @@
     }
     return box;
   }
-  function card(row) {
-    const node = el('article', 'mk-project__card');
+  function card(row, {compact = false} = {}) {
+    const node = el('article', compact ? 'mk-project__card mk-project__card--preview' : 'mk-project__card');
     const head = el('div', 'mk-project__card-top');
     add(head, icon('folder'));
     add(head, dossierLink(row));
@@ -243,7 +243,7 @@
         (readiness.partial ? ' (partielle)' : '')));
     }
     add(node, meta);
-    if (row.description) add(node, el('p', '', row.description));
+    if (!compact && row.description) add(node, el('p', '', row.description));
     return node;
   }
   function renderOverview(rows) {
@@ -254,10 +254,18 @@
       const active = rows.filter((x) => x.state === 'active').length;
       const draft = rows.filter((x) => x.state === 'draft').length;
       const completed = rows.filter((x) => x.state === 'completed').length;
-      add(stats, metric(rows.length, 'Dossiers'));
-      if (active) add(stats, metric(active, 'En cours'));
-      if (draft) add(stats, metric(draft, 'En préparation'));
-      if (completed) add(stats, metric(completed, 'Terminés'));
+      const indicators = [
+        [rows.length, 'dossiers'],
+        ...(active ? [[active, 'en cours']] : []),
+        ...(draft ? [[draft, 'à préparer']] : []),
+        ...(completed ? [[completed, 'terminés']] : []),
+      ];
+      stats.setAttribute('aria-label', indicators.map(([n, label]) =>
+        n + ' ' + label).join(', '));
+      indicators.forEach(([number, label], index) => {
+        if (index) add(stats, el('span', 'mk-project__numbers-dot', '·'));
+        add(stats, metric(number, label));
+      });
       add(area, stats);
     }
     const today = localDay(new Date());
@@ -273,30 +281,37 @@
     }
     const action = rows.filter((row) =>
       (row.readiness || {}).state === 'action_required');
-    if (action.length) {
+    const urgent = action.slice(0, 2);
+    if (urgent.length) {
       add(area, el('h3', 'mk-project__subtitle', 'À suivre'));
-      for (const row of action.slice(0, 3)) {
+      for (const row of urgent) {
         const line = el('div', 'mk-project__row');
         add(line, icon('circle-alert'));
         const text = el('div', 'mk-project__row-body');
         add(text, dossierLink(row));
-
+        const readiness = row.readiness || {};
+        add(text, el('small', '',
+          readiness.hidden_signal || 'Action requise'));
         add(line, text); add(area, line);
       }
     }
-    if (rows.length)
-      add(area, el('h3', 'mk-project__subtitle', 'Dossiers'));
-    const cards = el('div', 'mk-project__cards');
-    for (const row of rows.slice(0, 4)) add(cards, card(row));
-    if (!rows.length) add(cards, empty('Aucun Dossier visible.'));
-
-    add(area, cards);
-    if (rows.length > 4) {
-      const btn = el('button', 'mk-action-button', 'Voir les dossiers');
-      btn.dataset.variant = 'secondary';
-      btn.type = 'button';
-      btn.addEventListener('click', () => { state.view = 'dossiers'; render(); });
-      add(area, btn);
+    if (!rows.length) {
+      add(area, empty('Aucun Dossier visible.'));
+      return;
+    }
+    const title = el('div', 'mk-project__preview-heading');
+    add(title, el('h3', 'mk-project__subtitle', 'Dossiers'));
+    const all = el('button', 'mk-project__see-all', 'Voir tout');
+    all.type = 'button';
+    all.addEventListener('click', () => { state.view = 'dossiers'; render(); });
+    add(title, all); add(area, title);
+    const shown = new Set(urgent.map(row => String(row.id)));
+    const complementary = rows.filter(row => !shown.has(String(row.id)))
+      .slice(0, 3);
+    if (complementary.length) {
+      const cards = el('div', 'mk-project__cards mk-project__cards--preview');
+      for (const row of complementary) add(cards, card(row, {compact: true}));
+      add(area, cards);
     }
   }
   function dropdown(label, values, selected, onSelect) {
@@ -462,6 +477,7 @@
     opener.addEventListener('click', () => {
       const dialog = document.getElementById(opener.dataset.dialogOpen);
       if (dialog && typeof dialog.showModal === 'function') {
+        root.querySelector('[data-project-top-menu]')?.removeAttribute('open');
         // People and role management are distinct depths, never two
         // competing modal surfaces at once.
         const parent = opener.closest('dialog');
