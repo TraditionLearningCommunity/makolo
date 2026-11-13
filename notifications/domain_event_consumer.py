@@ -185,13 +185,12 @@ def _notify_journey_ended(domain_event):
     )
     if journey is None or not journey.beneficiary_id:
         return
-    noun = vocabulary_for(activity=journey.activity, workflow=journey.workflow).journey_noun
     create_notification(
         recipient=journey.beneficiary,
         kind=NotificationKind.SYSTEM,
         category=_category_for(journey.activity),
-        title=f"{noun} {label}",
-        message=f"Votre {noun.lower()} pour « {journey.activity.title} » est {label}.",
+        title=f"Démarche {label}",
+        message=f"Votre démarche pour « {journey.activity.title} » est {label}.",
         action_url=_journey_action(journey),
         dedup_key=_domain_dedup(domain_event, journey.beneficiary, template_key),
         metadata={"journey_id": str(journey.pk), "activity_id": str(journey.activity_id)},
