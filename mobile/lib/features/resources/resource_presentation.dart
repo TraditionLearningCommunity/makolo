@@ -300,4 +300,130 @@ class ResourceCollectionScaffold extends StatelessWidget {
       ),
     ),
   );
+
+class ResourceDocumentHeader extends StatelessWidget {
+  const ResourceDocumentHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.icon = Icons.description_outlined,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(
+        icon,
+        size: 32,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      const SizedBox(width: MakoloSpacing.md),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: MakoloSpacing.xs),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class ResourceSectionHeader extends StatelessWidget {
+  const ResourceSectionHeader({
+    super.key,
+    required this.title,
+    this.count,
+    this.action,
+  });
+
+  final String title;
+  final int? count;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      ),
+      if (count != null) ...[
+        Text(
+          '$count',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        if (action != null) const SizedBox(width: MakoloSpacing.xs),
+      ],
+      if (action != null) action!,
+    ],
+  );
+}
+
+class ResourceVersionCard extends StatelessWidget {
+  const ResourceVersionCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.leading,
+    this.onTap,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData? leading;
+  final VoidCallback? onTap;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) => MakoloCard(
+    onTap: onTap,
+    child: Row(
+      children: [
+        if (leading != null) ...[
+          Icon(leading),
+          const SizedBox(width: MakoloSpacing.md),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: MakoloSpacing.xs),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: MakoloSpacing.sm),
+          Row(mainAxisSize: MainAxisSize.min, children: actions),
+        ] else if (onTap != null) ...[
+          const SizedBox(width: MakoloSpacing.sm),
+          const Icon(Icons.chevron_right_rounded),
+        ],
+      ],
+    ),
+  );
+}
+
 }
