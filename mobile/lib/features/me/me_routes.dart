@@ -269,7 +269,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   title: 'Mes appuis',
                   message: 'Mes appuis sont momentanément indisponibles.',
                 )
-              : MeSupportScreen(personal: runtime.personal!),
+              : MeSupportScreen(runtime: runtime),
         ),
         GoRoute(
           path: 'collectives',
