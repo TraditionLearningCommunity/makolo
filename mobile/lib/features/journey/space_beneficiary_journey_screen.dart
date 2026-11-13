@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
+import '../../network/api_error.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../network/api_error.dart';
@@ -501,6 +502,28 @@ class _SpaceBeneficiaryIntakeScreenState
         }
         _loading = false;
       });
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        await widget.runtime.store?.deleteProjection(
+          'space.service.intake',
+          resourceKey: '${widget.space.id}:${widget.journeyId}',
+        );
+        if (mounted && epoch == _epoch) {
+          setState(() {
+            _owner = null;
+            _answers.clear();
+            _loading = false;
+            _error = 'Ce formulaire n’est plus accessible avec votre mandat actuel.';
+          });
+        }
+      } else if (mounted && epoch == _epoch) {
+        setState(() {
+          _loading = false;
+          _error = 'Les questions locales restent disponibles. La connexion a échoué.';
+        });
+      }
     } on Object {
       if (mounted && epoch == _epoch) {
         setState(() {
