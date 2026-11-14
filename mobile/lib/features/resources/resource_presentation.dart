@@ -170,7 +170,7 @@ class ResourceCountTitle extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
-      if (count != null) ...[
+      if (count != null && count! > 0) ...[
         const SizedBox(width: MakoloSpacing.sm),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

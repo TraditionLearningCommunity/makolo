@@ -7,11 +7,26 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/resources/document_form_screen.dart';
 import 'package:makolo_mobile/features/resources/documents_screen.dart';
 import 'package:makolo_mobile/features/resources/resource_detail_screen.dart';
+import 'package:makolo_mobile/features/resources/resource_presentation.dart';
 import 'package:makolo_mobile/features/resources/resource_repository.dart';
 import 'package:makolo_mobile/features/resources/resources_screen.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 void main() {
+  testWidgets('Resource headings omit misleading zero counters', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ResourceCountTitle(title: 'Nos documents', count: 0),
+        ),
+      ),
+    );
+    expect(find.text('Nos documents'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+  });
+
   testWidgets('Mes ressources is a compact three-family hub', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);

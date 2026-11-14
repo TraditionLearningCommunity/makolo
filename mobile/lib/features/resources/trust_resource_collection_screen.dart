@@ -435,26 +435,35 @@ class _TrustResourceCollectionScreenState
             );
 
             final children = <Widget>[
-              if (view.hasSnapshot &&
-                  (source.reachability == ReachabilityState.unreachable ||
-                      _refreshFailed))
-                const _TrustContinuityNotice(),
-              if (!view.hasSnapshot && _initializing)
+              if (source.invalidated)
+                _TrustUnavailable(
+                  family: widget.family,
+                  ownerDenied: source.ownerDenied,
+                  onRetry: _refreshFirst,
+                )
+              else if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
                   child: Center(child: CircularProgressIndicator.adaptive()),
                 )
-              else if (!view.hasSnapshot &&
-                  (_refreshFailed ||
-                      source.invalidated ||
-                      source.reachability == ReachabilityState.unreachable))
+              else if (!view.hasSnapshot)
                 _TrustUnavailable(
                   family: widget.family,
                   ownerDenied: source.ownerDenied,
                   onRetry: _refreshFirst,
                 )
               else if (view.items.isEmpty)
-                _EmptyTrustCollection(family: widget.family, query: _query)
+                view.total == 0 && source.lastSuccessAt != null
+                    ? _EmptyTrustCollection(
+                        family: widget.family,
+                        query: _query,
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.xl,
+                        ),
+                        child: Center(child: Text('Aucun fait à afficher.')),
+                      )
               else
                 for (final item in view.items)
                   Padding(
@@ -487,7 +496,9 @@ class _TrustResourceCollectionScreenState
 
             return ResourceCollectionScaffold(
               title: _title,
-              count: view.total,
+              count: view.total != null && view.total! > 0
+                  ? view.total
+                  : null,
               searching: _searching,
               searchController: _search,
               searchHint: widget.family == TrustResourceFamily.proofs
@@ -510,38 +521,6 @@ class _TrustResourceCollectionScreenState
       },
     );
   }
-}
-
-class _TrustContinuityNotice extends StatelessWidget {
-  const _TrustContinuityNotice();
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: Padding(
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: MakoloSpacing.xs),
-          Expanded(
-            child: Text(
-              'Données enregistrées sur cet appareil. '
-              'Mise à jour indisponible.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _TrustUnavailable extends StatelessWidget {

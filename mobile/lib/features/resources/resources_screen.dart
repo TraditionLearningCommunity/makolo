@@ -130,32 +130,14 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   builder: (context, sourceSnapshot) {
                     final source =
                         sourceSnapshot.data ?? ResourceSourceState.unknown;
-                    final unavailable =
-                        source.reachability == ReachabilityState.unreachable ||
-                        source.invalidated;
                     return ResourceHubScaffold(
                       title: 'Mes ressources',
                       refreshing: _refreshing,
                       onRefresh: _refresh,
-                      notice: unavailable
-                          ? Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                source.ownerDenied
-                                    ? 'Les compteurs de ressources ne sont plus disponibles.'
-                                    : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            )
-                          : null,
                       entries: [
-                        ResourceHubEntryData(
-                          icon: Icons.folder_copy_outlined,
+                        if (!source.ownerDenied)
+                          ResourceHubEntryData(
+                            icon: Icons.folder_copy_outlined,
                           title: 'Mes documents',
                           subtitle: 'Fichiers et pièces personnelles',
                           count: counts.documents,

@@ -462,33 +462,36 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             );
 
             final children = <Widget>[
-              if (view.hasSnapshot &&
-                  (source.reachability == ReachabilityState.unreachable ||
-                      _refreshFailed))
-                const _ResourceContinuityNotice(
-                  message:
-                      'Données enregistrées sur cet appareil. '
-                      'Mise à jour indisponible.',
-                ),
-              if (!view.hasSnapshot && _initializing)
+              if (source.invalidated)
+                _ResourceUnavailable(
+                  ownerDenied: source.ownerDenied,
+                  onRetry: _refreshFirst,
+                )
+              else if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
                   child: Center(child: CircularProgressIndicator.adaptive()),
                 )
-              else if (!view.hasSnapshot &&
-                  (_refreshFailed ||
-                      source.invalidated ||
-                      source.reachability == ReachabilityState.unreachable))
+              else if (!view.hasSnapshot)
                 _ResourceUnavailable(
                   ownerDenied: source.ownerDenied,
                   onRetry: _refreshFirst,
                 )
               else if (view.items.isEmpty)
-                _EmptyDocuments(
-                  query: _query,
-                  archived: _view == 'archived',
-                  onAdd: _view == 'archived' ? null : widget.onAddDocument,
-                )
+                view.total == 0 && source.lastSuccessAt != null
+                    ? _EmptyDocuments(
+                        query: _query,
+                        archived: _view == 'archived',
+                        onAdd: _view == 'archived'
+                            ? null
+                            : widget.onAddDocument,
+                      )
+                    : const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.xl,
+                        ),
+                        child: Center(child: Text('Aucun document à afficher.')),
+                      )
               else
                 for (final item in view.items)
                   Padding(
@@ -520,7 +523,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
             return ResourceCollectionScaffold(
               title: 'Mes documents',
-              count: view.total,
+              count: view.total != null && view.total! > 0
+                  ? view.total
+                  : null,
               searching: _searching,
               searchController: _search,
               searchHint: 'Rechercher dans mes documents',
@@ -548,39 +553,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       },
     );
   }
-}
-
-class _ResourceContinuityNotice extends StatelessWidget {
-  const _ResourceContinuityNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: Padding(
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: MakoloSpacing.xs),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _ResourceUnavailable extends StatelessWidget {
