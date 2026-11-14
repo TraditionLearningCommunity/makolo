@@ -86,7 +86,10 @@ void main() {
       'readiness': {
         'state': 'ready',
         'ready': [
-          {'key': 'state-ok', 'summary': "L'état de la démarche permet de continuer."},
+          {
+            'key': 'state-ok',
+            'summary': "L'état de la démarche permet de continuer.",
+          },
           {'key': 'no-blocker', 'summary': 'Aucun obstacle actif.'},
           {'key': 'occurrence-ok', 'summary': "L'occurrence est exploitable."},
         ],
@@ -119,8 +122,12 @@ void main() {
       },
       resources: const {
         'items': [
-          {'id': 'pdf', 'title': 'Guide de préparation', 'kind': 'file',
-            'mime_type': 'application/pdf'},
+          {
+            'id': 'pdf',
+            'title': 'Guide de préparation',
+            'kind': 'file',
+            'mime_type': 'application/pdf',
+          },
           {'id': 'notes', 'title': 'Informations pratiques', 'kind': 'text'},
           {'id': 'site', 'title': 'Plan du site', 'kind': 'url'},
           {'id': 'schedule', 'title': 'Planning', 'kind': 'text'},
@@ -128,10 +135,7 @@ void main() {
       },
       onResources: (_) => opened = true,
     );
-    expect(
-      find.byKey(const Key('journey-resource-preview')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('journey-resource-preview')), findsOneWidget);
     expect(find.text('Voir les 4 ressources'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Guide de préparation'),
@@ -200,7 +204,12 @@ void main() {
       },
       'payment': {
         'obligations': [
-          {'id': 'pay-a', 'state': 'pending', 'amount': '25.00', 'currency': 'USD'},
+          {
+            'id': 'pay-a',
+            'state': 'pending',
+            'amount': '25.00',
+            'currency': 'USD',
+          },
         ],
       },
     }, onPayment: (id) => openedPayment = id);
