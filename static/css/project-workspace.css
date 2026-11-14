@@ -397,3 +397,48 @@
   .mk-project__title-row h1 {font-size:19px}
   .mk-project__cards--preview {display:flex}
 }
+
+
+/* Invitation composer: small choices, not a long enterprise form. */
+.mk-project__person-suggestions {
+  display:flex;flex-direction:column;max-height:220px;overflow-y:auto;
+  border:1px solid var(--edge);border-radius:12px;padding:4px;
+}
+.mk-project__person-suggestions[hidden] {display:none}
+.mk-project__person-option {
+  display:flex;align-items:flex-start;flex-direction:column;
+  gap:2px;min-height:44px;border:0;background:transparent;
+  padding:8px 10px;border-radius:9px;text-align:start;cursor:pointer;
+  color:var(--ink);
+}
+.mk-project__person-option:hover,.mk-project__person-option:focus-visible {
+  background:var(--soft);
+}
+.mk-project__person-option strong {font-size:13px}
+.mk-project__person-option small {font-size:12px;color:var(--quiet)}
+.mk-project__dialog .mk-project__field > div[id="id_role"] {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;
+}
+.mk-project__dialog .mk-project__field > div[id="id_role"] > div {
+  min-width:0;border:1px solid var(--edge);border-radius:12px;
+  background:var(--soft);
+}
+.mk-project__dialog .mk-project__field > div[id="id_role"] label {
+  display:flex;gap:7px;align-items:start;min-height:70px;
+  padding:10px 9px;cursor:pointer;font-size:12px;font-weight:650;
+}
+.mk-project__dialog .mk-project__field > div[id="id_role"] label:has(input:checked) {
+  background:#ede8ff;color:var(--deep);border-radius:11px;
+}
+.mk-project__dialog .mk-project__field > div[id="id_role"] input[type="radio"] {
+  width:17px;height:17px;min-width:17px;margin:0;
+  accent-color:var(--violet);
+}
+@media(max-width:470px){
+  .mk-project__dialog .mk-project__field > div[id="id_role"] {
+    grid-template-columns:minmax(0,1fr);
+  }
+  .mk-project__dialog .mk-project__field > div[id="id_role"] label {
+    min-height:44px;
+  }
+}
