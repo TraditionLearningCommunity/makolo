@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 from uuid import uuid4
 
@@ -225,7 +225,29 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
         previous_open = previous_state.last_opened_at if previous_state else None
         q = (self.request.GET.get("q") or "").strip()[:120]
         timeline = recent_timeline_for_profile(self.request.user, conversation)
-        seen = {point.pk for point in timeline["points"]}
+        # One chronological fil: older owner-authorized work stays visible
+        # without a separate attention banner, even outside the recent window.
+        owner_rows = now_points_for_profile(self.request.user, conversation, limit=80)
+        latest_results = [
+            point for point in essential_points_for_profile(
+                self.request.user, conversation, limit=35,
+            )
+            if point.resolved_at and
+            point.resolved_at >= timezone.now() - timedelta(days=7)
+        ]
+        chronological = {
+            point.pk: point for point in timeline["points"]
+        }
+        for item in owner_rows:
+            if item["reason"] in {"respond", "acknowledge", "form", "resolve", "result", "upcoming"}:
+                chronological.setdefault(item["point"].pk, item["point"])
+        for point in latest_results:
+            chronological.setdefault(point.pk, point)
+        timeline_points = sorted(
+            chronological.values(),
+            key=lambda point: (point.published_at, str(point.pk)),
+        )
+        seen = set(chronological)
         focused_point = None
         focus = (self.request.GET.get("focus") or "").strip()
         if focus:
@@ -244,7 +266,7 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
             {
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
-                "timeline_points": timeline["points"],
+                "timeline_points": timeline_points,
                 "attention": conversation_attention_sections(self.request.user, conversation),
                 "timeline_older_query": older_query,
                 "timeline_older_cursor": timeline["next_cursor"] or "",
