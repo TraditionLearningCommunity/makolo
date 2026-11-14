@@ -63,8 +63,12 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
   Future<void> _refreshInitial() async {
     final epoch = _spendEpoch;
     final fresh = await widget.onReload();
-    if (!mounted || !_current || _working ||
-        epoch != _spendEpoch || fresh == null) return;
+    if (!mounted ||
+        !_current ||
+        _working ||
+        epoch != _spendEpoch ||
+        fresh == null)
+      return;
     setState(() => _data = fresh);
   }
 

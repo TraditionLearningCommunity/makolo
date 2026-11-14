@@ -195,14 +195,17 @@ void main() {
     );
     expect(unlock.onPressed, isNull);
   });
-  testWidgets('switching Profile or Space closes the private spending page',
-      (tester) async {
+  testWidgets('switching Profile or Space closes the private spending page', (
+    tester,
+  ) async {
     final current = ValueNotifier<bool>(true);
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      actorChanges: current,
-      actorIsCurrent: () => current.value,
-    ));
+    await tester.pumpWidget(
+      harness(
+        projection(rewards: [featureReward()]),
+        actorChanges: current,
+        actorIsCurrent: () => current.value,
+      ),
+    );
     expect(find.text('240 crédits'), findsOneWidget);
     current.value = false;
     await tester.pumpAndSettle();
@@ -211,16 +214,16 @@ void main() {
   });
 
   testWidgets('pending credits cannot pay for a reward', (tester) async {
-    await tester.pumpWidget(harness(projection(
-      credits: 0,
-      pending: 35,
-      rewards: [featureReward(cost: 20)],
-    )));
+    await tester.pumpWidget(
+      harness(
+        projection(credits: 0, pending: 35, rewards: [featureReward(cost: 20)]),
+      ),
+    );
     expect(find.text('0 crédits'), findsOneWidget);
     final action = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'Débloquer'));
+      find.widgetWithText(TextButton, 'Débloquer'),
+    );
     expect(action.onPressed, isNull);
     expect(find.text('35 crédits'), findsNothing);
   });
-
 }
