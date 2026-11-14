@@ -597,7 +597,9 @@ class _MarkScreenState extends State<MarkScreen> {
     );
     if (!mounted || revision != _draftRevision) return;
     if (!result.acquired) {
-      _show('Aucune pièce jointe n’a été ajoutée.');
+      if (result.status != FileAcquisitionStatus.cancelled) {
+        _show('Impossible d’ajouter ce fichier.');
+      }
       return;
     }
     setState(() {
@@ -1497,6 +1499,14 @@ class _MarkScreenState extends State<MarkScreen> {
                                 onPressed: _busy ? null : _openVoiceInput,
                               ),
                               const Spacer(),
+                              if (_input.text.length >= 500)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Text(
+                                    '${_input.text.length}/600',
+                                    style: Theme.of(context).textTheme.labelSmall,
+                                  ),
+                                ),
                               IconButton.filled(
                                 key: const ValueKey('mark-submit'),
                                 tooltip: 'Continuer avec cette demande',
@@ -1504,7 +1514,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                     _busy ||
                                         _restoring ||
                                         _voiceCapture ||
-                                        _dictating
+                                        _dictating ||
+                                        _input.text.trim().isEmpty
                                     ? null
                                     : _submit,
                                 icon: _busy
@@ -1556,11 +1567,6 @@ class _MarkScreenState extends State<MarkScreen> {
                         },
                       ),
                     ],
-                    if (_restoring)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 12),
-                        child: Text('Restauration du brouillon…'),
-                      ),
                     if (_result != null) ...[
                       const SizedBox(height: 24),
                       _MarkResultView(
