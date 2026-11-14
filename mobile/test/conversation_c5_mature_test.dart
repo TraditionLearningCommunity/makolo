@@ -270,19 +270,13 @@ void main() {
         onOpenPoint: (id) => opened = id,
       ),
     );
-    await tester.runAsync(
-      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
-    );
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(
       find.byKey(const Key('conversation-history-point-first')),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('conversation-history-more')));
-    await tester.runAsync(
-      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
-    );
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(
       requests.any((uri) => uri.queryParameters['cursor'] == 'next-owned'),
       true,
@@ -292,13 +286,12 @@ void main() {
       'résultat',
     );
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.runAsync(
-      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
-    );
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Résultat recherché'), findsOneWidget);
     await tester.tap(find.text('Résultat recherché'));
     expect(opened, 'found');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets(
@@ -342,10 +335,7 @@ void main() {
             onOpenPoint: (_) {},
           ),
         );
-        await tester.runAsync(
-          () async => Future<void>.delayed(const Duration(milliseconds: 100)),
-        );
-        await tester.pump();
+        await tester.pumpAndSettle();
         expect(
           tester.takeException(),
           isNull,
@@ -357,6 +347,8 @@ void main() {
           findsOneWidget,
         );
       }
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 
