@@ -115,6 +115,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         offset: 0,
       );
     } on Object {
+      // Keep the last acquired projection readable when refresh fails.
     } finally {
       if (mounted) setState(() => _initializing = false);
     }
