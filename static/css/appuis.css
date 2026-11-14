@@ -51,6 +51,25 @@
   font-variant-numeric: tabular-nums;
 }
 [data-mk-surface="appuis"] .ap-metric span { font-size: .78rem; }
+[data-mk-surface="appuis"] .ap-hero--single { padding: 12px 18px; }
+[data-mk-surface="appuis"] .ap-hero--single :is(.ap-hero-title,.ap-hero-desc) {
+  display: none;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metrics {
+  display: flex; margin-top: 0;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric {
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
+  flex: 1; background: transparent; color: #fff; gap: 10px;
+  min-width: 0; padding: 0; text-align: left;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric :is(svg,strong,span) {
+  color: #fff;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric strong {
+  font-size: 1.18rem;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric span { font-size: .95rem; }
 [data-mk-surface="appuis"] .ap-filters {
   display: flex; gap: 8px; overflow-x: auto; padding-block: 18px 4px;
   scrollbar-width: thin;
