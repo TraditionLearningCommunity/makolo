@@ -289,6 +289,9 @@ class _MarkScreenState extends State<MarkScreen> {
 
   Future<void> _openAttachmentPicker() async {
     if (_busy || _restoring || _voiceCapture || _dictating) return;
+    final actor = _actor;
+    final revision = _draftRevision;
+    _inputFocus.unfocus();
     final choice = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -325,7 +328,7 @@ class _MarkScreenState extends State<MarkScreen> {
         ),
       ),
     );
-    if (!mounted) return;
+    if (!mounted || actor != _actor || revision != _draftRevision) return;
     switch (choice) {
       case 'camera':
         await _capturePhoto();
@@ -497,6 +500,7 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _openVoiceInput() async {
     if (_busy || _restoring || _voiceCapture || _dictating) return;
     final revision = _draftRevision;
+    _inputFocus.unfocus();
     var canDictate = false;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
@@ -1385,7 +1389,7 @@ class _MarkScreenState extends State<MarkScreen> {
           children: [
             if (actor is SpaceActorContext)
               MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
-            if (!_editing) ...[
+            if (!_editing && !_dictating && !_voiceCapture) ...[
               const SizedBox(height: 18),
               const Center(child: MakoloMark(size: 56)),
               const SizedBox(height: 24),
@@ -1396,7 +1400,7 @@ class _MarkScreenState extends State<MarkScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!_editing) ...[
+                    if (!_editing && !_dictating && !_voiceCapture) ...[
                       Text(
                         'Qu’est-ce que vous avez en tête ?',
                         textAlign: TextAlign.center,
