@@ -11,7 +11,7 @@ from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from journeys.models import JourneyStatus
 
-from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle, Project, ProjectDossierLink, ProjectLifecycle
+from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle, Project, ProjectDossierLink, ProjectLifecycle, ProjectInvitation, ProjectInvitationStatus
 
 
 ALLOWED_LIFECYCLE_TRANSITIONS = {
@@ -88,6 +88,92 @@ def can_manage_project_authority(actor, project):
     if project.owner_profile_id == actor.pk: return True
     if project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space): return True
     return can(actor, PermissionCode.PROJECT_AUTHORITY_MANAGE, project=project)
+
+
+
+@transaction.atomic
+def invite_to_project(*, actor, project, invitee, role):
+    """A pending invitation is not a mandate or implicit Project visibility."""
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    validate_role_for_project(role)
+    if not invitee.is_active or invitee.pk == actor.pk or invitee.pk == project.owner_profile_id:
+        raise ValidationError("Ce compte ne peut pas être invité.")
+    if current_mandates().filter(
+        scope_type=AuthorityScope.PROJECT, project=project,
+        profile=invitee,
+    ).exists():
+        raise ValidationError("Cette personne possède déjà un accès Projet.")
+    pending = ProjectInvitation.objects.select_for_update().filter(
+        project=project, invitee=invitee,
+        status=ProjectInvitationStatus.PENDING,
+    ).first()
+    if pending:
+        if pending.role_id != role.pk:
+            raise ValidationError("Une invitation existe déjà pour cette personne.")
+        return pending
+    invitation = ProjectInvitation(
+        project=project, invitee=invitee, invited_by=actor, role=role,
+    )
+    invitation.full_clean()
+    invitation.save()
+    return invitation
+
+
+@transaction.atomic
+def respond_project_invitation(*, actor, invitation, accept):
+    """The invitee must explicitly consent before any Project mandate exists."""
+    _require_authenticated(actor)
+    invitation = ProjectInvitation.objects.select_for_update().select_related(
+        "project", "role", "invited_by",
+    ).filter(pk=invitation.pk, invitee=actor).first()
+    if invitation is None:
+        raise PermissionDenied("Invitation non accessible.")
+    if invitation.status != ProjectInvitationStatus.PENDING:
+        raise ValidationError("Cette invitation n'est plus en attente.")
+    if accept:
+        project = _locked_project(invitation.project)
+        if not can_manage_project_authority(invitation.invited_by, project):
+            raise ValidationError("Cette invitation n'est plus valide.")
+        if current_mandates().filter(
+            scope_type=AuthorityScope.PROJECT, project=project,
+            profile=actor,
+        ).exists():
+            raise ValidationError("Vous possédez déjà un accès Projet.")
+        grant_project_role(
+            profile=actor, project=project, role=invitation.role,
+            granted_by=invitation.invited_by, source="objectives-invitation",
+        )
+    invitation.status = (
+        ProjectInvitationStatus.ACCEPTED if accept
+        else ProjectInvitationStatus.DECLINED
+    )
+    invitation.responded_at = timezone.now()
+    invitation.full_clean()
+    invitation.save(update_fields=["status", "responded_at"])
+    return invitation
+
+
+@transaction.atomic
+def cancel_project_invitation(*, actor, invitation):
+    _require_authenticated(actor)
+    invitation = ProjectInvitation.objects.select_for_update().select_related(
+        "project",
+    ).filter(pk=invitation.pk).first()
+    if invitation is None or not (
+        invitation.invited_by_id == actor.pk or
+        can_manage_project_authority(actor, invitation.project)
+    ):
+        raise PermissionDenied("Invitation non accessible.")
+    if invitation.status != ProjectInvitationStatus.PENDING:
+        raise ValidationError("Cette invitation n'est plus en attente.")
+    invitation.status = ProjectInvitationStatus.CANCELLED
+    invitation.responded_at = timezone.now()
+    invitation.full_clean()
+    invitation.save(update_fields=["status", "responded_at"])
+    return invitation
 
 
 @transaction.atomic
