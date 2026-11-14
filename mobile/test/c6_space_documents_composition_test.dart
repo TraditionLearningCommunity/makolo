@@ -71,8 +71,8 @@ void main() {
           'asset': 0,
           'template': 2,
           'theme': 1,
-          'passport': 1,
           'credential': 0,
+          'received_title': 0,
         },
         'items': const [],
         'has_more': false,
@@ -86,7 +86,6 @@ void main() {
       payload: {
         'handoffs': {
           'resources': '/space/atelier/us/resources',
-          'passport': '/space/atelier/us/passport',
         },
       },
     );
@@ -124,8 +123,9 @@ void main() {
     expect(find.text('Nos médias'), findsOneWidget);
     expect(find.text('Nos modèles'), findsOneWidget);
     expect(find.text('Nos thèmes'), findsOneWidget);
-    expect(find.text('Passeports émis'), findsOneWidget);
+    expect(find.text('Passeports émis'), findsNothing);
     expect(find.text('Titres émis'), findsOneWidget);
+    expect(find.text('Titres reçus'), findsOneWidget);
     expect(find.text('0'), findsNothing);
     expect(find.text('Ressources de cet Espace'), findsNothing);
     expect(find.byType(ChoiceChip), findsNothing);
