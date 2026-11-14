@@ -1582,7 +1582,12 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final point = entry.point;
       return point.attentionReason != null &&
               const {
-                'respond', 'acknowledge', 'form', 'resolve', 'result', 'upcoming',
+                'respond',
+                'acknowledge',
+                'form',
+                'resolve',
+                'result',
+                'upcoming',
               }.contains(point.attentionReason) ||
           (point.canRespond &&
               !point.hasRespondedForScope(widget.representedSpaceId)) ||
@@ -1591,7 +1596,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     });
     final shouldFollow =
         (!_timelinePositioned && !attentionInWindow) ||
-        (_timelinePositioned && _lastTimelinePointId != latestId && _nearLatest);
+        (_timelinePositioned &&
+            _lastTimelinePointId != latestId &&
+            _nearLatest);
     _timelinePositioned = true;
     _lastTimelinePointId = latestId;
     if (hasNewMessages && !_newMessagesAvailable) {
@@ -3655,8 +3662,8 @@ class _PointCardState extends State<_PointCard> {
       kind: point.kind ?? 'information',
       isMine: point.isMine,
       authorLabel: point.authorLabel,
-      onOpenAuthor: point.authorPublicProfileId == null ||
-              widget.onOpenAuthor == null
+      onOpenAuthor:
+          point.authorPublicProfileId == null || widget.onOpenAuthor == null
           ? null
           : () => widget.onOpenAuthor!(point.authorPublicProfileId!),
       representedSpace: point.representedSpace,
