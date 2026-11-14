@@ -244,53 +244,66 @@ class ConversationPointMediaTile extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final kind = attachment['kind']?.toString() ?? 'file';
     final mime = attachment['mime_type']?.toString() ?? '';
-    final (IconData icon, String title) = switch (kind) {
+    final (IconData icon, String fallback) = switch (kind) {
       'image' => (Icons.image_outlined, 'Photo'),
       'video' => (Icons.play_circle_outline_rounded, 'Vidéo'),
       'voice' => (Icons.graphic_eq_rounded, 'Note vocale'),
       'audio' => (Icons.headphones_outlined, 'Audio'),
       _ when mime == 'application/pdf' => (
-        Icons.picture_as_pdf_outlined,
-        'Document PDF',
-      ),
+          Icons.picture_as_pdf_outlined, 'Document PDF'),
       _ => (Icons.insert_drive_file_outlined, 'Document'),
     };
     final caption = attachment['caption']?.toString().trim();
+    final name = attachment['name']?.toString().trim().isNotEmpty == true
+        ? attachment['name'].toString()
+        : attachment['original_name']?.toString().trim().isNotEmpty == true
+        ? attachment['original_name'].toString()
+        : fallback;
     return Padding(
       padding: const EdgeInsets.only(top: MakoloSpacing.sm),
       child: Material(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(MakoloSpacing.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (preview != null)
-                preview!
-              else
-                Row(
-                  children: [
-                    Icon(icon, color: scheme.primary, size: 28),
-                    const SizedBox(width: MakoloSpacing.sm),
-                    Expanded(child: Text(title, style: theme.labelMedium)),
-                  ],
-                ),
-              if (caption != null && caption.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Text(caption, style: theme.bodySmall),
-                ),
-              if (onOpen != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    tooltip: 'Ouvrir le média',
-                    onPressed: onOpen,
-                    icon: const Icon(Icons.open_in_full_rounded, size: 19),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: preview == null ? onOpen : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.sm,
+              vertical: MakoloSpacing.xs,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (preview != null)
+                  preview!
+                else
+                  Row(
+                    children: [
+                      Icon(icon, color: scheme.primary, size: 27),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.labelMedium,
+                        ),
+                      ),
+                      if (onOpen != null)
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                    ],
                   ),
-                ),
-            ],
+                if (caption != null && caption.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                    child: Text(caption, style: theme.bodySmall),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
