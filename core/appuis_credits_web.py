@@ -14,7 +14,7 @@ from authorization.selectors import has_direct_space_permission
 from organizations.console_context import authorized_spaces
 from recognition.economy import redeem_reward
 from recognition.models import RewardKind
-from recognition.presentation import reward_spend_presentation
+from recognition.presentation import reward_spend_presentation, reward_self_actionable
 from recognition.selectors import account_for_profile, account_for_space, active_rewards
 from recognition.valuation import credit_money_equivalent
 
@@ -67,6 +67,7 @@ class AppuisCreditsWebView(LoginRequiredMixin, TemplateView):
             reward for reward in active_rewards(owner_account=account)
             if reward.kind != RewardKind.PAYOUT
             and getattr(reward, "recognition_self_eligible", False)
+            and reward_self_actionable(reward, account)
         ][:50]
 
     def get_context_data(self, **kwargs):
