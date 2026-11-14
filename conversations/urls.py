@@ -7,6 +7,7 @@ from .participant_views import (
 )
 from .views import (
     ConversationDetailView,
+    ConversationOlderTimelineView,
     ConversationPointHistoryView,
     ConversationPersonalStateWebView,
     ConversationContextOpenView,
@@ -32,6 +33,7 @@ urlpatterns = [
     path("", ConversationListView.as_view(), name="list"),
     path("by-context/<str:kind>/<str:context_pk>/", ConversationContextOpenView.as_view(), name="by-context"),
     path("<uuid:pk>/", ConversationDetailView.as_view(), name="detail"),
+    path("<uuid:pk>/older/", ConversationOlderTimelineView.as_view(), name="timeline-older"),
     path("<uuid:pk>/participants/", ConversationParticipantsWebView.as_view(), name="participants"),
     path("collective-invitations/<uuid:access_pk>/respond/", ConversationCollectiveRespondWebView.as_view(), name="collective-respond"),
     path("join-requests/<uuid:join_request_pk>/withdraw/", ConversationWithdrawJoinRequestWebView.as_view(), name="join-withdraw"),
