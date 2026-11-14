@@ -874,8 +874,7 @@ class _JourneyContent extends StatelessWidget {
     // operation rather than its detail endpoint. Open the known local owner
     // depth, never the raw URL and never a different obligation.
     final segments = Uri.tryParse(link)?.pathSegments ?? const <String>[];
-    if (onOpenPaymentObligation != null &&
-        segments.contains('obligations')) {
+    if (onOpenPaymentObligation != null && segments.contains('obligations')) {
       for (final obligation in presentation.payments) {
         final id = obligation.obligationId;
         if (id != null && segments.contains(id)) {
@@ -986,10 +985,10 @@ class _JourneyHistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final when = MaterialLocalizations.of(context).formatMediumDate(
-      entry.at.toLocal(),
-    );
-    final time = '${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
+    final when = MaterialLocalizations.of(context)
+        .formatMediumDate(entry.at.toLocal());
+    final time =
+        '${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
         '${entry.at.toLocal().minute.toString().padLeft(2, '0')}';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
@@ -1730,11 +1729,12 @@ class _ReadinessGroups extends StatelessWidget {
     final interventions = situation == JourneySituation.choices
         ? <JourneyReadinessItem>[]
         : composition.interventions
-            .where(
-              (item) => item.nextLink == null ||
-                  item.nextLink != presentation.nextActionLink,
-            )
-            .toList();
+              .where(
+                (item) =>
+                    item.nextLink == null ||
+                    item.nextLink != presentation.nextActionLink,
+              )
+              .toList();
     final blockers =
         situation == JourneySituation.blocked &&
             presentation.blockers.isNotEmpty
