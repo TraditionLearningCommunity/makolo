@@ -237,9 +237,6 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
                 from .point_services import point_visible_to
                 if point_visible_to(self.request.user, candidate) and candidate.pk not in seen:
                     focused_point = candidate
-        timeline_groups = group_timeline_points(
-            self.request.user, timeline["points"], focus_id=focus,
-        )
         older_query = urlencode({
             "section": "all", "cursor": timeline["next_cursor"],
         }) if timeline["next_cursor"] else ""
@@ -247,7 +244,6 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
             {
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
-                "timeline_groups": timeline_groups,
                 "timeline_points": timeline["points"],
                 "attention": conversation_attention_sections(self.request.user, conversation),
                 "timeline_older_query": older_query,
