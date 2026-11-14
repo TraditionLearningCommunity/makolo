@@ -235,9 +235,11 @@ class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
               ),
               attachment: attachments[index],
               onOpen: () => _open(context, index),
-              preview: {'audio', 'voice'}.contains(
-                attachments[index]['kind']?.toString(),
-              )
+              preview:
+                  {
+                    'audio',
+                    'voice',
+                  }.contains(attachments[index]['kind']?.toString())
                   ? ConversationAttachmentViewer(
                       repository: repository,
                       download: download,

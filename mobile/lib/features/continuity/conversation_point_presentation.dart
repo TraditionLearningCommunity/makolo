@@ -250,7 +250,9 @@ class ConversationPointMediaTile extends StatelessWidget {
       'voice' => (Icons.graphic_eq_rounded, 'Note vocale'),
       'audio' => (Icons.headphones_outlined, 'Audio'),
       _ when mime == 'application/pdf' => (
-          Icons.picture_as_pdf_outlined, 'Document PDF'),
+        Icons.picture_as_pdf_outlined,
+        'Document PDF',
+      ),
       _ => (Icons.insert_drive_file_outlined, 'Document'),
     };
     final caption = attachment['caption']?.toString().trim();
