@@ -34,18 +34,6 @@
     </details>
   </header>
 
-  {% if catch_up and catch_up.resolved or catch_up.superseded or catch_up.important or catch_up.remaining %}
-    <section class="mb-6 rounded-2xl px-5 py-4" style="background:var(--mk-soft);color:var(--mk-ink)">
-      <h2 class="text-sm font-bold">Depuis votre dernière visite</h2>
-      <p class="mt-2 text-sm">
-        {% if catch_up.resolved %}{{ catch_up.resolved }} résultat{{ catch_up.resolved|pluralize }} · {% endif %}
-        {% if catch_up.remaining %}{{ catch_up.remaining }} à traiter{% else %}À jour{% endif %}
-      </p>
-    </section>
-  {% endif %}
-
-  {% include 'conversations/_attention.html' %}
-
   {% if focused_point %}
     <section class="mb-7" aria-labelledby="focused-point-heading">
       <h2 id="focused-point-heading" class="mb-3 text-sm font-bold">Point recherché</h2>
