@@ -461,11 +461,10 @@ void main() {
         child: ConversationListScreen(repository: repository, onOpen: (_) {}),
       );
       await tester.tap(find.byKey(const Key('conversation-tab-archived')));
-      await tester.runAsync(
-        () async => Future<void>.delayed(const Duration(milliseconds: 100)),
-      );
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('Ancienne coordination'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 
