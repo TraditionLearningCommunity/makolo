@@ -121,10 +121,27 @@ Aucune CI, aucun workflow ni aucune configuration de workflow n'a été lancée,
 À partir des captures d'émulateur reçues (écran Mark, pièce texte, galerie/caméra, audio enregistré et dictée), la priorité est **la présentation**, sans prétendre valider la logique serveur.
 
 - Composeur Flutter regroupé dans une seule surface arrondie : saisie, pièces et outils forment un ensemble. Le grand bouton « Continuer » est remplacé par une flèche circulaire intégrée, inactive sans texte.
-- Les gestes distincts **Joindre**, **Appareil photo**, **Galerie d'images** et **Voix** restent accessibles comme quatre icônes seules, avec intitulés d'accessibilité et cibles tactiles de 48 dp. Le bouton dédié « Lien » est retiré de la rangée.
-- Photos issues de l'appareil et images déjà présentes dans le stockage : **miniatures locales** dans le composeur, clic pour aperçu, bouton de retrait. Les fichiers non visuels et audios restent des chips sobres.
+- Un **seul bouton +** ouvre le choix natif et contextuel **Appareil photo / Photos / Fichiers**. Le microphone est distinct, pour la dictée ou la pièce audio. Les sources ont des intitulés d'accessibilité et des cibles tactiles de 48 dp. Le bouton dédié « Lien » est supprimé.
+- Photos et images : **miniatures locales** à taille bornée avec ouverture et retrait. Documents : **vignettes de format** et nom court ; l'appui sur un PDF ouvre le lecteur privé `PrivatePdfView` existant, les autres formats gardent une présentation sobre. La conservation PersonalAsset devient une action contextuelle du document, sans bouton de transfert permanent au milieu des miniatures.
 - La caméra native demeure le propriétaire de l'interface de capture. Au retour, **Mark présente une revue de l'image** avec « Reprendre/Changer », « Garder » et « Annuler », puis ajoute une miniature seulement après consentement. L'image refusée est retirée du staging local.
 - Le texte technique permanent sur le cache, les transmissions, le réseau et les fournisseurs de transcription a été ôté des surfaces normales d'édition/voix. Les erreurs qui empêchent une action restent visibles et formulées en conséquence humaine.
 - Le compteur de caractères est discret et n'apparaît qu'à l'approche de la limite ; la restauration et l'annulation sans conséquence restent silencieuses.
+- Les URL explicites `http(s)` saisies/collées sont reconnues **sans fetch ni exploration**. La présentation locale d'une URL ne vaut ni lecture de son contenu ni transmission d'une pièce.
+- Le FocusNode reste stable lorsque le clavier s'ouvre : le symbole officiel et la question s'effacent visuellement sans recréer le champ de saisie ; le texte et les fichiers restent dans le même composeur.
+- Dictée : la transcription apparaît **dans le champ Mark existant** en temps réel, puis reste modifiable après validation ; annuler restaure le texte d'avant dictée. Aucun formulaire de transcription secondaire. L'enregistrement reste une barre compacte avec durée, pause, écoute et conservation.
+- Web personnel/Space : même bouton +, miniatures, vignettes de documents, dictée conditionnelle réintégrée dans le texte, flèche dans la surface de saisie et repli avec clavier sur petits écrans. La fenêtre non modale et son bouton de réduction demeurent disponibles sur ordinateur.
+- **Hors périmètre décidé** : échange oral continu / mode vocal immersif ; aucun écran ne doit le promettre.
 
 **Vérification effectuée :** relecture des composants source et de la structure des widgets. **Non effectué :** lancement, hot restart, comparaison de captures après modification, golden tests, formatter canonique, tests Flutter et recette Samsung. Ces changements UI n'impliquent aucun nouveau modèle, droit, upload ou succès serveur. La PR reste non fusionnée.
+
+## État de clôture source — recette UX/UI consolidée du 14 novembre 2026
+
+Les **18 points de conception examinés** ont reçu un traitement source côté composeur et gestuelles, mais **ne sont pas certifiés par une exécution**. Les conventions ChatGPT/Gemini ont servi à évaluer les gestes génériques, non à recopier leurs marques, conversations ou modes vocaux.
+
+### Points à vérifier en recette instrumentée
+
+- Flutter : taille du composeur au repos et clavier ouvert, adaptation Android compact/tablette, caméra réelle Samsung/émulateur, galerie, miniatures, lecteur PDF, dictée annulée/conservée, enregistrement mis en pause au changement de cycle de vie, retour par propriétaire PersonalAsset et isolation par Profil/Space.
+- Web : JavaScript, CSS, HTML personnel et Space, menu média avec et sans clavier, consentement avant reconnaissance vocale du navigateur, arrêt du microphone quand la fenêtre est réduite ou l'onglet masqué, miniatures et libération des Object URLs, brouillon `sessionStorage` circonscrit, annulation avant envoi au propriétaire, capacité sans JS.
+- Propriétaires : aucun média transmis via une API Mark textuelle, aucun document considéré comme Proof/Requirement/Readiness automatiquement, aucune permission créée par l'interface, aucune déduction de succès sur une réponse ambiguë.
+
+**Tests adaptés/écrits mais non exécutés** : `mobile/test/mark_mature_test.dart`, `mobile/test/mark_dictation_capture_test.dart`, `core/test_mature_personal_experience.py`, `organizations/test_ws5_space_day_of_live_scanner_mark_web.py`. Aucun formatage canonique Dart, `flutter analyze`, golden, build Android, `manage.py check`, test Django ou exercice sur navigateur/appareil n'a été prétendu exécuté dans cette passe GitHub. Aucune opération sur les workflows CI ni fusion.
