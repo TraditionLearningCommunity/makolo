@@ -1599,6 +1599,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         oldWidget.focusPointId != widget.focusPointId) {
       if (oldWidget.id != widget.id ||
           oldWidget.repository != widget.repository) {
+        _compressionState.clear();
         _timelinePositioned = false;
         _nearLatest = true;
         _newMessagesAvailable = false;
@@ -1911,49 +1912,48 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return entries;
   }
 
-  Widget _completedTimelineGroup(
+  Widget _foldedTimelineGroup(
     BuildContext context,
+    ConversationThreadSegment<int> segment,
     List<_ConversationTimelineEntry> entries, {
     List<ConversationOutgoing> outgoing = const [],
   }) {
     final first = entries.first.point;
     final last = entries.last.point;
-    final groupId = '${first.id}-${last.id}';
-    final focused = entries.any((entry) => entry.point.id == _focusedPointId);
-    final expanded = focused || _expandedCompletedGroups.contains(groupId);
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final key = '${first.id}-${last.id}';
+    final expanded = segment.expanded;
+    final scheme = Theme.of(context).colorScheme;
+    final dates = [first.publishedAt, last.publishedAt];
+    final local = MaterialLocalizations.of(context);
+    final start = dates.first?.toLocal();
+    final end = dates.last?.toLocal();
+    final period = start == null
+        ? null
+        : end == null || DateUtils.isSameDay(start, end)
+        ? local.formatShortDate(start)
+        : '${local.formatShortDate(start)} – ${local.formatShortDate(end)}';
     return Padding(
-      key: Key('conversation-completed-$groupId'),
+      key: Key('conversation-folded-$key'),
       padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.inner,
-        0,
-        MakoloSpacing.inner,
-        MakoloSpacing.sm,
+        MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Semantics(
               button: true,
-              label: expanded
-                  ? 'Masquer ${entries.length} Point(s) terminés'
-                  : 'Afficher ${entries.length} Point(s) terminés',
+              expanded: expanded,
               child: InkWell(
-                key: Key('conversation-completed-toggle-$groupId'),
-                borderRadius: BorderRadius.circular(16),
+                key: Key('conversation-folded-toggle-$key'),
+                borderRadius: BorderRadius.circular(14),
                 onTap: () => setState(() {
-                  if (expanded && !focused) {
-                    _expandedCompletedGroups.remove(groupId);
-                  } else if (!expanded) {
-                    _expandedCompletedGroups.add(groupId);
+                  if (expanded) {
+                    _compressionState.collapse(segment);
+                  } else {
+                    _compressionState.expand(segment);
                   }
                 }),
                 child: Padding(
@@ -1963,35 +1963,25 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.task_alt_rounded, size: 20),
+                      Icon(Icons.layers_outlined, size: 19, color: scheme.onSurfaceVariant),
                       const SizedBox(width: MakoloSpacing.sm),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entries.length == 1
-                                  ? 'Point terminé'
-                                  : '${entries.length} Points terminés',
-                              style: Theme.of(context).textTheme.labelLarge,
-                            ),
-                            Text(
-                              last.timelineSummary?.isNotEmpty == true
-                                  ? last.timelineSummary!
-                                  : 'Résultat disponible dans l’historique',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: muted),
-                            ),
-                          ],
+                        child: Text(
+                          '${entries.length} échanges',
+                          style: Theme.of(context).textTheme.labelLarge,
                         ),
                       ),
-                      Icon(
-                        expanded
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                      ),
+                      if (period != null)
+                        Text(
+                          period,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      const SizedBox(width: MakoloSpacing.xs),
+                      Icon(expanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded),
                     ],
                   ),
                 ),
@@ -2000,21 +1990,17 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             if (expanded)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.sm,
-                  0,
-                  MakoloSpacing.sm,
-                  MakoloSpacing.sm,
+                  MakoloSpacing.sm, 0, MakoloSpacing.sm, MakoloSpacing.sm,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final entry in entries) ...[
+                    for (final entry in entries)
                       _pointWidget(
                         entry.point,
                         readOnly: entry.readOnly,
                         outgoing: outgoing,
                       ),
-                    ],
                   ],
                 ),
               ),
@@ -2318,46 +2304,92 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       }
       return left.order.compareTo(right.order);
     });
-    var index = 0;
-    while (index < combined.length) {
-      final entry = combined[index];
-      final local = entry.at?.toLocal();
-      if (local != null &&
-          (previousDay == null || !DateUtils.isSameDay(previousDay, local))) {
-        children.add(_dayDivider(context, local));
-        previousDay = local;
+    // The client folds contiguous chronological ranges; owner facts never
+    // change, and unread ordinary contributions are not implicitly read.
+    final segments = _compressionState.project<int>([
+      for (var i = 0; i < combined.length; i++)
+        ConversationThreadItem<int>(
+          id: combined[i].point?.point.id ??
+              'local:${combined[i].outgoing!.reference}',
+          value: i,
+          publishedAt: combined[i].at,
+          keepVisible: combined[i].outgoing != null ||
+              (() {
+                final point = combined[i].point!.point;
+                final intent = _pointResponseIntent(point, outgoing);
+                final awaitingResponse =
+                    point.responseMode != 'none' &&
+                    (widget.representedSpaceId == null
+                        ? point.canRespond
+                        : point.responseWindowOpen) &&
+                    !point.hasRespondedForScope(widget.representedSpaceId);
+                return awaitingResponse ||
+                    point.canResolve ||
+                    point.canCloseResponses ||
+                    point.importance == 'critical' ||
+                    conversationPointNeedsVisibility(
+                      point: {
+                        'kind': point.kind,
+                        'response_mode': point.responseMode,
+                        'attention_reason': point.attentionReason,
+                        'can_respond': point.canRespond,
+                        'response_window_open': point.responseWindowOpen,
+                        'can_acknowledge': point.canAcknowledge,
+                        'acknowledged': point.acknowledged,
+                        'form_request': point.formRequest,
+                      },
+                      ownerAttentionReason: point.attentionReason,
+                      hasPendingIntent: intent != null &&
+                          (!intent.isConfirmed ||
+                              !point.hasRespondedForScope(
+                                widget.representedSpaceId,
+                              )),
+                      editing: false,
+                      focused: point.id == _focusedPointId,
+                      representedSpaceId: widget.representedSpaceId,
+                    );
+              })(),
+        ),
+    ]);
+    for (final segment in segments) {
+      final first = combined[segment.items.first.value];
+      final localDay = first.at?.toLocal();
+      if (localDay != null &&
+          (previousDay == null ||
+              !DateUtils.isSameDay(previousDay, localDay))) {
+        children.add(_dayDivider(context, localDay));
+        previousDay = localDay;
       }
-      if (entry.point?.point.timelineCompact == true) {
-        var next = index + 1;
-        while (next < combined.length &&
-            combined[next].point?.point.timelineCompact == true &&
-            DateUtils.isSameDay(local, combined[next].at?.toLocal())) {
-          next++;
-        }
+      if (segment.foldable) {
         children.add(
-          _completedTimelineGroup(context, [
-            for (final candidate in combined.sublist(index, next))
-              candidate.point!,
-          ], outgoing: outgoing),
-        );
-        index = next;
-      } else if (entry.point != null) {
-        children.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: _pointWidget(
-              entry.point!.point,
-              readOnly: entry.point!.readOnly,
-              outgoing: outgoing,
-            ),
+          _foldedTimelineGroup(
+            context,
+            segment,
+            [
+              for (final item in segment.items)
+                combined[item.value].point!,
+            ],
+            outgoing: outgoing,
           ),
         );
-        index++;
       } else {
-        children.add(_pendingWidget(context, entry.outgoing!));
-        index++;
+        final item = combined[segment.items.single.value];
+        if (item.point != null) {
+          children.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
+              child: _pointWidget(
+                item.point!.point,
+                readOnly: item.point!.readOnly,
+                outgoing: outgoing,
+              ),
+            ),
+          );
+        } else {
+          children.add(_pendingWidget(context, item.outgoing!));
+        }
       }
     }
     if (children.isEmpty) {
