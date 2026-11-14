@@ -337,82 +337,140 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     final summary = AppuisViewData.map(recognition['summary']);
     final credit = summary['available_credits'];
     final pending = summary['pending_credits'];
-    final achievements = AppuisViewData.rows(recognition['achievements']).length;
+    final achievements = AppuisViewData.rows(recognition['achievements'])
+        .length;
     final partners = AppuisViewData.activePartners(_data('partners')).length;
     final rewardCount = AppuisViewData.rows(recognition['rewards']).length;
-    final hasCredit = available.contains('recognition') &&
-        AppuisViewData.positive(credit);
+    final hasCredit =
+        available.contains('recognition') && AppuisViewData.positive(credit);
     final metrics = <Widget>[
       if (hasCredit)
-        _metric(Icons.stars_outlined,
+        _metric(
+          Icons.stars_outlined,
           int.tryParse(AppuisViewData.text(credit)) ?? 0,
-          'Crédit', 'Crédits'),
+          'Crédit',
+          'Crédits',
+        ),
       if (!hasCredit && available.contains('recognition') && achievements > 0)
-        _metric(Icons.workspace_premium_outlined,
-          achievements, 'Reconnaissance', 'Reconnaissances'),
-      if (!hasCredit && available.contains('recognition') &&
-          achievements == 0 && rewardCount > 0)
-        _metric(Icons.redeem_outlined,
-          rewardCount, 'Récompense', 'Récompenses'),
+        _metric(
+          Icons.workspace_premium_outlined,
+          achievements,
+          'Reconnaissance',
+          'Reconnaissances',
+        ),
+      if (!hasCredit &&
+          available.contains('recognition') &&
+          achievements == 0 &&
+          rewardCount > 0)
+        _metric(
+          Icons.redeem_outlined,
+          rewardCount,
+          'Récompense',
+          'Récompenses',
+        ),
       if (available.contains('partners') && partners > 0)
-        _metric(Icons.handshake_outlined,
-          partners, 'Partenariat', 'Partenariats'),
+        _metric(
+          Icons.handshake_outlined,
+          partners,
+          'Partenariat',
+          'Partenariats',
+        ),
     ];
     if (metrics.isEmpty) return const SizedBox.shrink();
     if (metrics.length == 1) {
-      final count = hasCredit ? AppuisViewData.text(credit)
-          : partners > 0 ? partners.toString()
-          : achievements > 0 ? achievements.toString()
+      final count = hasCredit
+          ? AppuisViewData.text(credit)
+          : partners > 0
+          ? partners.toString()
+          : achievements > 0
+          ? achievements.toString()
           : rewardCount.toString();
-      final label = hasCredit ? 'crédits disponibles'
-          : partners > 0 ? (partners == 1 ? 'partenariat' : 'partenariats')
-          : achievements > 0 ? (achievements == 1
-              ? 'reconnaissance' : 'reconnaissances')
-          : rewardCount == 1 ? 'récompense' : 'récompenses';
+      final label = hasCredit
+          ? 'crédits disponibles'
+          : partners > 0
+          ? (partners == 1 ? 'partenariat' : 'partenariats')
+          : achievements > 0
+          ? (achievements == 1 ? 'reconnaissance' : 'reconnaissances')
+          : rewardCount == 1
+          ? 'récompense'
+          : 'récompenses';
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
-          borderRadius: BorderRadius.circular(18)),
-        child: Row(children: [
-          Icon(hasCredit ? Icons.stars_outlined : partners > 0
-              ? Icons.handshake_outlined : Icons.workspace_premium_outlined,
-              size: 24, color: Colors.white),
-          const SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(count + ' ' + label, style: const TextStyle(
-                color: Colors.white, fontSize: 17,
-                fontWeight: FontWeight.w700)),
-              if (hasCredit && AppuisViewData.positive(pending))
-                Text(AppuisViewData.text(pending) + ' crédits en attente',
-                  style: const TextStyle(
-                    color: Color(0xFFE5DDFF), fontSize: 12)),
-            ],
-          )),
-        ]),
+            colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              hasCredit
+                  ? Icons.stars_outlined
+                  : partners > 0
+                  ? Icons.handshake_outlined
+                  : Icons.workspace_premium_outlined,
+              size: 24,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    count + ' ' + label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (hasCredit && AppuisViewData.positive(pending))
+                    Text(
+                      AppuisViewData.text(pending) + ' crédits en attente',
+                      style: const TextStyle(
+                        color: Color(0xFFE5DDFF),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
     }
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
-        borderRadius: BorderRadius.circular(20)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(widget.space ? 'Nos appuis' : 'Mes appuis',
-          style: const TextStyle(color: Colors.white,
-            fontSize: 21, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 12),
-        Row(children: [
-          for (var i = 0; i < metrics.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(child: metrics[i]),
-          ],
-        ]),
-      ]),
+          colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.space ? 'Nos appuis' : 'Mes appuis',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (var i = 0; i < metrics.length; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: metrics[i]),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -456,32 +514,39 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         return const SizedBox.shrink();
       }
       if (all) {
-        return Column(children: [
-          for (final row in programs)
-            _card(Icons.card_giftcard_outlined,
-              AppuisViewData.text(row['program_name']).isEmpty
-                ? 'Programme de fidélité'
-                : AppuisViewData.text(row['program_name']),
-              subtitle: AppuisViewData.text(row['organization_name']),
-              highlight: [
-                if (AppuisViewData.positive(row['points_balance']))
-                  AppuisViewData.text(row['points_balance']) + ' ' +
-                      AppuisViewData.text(row['points_name']),
-                if (AppuisViewData.availableRewardCount(data, row) > 0)
-                  AppuisViewData.availableRewardCount(data, row).toString() +
-                      ' avantages disponibles',
-              ].join(' · '),
-              open: () => _openProgram(row)),
-
-        ]);
+        return Column(
+          children: [
+            for (final row in programs)
+              _card(
+                Icons.card_giftcard_outlined,
+                AppuisViewData.text(row['program_name']).isEmpty
+                    ? 'Programme de fidélité'
+                    : AppuisViewData.text(row['program_name']),
+                subtitle: AppuisViewData.text(row['organization_name']),
+                highlight: [
+                  if (AppuisViewData.positive(row['points_balance']))
+                    AppuisViewData.text(row['points_balance']) +
+                        ' ' +
+                        AppuisViewData.text(row['points_name']),
+                  if (AppuisViewData.availableRewardCount(data, row) > 0)
+                    AppuisViewData.availableRewardCount(data, row).toString() +
+                        ' avantages disponibles',
+                ].join(' · '),
+                open: () => _openProgram(row),
+              ),
+          ],
+        );
       }
       // No program catalog on the Appuis landing. Open it intentionally.
-      return _card(Icons.card_giftcard_outlined,
+      return _card(
+        Icons.card_giftcard_outlined,
         'Mes programmes de fidélité',
         subtitle: 'Adhésions et avantages de mes Espaces',
-        highlight: availableRewards.isEmpty ? '' :
-            availableRewards.length.toString() + ' avantages disponibles',
-        open: () => _openFamily(family));
+        highlight: availableRewards.isEmpty
+            ? ''
+            : availableRewards.length.toString() + ' avantages disponibles',
+        open: () => _openFamily(family),
+      );
     }
 
     if (family == 'recognition') {
@@ -718,9 +783,12 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         if (AppuisViewData.positive(balance) ||
             AppuisViewData.positive(pending) ||
             AppuisViewData.positive(account['lifetime_earned']))
-          _card(Icons.stars_outlined, 'Mes crédits',
-            subtitle: widget.space ? 'Crédits de cet Espace' :
-                'Crédits de reconnaissance',
+          _card(
+            Icons.stars_outlined,
+            'Mes crédits',
+            subtitle: widget.space
+                ? 'Crédits de cet Espace'
+                : 'Crédits de reconnaissance',
             highlight: [
               if (AppuisViewData.positive(balance))
                 AppuisViewData.text(balance) + ' disponibles',
@@ -729,7 +797,8 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               if (AppuisViewData.positive(account['lifetime_earned']))
                 AppuisViewData.text(account['lifetime_earned']) +
                     ' obtenus au total',
-            ].join(' · ')),
+            ].join(' · '),
+          ),
         _details(
           family,
           'Réponses attendues',
