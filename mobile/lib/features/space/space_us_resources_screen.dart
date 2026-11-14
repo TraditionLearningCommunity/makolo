@@ -160,7 +160,6 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                   return value > 0 ? value : null;
                 }
 
-                final passportHandoff = _text(handoffs['passport']);
                 final entries = <ResourceHubEntryData>[
                   ResourceHubEntryData(
                     key: const Key('space-resources-documents'),
@@ -175,8 +174,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     key: const Key('space-resources-assets'),
                     icon: Icons.photo_library_outlined,
                     title: 'Nos médias',
-                    subtitle: 'Images et assets de présentation du Space',
+                    subtitle: 'Images réutilisables par cet Espace',
                     count: visibleCount('asset'),
+                    onTap: () => context.push(
+                      '/space/${widget.slug}/us/resources/asset',
+                    ),
                   ),
                   ResourceHubEntryData(
                     key: const Key('space-resources-templates'),
@@ -184,6 +186,9 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     title: 'Nos modèles',
                     subtitle: 'Modèles de présentation réutilisables',
                     count: visibleCount('template'),
+                    onTap: () => context.push(
+                      '/space/${widget.slug}/us/resources/template',
+                    ),
                   ),
                   ResourceHubEntryData(
                     key: const Key('space-resources-themes'),
@@ -191,18 +196,9 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     title: 'Nos thèmes',
                     subtitle: 'Thèmes de présentation réutilisables',
                     count: visibleCount('theme'),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-passports'),
-                    icon: Icons.badge_outlined,
-                    title: 'Passeports émis',
-                    subtitle:
-                        'Documents institutionnels produits par cet Espace',
-                    count: visibleCount('passport'),
-                    onTap:
-                        passportHandoff == '/space/${widget.slug}/us/passport'
-                        ? () => context.push(passportHandoff!)
-                        : null,
+                    onTap: () => context.push(
+                      '/space/${widget.slug}/us/resources/theme',
+                    ),
                   ),
                   ResourceHubEntryData(
                     key: const Key('space-resources-credentials'),
@@ -211,6 +207,20 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     subtitle:
                         'Attestations et certificats délivrés par cet Espace',
                     count: visibleCount('credential'),
+                    onTap: () => context.push(
+                      '/space/${widget.slug}/us/resources/credential',
+                    ),
+                  ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-received-titles'),
+                    icon: Icons.verified_outlined,
+                    title: 'Titres reçus',
+                    subtitle:
+                        'Certificats et attestations acquis par cet Espace',
+                    count: visibleCount('received_title'),
+                    onTap: () => context.push(
+                      '/space/${widget.slug}/us/resources/received_title',
+                    ),
                   ),
                 ];
 
