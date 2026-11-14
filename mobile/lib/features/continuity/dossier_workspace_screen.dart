@@ -892,13 +892,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   title,
                   const Spacer(),
                   if (canLink) _linkAction(data),
-                  if (hasContent && !canLink) ...[
+                  if (hasContent && !canLink &&
+                      constraints.maxWidth >= 280) ...[
                     const SizedBox(width: 5),
                     SizedBox(width: 176, child: _tabs()),
                   ],
                 ],
               ),
-              if (hasContent && canLink)
+              if (hasContent &&
+                  (canLink || constraints.maxWidth < 280))
                 Align(
                   alignment: Alignment.centerRight,
                   child: SizedBox(width: 176, child: _tabs()),
