@@ -284,7 +284,11 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       return value;
     }
 
-    return clean(payload) as Map<String, dynamic>;
+    // Monetary valuation can change on Platform without a member action;
+    // unlike the personal facts, it must be read freshly from Recognition.
+    final safe = clean(payload) as Map<String, dynamic>;
+    safe.remove('monetary_equivalent');
+    return safe;
   }
 
   /// Owner datasets stay separate, filtered by this actor's Partner IDs.
@@ -485,6 +489,96 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         unawaited(_refresh());
       }
     }
+  }
+
+  Future<Map<String, dynamic>?> _redeemRecognition(
+    Map<String, dynamic> reward,
+  ) async {
+    final actor = _actor;
+    final generation = _generation;
+    final path = _action(reward, 'recognition', 'redeem');
+    final api = widget.runtime.api;
+    if (path == null || api == null || _busy || _denied ||
+        !_current(generation, actor)) {
+      return null;
+    }
+    final operation = 'recognition:${_text(reward['id'])}:redeem';
+    final key = _pendingKeys.putIfAbsent(operation, () {
+      final random = Random.secure();
+      return List<int>.generate(16,
+        (_) => random.nextInt(256))
+        .map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    });
+    setState(() => _busy = true);
+    try {
+      final response = await api.post(path,
+        body: {'idempotency_key': key});
+      if (!_current(generation, actor)) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      _pendingKeys.remove(operation);
+      return _map(decoded);
+    } on MakoloApiError catch (error) {
+      if (_current(generation, actor)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)));
+      }
+    } on Object {
+      if (_current(generation, actor)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Résultat non confirmé. Vérifiez avant de réessayer.')));
+      }
+    } finally {
+      if (_current(generation, actor)) setState(() => _busy = false);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _reloadRecognition() async {
+    final actor = _actor;
+    final generation = _generation;
+    final api = widget.runtime.api;
+    final store = widget.runtime.store;
+    if (_denied || api == null || store == null ||
+        !_current(generation, actor)) return null;
+    try {
+      final response = await api.get(_path('recognition', actor));
+      if (!_current(generation, actor)) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return null;
+      final payload = _map(decoded);
+      await store.putProjection(
+        kind: 'appuis.recognition',
+        resourceKey: _scope,
+        schemaVersion: 1,
+        payload: _cacheSafe(payload),
+        lastVerifiedOnlineAt: DateTime.now().toUtc(),
+        freshnessPolicyId: 'swr',
+      );
+      if (!_current(generation, actor)) return null;
+      setState(() {
+        _snapshots['recognition'] = payload;
+        _knownFamilies.add('recognition');
+        _errors.remove('recognition');
+      });
+      return payload;
+    } on MakoloApiError catch (error) {
+      if (_current(generation, actor) &&
+          {401, 403, 404}.contains(error.statusCode)) {
+        await store.deleteProjection('appuis.recognition', resourceKey: _scope);
+        if (_current(generation, actor)) {
+          setState(() {
+            _snapshots.remove('recognition');
+            _knownFamilies.remove('recognition');
+            _errors['recognition'] = 'Accès non autorisé.';
+          });
+        }
+      }
+    } on Object {
+      // Preserve the last acquired facts silently; never fabricate a balance.
+    }
+    return null;
   }
 
   Future<void> _execute(
