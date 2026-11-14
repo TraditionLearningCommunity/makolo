@@ -1127,7 +1127,25 @@ void main() {
       expect(find.text('Équipe · Espace Makolo'), findsOneWidget);
       expect(find.text('Groupe · Espace Makolo'), findsOneWidget);
       expect(find.text('Afficher la suite'), findsNothing);
-      expect(find.text('Vous avez tout vu'), findsOneWidget);
+      expect(find.text('Vous avez tout vu'), findsNothing);
+      expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
+      expect(find.byKey(const Key('me-collectives-title-count')), findsOneWidget);
+      expect(find.byKey(const Key('me-collectives-search-toggle')), findsOneWidget);
+      expect(find.byKey(const Key('me-collectives-sort')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('me-collectives-search-toggle')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('me-collectives-search')),
+        'introuvable',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Aucun collectif ne correspond à cette recherche.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('me-collectives-search-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('Équipe terrain'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
