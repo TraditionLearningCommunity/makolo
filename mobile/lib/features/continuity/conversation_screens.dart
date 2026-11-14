@@ -1894,6 +1894,23 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       if (_olderLoaded && _olderBaseSignature == _timelineSignature(detail)) {
         add(_olderPoints, readOnly: false);
       }
+      // The most recent owner window is not the whole history. Preserve
+      // authorized active Points from the owner attention projection even
+      // when they were published before that window.
+      add(
+        detail.points.where((point) =>
+            const {'respond', 'acknowledge', 'form', 'resolve', 'result', 'upcoming'}
+                .contains(point.attentionReason) ||
+            point.canAcknowledge ||
+            (point.canRespond &&
+                !point.hasRespondedForScope(widget.representedSpaceId))),
+        readOnly: false,
+      );
+      add(
+        detail.essential.where((point) =>
+            const {'result', 'upcoming'}.contains(point.attentionReason)),
+        readOnly: false,
+      );
       add(detail.timeline, readOnly: false);
     } else {
       // Compatibility with offline projections acquired before Lot 4.
@@ -1975,7 +1992,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           children: [
             Semantics(
               button: true,
-              expanded: expanded,
+              label: expanded ? 'Réduire les échanges' : 'Afficher les échanges',
               child: InkWell(
                 key: Key('conversation-folded-toggle-$key'),
                 borderRadius: BorderRadius.circular(14),
