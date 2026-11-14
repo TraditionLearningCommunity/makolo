@@ -131,4 +131,92 @@ void main() {
     expect(sends.single['value'], 'option-a');
     expect(tester.takeException(), isNull);
   });
+  testWidgets('a free-text Question is answered inside the fil without a dialog', (
+    tester,
+  ) async {
+    final sends = <Map<String, dynamic>>[];
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/conversations/conversation-1/') {
+          return MockResponse(
+            jsonEncode({
+              'id': 'conversation-1',
+              'title': 'Préparation',
+              'context': {'kind': 'activity', 'label': 'Atelier'},
+              'points': [
+                {
+                  'id': 'question-1',
+                  'title': 'Que faut-il apporter ?',
+                  'kind': 'question',
+                  'response_mode': 'free_text',
+                  'lifecycle': 'open',
+                  'can_respond': true,
+                  'response_window_open': true,
+                },
+              ],
+              'essential': [],
+              'composer': {'can_create': false, 'media_kinds': []},
+            }),
+            200,
+          );
+        }
+        if (request.url.path ==
+            '/api/v1/conversations/points/question-1/respond/') {
+          sends.add(Map<String, dynamic>.from(request.data as Map));
+          return const MockResponse(
+            '{"point_id":"question-1","id":"response-1","status":"active"}',
+            200,
+          );
+        }
+        if (request.url.path == '/api/v1/conversations/') {
+          return const MockResponse('{"count":0,"results":[]}', 200);
+        }
+        throw StateError('Unexpected request ${request.url}');
+      }).dio,
+    );
+    final repository = ConversationRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: SyncEngine(
+        api: api,
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      ),
+    );
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: ConversationDetailScreen(
+        id: 'conversation-1',
+        repository: repository,
+      ),
+    );
+    final answer = find.byKey(const Key('conversation-inline-answer-question-1'));
+    expect(answer, findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.enterText(answer, 'Un micro et une rallonge');
+    await tester.ensureVisible(
+      find.byKey(const Key('conversation-inline-submit-question-1')),
+    );
+    await tester.tap(
+      find.byKey(const Key('conversation-inline-submit-question-1')),
+    );
+    await tester.pumpAndSettle();
+    expect(sends, hasLength(1));
+    expect(sends.single['value'], 'Un micro et une rallonge');
+    expect(tester.takeException(), isNull);
+  });
+
 }
