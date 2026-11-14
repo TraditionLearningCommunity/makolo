@@ -348,7 +348,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
           if (hasAccount && AppuisViewData.positive(credit)) ...[
             const SizedBox(height: 14),
             Text(
-              AppuisViewData.text(credit) + ' crédits',
+              '${AppuisViewData.text(credit)} crédits',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 27,
@@ -359,7 +359,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
           if (AppuisViewData.positive(pending)) ...[
             const SizedBox(height: 6),
             Text(
-              AppuisViewData.text(pending) + ' crédits en attente',
+              '${AppuisViewData.text(pending)} crédits en attente',
               style: const TextStyle(color: Color(0xFFE5DDFF), fontSize: 13),
             ),
           ],
@@ -510,12 +510,9 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                 subtitle: AppuisViewData.text(row['organization_name']),
                 highlight: [
                   if (AppuisViewData.positive(row['points_balance']))
-                    AppuisViewData.text(row['points_balance']) +
-                        ' ' +
-                        AppuisViewData.text(row['points_name']),
+                    '${AppuisViewData.text(row['points_balance'])} ${AppuisViewData.text(row['points_name'])}',
                   if (AppuisViewData.availableRewardCount(data, row) > 0)
-                    AppuisViewData.availableRewardCount(data, row).toString() +
-                        ' avantages disponibles',
+                    '${AppuisViewData.availableRewardCount(data, row)} avantages disponibles',
                 ].join(' · '),
                 open: () => _openProgram(row),
               ),
@@ -529,7 +526,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         subtitle: 'Programmes et adhésions',
         highlight: availableRewards.isEmpty
             ? ''
-            : availableRewards.length.toString() + ' avantages disponibles',
+            : '${availableRewards.length} avantages disponibles',
         open: () => _openFamily(family),
       );
     }
@@ -551,7 +548,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             _card(
               Icons.hourglass_top_outlined,
               'Crédits en attente',
-              highlight: AppuisViewData.text(pending) + ' crédits',
+              highlight: '${AppuisViewData.text(pending)} crédits',
               open: () => _openFamily(family),
             ),
           if (rows.isEmpty &&
@@ -658,7 +655,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     if (family == 'recognition' && section == 'Récompenses') {
       final cost = row['points_cost'];
       if (AppuisViewData.positive(cost)) {
-        parts.add(AppuisViewData.text(cost) + ' crédits');
+        parts.add('${AppuisViewData.text(cost)} crédits');
       }
       final kind = AppuisViewData.text(row['kind_label']);
       if (kind.isNotEmpty) parts.add(kind);
@@ -666,7 +663,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
       final delta = row['credits_delta'];
       if (delta is num && delta != 0) {
         parts.add(
-          (delta > 0 ? '+' : '') + AppuisViewData.text(delta) + ' crédits',
+          '${delta > 0 ? '+' : ''}${AppuisViewData.text(delta)} crédits',
         );
       }
     }
@@ -817,12 +814,11 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                 : 'Crédits de reconnaissance',
             highlight: [
               if (AppuisViewData.positive(balance))
-                AppuisViewData.text(balance) + ' disponibles',
+                '${AppuisViewData.text(balance)} disponibles',
               if (AppuisViewData.positive(pending))
-                AppuisViewData.text(pending) + ' en attente',
+                '${AppuisViewData.text(pending)} en attente',
               if (AppuisViewData.positive(account['lifetime_earned']))
-                AppuisViewData.text(account['lifetime_earned']) +
-                    ' obtenus au total',
+                '${AppuisViewData.text(account['lifetime_earned'])} obtenus au total',
             ].join(' · '),
           ),
         _details(
