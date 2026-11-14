@@ -9,12 +9,17 @@ Map<String, dynamic> projection({
   int pending = 35,
   Map<String, dynamic>? money,
   List<Map<String, dynamic>> rewards = const [],
-}) => {
-  'summary': {'available_credits': credits, 'pending_credits': pending},
-  'account': {'points_balance': credits, 'pending_points': pending},
-  'rewards': rewards,
-  if (money != null) 'monetary_equivalent': money,
-};
+}) {
+  final data = <String, dynamic>{
+    'summary': {'available_credits': credits, 'pending_credits': pending},
+    'account': {'points_balance': credits, 'pending_points': pending},
+    'rewards': rewards,
+  };
+  if (money != null) {
+    data['monetary_equivalent'] = money;
+  }
+  return data;
+}
 
 Map<String, dynamic> featureReward({String id = 'feature-1', int cost = 80}) =>
     {
