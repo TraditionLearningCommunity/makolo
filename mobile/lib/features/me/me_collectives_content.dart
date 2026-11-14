@@ -391,7 +391,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             final width = constraints.maxWidth;
             final cardWidth = width < 320
                 ? width * 0.87
-                : (width * 0.78).clamp(248.0, 300.0);
+                : (width * 0.78).clamp(248.0, 300.0).toDouble();
             return SingleChildScrollView(
               key: Key('me-collectives-carousel-${kind}'),
               scrollDirection: Axis.horizontal,
