@@ -216,6 +216,30 @@ class ConversationFormsTests(TestCase):
         forbidden = self.client.get(url, {"cursor": match.group(1)})
         self.assertIn(forbidden.status_code, (403, 404))
 
+    def test_web_question_replies_inline_without_another_page(self):
+        conversation, source = self._form_point()
+        question = create_point(
+            actor=self.owner,
+            conversation=conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Quel équipement faut-il apporter ?",
+            visibility_audience=source.visibility_audience,
+            response_audience=source.visibility_audience,
+            expected_action_audience=source.visibility_audience,
+        )
+        self.client.force_login(self.member)
+        reply = self.client.post(
+            reverse("conversations:point-respond", kwargs={"point_pk": question.pk}),
+            {"value": "Une rallonge", "client_reference": "web-question-inline-1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(reply.status_code, 200)
+        html = reply.json()["html"]
+        self.assertIn("Une rallonge", html)
+        self.assertNotIn("data-conversation-point-response", html)
+        self.assertIn('data-thread-point', html)
+
     def test_form_bridge_is_idempotent_for_same_point_and_profile(self):
         _, point = self._form_point()
         first = ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
