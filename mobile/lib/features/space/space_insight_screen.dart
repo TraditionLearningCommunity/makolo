@@ -13,7 +13,6 @@ import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/contracts/space_presentation.dart';
-import '../../presentation/projection_surface_adapter.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import 'space_insight_surfaces.dart';
@@ -223,11 +222,6 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (refreshing) const LinearProgressIndicator(),
-                  MakoloFreshnessNotice(
-                    freshness: const ProjectionSurfaceAdapter().freshnessCue(
-                      freshness,
-                    ),
-                  ),
                   Expanded(
                     child: relations
                         ? relationsBody(payload)
@@ -284,11 +278,6 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       key: const Key('space-relationships-secondary'),
       padding: const EdgeInsets.all(20),
       children: [
-        Text(
-          spaceText(payload['label']) ?? 'Personnes & relations',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
         TextField(
           controller: searchController,
           maxLength: 120,
