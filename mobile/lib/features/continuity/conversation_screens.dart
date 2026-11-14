@@ -3079,8 +3079,12 @@ class _PointCardState extends State<_PointCard> {
           representedSpaceId: widget.representedSpaceId,
         );
       }
-      if (const {'free_text', 'number', 'date', 'datetime'}
-          .contains(widget.point.responseMode)) {
+      if (const {
+        'free_text',
+        'number',
+        'date',
+        'datetime',
+      }.contains(widget.point.responseMode)) {
         // An accepted local intent already owns the answer; the draft may
         // disappear only after that durable handoff.
         try {
@@ -3554,10 +3558,15 @@ class _PointCardState extends State<_PointCard> {
               key: Key('conversation-point-modify-${point.id}'),
               onPressed: () => setState(() {
                 _editingResponse = true;
-                if (const {'free_text', 'number', 'date', 'datetime'}
-                    .contains(point.responseMode)) {
+                if (const {
+                  'free_text',
+                  'number',
+                  'date',
+                  'datetime',
+                }.contains(point.responseMode)) {
                   _inlineResponse.text =
-                      point.responseForScope(widget.representedSpaceId)['value']
+                      point
+                          .responseForScope(widget.representedSpaceId)['value']
                           ?.toString() ??
                       '';
                 }
@@ -3826,19 +3835,17 @@ class _PointCardState extends State<_PointCard> {
               point.responseMode == 'datetime')
             Builder(
               builder: (context) {
-                final current = DateTime.tryParse(_inlineResponse.text)?.toLocal();
+                final current = DateTime.tryParse(_inlineResponse.text)
+                    ?.toLocal();
                 final label = current == null
                     ? point.responseMode == 'datetime'
-                        ? 'Choisir une date et une heure'
-                        : 'Choisir une date'
+                          ? 'Choisir une date et une heure'
+                          : 'Choisir une date'
                     : point.responseMode == 'datetime'
-                        ? '${MaterialLocalizations.of(context).formatMediumDate(current)} '
-                            '${MaterialLocalizations.of(context).formatTimeOfDay(
-                              TimeOfDay.fromDateTime(current),
-                              alwaysUse24HourFormat: true,
-                            )}'
-                        : MaterialLocalizations.of(context)
-                            .formatMediumDate(current);
+                    ? '${MaterialLocalizations.of(context).formatMediumDate(current)} '
+                          '${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(current), alwaysUse24HourFormat: true)}'
+                    : MaterialLocalizations.of(context)
+                          .formatMediumDate(current);
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -3847,8 +3854,8 @@ class _PointCardState extends State<_PointCard> {
                       onPressed: _busy
                           ? null
                           : () => _chooseInlineDate(
-                                withTime: point.responseMode == 'datetime',
-                              ),
+                              withTime: point.responseMode == 'datetime',
+                            ),
                       icon: const Icon(Icons.event_outlined),
                       label: Text(label),
                     ),
