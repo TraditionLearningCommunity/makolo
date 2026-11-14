@@ -96,7 +96,6 @@ class _ProjectInvitationsScreenState extends State<ProjectInvitationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invitations'),
