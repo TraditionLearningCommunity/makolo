@@ -6,6 +6,7 @@ from django.urls import reverse
 from organizations.models import Organization
 from loyalty.models import LoyaltyAccount, LoyaltyProgram
 from partners.models import Partner
+from recognition.models import RecognitionAccount
 
 
 class AppuisWebSurfaceTests(TestCase):
@@ -54,8 +55,8 @@ class AppuisWebSurfaceTests(TestCase):
         )
         response = self.client.get(reverse("core:participant-appuis"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Avantages des participants")
-        self.assertContains(response, "Collectif Ateliers")
+        self.assertContains(response, "Mes programmes de fidélité")
+        self.assertNotContains(response, "Avantages des participants")
         self.assertNotContains(response, "0 points")
         self.assertNotContains(response, "ap-filters")
         self.assertContains(response, "ap-card")
@@ -73,6 +74,28 @@ class AppuisWebSurfaceTests(TestCase):
                     kwargs={"slug": space.slug})
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_recognition_credits_come_before_loyalty_catalog(self):
+        space = Organization.objects.create(
+            name="Collectif Contribution", created_by=self.viewer,
+        )
+        program = LoyaltyProgram.objects.create(
+            organization=space, name="Club de fidélité",
+            created_by=self.viewer,
+        )
+        LoyaltyAccount.objects.create(program=program, user=self.viewer)
+        RecognitionAccount.objects.create(
+            profile=self.viewer, points_balance=18,
+            pending_points=2, lifetime_earned=25,
+        )
+        response = self.client.get(reverse("core:participant-appuis"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "18 crédits disponibles")
+        self.assertContains(response, "2 en attente")
+        self.assertContains(response, "Mes programmes de fidélité")
+        self.assertNotContains(response, "1 programme")
+        self.assertNotContains(response, "Club de fidélité")
+
 
     def test_filters_render_only_for_multiple_real_families(self):
         space = Organization.objects.create(
