@@ -183,17 +183,18 @@ class _SpaceResourceFamilyScreenState extends State<SpaceResourceFamilyScreen> {
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         title: Text(_text(row['title']) ?? 'Ressource'),
-                        subtitle: _text(row['detail']) case final detail?
-                            ? Text(detail)
-                            : null,
+                        subtitle: _text(row['detail']) == null
+                            ? null
+                            : Text(_text(row['detail'])!),
                         trailing: _documentId(row) == null
                             ? null
                             : const Icon(Icons.chevron_right_rounded),
-                        onTap: _documentId(row) case final id?
-                            ? () => context.push(
-                                '/space/${widget.slug}/us/documents/$id',
-                              )
-                            : null,
+                        onTap: _documentId(row) == null
+                            ? null
+                            : () => context.push(
+                                '/space/${widget.slug}/us/documents/'
+                                '${_documentId(row)!}',
+                              ),
                       ),
                     ),
                   ),
