@@ -673,8 +673,7 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _isVisualAttachment(Map<String, dynamic> item) {
     if (item['kind'] == 'photo') return true;
     final name = (item['name'] ?? '').toString().toLowerCase();
-    return const {'.jpg', '.jpeg', '.png', '.webp'}
-        .contains(p.extension(name));
+    return const {'.jpg', '.jpeg', '.png', '.webp'}.contains(p.extension(name));
   }
 
   Future<String?> _localThumbnailPath(String fileId) async {
@@ -1230,179 +1229,200 @@ class _MarkScreenState extends State<MarkScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                    TextField(
-                      controller: _input,
-                      focusNode: _inputFocus,
-                      readOnly: _busy || _restoring,
-                      minLines: 3,
-                      maxLines: 8,
-                      maxLength: 600,
-                      textInputAction: TextInputAction.newline,
-                      decoration: const InputDecoration(
-                        hintText: 'Qu’aimeriez-vous faire ?',
-                        alignLabelWithHint: true,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        counterText: '',
-                      ),
-                      onChanged: (_) {
-                        setState(() {
-                          _result = null;
-                          _pendingConfirmationCode = null;
-                          _pendingConfirmationKey = null;
-                          _teamMember = null;
-                          _textOnlyConsent = false;
-                        });
-                        unawaited(_saveDraft());
-                      },
-                    ),
-                    if (_selectedContext != null ||
-                        _attachments.isNotEmpty ||
-                        _links.isNotEmpty) ...[
-                      if (_selectedContext != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Élément sélectionné pour cette demande',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                          TextField(
+                            controller: _input,
+                            focusNode: _inputFocus,
+                            readOnly: _busy || _restoring,
+                            minLines: 3,
+                            maxLines: 8,
+                            maxLength: 600,
+                            textInputAction: TextInputAction.newline,
+                            decoration: const InputDecoration(
+                              hintText: 'Qu’aimeriez-vous faire ?',
+                              alignLabelWithHint: true,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              counterText: '',
+                            ),
+                            onChanged: (_) {
+                              setState(() {
+                                _result = null;
+                                _pendingConfirmationCode = null;
+                                _pendingConfirmationKey = null;
+                                _teamMember = null;
+                                _textOnlyConsent = false;
+                              });
+                              unawaited(_saveDraft());
+                            },
+                          ),
+                          if (_selectedContext != null ||
+                              _attachments.isNotEmpty ||
+                              _links.isNotEmpty) ...[
+                            if (_selectedContext != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Élément sélectionné pour cette demande',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ),
+                                    MakoloIconActionButton(
+                                      icon: Icons.close,
+                                      tooltip:
+                                          'Retirer le contexte sélectionné',
+                                      onPressed: _busy
+                                          ? null
+                                          : () => unawaited(
+                                              _removeSelectedContext(),
+                                            ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final link in _links)
+                                  Chip(
+                                    avatar: const Icon(Icons.link, size: 18),
+                                    label: ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 280,
+                                      ),
+                                      child: Text(
+                                        link,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    onDeleted: _busy
+                                        ? null
+                                        : () => unawaited(_removeLink(link)),
+                                    deleteButtonTooltipMessage:
+                                        'Retirer ce lien',
+                                  ),
+                                for (final item in _attachments) ...[
+                                  if (_isVisualAttachment(item))
+                                    _MarkImageThumbnail(
+                                      key: ValueKey(
+                                        'mark-thumb:${_draftRevision}:${item['file_id']}',
+                                      ),
+                                      loadPath: () => _localThumbnailPath(
+                                        item['file_id']?.toString() ?? '',
+                                      ),
+                                      name: item['name']?.toString() ?? 'Image',
+                                      onOpen: _busy
+                                          ? null
+                                          : () => unawaited(
+                                              _previewAttachment(item),
+                                            ),
+                                      onRemove: _busy
+                                          ? null
+                                          : () => unawaited(
+                                              _removeAttachment(item),
+                                            ),
+                                    )
+                                  else
+                                    InputChip(
+                                      avatar: Icon(
+                                        item['kind'] == 'audio'
+                                            ? Icons.mic_none
+                                            : item['kind'] == 'photo'
+                                            ? Icons.image_outlined
+                                            : Icons.attach_file,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        '${item['name']?.toString() ?? 'Pièce'}'
+                                        '${item['saved_asset_id'] != null ? ' ✓' : ''}',
+                                      ),
+                                      onPressed: _busy
+                                          ? null
+                                          : () => unawaited(
+                                              _previewAttachment(item),
+                                            ),
+                                      onDeleted: _busy
+                                          ? null
+                                          : () => unawaited(
+                                              _removeAttachment(item),
+                                            ),
+                                      deleteButtonTooltipMessage:
+                                          'Retirer cette pièce',
+                                    ),
+                                  if (actor is PersonalActorContext &&
+                                      widget.runtime.resources != null &&
+                                      item['kind'] != 'audio' &&
+                                      item['saved_asset_id'] == null)
+                                    MakoloIconActionButton(
+                                      icon: Icons.drive_file_move_outline,
+                                      tooltip: 'Conserver dans Mes documents',
+                                      onPressed: _busy || _restoring
+                                          ? null
+                                          : () => unawaited(
+                                              _saveToPersonalResources(item),
+                                            ),
+                                    ),
+                                ],
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
                               MakoloIconActionButton(
-                                icon: Icons.close,
-                                tooltip: 'Retirer le contexte sélectionné',
-                                onPressed: _busy
+                                tooltip: 'Joindre un fichier',
+                                icon: Icons.attach_file_rounded,
+                                onPressed: _busy ? null : _pickFiles,
+                              ),
+                              MakoloIconActionButton(
+                                tooltip: 'Prendre une photo',
+                                icon: Icons.photo_camera_outlined,
+                                onPressed: _busy ? null : _capturePhoto,
+                              ),
+                              MakoloIconActionButton(
+                                tooltip: 'Choisir une image',
+                                icon: Icons.photo_library_outlined,
+                                onPressed: _busy ? null : _pickPhoto,
+                              ),
+                              MakoloIconActionButton(
+                                tooltip: 'Enregistrer un audio',
+                                icon: Icons.mic_none_rounded,
+                                onPressed: _busy ? null : _openVoiceInput,
+                              ),
+                              const Spacer(),
+                              IconButton.filled(
+                                key: const ValueKey('mark-submit'),
+                                tooltip: 'Continuer avec cette demande',
+                                onPressed:
+                                    _busy ||
+                                        _restoring ||
+                                        _voiceCapture ||
+                                        _dictating
                                     ? null
-                                    : () => unawaited(_removeSelectedContext()),
+                                    : _submit,
+                                icon: _busy
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.arrow_upward_rounded),
+                                style: IconButton.styleFrom(
+                                  minimumSize: const Size(48, 48),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final link in _links)
-                            Chip(
-                              avatar: const Icon(Icons.link, size: 18),
-                              label: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 280,
-                                ),
-                                child: Text(
-                                  link,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              onDeleted: _busy
-                                  ? null
-                                  : () => unawaited(_removeLink(link)),
-                              deleteButtonTooltipMessage: 'Retirer ce lien',
-                            ),
-                          for (final item in _attachments) ...[
-                            if (_isVisualAttachment(item))
-                              _MarkImageThumbnail(
-                                key: ValueKey('mark-thumb:${_draftRevision}:${item['file_id']}'),
-                                loadPath: () => _localThumbnailPath(
-                                  item['file_id']?.toString() ?? '',
-                                ),
-                                name: item['name']?.toString() ?? 'Image',
-                                onOpen: _busy
-                                    ? null
-                                    : () => unawaited(_previewAttachment(item)),
-                                onRemove: _busy
-                                    ? null
-                                    : () => unawaited(_removeAttachment(item)),
-                              )
-                            else
-                            InputChip(
-                              avatar: Icon(
-                                item['kind'] == 'audio'
-                                    ? Icons.mic_none
-                                    : item['kind'] == 'photo'
-                                    ? Icons.image_outlined
-                                    : Icons.attach_file,
-                                size: 18,
-                              ),
-                              label: Text(
-                                '${item['name']?.toString() ?? 'Pièce'}'
-                                '${item['saved_asset_id'] != null ? ' ✓' : ''}',
-                              ),
-                              onPressed: _busy
-                                  ? null
-                                  : () => unawaited(_previewAttachment(item)),
-                              onDeleted: _busy
-                                  ? null
-                                  : () => unawaited(_removeAttachment(item)),
-                              deleteButtonTooltipMessage: 'Retirer cette pièce',
-                            ),
-                            if (actor is PersonalActorContext &&
-                                widget.runtime.resources != null &&
-                                item['kind'] != 'audio' &&
-                                item['saved_asset_id'] == null)
-                              MakoloIconActionButton(
-                                icon: Icons.drive_file_move_outline,
-                                tooltip: 'Conserver dans Mes documents',
-                                onPressed: _busy || _restoring
-                                    ? null
-                                    : () => unawaited(
-                                        _saveToPersonalResources(item),
-                                      ),
-                              ),
-                          ],
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        MakoloIconActionButton(
-                          tooltip: 'Joindre un fichier',
-                          icon: Icons.attach_file_rounded,
-                          onPressed: _busy ? null : _pickFiles,
-                        ),
-                        MakoloIconActionButton(
-                          tooltip: 'Prendre une photo',
-                          icon: Icons.photo_camera_outlined,
-                          onPressed: _busy ? null : _capturePhoto,
-                        ),
-                        MakoloIconActionButton(
-                          tooltip: 'Choisir une image',
-                          icon: Icons.photo_library_outlined,
-                          onPressed: _busy ? null : _pickPhoto,
-                        ),
-                        MakoloIconActionButton(
-                          tooltip: 'Enregistrer un audio',
-                          icon: Icons.mic_none_rounded,
-                          onPressed: _busy ? null : _openVoiceInput,
-                        ),
-                        const Spacer(),
-                        IconButton.filled(
-                          key: const ValueKey('mark-submit'),
-                          tooltip: 'Continuer avec cette demande',
-                          onPressed: _busy || _restoring || _voiceCapture || _dictating
-                              ? null
-                              : _submit,
-                          icon: _busy
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.arrow_upward_rounded),
-                          style: IconButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                          ),
-                        ),
-                      ],
-                    ),
                         ],
                       ),
                     ),
@@ -1569,10 +1589,7 @@ class _MarkImageThumbnailState extends State<_MarkImageThumbnail> {
               icon: const Icon(Icons.close_rounded, size: 16),
               iconSize: 16,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 36,
-                minHeight: 36,
-              ),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
         ],
