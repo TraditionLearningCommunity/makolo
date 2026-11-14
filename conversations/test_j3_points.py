@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from activities.involvement_models import ActivityInvolvement, ActivityInvolvementConfirmationBasis, ActivityInvolvementFunction, ActivityInvolvementFunctionKind
@@ -113,6 +114,23 @@ class ConversationPointTests(TestCase):
         self.assertEqual(old.lifecycle, ConversationPointLifecycle.SUPERSEDED)
         self.assertEqual(new.lifecycle, ConversationPointLifecycle.OPEN)
         self.assertEqual(new.supersedes_id, old.pk)
+
+    def test_implicit_exchange_uses_free_text_and_rejects_explicit_none(self):
+        point = create_point(
+            actor=self.manager,
+            conversation=self.conversation,
+            kind=ConversationPointKind.EXCHANGE,
+            title="Discussion spontanée",
+        )
+        self.assertEqual(point.response_mode, ConversationPointResponseMode.FREE_TEXT)
+        with self.assertRaises(ValidationError):
+            create_point(
+                actor=self.manager,
+                conversation=self.conversation,
+                kind=ConversationPointKind.EXCHANGE,
+                response_mode=ConversationPointResponseMode.NONE,
+                title="Mode explicitement invalide",
+            )
 
     def test_free_exchange_does_not_create_attention_by_itself(self):
         point = create_point(
