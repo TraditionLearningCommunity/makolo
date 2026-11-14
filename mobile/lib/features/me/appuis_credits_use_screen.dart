@@ -200,9 +200,10 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
         // Existing facts remain visible but cannot authorize another spend.
       }
       if (!mounted || !_current) return;
-      if (refreshed != null) {
+      final verifiedRefresh = refreshed;
+      if (verifiedRefresh != null) {
         setState(() {
-          _data = refreshed;
+          _data = verifiedRefresh;
           _balanceUnverified = false;
           _moneyVerified = true;
         });
