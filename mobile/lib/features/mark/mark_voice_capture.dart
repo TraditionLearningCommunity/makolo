@@ -78,7 +78,9 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
       if (!decision.permitsCapability || !await _recorder.hasPermission()) {
         throw StateError('Microphone non autorisé sur cet appareil.');
       }
+      if (!mounted) return;
       await widget.store.stagingDirectory.create(recursive: true);
+      if (!mounted) return;
       final path =
           '${widget.store.stagingDirectory.path}/stage-mark-voice-${DateTime.now().microsecondsSinceEpoch}.m4a';
       _recordingPath = path;
