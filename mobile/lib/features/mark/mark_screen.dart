@@ -69,6 +69,7 @@ class _MarkScreenState extends State<MarkScreen> {
   ProfileFileStore? _voiceStore;
   bool _voiceCapture = false;
   bool _dictating = false;
+  String? _dictationBase;
   String? _pendingConfirmationCode;
   String? _pendingConfirmationKey;
   Stream<StoredProjection?>? _meStream;
@@ -532,29 +533,60 @@ class _MarkScreenState extends State<MarkScreen> {
     );
     if (!mounted || revision != _draftRevision) return;
     if (choice == 'dictation') {
-      setState(() => _dictating = true);
+      setState(() {
+        _dictationBase = _input.text.trim();
+        _dictating = true;
+      });
     } else if (choice == 'audio') {
       await _openVoiceCapture();
     }
   }
 
-  void _acceptDictation(String value) {
-    if (!_dictating || !mounted || value.trim().isEmpty) return;
+  void _previewDictation(String value) {
+    if (!mounted || !_dictating) return;
+    final base = _dictationBase ?? '';
+    final composed = [
+      if (base.isNotEmpty) base,
+      if (value.trim().isNotEmpty) value.trim(),
+    ].join(' ');
     setState(() {
-      _input.text = [
-        if (_input.text.trim().isNotEmpty) _input.text.trim(),
-        value.trim(),
-      ].join('\n');
+      _input.value = TextEditingValue(
+        text: composed,
+        selection: TextSelection.collapsed(offset: composed.length),
+      );
+    });
+  }
+
+  void _acceptDictation(String value) {
+    if (!mounted || !_dictating || value.trim().isEmpty) return;
+    _previewDictation(value);
+    setState(() {
       _dictating = false;
+      _dictationBase = null;
       _result = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _textOnlyConsent = false;
     });
     unawaited(_saveDraft());
+    _inputFocus.requestFocus();
     if (_input.text.length > 600) {
-      _show('Texte conservé. Raccourcissez votre demande avant de continuer.');
+      _show('Raccourcissez votre demande avant de continuer.');
     }
+    unawaited(_drainSharedInputs());
+  }
+
+  void _cancelDictation() {
+    if (!mounted || !_dictating) return;
+    final base = _dictationBase ?? '';
+    setState(() {
+      _input.value = TextEditingValue(
+        text: base,
+        selection: TextSelection.collapsed(offset: base.length),
+      );
+      _dictating = false;
+      _dictationBase = null;
+    });
     unawaited(_drainSharedInputs());
   }
 
@@ -1365,7 +1397,7 @@ class _MarkScreenState extends State<MarkScreen> {
                           TextField(
                             controller: _input,
                             focusNode: _inputFocus,
-                            readOnly: _busy || _restoring,
+                            readOnly: _busy || _restoring || _dictating,
                             minLines: 1,
                             maxLines: 7,
                             maxLength: 600,
@@ -1608,9 +1640,8 @@ class _MarkScreenState extends State<MarkScreen> {
                           'dictation:${widget.runtime.session?.profileId}:$_owner',
                         ),
                         onText: _acceptDictation,
-                        onClose: () {
-                          if (mounted) setState(() => _dictating = false);
-                        },
+                        onPreview: _previewDictation,
+                        onClose: _cancelDictation,
                       ),
                     ],
                     if (_voiceCapture && _voiceStore != null) ...[
