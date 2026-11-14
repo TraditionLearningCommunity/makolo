@@ -17,6 +17,7 @@ class AppuisCreditsUseScreen extends StatefulWidget {
     required this.onReload,
     this.actorChanges,
     this.actorIsCurrent,
+    this.refreshOnOpen = true,
   });
 
   final Map<String, dynamic> initial;
@@ -27,6 +28,7 @@ class AppuisCreditsUseScreen extends StatefulWidget {
   final Future<Map<String, dynamic>?> Function() onReload;
   final Listenable? actorChanges;
   final bool Function()? actorIsCurrent;
+  final bool refreshOnOpen;
 
   @override
   State<AppuisCreditsUseScreen> createState() => _AppuisCreditsUseScreenState();
@@ -36,12 +38,14 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
   late Map<String, dynamic> _data;
   bool _working = false;
   bool _balanceUnverified = false;
+  int _spendEpoch = 0;
 
   @override
   void initState() {
     super.initState();
     _data = widget.initial;
     widget.actorChanges?.addListener(_actorChanged);
+    if (widget.refreshOnOpen) unawaited(_refreshInitial());
   }
 
   @override
@@ -54,6 +58,14 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
     if (widget.actorIsCurrent?.call() == false && mounted) {
       unawaited(Navigator.of(context).maybePop());
     }
+  }
+
+  Future<void> _refreshInitial() async {
+    final epoch = _spendEpoch;
+    final fresh = await widget.onReload();
+    if (!mounted || !_current || _working ||
+        epoch != _spendEpoch || fresh == null) return;
+    setState(() => _data = fresh);
   }
 
   static Map<String, dynamic> _map(Object? value) => value is Map
@@ -160,6 +172,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
       ),
     );
     if (confirmed != true || !mounted || !_authorized(reward)) return;
+    _spendEpoch++;
     setState(() => _working = true);
     try {
       final response = await widget.onRedeem(reward);
