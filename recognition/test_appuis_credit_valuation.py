@@ -13,6 +13,7 @@ from recognition.models import (
     RewardDefinition, RewardKind,
 )
 from recognition.valuation import credit_money_equivalent
+from subscriptions.models import FeatureDefinition
 from recognition.governance_services import configure_credit_valuation
 
 
@@ -139,6 +140,65 @@ class AppuisCreditValuationTests(TestCase):
             RecognitionRedemption.objects.filter(owner_account=self.account).count(),
             1,
         )
+
+    def test_platform_operator_form_configures_only_display_and_is_private(self):
+        self.client.force_login(self.operator)
+        url = reverse("platform_web:recognition-credit-valuation")
+        read = self.client.get(reverse("platform_web:recognition"))
+        self.assertEqual(read.status_code, 200)
+        self.assertContains(read, "Montant par crédit")
+        response = self.client.post(url, {
+            "currency": "USD",
+            "amount_per_credit": "0.05",
+            "expected_version": "0",
+            "active": "1",
+            "reason": "Configuration test approuvée",
+            "confirm": "1",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            RecognitionCreditValuation.objects.get(pk=1).is_active
+        )
+        self.assertEqual(
+            self.client.get(reverse("core:participant-appuis-use"))["Cache-Control"],
+            "private, no-store",
+        )
+        self.assertEqual(
+            self.client.get(reverse("recognition_api:me"))["Cache-Control"],
+            "private, no-store",
+        )
+
+    def test_verified_feature_is_individually_labeled_not_a_fake_subscription(self):
+        feature = FeatureDefinition.objects.create(
+            code="recognition.appuis.unlock", name="Fonctionnalité réelle",
+            domain="recognition", value_type="boolean",
+            supports_profile=True, supports_space=False,
+            aggregation_strategy="BOOLEAN_OR",
+            enforcement_policy="feature_gate",
+        )
+        RewardDefinition.objects.create(
+            code="appuis-unlock-real", version=1,
+            name="Déblocage utile", kind=RewardKind.ENTITLEMENT,
+            points_cost=80, fulfillment={
+                "feature_code": feature.code,
+                "duration_days": 30,
+            },
+        )
+        self.client.force_login(self.operator)
+        data = self.client.get(reverse("recognition_api:me")).json()
+        row = next(row for row in data["rewards"]
+                   if row["name"] == "Déblocage utile")
+        self.assertEqual(row["presentation"], {
+            "category": "feature",
+            "action": "Débloquer",
+            "duration_days": 30,
+        })
+        self.assertNotIn("feature_code", str(row))
+        page = self.client.get(reverse("core:participant-appuis-use"))
+        self.assertContains(page, "Fonctionnalités")
+        self.assertContains(page, "Déblocage utile")
+        self.assertNotContains(page, "Abonnements")
+
 
     def test_spending_space_without_view_permission_does_not_expose_account(self):
         space_account = RecognitionAccount.objects.create(
