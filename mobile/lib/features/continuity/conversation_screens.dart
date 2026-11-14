@@ -2996,6 +2996,17 @@ class _PointCardState extends State<_PointCard> {
       _locallyQueued = false;
       _editingResponse = false;
       _clientReference = null;
+      final ownerReplyChanged =
+          oldWidget.point.responseForScope(oldWidget.representedSpaceId)[
+                  'submitted_at'] !=
+              widget.point.responseForScope(widget.representedSpaceId)[
+                  'submitted_at'];
+      if (ownerReplyChanged &&
+          widget.point.hasRespondedForScope(widget.representedSpaceId)) {
+        _inlineDraftTimer?.cancel();
+        _inlineResponse.clear();
+        unawaited(_clearInlineDraft().catchError((Object _) {}));
+      }
       if (oldWidget.point.id != widget.point.id ||
           oldWidget.repository != widget.repository ||
           oldWidget.conversationId != widget.conversationId ||
