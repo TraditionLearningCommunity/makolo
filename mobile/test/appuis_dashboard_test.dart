@@ -166,9 +166,8 @@ void main() {
     expect(find.text('Club collectif'), findsOneWidget);
     expect(find.text('Ma fidélité'), findsNothing);
   });
-}
 
-testWidgets('single indicator uses a compact banner', (tester) async {
+  testWidgets('single indicator uses a compact banner', (tester) async {
   await tester.pumpWidget(harness(data(
     accounts: [account('one', 'Club A')],
   )));
@@ -270,3 +269,4 @@ testWidgets('a refused action or offline depth exposes no fake success',
   expect(find.text('Mettre fin à cette adhésion'), findsNothing);
   expect(called, false);
 });
+}
