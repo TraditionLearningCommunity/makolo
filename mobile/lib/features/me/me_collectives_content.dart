@@ -82,6 +82,7 @@ class MeCollectivesContent extends StatefulWidget {
     this.onActSpace,
     this.query = '',
     this.alphabetical = false,
+    this.descending = false,
     this.mediaApi,
     this.profileId,
   });
@@ -94,6 +95,7 @@ class MeCollectivesContent extends StatefulWidget {
   final ValueChanged<MeItemPresentation>? onActSpace;
   final String query;
   final bool alphabetical;
+  final bool descending;
   final MakoloApiClient? mediaApi;
   final String? profileId;
 
@@ -159,6 +161,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             ? result
             : a.destination.id.compareTo(b.destination.id);
       });
+      if (widget.descending) return items.reversed.toList(growable: false);
     }
     return items;
   }
@@ -364,7 +367,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
   Widget _section(
     String title,
     List<MeItemPresentation> items, {
-    required bool spaces,
+    required String kind,
   }) {
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
@@ -381,10 +384,33 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
           )
         else
           const SizedBox(height: 8),
-        for (final item in items) ...[
-          spaces ? _space(item) : _relation(item),
-          const SizedBox(height: 8),
-        ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Keep the next card visible at the edge: the affordance for a
+            // native horizontal swipe, also on compact screens.
+            final width = constraints.maxWidth;
+            final cardWidth = width < 320
+                ? width * 0.87
+                : (width * 0.78).clamp(248.0, 300.0);
+            return SingleChildScrollView(
+              key: Key('me-collectives-carousel-${kind}'),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final item in items) ...[
+                    SizedBox(
+                      width: cardWidth,
+                      child: kind == 'space' ? _space(item) : _relation(item),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -406,11 +432,11 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
       children: [
         _filters(),
         if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces)
-          _section('Espaces où je peux agir', spaces, spaces: true),
+          _section('Où on peut agir', spaces, kind: 'space'),
         if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams)
-          _section('Mes équipes', teams, spaces: false),
+          _section('Mes équipes', teams, kind: 'team'),
         if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups)
-          _section('Mes groupes', groups, spaces: false),
+          _section('Mes groupes', groups, kind: 'group'),
         if (!hasResults)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
