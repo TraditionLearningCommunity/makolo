@@ -309,7 +309,6 @@
     restore();
     renderReferences();
     setMode('inline');
-    updateComposer();
     $('[data-mk-mark-preview-close]')?.addEventListener('click', closePreview);
     $('[data-mk-mark-owner-cancel]')?.addEventListener('click', closeAssetForm);
     $('[data-mk-mark-preview]')?.addEventListener('close', closePreview);
@@ -573,6 +572,7 @@
     window.addEventListener('resize', handleResize);
     document.addEventListener('htmx:beforeSwap', beforeSwap);
     window.addEventListener('pagehide', teardown);
+    updateComposer();
     // Files intentionally cannot survive a navigation/reload; the server must
     // never be told that they were submitted by the text-only Mark endpoint.
   }
