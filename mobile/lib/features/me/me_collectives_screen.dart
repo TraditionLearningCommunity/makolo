@@ -100,6 +100,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
         _scroll.position.extentAfter >= 480 ||
         !_hasMore ||
         _offline ||
+        _search.text.trim().isNotEmpty ||
         _loading ||
         _failed) {
       return;
