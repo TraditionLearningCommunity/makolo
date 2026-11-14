@@ -17,6 +17,7 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
+import 'conversation_compression.dart';
 import 'conversation_repository.dart';
 import 'conversation_local_delivery.dart';
 import 'conversation_list_tile.dart';
@@ -1416,7 +1417,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _olderLoaded = false;
   bool _loadingOlder = false;
   String? _olderError;
-  final Set<String> _expandedCompletedGroups = {};
+  final ConversationCompressionState _compressionState = ConversationCompressionState();
 
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
@@ -1507,130 +1508,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       _handledFocus = null;
     });
     unawaited(_refreshPublishedFocus(pointId));
-  }
-
-  Widget _attentionLens(BuildContext context, Map<String, dynamic> raw) {
-    final focus = _map(raw);
-    final count = focus['action_count'] is num
-        ? (focus['action_count'] as num).toInt()
-        : 0;
-    // Preserve distinct owner Points; collapse only duplicate IDs in a
-    // previously cached lens, without manufacturing any ranking.
-    final seenPoints = <String>{};
-    List<Map<String, dynamic>> uniquePoints(List<Map<String, dynamic>> rows) =>
-        [
-          for (final row in rows)
-            if (row['id'] == null || seenPoints.add(row['id'].toString())) row,
-        ];
-    final mine = uniquePoints(_maps(focus['for_me']));
-    final decisions = uniquePoints(_maps(focus['to_resolve']));
-    final knowledge = uniquePoints(_maps(focus['to_know']));
-    if (mine.isEmpty && decisions.isEmpty && knowledge.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final duplicateLabels = <String, int>{};
-    for (final item in [...mine, ...decisions, ...knowledge]) {
-      final label = item['label']?.toString() ?? '';
-      duplicateLabels[label] = (duplicateLabels[label] ?? 0) + 1;
-    }
-    final theme = Theme.of(context);
-    String subtitleFor(Map<String, dynamic> item) {
-      final reason = item['reason_label']?.toString() ?? '';
-      final local = MaterialLocalizations.of(context);
-      final deadline = DateTime.tryParse(item['deadline_at']?.toString() ?? '')
-          ?.toLocal();
-      if (deadline != null) {
-        return '$reason · ${local.formatShortDate(deadline)}';
-      }
-      final label = item['label']?.toString() ?? '';
-      final published = DateTime.tryParse(
-        item['published_at']?.toString() ?? '',
-      )?.toLocal();
-      if ((duplicateLabels[label] ?? 0) > 1 && published != null) {
-        return '$reason · ${local.formatShortDate(published)} '
-            '${local.formatTimeOfDay(TimeOfDay.fromDateTime(published), alwaysUse24HourFormat: true)}';
-      }
-      return reason;
-    }
-
-    Widget group(String name, List<Map<String, dynamic>> entries) =>
-        entries.isEmpty
-        ? const SizedBox.shrink()
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 3),
-                child: Text(
-                  '$name · ${entries.length}',
-                  style: theme.textTheme.labelLarge,
-                ),
-              ),
-              for (final item in entries)
-                ListTile(
-                  dense: true,
-                  key: Key('conversation-attention-${item['id']}'),
-                  title: Text(
-                    item['label']?.toString() ?? 'Point',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(subtitleFor(item)),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 14,
-                  ),
-                  onTap: () =>
-                      _openAttentionPoint(item['id']?.toString() ?? ''),
-                ),
-            ],
-          );
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: ExpansionTile(
-          key: const PageStorageKey('conversation-attention-lens'),
-          leading: const Icon(Icons.fact_check_outlined),
-          title: Text(
-            count > 0 ? 'À présent · $count à traiter' : 'À présent · à savoir',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: knowledge.isNotEmpty
-              ? Text(
-                  '${knowledge.length} information${knowledge.length > 1 ? 's' : ''} utile${knowledge.length > 1 ? 's' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : null,
-          children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.38,
-              ),
-              child: ListView(
-                // The ExpansionTile stores a bool under its PageStorageKey.
-                // Give this nested scrollable a separate slot for its double.
-                key: const PageStorageKey('conversation-attention-scroll'),
-                shrinkWrap: true,
-                children: [
-                  group('Pour moi', mine),
-                  group('À régler', decisions),
-                  group('À savoir', knowledge),
-                  if (focus['more_actions'] == true)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Voir les autres éléments dans le fil.'),
-                    ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -2765,11 +2642,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               ),
               body: Column(
                 children: [
-                  if (available && permitted)
-                    _attentionLens(
-                      context,
-                      _map(projection.payload['attention']),
-                    ),
                   if (available && permitted && _newMessagesAvailable)
                     Align(
                       alignment: Alignment.center,
