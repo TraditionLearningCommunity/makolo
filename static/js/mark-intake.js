@@ -285,7 +285,7 @@
       closeAssetForm();
       resetConsent();
       renderReferences();
-      announce('Pièces conservées dans cet onglet uniquement. Utilisez Mes documents pour les transmettre.');
+      announce('');
     }
 
     function setMode(next) {
@@ -309,69 +309,67 @@
     restore();
     renderReferences();
     setMode('inline');
+    updateComposer();
     $('[data-mk-mark-preview-close]')?.addEventListener('click', closePreview);
     $('[data-mk-mark-owner-cancel]')?.addEventListener('click', closeAssetForm);
     $('[data-mk-mark-preview]')?.addEventListener('close', closePreview);
 
-    $('[data-mk-mark-files-open]')?.addEventListener('click', () => {
-      $('[data-mk-mark-files]')?.click();
+    const attachOpen = $('[data-mk-mark-attach-open]');
+    const attachMenu = $('[data-mk-mark-attach-menu]');
+    attachOpen?.addEventListener('click', () => {
+      if (!attachMenu) return;
+      attachMenu.hidden = !attachMenu.hidden;
+      attachOpen.setAttribute('aria-expanded', String(!attachMenu.hidden));
+      if (!attachMenu.hidden) attachMenu.querySelector('button')?.focus();
     });
-    $('[data-mk-mark-photo-open]')?.addEventListener('click', () => {
-      $('[data-mk-mark-photo]')?.click();
+    const pickerMap = {
+      '[data-mk-mark-photo-open]': '[data-mk-mark-photo]',
+      '[data-mk-mark-gallery-open]': '[data-mk-mark-gallery]',
+      '[data-mk-mark-files-open]': '[data-mk-mark-files]',
+    };
+    Object.entries(pickerMap).forEach(([button, picker]) => {
+      $(button)?.addEventListener('click', () => {
+        if (attachMenu) attachMenu.hidden = true;
+        attachOpen?.setAttribute('aria-expanded', 'false');
+        $(picker)?.click();
+      });
     });
-    root.querySelectorAll('[data-mk-mark-files],[data-mk-mark-photo]').forEach((picker) => {
+    root.querySelectorAll(
+      '[data-mk-mark-files],[data-mk-mark-photo],[data-mk-mark-gallery]',
+    ).forEach((picker) => {
       picker.addEventListener('change', () => {
         addFiles(picker.files);
         picker.value = '';
       });
     });
 
+    function updateComposer() {
+      const count = $('[data-mk-mark-count]');
+      const send = $('[data-mk-mark-send]');
+      if (count) {
+        count.hidden = input.value.length < 500;
+        count.textContent = input.value.length + '/600';
+      }
+      if (send) send.disabled = !input.value.trim() || input.value.length > MAX_TEXT;
+      root.classList.toggle('mk-mark-writing', document.activeElement === input);
+    }
+
     input.addEventListener('input', () => {
       resetConsent();
       persist();
+      renderReferences();
+      updateComposer();
       announce(input.value.length > MAX_TEXT
-        ? 'Votre demande dépasse 600 caractères. Raccourcissez-la avant de continuer.'
+        ? 'Raccourcissez votre demande avant de continuer.'
         : '');
     });
+    input.addEventListener('focus', updateComposer);
+    input.addEventListener('blur', updateComposer);
 
     $('[data-mk-mark-clear-selection]')?.addEventListener('click', () => {
       $('[data-mk-mark-selected]')?.remove();
       resetConsent();
-      announce('Le contexte sélectionné a été retiré. Votre texte est conservé.');
       input.focus();
-    });
-
-    $('[data-mk-mark-link-toggle]')?.addEventListener('click', () => {
-      const editor = $('[data-mk-mark-link-editor]');
-      if (!editor) return;
-      editor.hidden = !editor.hidden;
-      if (!editor.hidden) $('[data-mk-mark-link-input]')?.focus();
-    });
-
-    function addLink() {
-      const field = $('[data-mk-mark-link-input]');
-      const value = field?.value.trim();
-      if (!isSafeUrl(value)) {
-        announce('Utilisez une adresse http ou https complète, sans identifiants.');
-        return;
-      }
-      if (links.length >= 8) {
-        announce('Ajoutez au maximum huit liens.');
-        return;
-      }
-      if (!links.includes(value)) links.push(value);
-      field.value = '';
-      resetConsent();
-      renderReferences();
-      persist();
-      announce('Lien conservé localement ; son contenu n’a pas été analysé.');
-    }
-    $('[data-mk-mark-link-add]')?.addEventListener('click', addLink);
-    $('[data-mk-mark-link-input]')?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        addLink();
-      }
     });
 
     // Web Speech is capability-gated and may use a remote browser service.
@@ -493,7 +491,8 @@
       resetConsent();
       try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
       renderReferences();
-      announce('Brouillon de cet onglet effacé.');
+      announce('');
+      updateComposer();
       input.focus();
     });
 
