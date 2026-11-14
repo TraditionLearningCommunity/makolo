@@ -128,96 +128,90 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
             final resourcePayload = resourceSnapshot.data?.payload;
 
             if (state.invalidated) {
-                  return ResourceHubScaffold(
-                    title: 'Nos ressources',
-                    refreshing: _refreshing,
-                    onRefresh: _refresh,
-                    entries: const [],
-                    emptyMessage: 'Ces ressources ne sont pas accessibles avec vos droits actuels.',
-                  );
-                }
+              return ResourceHubScaffold(
+                title: 'Nos ressources',
+                refreshing: _refreshing,
+                onRefresh: _refresh,
+                entries: const [],
+                emptyMessage: 'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+              );
+            }
 
-                if (resourcePayload == null) {
-                  return ResourceHubScaffold(
-                    title: 'Nos ressources',
-                    refreshing: _refreshing,
-                    onRefresh: _refresh,
-                    entries: const [],
-                    emptyMessage: state.lastErrorCode == null
-                        ? 'Ressources en cours de chargement.'
-                        : 'Ressources indisponibles.',
-                  );
-                }
+            if (resourcePayload == null) {
+              return ResourceHubScaffold(
+                title: 'Nos ressources',
+                refreshing: _refreshing,
+                onRefresh: _refresh,
+                entries: const [],
+                emptyMessage: state.lastErrorCode == null
+                    ? 'Ressources en cours de chargement.'
+                    : 'Ressources indisponibles.',
+              );
+            }
 
-                final counts = _map(resourcePayload['counts']);
-                int? visibleCount(String key) {
-                  final value = _int(counts[key]) ?? 0;
-                  return value > 0 ? value : null;
-                }
+            final counts = _map(resourcePayload['counts']);
+            int? visibleCount(String key) {
+              final value = _int(counts[key]) ?? 0;
+              return value > 0 ? value : null;
+            }
 
-                final entries = <ResourceHubEntryData>[
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-documents'),
-                    icon: Icons.folder_copy_outlined,
-                    title: 'Nos documents',
-                    subtitle: 'Fichiers et pièces de cet Espace',
-                    count: visibleCount('document'),
-                    onTap: () =>
-                        context.push('/space/${widget.slug}/us/documents'),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-assets'),
-                    icon: Icons.photo_library_outlined,
-                    title: 'Nos médias',
-                    subtitle: 'Images réutilisables par cet Espace',
-                    count: visibleCount('asset'),
-                    onTap: () => context.push(
-                      '/space/${widget.slug}/us/resources/asset',
-                    ),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-templates'),
-                    icon: Icons.content_copy_outlined,
-                    title: 'Nos modèles',
-                    subtitle: 'Modèles de présentation réutilisables',
-                    count: visibleCount('template'),
-                    onTap: () => context.push(
-                      '/space/${widget.slug}/us/resources/template',
-                    ),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-themes'),
-                    icon: Icons.palette_outlined,
-                    title: 'Nos thèmes',
-                    subtitle: 'Thèmes de présentation réutilisables',
-                    count: visibleCount('theme'),
-                    onTap: () => context.push(
-                      '/space/${widget.slug}/us/resources/theme',
-                    ),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-credentials'),
-                    icon: Icons.workspace_premium_outlined,
-                    title: 'Titres émis',
-                    subtitle:
-                        'Attestations et certificats délivrés par cet Espace',
-                    count: visibleCount('credential'),
-                    onTap: () => context.push(
-                      '/space/${widget.slug}/us/resources/credential',
-                    ),
-                  ),
-                  ResourceHubEntryData(
-                    key: const Key('space-resources-received-titles'),
-                    icon: Icons.verified_outlined,
-                    title: 'Titres reçus',
-                    subtitle:
-                        'Certificats et attestations acquis par cet Espace',
-                    count: visibleCount('received_title'),
-                    onTap: () => context.push(
-                      '/space/${widget.slug}/us/resources/received_title',
-                    ),
-                  ),
-                ];
+            final entries = <ResourceHubEntryData>[
+              ResourceHubEntryData(
+                key: const Key('space-resources-documents'),
+                icon: Icons.folder_copy_outlined,
+                title: 'Nos documents',
+                subtitle: 'Fichiers et pièces de cet Espace',
+                count: visibleCount('document'),
+                onTap: () => context.push('/space/${widget.slug}/us/documents'),
+              ),
+              ResourceHubEntryData(
+                key: const Key('space-resources-assets'),
+                icon: Icons.photo_library_outlined,
+                title: 'Nos médias',
+                subtitle: 'Images réutilisables par cet Espace',
+                count: visibleCount('asset'),
+                onTap: () =>
+                    context.push('/space/${widget.slug}/us/resources/asset'),
+              ),
+              ResourceHubEntryData(
+                key: const Key('space-resources-templates'),
+                icon: Icons.content_copy_outlined,
+                title: 'Nos modèles',
+                subtitle: 'Modèles de présentation réutilisables',
+                count: visibleCount('template'),
+                onTap: () =>
+                    context.push('/space/${widget.slug}/us/resources/template'),
+              ),
+              ResourceHubEntryData(
+                key: const Key('space-resources-themes'),
+                icon: Icons.palette_outlined,
+                title: 'Nos thèmes',
+                subtitle: 'Thèmes de présentation réutilisables',
+                count: visibleCount('theme'),
+                onTap: () =>
+                    context.push('/space/${widget.slug}/us/resources/theme'),
+              ),
+              ResourceHubEntryData(
+                key: const Key('space-resources-credentials'),
+                icon: Icons.workspace_premium_outlined,
+                title: 'Titres émis',
+                subtitle: 'Attestations et certificats délivrés par cet Espace',
+                count: visibleCount('credential'),
+                onTap: () => context.push(
+                  '/space/${widget.slug}/us/resources/credential',
+                ),
+              ),
+              ResourceHubEntryData(
+                key: const Key('space-resources-received-titles'),
+                icon: Icons.verified_outlined,
+                title: 'Titres reçus',
+                subtitle: 'Certificats et attestations acquis par cet Espace',
+                count: visibleCount('received_title'),
+                onTap: () => context.push(
+                  '/space/${widget.slug}/us/resources/received_title',
+                ),
+              ),
+            ];
 
             return ResourceHubScaffold(
               title: 'Nos ressources',

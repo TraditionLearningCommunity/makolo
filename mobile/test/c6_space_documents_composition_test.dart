@@ -84,9 +84,7 @@ void main() {
       resourceKey: SpaceSyncKeys.resourceKey('space-a'),
       schemaVersion: 1,
       payload: {
-        'handoffs': {
-          'resources': '/space/atelier/us/resources',
-        },
+        'handoffs': {'resources': '/space/atelier/us/resources'},
       },
     );
     final tokens = MemoryTokenStore(
