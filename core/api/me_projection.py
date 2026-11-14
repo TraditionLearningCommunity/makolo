@@ -360,7 +360,7 @@ def _authorized_space_item(space, *, profile):
         "archetype_label": space.get_archetype_display(),
         # Activity-scoped authority alone does not disclose private Space bio.
         "description": (
-            space.description or ""
+            (space.description or "")
             if space.public_profile or has_space_authority(profile, space)
             else ""
         ),
