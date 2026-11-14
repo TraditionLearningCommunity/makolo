@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
@@ -36,6 +37,9 @@ class MeCollectivesScreen extends StatefulWidget {
 
 class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   final ScrollController _scroll = ScrollController();
+  final TextEditingController _search = TextEditingController();
+  bool _searching = false;
+  bool _alphabetical = false;
   late Stream<StoredProjection?> _snapshots;
   StreamSubscription<OwnerSourceState>? _ownerSubscription;
   bool _invalidated = false;
@@ -67,6 +71,9 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
       _loading = false;
       _failed = false;
       _hasMore = false;
+      _search.clear();
+      _searching = false;
+      _alphabetical = false;
     }
   }
 
@@ -74,6 +81,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   void dispose() {
     unawaited(_ownerSubscription?.cancel());
     _scroll.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -155,95 +163,179 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
     });
   }
 
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) _search.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     _offline =
         _unreachable ||
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mes collectifs')),
-      body: _invalidated
-          ? const Center(
-              child: Text('Ces collectifs ne sont plus accessibles.'),
-            )
-          : StreamBuilder<StoredProjection?>(
-              key: ValueKey<String>(
-                'me-collectives-scope-${widget.personal.store.profileId}',
-              ),
-              stream: _snapshots,
-              builder: (context, snapshot) {
-                final projection = snapshot.data;
-                if (projection == null) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const MakoloSkeleton(lines: 3);
-                  }
-                  return const Center(
-                    child: Text('Mes collectifs sont indisponibles.'),
-                  );
+    final scheme = Theme.of(context).colorScheme;
+    return StreamBuilder<StoredProjection?>(
+      key: ValueKey<String>(
+        'me-collectives-scope-${widget.personal.store.profileId}',
+      ),
+      stream: _snapshots,
+      builder: (context, snapshot) {
+        final projection = _invalidated ? null : snapshot.data;
+        final count = projection == null
+            ? null
+            : meCollectiveTotal(projection.payload['collectives']);
+        return Scaffold(
+          backgroundColor: scheme.surfaceContainerLowest,
+          appBar: AppBar(
+            backgroundColor: scheme.surface,
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              key: const Key('me-collectives-back'),
+              tooltip: 'Retour à Moi',
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/me');
                 }
-                final selection = const MeSelector().select(
-                  projection: projection,
-                  now: DateTime.now().toUtc(),
-                );
-                final territory = selection.territories.firstWhere(
-                  (item) => item.presentation.key == 'collectives',
-                );
-                _hasMore = territory.hasMore;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _checkEnd();
-                });
-                return ListView(
-                  key: PageStorageKey<String>(
-                    'me-collectives-${widget.personal.store.profileId}',
-                  ),
-                  controller: _scroll,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
-                  children: [
-                    MeCollectivesContent(
-                      key: ValueKey<String>(
-                        'me-collectives-content-${widget.personal.store.profileId}',
-                      ),
-                      items: territory.items,
-                      collectives: projection.payload['collectives'],
-                      offline: _offline,
-                      hasMore: territory.hasMore,
-                      onOpen: widget.onOpenDestination,
-                      onActSpace: widget.onActSpace,
-                    ),
-                    if (_offline && _hasMore)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Suite disponible après reconnexion.'),
-                      ),
-                    if (_loading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      ),
-                    if (_failed)
-                      Center(
-                        child: MakoloActionButton(
-                          label: 'Réessayer',
-                          onPressed: _retry,
-                          appearance: MakoloActionAppearance.quiet,
-                        ),
-                      ),
-                    if (!_loading &&
-                        !_failed &&
-                        !_offline &&
-                        !_hasMore &&
-                        territory.items.isNotEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 20),
-                        child: Center(child: Text('Vous avez tout vu')),
-                      ),
-                  ],
-                );
               },
+              icon: const Icon(Icons.arrow_back_rounded),
             ),
+            titleSpacing: 0,
+            title: _searching
+                ? TextField(
+                    key: const Key('me-collectives-search'),
+                    controller: _search,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      hintText: 'Rechercher',
+                      border: InputBorder.none,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Flexible(
+                        child: Text(
+                          'Mes collectifs',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (count != null && count > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '$count',
+                          key: const Key('me-collectives-title-count'),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
+            actions: [
+              IconButton(
+                key: const Key('me-collectives-search-toggle'),
+                tooltip: _searching
+                    ? 'Fermer la recherche'
+                    : 'Rechercher un collectif',
+                onPressed: _toggleSearch,
+                icon: Icon(
+                  _searching ? Icons.close_rounded : Icons.search_rounded,
+                ),
+              ),
+              PopupMenuButton<bool>(
+                key: const Key('me-collectives-sort'),
+                tooltip: 'Trier les collectifs',
+                icon: const Icon(Icons.sort_rounded),
+                onSelected: (value) => setState(() => _alphabetical = value),
+                itemBuilder: (context) => [
+                  CheckedPopupMenuItem<bool>(
+                    value: false,
+                    checked: !_alphabetical,
+                    child: const Text('Ordre actuel'),
+                  ),
+                  CheckedPopupMenuItem<bool>(
+                    value: true,
+                    checked: _alphabetical,
+                    child: const Text('Nom A à Z'),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          body: _invalidated
+              ? const Center(
+                  child: Text('Ces collectifs ne sont plus accessibles.'),
+                )
+              : projection == null
+              ? snapshot.connectionState == ConnectionState.waiting
+                    ? const MakoloSkeleton(lines: 3)
+                    : const Center(
+                        child: Text('Mes collectifs sont indisponibles.'),
+                      )
+              : _buildCollectives(projection),
+        );
+      },
+    );
+  }
+
+  Widget _buildCollectives(StoredProjection projection) {
+    final selection = const MeSelector().select(
+      projection: projection,
+      now: DateTime.now().toUtc(),
+    );
+    final territory = selection.territories.firstWhere(
+      (item) => item.presentation.key == 'collectives',
+    );
+    _hasMore = territory.hasMore;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkEnd();
+    });
+    return ListView(
+      key: PageStorageKey<String>(
+        'me-collectives-${widget.personal.store.profileId}',
+      ),
+      controller: _scroll,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
+      children: [
+        MeCollectivesContent(
+          key: ValueKey<String>(
+            'me-collectives-content-${widget.personal.store.profileId}',
+          ),
+          items: territory.items,
+          collectives: projection.payload['collectives'],
+          offline: _offline,
+          hasMore: territory.hasMore,
+          query: _search.text,
+          alphabetical: _alphabetical,
+          mediaApi: widget.api,
+          profileId: widget.personal.store.profileId,
+          onOpen: widget.onOpenDestination,
+          onActSpace: widget.onActSpace,
+        ),
+        if (_loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator.adaptive(),
+            ),
+          ),
+        if (_failed)
+          Center(
+            child: MakoloActionButton(
+              label: 'Réessayer',
+              onPressed: _retry,
+              appearance: MakoloActionAppearance.quiet,
+            ),
+          ),
+      ],
     );
   }
 }
