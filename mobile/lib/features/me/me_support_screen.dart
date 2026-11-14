@@ -415,8 +415,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (api == null || programId.isEmpty || _denied) return null;
     final path = actor is SpaceActorContext
         ? _path('loyalty', actor)
-        : 'api/v1/loyalty/me/programs/' +
-            Uri.encodeComponent(programId) + '/';
+        : 'api/v1/loyalty/me/programs/' + Uri.encodeComponent(programId) + '/';
     try {
       final response = await api.get(path);
       if (!_current(generation, actor)) return null;
@@ -436,7 +435,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final actor = _actor;
     final generation = _generation;
     final api = widget.runtime.api;
-    if (actor is! SpaceActorContext || api == null || _busy || _denied ||
+    if (actor is! SpaceActorContext ||
+        api == null ||
+        _busy ||
+        _denied ||
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline) {
       return false;
     }
@@ -447,7 +449,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       'create_plan': '/api/v1/loyalty/plans/',
       'create_reward': '/api/v1/loyalty/rewards/',
     };
-    if (capabilities is! List || !capabilities.contains(action) ||
+    if (capabilities is! List ||
+        !capabilities.contains(action) ||
         path != allowed[action] ||
         _text(body['program_id']) != _text(_map(owner['program'])['id'])) {
       return false;
@@ -456,23 +459,23 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     try {
       await api.post(path.substring(1), body: body);
       if (!_current(generation, actor)) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ajout confirmé.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Ajout confirmé.')));
       return true;
     } on MakoloApiError catch (error) {
       if (_current(generation, actor)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
       return false;
     } on Object {
       if (_current(generation, actor)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-            'Résultat non confirmé. Vérifiez avant de recommencer.',
-          )),
+          const SnackBar(
+            content: Text(
+              'Résultat non confirmé. Vérifiez avant de recommencer.',
+            ),
+          ),
         );
       }
       return false;
@@ -505,9 +508,11 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               ? 'Rejoindre ce programme ?'
               : 'Confirmer la réponse ?',
         ),
-        content: Text(action == 'cancel'
-            ? _label(row) + '\nLes avantages liés à cette adhésion peuvent cesser immédiatement.'
-            : _label(row)),
+        content: Text(
+          action == 'cancel'
+              ? _label(row) + '\nLes avantages liés à cette adhésion peuvent cesser immédiatement.'
+              : _label(row),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
@@ -537,7 +542,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         path,
         body: action == 'redeem'
             ? {'idempotency_key': key}
-            : action == 'join' ? {'plan_id': row['id']} : {},
+            : action == 'join'
+            ? {'plan_id': row['id']}
+            : {},
       );
       if (!mounted || !_current(generation, actor)) return;
       _pendingKeys.remove(operation);

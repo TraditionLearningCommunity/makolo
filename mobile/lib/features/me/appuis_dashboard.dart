@@ -393,30 +393,49 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     if (metrics.isEmpty) return const SizedBox.shrink();
     if (metrics.length == 1) {
       final sole = available.contains('loyalty') && programCount > 0
-          ? programCount.toString() + (programCount == 1 ? ' programme' : ' programmes')
+          ? programCount.toString() +
+                (programCount == 1 ? ' programme' : ' programmes')
           : available.contains('recognition') && achievements > 0
-              ? achievements.toString() + (achievements == 1 ? ' reconnaissance' : ' reconnaissances')
-              : available.contains('recognition') && recognitionRewards > 0
-                  ? recognitionRewards.toString() + (recognitionRewards == 1 ? ' récompense' : ' récompenses')
-                  : loyaltyRewards > 0
-                      ? loyaltyRewards.toString() + (loyaltyRewards == 1 ? ' avantage' : ' avantages')
-                      : partnerCount > 0
-                          ? partnerCount.toString() + (partnerCount == 1 ? ' partenariat' : ' partenariats')
-                          : AppuisViewData.text(credits) + ' crédits Recognition';
+          ? achievements.toString() +
+                (achievements == 1 ? ' reconnaissance' : ' reconnaissances')
+          : available.contains('recognition') && recognitionRewards > 0
+          ? recognitionRewards.toString() +
+                (recognitionRewards == 1 ? ' récompense' : ' récompenses')
+          : loyaltyRewards > 0
+          ? loyaltyRewards.toString() +
+                (loyaltyRewards == 1 ? ' avantage' : ' avantages')
+          : partnerCount > 0
+          ? partnerCount.toString() +
+                (partnerCount == 1 ? ' partenariat' : ' partenariats')
+          : AppuisViewData.text(credits) + ' crédits Recognition';
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
+            colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
+          ),
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Row(children: [
-          const Icon(Icons.auto_awesome_outlined, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          Expanded(child: Text(sole,
-            style: const TextStyle(color: Colors.white,
-              fontSize: 17, fontWeight: FontWeight.w700))),
-        ]),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.auto_awesome_outlined,
+              color: Colors.white,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                sole,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
     return Container(
