@@ -360,7 +360,7 @@ void main() {
       await tester.pumpWidget(_journey('journey-one', repo));
       await tester.pumpAndSettle();
       expect(find.text('MON OBJECTIF'), findsOneWidget);
-      expect(find.text('Où j’en suis'), findsOneWidget);
+      expect(find.text('Mon parcours'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Pour avancer'),
         160,
