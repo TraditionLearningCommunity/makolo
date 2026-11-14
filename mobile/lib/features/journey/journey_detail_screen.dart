@@ -1370,7 +1370,7 @@ class _JourneyIdentity extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.track_changes_rounded,
                 color: scheme.primary,
                 size: 24,
