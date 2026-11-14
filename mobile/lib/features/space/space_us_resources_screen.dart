@@ -126,13 +126,8 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           stream: repository.watchResources(actor.space),
           builder: (context, resourceSnapshot) {
             final resourcePayload = resourceSnapshot.data?.payload;
-            return StreamBuilder(
-              stream: repository.watchUs(actor.space),
-              builder: (context, usSnapshot) {
-                final usPayload = usSnapshot.data?.payload;
-                final handoffs = _map(usPayload?['handoffs']);
 
-                if (state.invalidated) {
+            if (state.invalidated) {
                   return ResourceHubScaffold(
                     title: 'Nos ressources',
                     refreshing: _refreshing,
@@ -224,13 +219,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                   ),
                 ];
 
-                return ResourceHubScaffold(
-                  title: 'Nos ressources',
-                  refreshing: _refreshing,
-                  onRefresh: _refresh,
-                  entries: entries,
-                );
-              },
+            return ResourceHubScaffold(
+              title: 'Nos ressources',
+              refreshing: _refreshing,
+              onRefresh: _refresh,
+              entries: entries,
             );
           },
         );
@@ -245,11 +238,6 @@ Map<String, dynamic> _map(Object? value) {
     return value.map((key, item) => MapEntry(key.toString(), item));
   }
   return const {};
-}
-
-String? _text(Object? value) {
-  final text = value?.toString().trim();
-  return text == null || text.isEmpty ? null : text;
 }
 
 int? _int(Object? value) =>
