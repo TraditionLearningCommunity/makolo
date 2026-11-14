@@ -128,12 +128,50 @@ class ConversationFormsTests(TestCase):
 
         self.client.force_login(self.member)
         detail = self.client.get(reverse("conversations:detail", kwargs={"pk": conversation.pk}))
-        self.assertContains(detail, "Compléter le formulaire")
+        self.assertContains(detail, 'data-conversation-inline-form')
+        self.assertContains(detail, 'q_' + str(form_request.pk) + '_need')
 
         save_response(request=form_request, actor=self.member, answers={"need": "Un micro"})
         self.assertEqual(point_attention_reason(self.member, point), "form")
         submit_response(request=form_request, actor=self.member)
         self.assertIsNone(point_attention_reason(self.member, point))
+
+    def test_inline_form_submits_in_conversation_with_existing_owner(self):
+        conversation, point = self._form_point()
+        ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
+        form_request = form_request_for_profile(point, self.member)
+        self.client.force_login(self.member)
+        endpoint = reverse("conversations:point-form", kwargs={"point_pk": point.pk})
+        saved = self.client.post(
+            endpoint, {"action": "save", "q_need": "Un micro"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertIn("data-conversation-inline-form", saved.json()["html"])
+        form_request.refresh_from_db()
+        self.assertNotEqual(form_request.status, FormRequestStatus.COMPLETED)
+        submitted = self.client.post(
+            endpoint, {"action": "submit", "q_need": "Un micro"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(submitted.status_code, 200)
+        self.assertIn("Votre réponse", submitted.json()["html"])
+        form_request.refresh_from_db()
+        self.assertEqual(form_request.status, FormRequestStatus.COMPLETED)
+        self.assertIsNone(point_attention_reason(self.member, point))
+
+    def test_inline_form_rejects_a_profile_without_the_request(self):
+        _, point = self._form_point()
+        ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
+        self.client.force_login(self.outsider)
+        endpoint = reverse("conversations:point-form", kwargs={"point_pk": point.pk})
+        response = self.client.post(endpoint, {
+            "action": "submit", "q_need": "Donnée interdite",
+        })
+        self.assertIn(response.status_code, (403, 404))
+        form_request = form_request_for_profile(point, self.member)
+        form_request.refresh_from_db()
+        self.assertNotEqual(form_request.status, FormRequestStatus.COMPLETED)
 
     def test_form_bridge_is_idempotent_for_same_point_and_profile(self):
         _, point = self._form_point()
