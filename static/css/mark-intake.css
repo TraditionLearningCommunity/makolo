@@ -293,3 +293,252 @@
 @media (max-width: 680px) {
   .mk-mark-owner-fields { grid-template-columns: 1fr; }
 }
+
+/* Compact Mark composer, shared by Profile and Space. */
+.mk-mark-page .mk-mark-composer {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 62px 10px 12px;
+  border: 1px solid var(--mk-border);
+  border-radius: 24px;
+  background: var(--mk-surface-solid);
+}
+.mk-mark-page .mk-mark-composer:focus-within {
+  border-color: var(--mk-brand);
+}
+.mk-mark-page .mk-mark-composer textarea[name="intent"],
+.mk-mark-page .mk-mark-composer textarea[name="value"] {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  max-height: 220px;
+  padding: 10px 4px 8px;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+  background: transparent !important;
+  color: var(--mk-text);
+  font: inherit;
+  resize: vertical;
+}
+.mk-mark-page .mk-mark-composer textarea:focus-visible {
+  outline: none;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-support {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-tools {
+  order: 2;
+  display: flex;
+  gap: 6px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-references {
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-dictation {
+  order: 3;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-height: 48px;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--mk-surface-solid);
+  border: 1px solid var(--mk-border);
+  border-radius: 16px;
+  font-size: .85rem;
+}
+.mk-mark-page .mk-mark-dictation [data-mk-mark-speech-status] {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-mark-page .mk-mark-dictation button,
+.mk-mark-page .mk-mark-icon {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mk-text);
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-dictation button:disabled { opacity: .35; }
+.mk-mark-page :is(.mk-mark-icon, .mk-mark-dictation button) svg { width: 22px; height: 22px; }
+.mk-mark-page .mk-mark-icon:hover { background: color-mix(in srgb, var(--mk-brand) 8%, transparent); }
+.mk-mark-page .mk-mark-send {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: var(--mk-brand);
+  color: #fff;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-send svg { width: 21px; height: 21px; }
+.mk-mark-page .mk-mark-send:disabled { opacity: .34; cursor: default; }
+.mk-mark-page .mk-mark-count {
+  position: absolute;
+  right: 68px;
+  bottom: 23px;
+  font-size: .75rem;
+  color: var(--mk-muted);
+}
+.mk-mark-page .mk-mark-attach-menu {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% - 2px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(550px, 90vw);
+  padding: 12px;
+  border: 1px solid var(--mk-border);
+  border-radius: 22px;
+  background: var(--mk-surface-solid);
+  box-shadow: 0 15px 45px rgba(15, 23, 42, .16);
+}
+.mk-mark-page .mk-mark-attach-menu button {
+  min-width: 0;
+  min-height: 102px;
+  padding: 12px 5px;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mk-brand) 6%, var(--mk-surface-solid));
+  color: var(--mk-text);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .82rem;
+}
+.mk-mark-page .mk-mark-attach-menu svg { width: 25px; height: 25px; }
+.mk-mark-page .mk-mark-file-tile {
+  position: relative;
+  width: 104px;
+  min-height: 114px;
+  border-radius: 14px;
+  padding: 3px 3px 8px;
+  background: color-mix(in srgb, var(--mk-brand) 5%, var(--mk-surface-solid));
+  border: 1px solid var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-preview {
+  width: 100%;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: var(--mk-surface-solid);
+  cursor: pointer;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-mark-page .mk-mark-file-type {
+  color: var(--mk-brand);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.mk-mark-page .mk-mark-file-name {
+  padding: 5px 2px 0;
+  font-size: .7rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-file-save {
+  border: 0;
+  color: var(--mk-brand);
+  text-align: left;
+  padding: 4px;
+  font-size: .71rem;
+  font-weight: 700;
+  background: transparent;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--mk-border);
+  border-radius: 999px;
+  color: var(--mk-muted);
+  font-size: .73rem;
+}
+.mk-mark-page .mk-mark-link-chip span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+.mk-mark-page .mk-mark-link-chip button { min-width: 32px; min-height: 32px; }
+.mk-mark-page .mk-mark-composer [data-mk-mark-feedback] {
+  order: 4;
+  margin: 2px 0;
+}
+@media (max-width: 767px) {
+  .mk-mark-page.mk-mark-writing .mk-mark-intro { display: none; }
+  .mk-mark-page .mk-mark-composer { padding-right: 60px; }
+  .mk-mark-page .mk-mark-composer textarea[name="intent"],
+  .mk-mark-page .mk-mark-composer textarea[name="value"] {
+    min-height: 44px;
+    max-height: 150px;
+  }
+  .mk-mark-page .mk-mark-attach-menu {
+    left: 0;
+    width: min(90vw, 450px);
+  }
+  .mk-mark-page .mk-mark-attach-menu button { font-size: .76rem; }
+}
