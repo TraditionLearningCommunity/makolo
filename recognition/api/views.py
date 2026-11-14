@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from recognition.economy import accept_redemption, decline_redemption, redeem_reward
-from recognition.models import RecognitionRedemption, RedemptionStatus, RewardKind
+from recognition.models import RecognitionRedemption, RedemptionStatus
 from recognition.valuation import credit_money_equivalent
 from recognition.presentation import reward_spend_presentation, reward_self_actionable
 from recognition.selectors import (
