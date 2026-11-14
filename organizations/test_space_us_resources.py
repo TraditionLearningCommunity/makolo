@@ -22,6 +22,7 @@ from presentations.models import (
     PresentationThemeVersion,
 )
 from sharing.models import PassportSnapshot, PublicSubjectKind
+from space_assets.models import SpaceDocument
 from trust.credential_models import Credential, CredentialType
 
 
@@ -186,6 +187,25 @@ class SpaceUsResourcesTests(TestCase):
             "Attestation institutionnelle",
         )
         self.assertNotIn("payload", str(docs.data))
+
+    def test_received_titles_are_a_document_view_without_double_counting(self):
+        SpaceDocument.objects.create(
+            space=self.space,
+            title="Attestation externe",
+            kind="certificate",
+            visibility="internal",
+            created_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+
+        received = self.client.get(self.url + "?kind=received_title")
+        self.assertEqual(received.status_code, 200, received.data)
+        self.assertEqual(received.data["count"], 1)
+        self.assertEqual(received.data["items"][0]["title"], "Attestation externe")
+        self.assertEqual(received.data["items"][0]["owner"], "space_assets")
+        self.assertEqual(received.data["counts"]["document"], 1)
+        self.assertEqual(received.data["counts"]["received_title"], 1)
+        self.assertEqual(received.data["total_count"], 1)
 
     def test_foreign_member_and_viewer_without_authority_are_refused(self):
         self._snapshot(self.space)
