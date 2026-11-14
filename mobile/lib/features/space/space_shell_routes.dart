@@ -1361,7 +1361,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           ],
           if (_teamMutating) const LinearProgressIndicator(),
           if (widget.depth == 'trust') ...[
-            if (_map(payload['trust'])?['claims'] case final List claims)
+            if (_map(payload['trust'])?['claims'] case final List claims) ...[
               if (claims.isNotEmpty) ...[
                 for (final claim in claims)
                   if (_map(claim) case final fact?)
@@ -1389,7 +1389,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     ),
               ] else if (!observationOnly)
                 const MakoloEmptyState(title: 'Aucun fait à afficher.'),
-            else if (!observationOnly)
+            ] else if (!observationOnly)
               const MakoloEmptyState(title: 'Aucun fait à afficher.'),
           ] else if (rows.isEmpty && !observationOnly)
             const MakoloEmptyState(title: 'Aucun élément visible ici.')
