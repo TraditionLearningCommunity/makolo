@@ -26,8 +26,8 @@ No attachment or guessed entitlement is submitted to the Mark text endpoint.
       <i data-lucide="paperclip" aria-hidden="true"></i><span>Fichiers</span>
     </button>
   </div>
-  <input id="mark-files-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-files hidden multiple
-    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,.m4a,.mp3,.wav,audio/*,image/*">
+  <input id="mark-files-{{ mark_scope|default:'personal' }}" type="file"
+    data-mk-mark-files hidden multiple>
   <input id="mark-photo-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-photo hidden
     capture="environment" accept="image/*">
   <input id="mark-gallery-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-gallery hidden
