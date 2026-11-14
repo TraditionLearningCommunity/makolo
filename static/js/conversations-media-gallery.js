@@ -14,10 +14,12 @@
     }
   }
 
-  for (const group of document.querySelectorAll("[data-conversation-media-group]")) {
+  function initializeGroup(group) {
+    if (group.dataset.mediaGalleryReady === "true") return;
     const items = [...group.querySelectorAll("[data-conversation-media-item]")];
     const dialog = group.querySelector("[data-conversation-media-dialog]");
-    if (!dialog || !items.length || typeof dialog.showModal !== "function") continue;
+    if (!dialog || !items.length || typeof dialog.showModal !== "function") return;
+    group.dataset.mediaGalleryReady = "true";
 
     const body = dialog.querySelector("[data-media-dialog-body]");
     const title = dialog.querySelector("[data-media-dialog-title]");
@@ -168,5 +170,19 @@
         share.disabled = false;
       }
     });
+  }
+
+  function initialize() {
+    for (const group of document.querySelectorAll("[data-conversation-media-group]")) {
+      initializeGroup(group);
+    }
+  }
+  initialize();
+  // Earlier authorized pages and confirmed inline Forms insert new Point DOM.
+  // Attach their media controls without reinitializing existing players.
+  const timeline = document.querySelector("[data-conversation-thread]");
+  if (timeline && typeof MutationObserver !== "undefined") {
+    const observer = new MutationObserver(() => initialize());
+    observer.observe(timeline, {childList: true, subtree: true});
   }
 })();
