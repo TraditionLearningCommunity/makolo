@@ -349,12 +349,20 @@ void main() {
     tester,
   ) async {
     const z = MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: 'space-z', link: 'z'),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: 'space-z',
+        link: 'z',
+      ),
       title: 'Zulu',
       canOpen: true,
     );
     const a = MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: 'space-a', link: 'a'),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: 'space-a',
+        link: 'a',
+      ),
       title: 'Alpha',
       canOpen: true,
     );
