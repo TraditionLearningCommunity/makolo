@@ -2839,8 +2839,12 @@ class _PointCardState extends State<_PointCard> {
       'response:${widget.point.id}:${widget.representedSpaceId ?? 'profile'}';
 
   Future<void> _restoreInlineResponse() async {
-    if (!const {'free_text', 'number', 'date', 'datetime'}
-        .contains(widget.point.responseMode)) {
+    if (!const {
+      'free_text',
+      'number',
+      'date',
+      'datetime',
+    }.contains(widget.point.responseMode)) {
       return;
     }
     final delivery = widget.repository.delivery;
@@ -2852,7 +2856,8 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         kind: kind,
       );
-      if (!mounted || pointId != widget.point.id ||
+      if (!mounted ||
+          pointId != widget.point.id ||
           _inlineResponse.text.isNotEmpty ||
           widget.point.hasRespondedForScope(widget.representedSpaceId)) {
         return;
@@ -2876,11 +2881,13 @@ class _PointCardState extends State<_PointCard> {
     _inlineDraftTimer = Timer(const Duration(milliseconds: 400), () {
       _inlineDraftWrites = _inlineDraftWrites
           .catchError((Object _) {})
-          .then((_) => delivery.saveDraft(
-                conversationId: conversationId,
-                kind: kind,
-                payload: {'value': value},
-              ));
+          .then(
+            (_) => delivery.saveDraft(
+              conversationId: conversationId,
+              kind: kind,
+              payload: {'value': value},
+            ),
+          );
     });
   }
 
@@ -2913,8 +2920,13 @@ class _PointCardState extends State<_PointCard> {
             : TimeOfDay.fromDateTime(previous),
       );
       if (time == null || !mounted) return;
-      value = DateTime(date.year, date.month, date.day, time.hour, time.minute)
-          .toUtc().toIso8601String();
+      value = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      ).toUtc().toIso8601String();
     } else {
       value = date.toIso8601String().split('T').first;
     }
@@ -2928,11 +2940,15 @@ class _PointCardState extends State<_PointCard> {
     if (_inlineResponse.text.isNotEmpty && !_locallyQueued) {
       final delivery = widget.repository.delivery;
       if (delivery != null) {
-        unawaited(delivery.saveDraft(
-          conversationId: widget.conversationId,
-          kind: _responseDraftKind,
-          payload: {'value': _inlineResponse.text},
-        ).catchError((Object _) {}));
+        unawaited(
+          delivery
+              .saveDraft(
+                conversationId: widget.conversationId,
+                kind: _responseDraftKind,
+                payload: {'value': _inlineResponse.text},
+              )
+              .catchError((Object _) {}),
+        );
       }
     }
     _inlineResponse.dispose();
