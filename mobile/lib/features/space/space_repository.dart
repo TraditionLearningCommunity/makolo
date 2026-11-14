@@ -767,20 +767,15 @@ final class WorkspaceContextRepository {
         state.lastSuccessAt == null ||
         state.lastErrorCode != null ||
         state.invalidated ||
-        surfaceFreshness.evaluate(
-              projection,
-              now: DateTime.now().toUtc(),
-            ) !=
+        surfaceFreshness.evaluate(projection, now: DateTime.now().toUtc()) !=
             FreshnessState.fresh;
     if (shouldRefresh) {
       await refreshResourceFamily(space, kind);
     }
   }
 
-  Future<void> refreshResourceFamily(
-    SpaceActorIdentity space,
-    String kind,
-  ) => _refresh(resourceFamilySource(space, kind));
+  Future<void> refreshResourceFamily(SpaceActorIdentity space, String kind) =>
+      _refresh(resourceFamilySource(space, kind));
 
   Future<bool> shouldRefreshDocumentDetail(
     SpaceActorIdentity space,

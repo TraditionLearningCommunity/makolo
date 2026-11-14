@@ -333,10 +333,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   ),
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  'Type',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                Text('Type', style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: MakoloSpacing.xs),
                 Wrap(
                   spacing: MakoloSpacing.sm,
@@ -355,10 +352,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   ],
                 ),
                 const SizedBox(height: MakoloSpacing.md),
-                Text(
-                  'Accès',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                Text('Accès', style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: MakoloSpacing.xs),
                 SegmentedButton<String>(
                   segments: const [
@@ -453,9 +447,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       }
     } on MakoloApiError catch (error) {
       if (mounted && _actor?.space.id == expectedId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } on Object {
       if (mounted && _actor?.space.id == expectedId) {
