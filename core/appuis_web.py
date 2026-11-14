@@ -10,6 +10,7 @@ from django.views.generic import TemplateView
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from authorization.selectors import has_direct_space_permission
 from loyalty.models import LoyaltyProgram
 from loyalty.permissions import user_can_view_loyalty_workspace
 from loyalty.selectors import (
@@ -62,8 +63,8 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
                 account_for_space(space) if recognition_visible else None
             )
             context["recognition_can_spend"] = bool(
-                recognition_visible and can(
-                    viewer, PermissionCode.SPACE_RECOGNITION_SPEND, space=space
+                recognition_visible and has_direct_space_permission(
+                    viewer, space, PermissionCode.SPACE_RECOGNITION_SPEND
                 )
             )
             context["recognition_url"] = (
