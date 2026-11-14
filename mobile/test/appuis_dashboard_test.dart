@@ -29,6 +29,10 @@ Map<String, Map<String, dynamic>> data({
 Widget harness(
   Map<String, Map<String, dynamic>> snapshots, {
   bool space = false,
+  bool canMutate = true,
+  Map<String, dynamic>? owner,
+  bool Function(Map<String, dynamic>, String, String)? allowed,
+  Future<void> Function(Map<String, dynamic>, String, String)? onAction,
 }) => MaterialApp(
   home: Scaffold(
     body: SingleChildScrollView(
@@ -37,8 +41,11 @@ Widget harness(
         actorKey: space ? 'space:one' : 'personal',
         space: space,
         busy: false,
-        onAction: (row, family, action) async {},
-        allowed: (row, family, action) => false,
+        onAction: onAction ?? (row, family, action) async {},
+        onReadProgram: (id) async => owner,
+        onCreateSpaceItem: (owner, action, body) async => false,
+        canMutate: canMutate,
+        allowed: allowed ?? (row, family, action) => false,
       ),
     ),
   ),
@@ -160,3 +167,106 @@ void main() {
     expect(find.text('Ma fidélité'), findsNothing);
   });
 }
+
+testWidgets('single indicator uses a compact banner', (tester) async {
+  await tester.pumpWidget(harness(data(
+    accounts: [account('one', 'Club A')],
+  )));
+  expect(find.text('1 programme'), findsOneWidget);
+  expect(find.text('Ce qui est déjà disponible'), findsNothing);
+});
+
+testWidgets('true empty has no summary, filters or fictional items',
+    (tester) async {
+  await tester.pumpWidget(harness(data()));
+  expect(find.text('Mes appuis'), findsNothing);
+  expect(find.byType(ChoiceChip), findsNothing);
+  expect(find.textContaining('programme'), findsNothing);
+});
+
+testWidgets('Space detail exposes real levels and plan benefits',
+    (tester) async {
+  const program = {
+    'id': 'space-program',
+    'name': 'Parcours fidélité communautaire',
+    'description': 'Programme de reconnaissance des participations',
+    'tiers': [
+      {'name': 'Niveau START', 'threshold_points': 0,
+        'benefits': 'Accueil du participant', 'is_active': true},
+      {'name': 'Niveau ACTIF', 'threshold_points': 50,
+        'benefits': 'Accès aux avantages', 'is_active': true},
+    ],
+    'membership_plans': [
+      {'name': 'Adhésion fictive gratuite',
+        'id': 'plan', 'is_active': true, 'is_free': true,
+        'duration_days': 365,
+        'benefits': 'Participer au programme'},
+    ],
+    'rewards': <Object>[],
+  };
+  await tester.pumpWidget(harness({
+    'loyalty': {'program': program},
+  }, space: true, owner: {
+    'program': program, 'capabilities': <Object>[],
+  }));
+  await tester.tap(find.text('Parcours fidélité communautaire').last);
+  await tester.pumpAndSettle();
+  expect(find.text('Niveau START'), findsOneWidget);
+  expect(find.text('Dès 50 points · Accès aux avantages'), findsOneWidget);
+  expect(find.textContaining('Participer au programme'), findsOneWidget);
+  expect(find.text('Ajouter'), findsNothing);
+});
+
+testWidgets('membership detail makes cancellation secondary',
+    (tester) async {
+  final membership = <String, dynamic>{
+    'id': 'mem-1', 'program': 'one', 'plan': 'p1',
+    'plan_name': 'Formule gratuite', 'status': 'active',
+    'capabilities': ['cancel'],
+    'links': {'cancel': '/api/v1/loyalty/memberships/mem-1/cancel/'},
+  };
+  await tester.pumpWidget(harness({
+    'loyalty': {
+      'accounts': [account('one', 'Club A')],
+      'memberships': [membership],
+    }
+  }, owner: {
+    'program': {
+      'id': 'one', 'name': 'Club A',
+      'membership_plans': [
+        {'id':'p1','name':'Formule gratuite',
+          'benefits':'Accès aux ateliers','is_active':true},
+      ],
+    },
+  }, allowed: (row, family, action) => action == 'cancel'));
+  await tester.tap(find.text('Club A').first);
+  await tester.pumpAndSettle();
+  expect(find.text('Mettre fin à cette adhésion'), findsNothing);
+  await tester.tap(find.text('Formule gratuite').first);
+  await tester.pumpAndSettle();
+  expect(find.text('Accès aux ateliers'), findsOneWidget);
+  expect(find.text('Mettre fin à cette adhésion'), findsOneWidget);
+});
+
+testWidgets('a refused action or offline depth exposes no fake success',
+    (tester) async {
+  final membership = <String, dynamic>{
+    'id': 'mem-1', 'program': 'one',
+    'plan_name': 'Formule gratuite', 'status': 'active',
+    'capabilities': ['cancel'],
+  };
+  var called = false;
+  await tester.pumpWidget(harness({
+    'loyalty': {
+      'accounts': [account('one', 'Club A')],
+      'memberships': [membership],
+    },
+  }, canMutate: false, allowed: (_, _, _) => false,
+      onAction: (_, _, _) async { called = true; }));
+  await tester.tap(find.text('Club A').first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Formule gratuite'));
+  await tester.pumpAndSettle();
+  expect(find.text('Mettre fin à cette adhésion'), findsNothing);
+  expect(called, false);
+});
