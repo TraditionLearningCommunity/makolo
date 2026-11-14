@@ -15,6 +15,7 @@ import '../me/me_support_screen.dart';
 import 'dossier_workspace_screen.dart';
 import 'dossier_people_screen.dart';
 import 'project_workspace_screen.dart';
+import 'project_invitations_screen.dart';
 
 List<RouteBase> continuityRoutes(AppRuntime runtime) => [
   GoRoute(
@@ -282,6 +283,19 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenJourney: (id) => context.push('/journeys/$id'),
       );
     },
+  ),
+  GoRoute(
+    path: '/project-invitations',
+    builder: (context, state) => runtime.api == null
+        ? const MakoloSecondaryScreen(
+            title: 'Invitations',
+            message: 'Les invitations sont indisponibles.',
+          )
+        : ProjectInvitationsScreen(
+            api: runtime.api!,
+            onOpenProject: (id) =>
+                context.pushReplacement('/projects/${Uri.encodeComponent(id)}'),
+          ),
   ),
   GoRoute(
     path: '/projects/:id',
