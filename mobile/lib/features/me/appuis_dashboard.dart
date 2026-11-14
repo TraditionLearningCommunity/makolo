@@ -76,6 +76,7 @@ class AppuisViewData {
     }
     if (family == 'recognition') {
       return positive(map(data['summary'])['available_credits']) ||
+          positive(map(data['summary'])['pending_credits']) ||
           rows(data['incoming']).isNotEmpty ||
           rows(data['rewards']).isNotEmpty ||
           rows(data['achievements']).isNotEmpty ||
@@ -552,6 +553,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     if (family == 'recognition') {
       final rows = _recognitionRows();
       final credits = AppuisViewData.map(data['summary'])['available_credits'];
+      final pending = AppuisViewData.map(data['summary'])['pending_credits'];
       return Column(
         children: [
           if (AppuisViewData.positive(credits))
@@ -561,6 +563,10 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               highlight: '${AppuisViewData.text(credits)} disponibles',
               open: () => _openFamily(family),
             ),
+          if (AppuisViewData.positive(pending))
+            _card(Icons.hourglass_top_outlined, 'Crédits en attente',
+              highlight: AppuisViewData.text(pending) + ' crédits',
+              open: () => _openFamily(family)),
           if (rows.isEmpty &&
               !AppuisViewData.positive(credits) &&
               AppuisViewData.rows(data['recent_activity']).isNotEmpty)
