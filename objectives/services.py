@@ -126,15 +126,21 @@ def invite_to_project(*, actor, project, invitee, role):
 def respond_project_invitation(*, actor, invitation, accept):
     """The invitee must explicitly consent before any Project mandate exists."""
     _require_authenticated(actor)
+    project_id = ProjectInvitation.objects.filter(
+        pk=invitation.pk, invitee=actor,
+    ).values_list("project_id", flat=True).first()
+    if project_id is None:
+        raise PermissionDenied("Invitation non accessible.")
+    # Keep the same lock order as invitation creation: Project then invitation.
+    project = _locked_project(Project.objects.get(pk=project_id))
     invitation = ProjectInvitation.objects.select_for_update().select_related(
-        "project", "role", "invited_by",
-    ).filter(pk=invitation.pk, invitee=actor).first()
+        "role", "invited_by",
+    ).filter(pk=invitation.pk, invitee=actor, project=project).first()
     if invitation is None:
         raise PermissionDenied("Invitation non accessible.")
     if invitation.status != ProjectInvitationStatus.PENDING:
         raise ValidationError("Cette invitation n'est plus en attente.")
     if accept:
-        project = _locked_project(invitation.project)
         if not can_manage_project_authority(invitation.invited_by, project):
             raise ValidationError("Cette invitation n'est plus valide.")
         if current_mandates().filter(
