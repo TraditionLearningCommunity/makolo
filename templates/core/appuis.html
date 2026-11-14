@@ -14,7 +14,7 @@
 
   {% if appuis_available %}
     {% if appuis_metrics %}
-    <div class="ap-hero" aria-label="Synthèse des appuis disponibles">
+    <div class="ap-hero{% if appuis_metrics|length == 1 %} ap-hero--single{% endif %}" aria-label="Synthèse des appuis disponibles">
       <h2 class="ap-hero-title">{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %}</h2>
       <p class="ap-hero-desc">Ce qui est déjà disponible</p>
       <div class="ap-metrics">
