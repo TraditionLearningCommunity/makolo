@@ -1484,6 +1484,103 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 }
 
+/// Thumbnail reads only the active Profile's locally staged file.
+/// No network request, image upload or inferred owner state is involved.
+class _MarkImageThumbnail extends StatefulWidget {
+  const _MarkImageThumbnail({
+    super.key,
+    required this.loadPath,
+    required this.name,
+    required this.onOpen,
+    required this.onRemove,
+  });
+
+  final Future<String?> Function() loadPath;
+  final String name;
+  final VoidCallback? onOpen;
+  final VoidCallback? onRemove;
+
+  @override
+  State<_MarkImageThumbnail> createState() => _MarkImageThumbnailState();
+}
+
+class _MarkImageThumbnailState extends State<_MarkImageThumbnail> {
+  late Future<String?> _path;
+
+  @override
+  void initState() {
+    super.initState();
+    _path = widget.loadPath();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 92,
+      height: 100,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 8,
+            child: Material(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: widget.onOpen,
+                child: FutureBuilder<String?>(
+                  future: _path,
+                  builder: (context, snapshot) {
+                    final path = snapshot.data;
+                    return path == null
+                        ? Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          )
+                        : Image.file(
+                            File(path),
+                            key: ValueKey(path),
+                            fit: BoxFit.cover,
+                            cacheWidth: 260,
+                            errorBuilder: (_, _, _) => Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          );
+                  },
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton.filledTonal(
+              tooltip: 'Retirer ${widget.name}',
+              onPressed: widget.onRemove,
+              icon: const Icon(Icons.close_rounded, size: 16),
+              iconSize: 16,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 36,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MarkResultView extends StatelessWidget {
   const _MarkResultView({
     required this.result,
