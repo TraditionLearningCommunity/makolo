@@ -7,6 +7,9 @@ import 'me_selector.dart';
 
 enum _CollectiveTab { all, spaces, teams, groups }
 
+/// Local display preference only; authority and data are unchanged.
+enum MeCollectivesLayout { categories, list }
+
 Map<String, dynamic>? _collectiveMap(Object? raw) {
   if (raw is! Map) return null;
   return raw.map((key, value) => MapEntry(key.toString(), value));
@@ -85,6 +88,8 @@ class MeCollectivesContent extends StatefulWidget {
     this.descending = false,
     this.mediaApi,
     this.profileId,
+    this.layout = MeCollectivesLayout.categories,
+    this.onLayoutChanged,
   });
 
   final List<MeItemPresentation> items;
@@ -98,6 +103,8 @@ class MeCollectivesContent extends StatefulWidget {
   final bool descending;
   final MakoloApiClient? mediaApi;
   final String? profileId;
+  final MeCollectivesLayout layout;
+  final ValueChanged<MeCollectivesLayout>? onLayoutChanged;
 
   @override
   State<MeCollectivesContent> createState() => _MeCollectivesContentState();
@@ -105,6 +112,19 @@ class MeCollectivesContent extends StatefulWidget {
 
 class _MeCollectivesContentState extends State<MeCollectivesContent> {
   _CollectiveTab _tab = _CollectiveTab.all;
+  late MeCollectivesLayout _layout = widget.layout;
+
+  @override
+  void didUpdateWidget(covariant MeCollectivesContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.layout != oldWidget.layout) _layout = widget.layout;
+  }
+
+  void _chooseLayout(MeCollectivesLayout layout) {
+    if (_layout == layout) return;
+    setState(() => _layout = layout);
+    widget.onLayoutChanged?.call(layout);
+  }
 
   Map<String, dynamic>? _family(String kind) {
     final key = switch (kind) {
@@ -364,6 +384,129 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     );
   }
 
+  Widget _layoutToggle() => Row(
+    children: [
+      Expanded(child: _filters()),
+      const SizedBox(width: 6),
+      SegmentedButton<MeCollectivesLayout>(
+        key: const Key('me-collectives-layout-toggle'),
+        showSelectedIcon: false,
+        style: const ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 6),
+          ),
+        ),
+        segments: const [
+          ButtonSegment(
+            value: MeCollectivesLayout.categories,
+            icon: Icon(Icons.view_carousel_outlined, size: 19),
+            tooltip: 'Par catégories',
+          ),
+          ButtonSegment(
+            value: MeCollectivesLayout.list,
+            icon: Icon(Icons.view_list_rounded, size: 19),
+            tooltip: 'Liste',
+          ),
+        ],
+        selected: {_layout},
+        onSelectionChanged: (selection) => _chooseLayout(selection.first),
+      ),
+    ],
+  );
+
+  String? _spaceFact(MeItemPresentation item, String key) {
+    final row = _row(item);
+    final raw = row?[key];
+    if (raw is! String) return null;
+    final text = raw.trim();
+    return text.isEmpty ? null : text;
+  }
+
+  /// Portrait card used for all three families. Any archétype / bio is
+  /// rendered only when explicitly projected by that collective's owner.
+  Widget _portraitCard(MeItemPresentation item) {
+    final scheme = Theme.of(context).colorScheme;
+    final kind = item.destination.kind;
+    final destination = widget.offline ? null : _destination(item);
+    final canAct = _canAct(item);
+    final archetype = kind == 'space' ? _spaceFact(item, 'archetype_label') : null;
+    final bio = _spaceFact(item, 'description');
+    return Material(
+      key: Key('me-collective-card-$kind-${item.destination.id}'),
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: destination == null ? null : () => widget.onOpen(destination),
+        child: Padding(
+          padding: const EdgeInsets.all(13),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: _visual(item, size: 100)),
+              const SizedBox(height: 12),
+              if (archetype != null) ...[
+                Text(
+                  archetype,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+              ],
+              Text(
+                item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              if (bio != null) ...[
+                Text(
+                  bio,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 5),
+              ],
+              if (item.subtitle != null)
+                Text(
+                  kind == 'space' && widget.offline
+                      ? 'Espace lié à moi'
+                      : item.subtitle!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              if (canAct) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    key: Key('me-collectives-act-${item.destination.id}'),
+                    onPressed: () => widget.onActSpace!(item),
+                    icon: const Icon(Icons.arrow_outward_rounded, size: 17),
+                    label: const Text('Agir'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _section(
     String title,
     List<MeItemPresentation> items, {
@@ -373,37 +516,30 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_tab == _CollectiveTab.all)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(2, 24, 0, 10),
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 22, 0, 10),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-          )
-        else
-          const SizedBox(height: 8),
+          ),
+        ),
         LayoutBuilder(
           builder: (context, constraints) {
-            // Keep the next card visible at the edge: the affordance for a
-            // native horizontal swipe, also on compact screens.
             final width = constraints.maxWidth;
             final cardWidth = width < 320
                 ? width * 0.87
-                : (width * 0.78).clamp(248.0, 300.0).toDouble();
+                : (width * 0.72).clamp(224.0, 290.0).toDouble();
             return SingleChildScrollView(
-              key: Key('me-collectives-carousel-${kind}'),
+              key: Key('me-collectives-carousel-$kind'),
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (final item in items) ...[
-                    SizedBox(
-                      width: cardWidth,
-                      child: kind == 'space' ? _space(item) : _relation(item),
-                    ),
+                    SizedBox(width: cardWidth, child: _portraitCard(item)),
                     const SizedBox(width: 12),
                   ],
                 ],
@@ -414,6 +550,37 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
       ],
     );
   }
+
+  Widget _verticalList(
+    List<MeItemPresentation> spaces,
+    List<MeItemPresentation> teams,
+    List<MeItemPresentation> groups,
+  ) {
+    final all = <MeItemPresentation>[
+      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces) ...spaces,
+      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams) ...teams,
+      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups) ...groups,
+    ];
+    if (widget.alphabetical) {
+      all.sort((a, b) {
+        final name = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        return name != 0 ? name : a.destination.id.compareTo(b.destination.id);
+      });
+      if (widget.descending) return _verticalRows(all.reversed.toList());
+    }
+    return _verticalRows(all);
+  }
+
+  Widget _verticalRows(List<MeItemPresentation> items) => Column(
+    key: const Key('me-collectives-vertical-list'),
+    children: [
+      const SizedBox(height: 12),
+      for (final item in items) ...[
+        item.destination.kind == 'space' ? _space(item) : _relation(item),
+        const SizedBox(height: 9),
+      ],
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -430,13 +597,16 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _filters(),
-        if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces)
-          _section('Où on peut agir', spaces, kind: 'space'),
-        if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams)
-          _section('Mes équipes', teams, kind: 'team'),
-        if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups)
-          _section('Mes groupes', groups, kind: 'group'),
+        _layoutToggle(),
+        if (_layout == MeCollectivesLayout.categories) ...[
+          if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces)
+            _section('Où on peut agir', spaces, kind: 'space'),
+          if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams)
+            _section('Mes équipes', teams, kind: 'team'),
+          if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups)
+            _section('Mes groupes', groups, kind: 'group'),
+        ] else
+          _verticalList(spaces, teams, groups),
         if (!hasResults)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
