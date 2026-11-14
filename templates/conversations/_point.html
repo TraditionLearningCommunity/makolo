@@ -1,8 +1,9 @@
 {% load conversation_tags %}
 {% conversation_point_interactions point request.user as actions %}
+{% if point.kind == 'form_request' %}{% conversation_point_form_request point request.user as form_request %}{% endif %}
 <article id="point-{{ point.pk }}" class="mk-thread-point relative scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-3 py-3 sm:px-4 {% if point.published_by_id == request.user.pk %}mr-10{% else %}ml-10{% endif %}" tabindex="-1"
   data-thread-point
-  data-action-pending="{% if actions.can_resolve or actions.can_close_responses or actions.can_acknowledge or actions.can_respond and not actions.my_response %}true{% else %}false{% endif %}"
+  data-action-pending="{% if actions.can_resolve or actions.can_close_responses or actions.can_acknowledge or actions.can_respond and not actions.my_response or form_request and form_request.status != 'completed' %}true{% else %}false{% endif %}"
   data-result-at="{% if point.lifecycle == 'resolved' %}{{ point.updated_at|date:'c' }}{% endif %}"
   data-important="{% if point.importance == 'important' %}true{% else %}false{% endif %}">
   {% if point.published_by.is_active and point.published_by.profile.public_profile and point.published_by.profile.searchable %}
@@ -147,13 +148,15 @@
       <button class="mk-btn mk-btn-primary" type="submit">J’ai pris connaissance</button>
     </form>
   {% endif %}
-  {% if point.kind == 'form_request' %}
-    {% conversation_point_form_request point request.user as form_request %}
-    {% if form_request %}
-      <a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">
-        {% if form_request.status == 'completed' %}Voir le formulaire{% else %}Remplir le formulaire{% endif %}
-      </a>
-    {% endif %}
+  {% if point.kind == 'form_request' and form_request %}
+    {% conversation_form_presentation form_request as form_data %}
+    {% url 'conversations:point-form' point.pk as inline_form_action %}
+    <details class="mt-3 rounded-xl border px-3 py-2" style="border-color:var(--mk-border)"{% if form_request.status != 'completed' %} open{% endif %}>
+      <summary class="min-h-10 cursor-pointer py-2 text-sm font-semibold">
+        {% if form_request.status == 'completed' %}Votre réponse{% else %}Répondre{% endif %}
+      </summary>
+      {% include 'questionnaires/_response_form.html' with form_request=form_request form_response=form_data.form_response question_rows=form_data.question_rows form_action=inline_form_action inline=True %}
+    </details>
   {% endif %}
   {% if actions.can_respond and point.kind != 'poll' and point.kind != 'exchange' %}
     {% if point.response_mode == 'file' or point.response_mode == 'voice' %}
