@@ -1898,17 +1898,27 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       // authorized active Points from the owner attention projection even
       // when they were published before that window.
       add(
-        detail.points.where((point) =>
-            const {'respond', 'acknowledge', 'form', 'resolve', 'result', 'upcoming'}
-                .contains(point.attentionReason) ||
-            point.canAcknowledge ||
-            (point.canRespond &&
-                !point.hasRespondedForScope(widget.representedSpaceId))),
+        detail.points.where(
+          (point) =>
+              const {
+                'respond',
+                'acknowledge',
+                'form',
+                'resolve',
+                'result',
+                'upcoming',
+              }.contains(point.attentionReason) ||
+              point.canAcknowledge ||
+              (point.canRespond &&
+                  !point.hasRespondedForScope(widget.representedSpaceId)),
+        ),
         readOnly: false,
       );
       add(
-        detail.essential.where((point) =>
-            const {'result', 'upcoming'}.contains(point.attentionReason)),
+        detail.essential.where(
+          (point) =>
+              const {'result', 'upcoming'}.contains(point.attentionReason),
+        ),
         readOnly: false,
       );
       add(detail.timeline, readOnly: false);
@@ -1992,7 +2002,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           children: [
             Semantics(
               button: true,
-              label: expanded ? 'Réduire les échanges' : 'Afficher les échanges',
+              label: expanded
+                  ? 'Réduire les échanges'
+                  : 'Afficher les échanges',
               child: InkWell(
                 key: Key('conversation-folded-toggle-$key'),
                 borderRadius: BorderRadius.circular(14),
