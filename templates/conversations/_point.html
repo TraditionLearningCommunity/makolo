@@ -4,7 +4,7 @@
 {% if point.kind == 'form_request' %}{% conversation_point_form_request point request.user as form_request %}{% endif %}
 <article id="point-{{ point.pk }}" class="mk-thread-point relative scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-3 py-3 sm:px-4 {% if point.published_by_id == request.user.pk %}mr-10{% else %}ml-10{% endif %}" tabindex="-1"
   data-thread-point
-  data-action-pending="{% if actions.can_resolve or actions.can_close_responses or actions.can_acknowledge or actions.can_respond and not actions.my_response or form_request and form_request.status != 'completed' %}true{% else %}false{% endif %}"
+  data-action-pending="{% if actions.can_acknowledge or actions.can_respond and not actions.my_response or actions.can_resolve and point.lifecycle == 'response_closed' or form_request and form_request.status != 'completed' %}true{% else %}false{% endif %}"
   data-result-at="{% if point.lifecycle == 'resolved' %}{{ point.updated_at|date:'c' }}{% endif %}"
   data-important="{% if point.importance == 'important' %}true{% else %}false{% endif %}">
   {% if point.published_by.is_active and point.published_by.profile.public_profile and point.published_by.profile.searchable %}
