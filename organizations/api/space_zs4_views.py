@@ -42,7 +42,7 @@ class SpaceUsResourcesAPIView(_SpaceProjectionAPIView):
         space = workspace_spaces(request.user).filter(slug=slug).first()
         if space is None:
             raise NotFound()
-        kind = request.query_params.get("kind") or "passport"
+        kind = request.query_params.get("kind") or "document"
         try:
             offset = int(request.query_params.get("offset", "0"))
             payload = build_space_us_resources_projection(
