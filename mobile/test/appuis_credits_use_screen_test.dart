@@ -37,6 +37,8 @@ Widget harness(
   bool Function(Map<String, dynamic>)? canUseReward,
   Future<Map<String, dynamic>?> Function(Map<String, dynamic>)? onRedeem,
   Future<Map<String, dynamic>?> Function()? onReload,
+  Listenable? actorChanges,
+  bool Function()? actorIsCurrent,
 }) => MaterialApp(
   home: AppuisCreditsUseScreen(
     initial: data,
@@ -46,6 +48,8 @@ Widget harness(
     canUseReward: canUseReward ?? (_) => true,
     onRedeem: onRedeem ?? (reward) async => null,
     onReload: onReload ?? () async => data,
+    actorChanges: actorChanges,
+    actorIsCurrent: actorIsCurrent,
   ),
 );
 
@@ -191,4 +195,32 @@ void main() {
     );
     expect(unlock.onPressed, isNull);
   });
+  testWidgets('switching Profile or Space closes the private spending page',
+      (tester) async {
+    final current = ValueNotifier<bool>(true);
+    await tester.pumpWidget(harness(
+      projection(rewards: [featureReward()]),
+      actorChanges: current,
+      actorIsCurrent: () => current.value,
+    ));
+    expect(find.text('240 crédits'), findsOneWidget);
+    current.value = false;
+    await tester.pumpAndSettle();
+    expect(find.text('240 crédits'), findsNothing);
+    current.dispose();
+  });
+
+  testWidgets('pending credits cannot pay for a reward', (tester) async {
+    await tester.pumpWidget(harness(projection(
+      credits: 0,
+      pending: 35,
+      rewards: [featureReward(cost: 20)],
+    )));
+    expect(find.text('0 crédits'), findsOneWidget);
+    final action = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Débloquer'));
+    expect(action.onPressed, isNull);
+    expect(find.text('35 crédits'), findsNothing);
+  });
+
 }
