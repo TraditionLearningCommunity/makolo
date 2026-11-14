@@ -347,6 +347,14 @@
       });
     });
 
+    function alignFocusedComposer() {
+      const viewport = window.visualViewport;
+      const offset = viewport && root.classList.contains('mk-mark-writing')
+        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        : 0;
+      root.style.setProperty('--mk-mark-keyboard-offset', offset + 'px');
+    }
+
     function updateComposer() {
       const count = $('[data-mk-mark-count]');
       const send = $('[data-mk-mark-send]');
@@ -361,6 +369,7 @@
           (attachMenu && !attachMenu.hidden) ||
           (speechPanel && !speechPanel.hidden),
       );
+      alignFocusedComposer();
     }
 
     input.addEventListener('input', () => {
@@ -565,6 +574,8 @@
     }
     function teardown() {
       window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', alignFocusedComposer);
+      window.visualViewport?.removeEventListener('scroll', alignFocusedComposer);
       document.removeEventListener('visibilitychange', stopHiddenDictation);
       document.removeEventListener('htmx:beforeSwap', beforeSwap);
       window.removeEventListener('pagehide', teardown);
@@ -579,6 +590,8 @@
       if (target && (target === root || target.contains?.(root))) teardown();
     }
     window.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', alignFocusedComposer);
+    window.visualViewport?.addEventListener('scroll', alignFocusedComposer);
     document.addEventListener('visibilitychange', stopHiddenDictation);
     document.addEventListener('htmx:beforeSwap', beforeSwap);
     window.addEventListener('pagehide', teardown);
