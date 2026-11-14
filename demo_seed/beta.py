@@ -7,6 +7,7 @@ from access.models import Access, AccessCredential, AccessStatus, AccessUse, Acc
 from accounts.models import NotificationPreference, User
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrencePlace, OccurrencePlaceRole, OccurrenceStatus
 from authorization.constants import SystemRoleCode
+from authorization.models import Mandate, MandateStatus
 from authorization.services import ensure_platform_admin_mandate, grant_activity_role, grant_space_role
 from automation.models import AutomationRule, DomainAutomationActionKind
 from capacity.models import CapacityPool, CapacityReservation, CapacityReservationStatus
@@ -344,7 +345,22 @@ def seed_beta(ctx: SeedContext) -> None:
     ctx.organizations = [event_space, transport_space]
     for team, keys in [(event_team, ["space_admin", "event_manager", "finance", "marketing", "scanner"]), (transport_team, ["space_admin", "transport_operator", "finance", "scanner"])]:
         for key in keys: _member(team, users[key], users["space_admin"])
-    for space in [event_space, transport_space]: grant_space_role(profile=users["space_admin"], space=space, role=SystemRoleCode.SPACE_OWNER, granted_by=users["staff"], source="makolo-beta")
+    for space in [event_space, transport_space]:
+        # T22 transfers beta ownership to a dedicated Owner. Do not recreate
+        # the revoked legacy Owner mandate on every identical seed execution.
+        if not Mandate.objects.filter(
+            space=space,
+            role__code=SystemRoleCode.SPACE_OWNER,
+            status=MandateStatus.ACTIVE,
+            source="makolo-beta-task22",
+        ).exists():
+            grant_space_role(
+                profile=users["space_admin"],
+                space=space,
+                role=SystemRoleCode.SPACE_OWNER,
+                granted_by=users["staff"],
+                source="makolo-beta",
+            )
     grant_space_role(profile=users["event_manager"], space=event_space, role=SystemRoleCode.SPACE_ACTIVITY_MANAGER, granted_by=users["space_admin"], source="makolo-beta")
     grant_space_role(profile=users["transport_operator"], space=transport_space, role=SystemRoleCode.SPACE_ACTIVITY_MANAGER, granted_by=users["space_admin"], source="makolo-beta")
     for space in [event_space, transport_space]: grant_space_role(profile=users["finance"], space=space, role=SystemRoleCode.FINANCE, granted_by=users["space_admin"], source="makolo-beta")
