@@ -433,12 +433,16 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
             name.isEmpty ? 'Programme de fidélité' : name,
             detail: _text(program['description']).isNotEmpty
                 ? _text(program['description'])
-                : (organization.isNotEmpty
-                      ? organization
-                      : 'Niveaux, formules et avantages'),
+                : (widget.space ? 'Fidélité des participants de cet Espace'
+                    : (organization.isNotEmpty
+                        ? organization : 'Programme de fidélité')),
             note: [
               if (_positive(balance)) _text(balance) + ' points',
               if (tier.isNotEmpty) tier,
+              if (tiers.isNotEmpty) tiers.length.toString() +
+                  (tiers.length == 1 ? ' niveau' : ' niveaux'),
+              if (plans.isNotEmpty) plans.length.toString() +
+                  (plans.length == 1 ? ' formule' : ' formules'),
             ].join(' · '),
           ),
           if (memberships.isNotEmpty) ...[
@@ -469,7 +473,9 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                 _text(item['name']),
                 detail: [
                   if (_positive(item['threshold_points']))
-                    'Dès ' + _text(item['threshold_points']) + ' points',
+                    'Dès ' + _text(item['threshold_points']) + ' points'
+                  else if (item['threshold_points'] != null)
+                    'Niveau de départ',
                   if (_text(item['benefits']).isNotEmpty)
                     _text(item['benefits']),
                 ].join(' · '),
@@ -507,20 +513,30 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                   : null,
             ),
             for (final item in rewards)
-              _card(
-                Icons.redeem_outlined,
-                _text(item['name']),
-                detail: [
-                  if (_positive(item['points_cost']))
-                    _text(item['points_cost']) +
-                        ' ' +
+              Builder(builder: (context) {
+                final eligible = _rows(widget.loyalty['available_rewards'])
+                    .where((entry) => _text(entry['id']) == _text(item['id']))
+                    .firstOrNull;
+                return _card(Icons.redeem_outlined, _text(item['name']),
+                  detail: [
+                    if (_positive(item['points_cost']))
+                      _text(item['points_cost']) + ' ' +
                         _text(program['points_name']).trim(),
-                  if (_text(item['description']).isNotEmpty)
-                    _text(item['description']),
-                  if (_text(item['fulfillment_instructions']).isNotEmpty)
-                    _text(item['fulfillment_instructions']),
-                ].join(' · '),
-              ),
+                    if (_text(item['description']).isNotEmpty)
+                      _text(item['description']),
+                    if (_text(item['fulfillment_instructions']).isNotEmpty)
+                      _text(item['fulfillment_instructions']),
+                  ].join(' · '),
+                  action: !widget.space && widget.canMutate &&
+                          eligible != null &&
+                          widget.allowed(eligible, 'loyalty', 'redeem')
+                      ? TextButton(onPressed: () {
+                          Navigator.of(context).pop();
+                          unawaited(widget.onAction(
+                            eligible, 'loyalty', 'redeem'));
+                        }, child: const Text('Utiliser'))
+                      : null);
+              }),
           ],
           if (account != null) ...[finalHistory(account)],
         ],
