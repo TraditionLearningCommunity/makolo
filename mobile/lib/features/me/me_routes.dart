@@ -27,49 +27,45 @@ import 'me_support_screen.dart';
 
 /// Full-screen N2: the primary shell header and bottom bar are not repeated.
 GoRoute meCollectivesRoute(AppRuntime runtime) => GoRoute(
-          path: '/me/collectives',
-          builder: (context, state) =>
-              runtime.api == null || runtime.personal == null
-              ? const MakoloSecondaryScreen(
-                  title: 'Mes collectifs',
-                  message: 'Mes collectifs sont momentanément indisponibles.',
-                )
-              : MeCollectivesScreen(
-                  api: runtime.api!,
-                  personal: runtime.personal!,
-                  onActSpace: (item) async {
-                    // Le picker valide le contexte acquis de cet Espace.
-                    // Aucun changement d'acteur ni navigation si annule.
-                    final previous = runtime.actorContext?.value;
-                    await showMakoloActorPicker(
-                      context,
-                      runtime: runtime,
-                      preferredSpaceId: item.destination.id,
-                    );
-                    final selected = runtime.actorContext?.value;
-                    if (context.mounted &&
-                        selected is SpaceActorContext &&
-                        selected.space.id == item.destination.id &&
-                        selected != previous) {
-                      context.go('/space/now');
-                    }
-                  },
-                  onOpenDestination: (destination) {
-                    if (destination.kind == 'group') {
-                      context.push('/groups/${destination.id}');
-                      return true;
-                    }
-                    if (destination.kind == 'space' &&
-                        destination.link != null) {
-                      context.push(
-                        '/spaces/${Uri.encodeComponent(destination.link!)}',
-                      );
-                      return true;
-                    }
-                    return false;
-                  },
-                ),
-        );
+  path: '/me/collectives',
+  builder: (context, state) => runtime.api == null || runtime.personal == null
+      ? const MakoloSecondaryScreen(
+          title: 'Mes collectifs',
+          message: 'Mes collectifs sont momentanément indisponibles.',
+        )
+      : MeCollectivesScreen(
+          api: runtime.api!,
+          personal: runtime.personal!,
+          onActSpace: (item) async {
+            // Le picker valide le contexte acquis de cet Espace.
+            // Aucun changement d'acteur ni navigation si annule.
+            final previous = runtime.actorContext?.value;
+            await showMakoloActorPicker(
+              context,
+              runtime: runtime,
+              preferredSpaceId: item.destination.id,
+            );
+            final selected = runtime.actorContext?.value;
+            if (context.mounted &&
+                selected is SpaceActorContext &&
+                selected.space.id == item.destination.id &&
+                selected != previous) {
+              context.go('/space/now');
+            }
+          },
+          onOpenDestination: (destination) {
+            if (destination.kind == 'group') {
+              context.push('/groups/${destination.id}');
+              return true;
+            }
+            if (destination.kind == 'space' && destination.link != null) {
+              context.push('/spaces/${Uri.encodeComponent(destination.link!)}');
+              return true;
+            }
+            return false;
+          },
+        ),
+);
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [

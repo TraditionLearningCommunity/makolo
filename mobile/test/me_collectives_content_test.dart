@@ -117,16 +117,19 @@ void main() {
   test('known counts are relational; partial counts are not inferred', () {
     expect(meCollectiveTotal(_data()), 3);
     expect(meCollectiveTotal(_data(spaces: 0, teams: 0, groups: 0)), 0);
-    expect(meCollectiveTotal({
-      'authorized_spaces': {
-        'items': [
-          {'id': 'one'},
-        ],
-        'has_more': true,
-      },
-      'teams': {'items': [], 'has_more': false},
-      'groups': {'items': [], 'has_more': false},
-    }), isNull);
+    expect(
+      meCollectiveTotal({
+        'authorized_spaces': {
+          'items': [
+            {'id': 'one'},
+          ],
+          'has_more': true,
+        },
+        'teams': {'items': [], 'has_more': false},
+        'groups': {'items': [], 'has_more': false},
+      }),
+      isNull,
+    );
   });
 
   test('only the correct published owner media is eligible', () {
@@ -188,8 +191,11 @@ void main() {
   testWidgets('no duplicate dashboard or ornamental action menu', (
     tester,
   ) async {
-    await _show(tester, collectives: _data(groups: 0),
-        items: const [_space, _team]);
+    await _show(
+      tester,
+      collectives: _data(groups: 0),
+      items: const [_space, _team],
+    );
     expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
     expect(find.text('2 collectifs'), findsNothing);
     expect(find.text('0 Groupes'), findsNothing);
@@ -213,8 +219,12 @@ void main() {
   testWidgets('offline keeps known relations without current action claims', (
     tester,
   ) async {
-    await _show(tester, collectives: _data(), offline: true,
-        onAct: (_) => fail('Offline must not grant Space action'));
+    await _show(
+      tester,
+      collectives: _data(),
+      offline: true,
+      onAct: (_) => fail('Offline must not grant Space action'),
+    );
     expect(find.text('Agir'), findsNothing);
     expect(find.text('Espace lié à moi'), findsOneWidget);
     expect(find.textContaining('Autorisations à confirmer'), findsNothing);
@@ -224,10 +234,14 @@ void main() {
     tester,
   ) async {
     StructuredDestination? opened;
-    await _show(tester, collectives: _data(), onOpen: (destination) {
-      opened = destination;
-      return true;
-    });
+    await _show(
+      tester,
+      collectives: _data(),
+      onOpen: (destination) {
+        opened = destination;
+        return true;
+      },
+    );
     await tester.ensureVisible(find.text('Équipe principale'));
     await tester.tap(find.text('Équipe principale'));
     expect(opened?.kind, 'space');
@@ -235,14 +249,16 @@ void main() {
     expect(find.text('Gérer l’équipe'), findsNothing);
   });
 
-  testWidgets('Group opens its owner depth with no extra menu', (
-    tester,
-  ) async {
+  testWidgets('Group opens its owner depth with no extra menu', (tester) async {
     StructuredDestination? opened;
-    await _show(tester, collectives: _data(), onOpen: (destination) {
-      opened = destination;
-      return true;
-    });
+    await _show(
+      tester,
+      collectives: _data(),
+      onOpen: (destination) {
+        opened = destination;
+        return true;
+      },
+    );
     await tester.ensureVisible(find.text('Groupe mobilité'));
     await tester.tap(find.text('Groupe mobilité'));
     expect(opened?.kind, 'group');
