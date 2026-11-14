@@ -355,7 +355,9 @@ def _service_result(journey):
     }
 
 
-def build_journey_detail(*, journey, readiness, profile, live=None):
+def build_journey_detail(
+    *, journey, readiness, profile, live=None, day_of_available=False
+):
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     pending = [
         _request_payload(row)
@@ -375,8 +377,11 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
     }
     if journey.occurrence_id:
         links["occurrence"] = f"/api/v1/occurrences/{journey.occurrence_id}/"
-        links["day_of"] = f"/api/v1/me/occurrences/{journey.occurrence_id}/day-of/"
-        capabilities.append("open_day_of")
+        if day_of_available:
+            links["day_of"] = (
+                f"/api/v1/me/occurrences/{journey.occurrence_id}/day-of/"
+            )
+            capabilities.append("open_day_of")
     if live is not None:
         links["live"] = f"/api/v1/me/occurrences/{journey.occurrence_id}/live/"
         capabilities.append("open_live")
