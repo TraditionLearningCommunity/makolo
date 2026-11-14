@@ -251,7 +251,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
 
   Widget _space(MeItemPresentation item) {
     final scheme = Theme.of(context).colorScheme;
-    final destination = _destination(item);
+    final destination = widget.offline ? null : _destination(item);
     final canAct = _canAct(item);
     return Material(
       key: Key('me-collective-space-${item.destination.id}'),
@@ -310,7 +310,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
 
   Widget _relation(MeItemPresentation item) {
     final scheme = Theme.of(context).colorScheme;
-    final destination = _destination(item);
+    final destination = widget.offline ? null : _destination(item);
     final subtitle = item.subtitle;
     return Material(
       key: Key('me-collective-${item.destination.kind}-${item.destination.id}'),
