@@ -18,6 +18,7 @@ class ConversationPointShell extends StatelessWidget {
     this.publishedAt,
     this.statusIcon,
     this.headerActions,
+    this.onOpenAuthor,
   });
 
   final String kind;
@@ -32,6 +33,7 @@ class ConversationPointShell extends StatelessWidget {
 
   /// Small secondary controls aligned with the author, not a separate row.
   final Widget? headerActions;
+  final VoidCallback? onOpenAuthor;
   final Widget child;
 
   static (String, IconData) typePresentation(String kind) => switch (kind) {
@@ -67,7 +69,6 @@ class ConversationPointShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context).textTheme;
     final (label, typeIcon) = typePresentation(kind);
-    final isOrdinary = kind == 'information';
     final timestamp = publishedAt?.toLocal();
     final time = timestamp == null
         ? null
@@ -75,141 +76,145 @@ class ConversationPointShell extends StatelessWidget {
             TimeOfDay.fromDateTime(timestamp),
             alwaysUse24HourFormat: true,
           );
+    final background = isMine
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: 0.08),
+            scheme.surface,
+          )
+        : scheme.surface;
+
+    final authorAvatar = Tooltip(
+      message: _identity,
+      child: Semantics(
+        label: 'Profil de $_identity',
+        button: onOpenAuthor != null,
+        child: InkWell(
+          onTap: onOpenAuthor,
+          customBorder: const CircleBorder(),
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: isMine
+                ? scheme.primary.withValues(alpha: 0.14)
+                : scheme.surfaceContainerHighest,
+            child: Text(
+              _initials,
+              style: theme.labelSmall?.copyWith(
+                color: isMine ? scheme.primary : scheme.onSurface,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = math.min(constraints.maxWidth * 0.94, 600.0);
-        final background = isMine
-            ? Color.alphaBlend(
-                scheme.primary.withValues(alpha: 0.08),
-                scheme.surface,
-              )
-            : scheme.surface;
+        final maxWidth = math.min(constraints.maxWidth * 0.96, 600.0);
         return Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: background,
-                border: Border.all(
-                  color: isMine
-                      ? scheme.primary.withValues(alpha: 0.14)
-                      : scheme.outlineVariant.withValues(alpha: 0.6),
-                ),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMine ? 18 : 5),
-                  bottomRight: Radius.circular(isMine ? 5 : 18),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.compact,
-                  vertical: MakoloSpacing.compact,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 13,
-                          backgroundColor: isMine
-                              ? scheme.primary.withValues(alpha: 0.14)
-                              : scheme.surfaceContainerHighest,
-                          child: Text(
-                            _initials,
-                            style: theme.labelSmall?.copyWith(
-                              color: isMine ? scheme.primary : scheme.onSurface,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(
-                            _identity,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        if (headerActions != null) ...[
-                          const Spacer(),
-                          headerActions!,
-                        ],
-                        if (representedSpace && !isMine) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.business_outlined,
-                            size: 14,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!isMine) ...[
+                  authorAvatar,
+                  const SizedBox(width: 7),
+                ],
+                Flexible(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: background,
+                      border: Border.all(
+                        color: isMine
+                            ? scheme.primary.withValues(alpha: 0.14)
+                            : scheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(17),
+                        topRight: const Radius.circular(17),
+                        bottomLeft: Radius.circular(isMine ? 17 : 5),
+                        bottomRight: Radius.circular(isMine ? 5 : 17),
+                      ),
                     ),
-                    if (representedSpace &&
-                        representedSpaceLabel != null &&
-                        representedSpaceLabel!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Dans le cadre de ${representedSpaceLabel!}',
-                        style: theme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MakoloSpacing.compact,
+                        vertical: MakoloSpacing.sm,
                       ),
-                    ],
-                    if (!isOrdinary) ...[
-                      const SizedBox(height: 6),
-                      Row(
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(typeIcon, size: 15, color: scheme.primary),
-                          const SizedBox(width: 5),
-                          Text(
-                            label,
-                            style: theme.labelSmall?.copyWith(
-                              color: scheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    child,
-                    if (time != null || statusIcon != null) ...[
-                      const SizedBox(height: 5),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (time != null)
-                              Text(
-                                time,
-                                style: theme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
+                          Row(
+                            children: [
+                              Semantics(
+                                label: label,
+                                child: Container(
+                                  width: 27,
+                                  height: 27,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withValues(alpha: 0.09),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(typeIcon, size: 15, color: scheme.primary),
                                 ),
                               ),
-                            if (statusIcon != null) ...[
-                              const SizedBox(width: 5),
-                              statusIcon!,
+                              if (representedSpace && representedSpaceLabel != null)
+                                Flexible(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 7),
+                                    child: Text(
+                                      representedSpaceLabel!,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: theme.labelSmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (headerActions != null) ...[
+                                const Spacer(),
+                                headerActions!,
+                              ],
                             ],
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 5),
+                          child,
+                          if (time != null || statusIcon != null)
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (time != null)
+                                    Text(
+                                      time,
+                                      style: theme.labelSmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  if (statusIcon != null) ...[
+                                    const SizedBox(width: 5),
+                                    statusIcon!,
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
-              ),
+                if (isMine) ...[
+                  const SizedBox(width: 7),
+                  authorAvatar,
+                ],
+              ],
             ),
           ),
         );
