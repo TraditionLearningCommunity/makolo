@@ -22,3 +22,9 @@
 .mk-point-author-avatar:is(a):is(:hover,:focus-visible) .mk-point-author-popover{display:block}
 .mk-point-options>summary::-webkit-details-marker{display:none}
 .mk-point-options[open]{z-index:30}
+
+.mk-conversation-fold-body .mk-thread-entry{content-visibility:auto;contain-intrinsic-size:auto 6rem}
+.mk-inline-form-error{margin-top:.6rem;color:#b42318;font-size:.84rem;line-height:1.35}
+.mk-conversation-inline-form>section{padding:.6rem .75rem;border-radius:.75rem}
+.mk-conversation-inline-form .mk-input{min-height:2.6rem}
+@media(max-width:450px){.mk-thread-point{padding:.65rem .75rem}.mk-point-author-avatar{width:1.85rem;height:1.85rem;left:-2.25rem}.mk-point-author-own{left:auto;right:-2.25rem}}
