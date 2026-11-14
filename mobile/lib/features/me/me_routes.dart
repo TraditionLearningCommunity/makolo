@@ -159,6 +159,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   },
                   onCreate: (kind) =>
                       context.push('/me/demarches/new?kind=$kind'),
+                  onOpenInvitations: () => context.push('/project-invitations'),
                 ),
           routes: [
             GoRoute(
