@@ -2680,8 +2680,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       MakoloInteractionAction(
                         id: 'revisit',
                         label: detail.personalState.revisit
-                            ? 'Retirer le rappel de revisite'
-                            : 'Revoir plus tard',
+                            ? 'Retirer des enregistrements'
+                            : 'Enregistrer',
                         intent: MakoloActionIntent.transition,
                       ),
                       MakoloInteractionAction(
