@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from recognition.economy import accept_redemption, decline_redemption, redeem_reward
 from recognition.models import RecognitionRedemption, RedemptionStatus, RewardKind
 from recognition.valuation import credit_money_equivalent
+from recognition.presentation import reward_spend_presentation
 from recognition.selectors import (
     account_for_profile,
     account_for_space,
@@ -45,22 +46,8 @@ def _reward_payload(reward, *, allow_redeem=None, redeem_url=None):
             "recognition_api:reward-redeem",
             kwargs={"reward_id": reward.pk},
         )
-    presentation = {"category": "reward", "action": "Utiliser"}
-    if reward.kind == RewardKind.ENTITLEMENT:
-        # This bridge grants a FeatureDefinition, not a SubscriptionPlan.
-        from subscriptions.models import FeatureDefinition
-        config = reward.fulfillment or {}
-        code = str(config.get("feature_code") or "").strip()
-        if code and FeatureDefinition.objects.filter(code=code, is_active=True).exists():
-            presentation = {"category": "feature", "action": "Débloquer"}
-            duration = config.get("duration_days")
-            if isinstance(duration, int) and duration > 0:
-                presentation["duration_days"] = duration
-    elif reward.kind == RewardKind.PAYOUT:
-        # Payout remains delegated and does not prove withdrawability.
-        presentation = {"category": "reward", "action": "Utiliser"}
     return {
-        "presentation": presentation,
+        "presentation": reward_spend_presentation(reward),
         "id": str(reward.pk),
         "code": reward.code,
         "version": reward.version,
