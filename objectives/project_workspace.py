@@ -103,6 +103,15 @@ def _person(profile):
     return profile.get_full_name().strip() or profile.username
 
 
+def _project_role_presentation(code):
+    # Contractual role IDs remain unchanged; only labels become human.
+    return {
+        "project-viewer": "Lecteur",
+        "project-manager": "Éditeur",
+        "project-admin": "Administrateur",
+    }.get(code, "Accès Projet")
+
+
 def _project_collaboration(actor, project, dossiers, *, partial):
     """Viewer-aware composition: a Project mandate is not a Dossier assignment.
 
@@ -121,7 +130,7 @@ def _project_collaboration(actor, project, dossiers, *, partial):
             "id": str(mandate.pk),
             "profile_id": str(mandate.profile_id),
             "label": _person(mandate.profile) if authority else "Vous",
-            "role": mandate.role.name,
+            "role": _project_role_presentation(mandate.role.code),
             "role_code": mandate.role.code,
             "self": mandate.profile_id == actor.pk,
             "capabilities": ["revoke", "replace"] if authority else [],
@@ -165,7 +174,7 @@ def _project_collaboration(actor, project, dossiers, *, partial):
             bool(partial) or candidate_source_truncated or len(candidates) > 50
         ) if authority else False,
         "roles": [
-            {"code": role.code, "label": role.name}
+            {"code": role.code, "label": _project_role_presentation(role.code)}
             for role in Role.objects.filter(
                 scope_type=AuthorityScope.PROJECT, is_system=True, is_active=True,
             ).order_by("name") if role.code in {
