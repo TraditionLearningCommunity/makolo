@@ -1,7 +1,7 @@
 # Moi → Mes collectifs — composition native et actions réelles
 
 **PR :** #522, branche `fix/discover-a-continuation-context-20261014`  
-**Mise à jour :** 14 novembre 2026  
+**Mise à jour :** 14 novembre 2026 (carrousels rétablis)  
 **Statut :** code poussé ; CI et recette Android à contrôler sur le HEAD final.  
 **Référence :** maquette du 13 novembre et retour d'essai réel sur émulateur du 14 novembre.
 
@@ -14,6 +14,14 @@ La capture d'essai a montré une hiérarchie trop lourde. La nouvelle version re
 **Filtres :** Tous (sans décompte redondant), Espaces, Équipes, Groupes, ces trois catégories avec leur compteur positif lorsqu'il est connu. Le total est la somme des trois familles reçues, comptant des relations et non des institutions distinctes. Pas de « 0 » affiché dans les filtres. Recherche et tri locaux sur les données déjà synchronisées, sans tri de date fictif. La position dans la liste est préservée tant que le Profile et la route restent actifs.
 
 **Contenu :** lignes natives, accessibles, plus compactes, à grande cible tactile, visuel aligné à gauche, nom principal et contexte autorisé. Les sections sont groupées en Tous ; un filtre actif n'a pas besoin de répéter son titre. Pas de doublon « Tout voir ».
+
+## Ajustement du 14 novembre — carrousels et tri
+
+- **Où on peut agir**, **Mes équipes** et **Mes groupes** : chaque famille retrouve un carrousel horizontal indépendant, accessible au glissement du doigt. Les cartes sont compactes, présentent un aperçu de la suivante sur petit écran, et le défilement vertical de la page reste disponible.
+- Le titre initial « Espaces où je peux agir » devient **« Où on peut agir »**. Les titres des autres sections restent « Mes équipes » et « Mes groupes ».
+- Le tri n'expose plus « Ordre actuel » : uniquement **Nom A à Z** et **Nom Z à A**, calculés localement sur les collectifs déjà acquis. Aucun classement par date fictive.
+- Les médias restent limités à la projection publiée par leur propriétaire et les permissions existantes. Aucun bouton Web, carte violette ni menu « Aperçu » n'est rétabli.
+- Cas couverts par les tests : axes horizontaux des trois carrousels et ordres A→Z/Z→A. Recette Android, taille de texte, horloge de sync et CI à vérifier avant merge.
 
 ## Interaction / propriété
 
