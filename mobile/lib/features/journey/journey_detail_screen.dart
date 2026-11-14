@@ -662,19 +662,6 @@ class _JourneyContent extends StatelessWidget {
               ),
               const SizedBox(height: MakoloSpacing.md),
             ],
-            if (presentation.steps.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              MakoloSection(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _journeyContentInset,
-                ),
-                title: 'Mon parcours',
-                child: _JourneyPath(
-                  steps: presentation.steps,
-                  hasBranches: composition.hasBranches,
-                ),
-              ),
-            ],
             if (composition.hasPreparation) ...[
               const SizedBox(height: MakoloSpacing.sm),
               MakoloSection(
@@ -783,9 +770,25 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
+            if (presentation.steps.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Mon parcours',
+                child: _JourneyPath(
+                  steps: presentation.steps,
+                  hasBranches: composition.hasBranches,
+                ),
+              ),
+            ],
             if ((presentation.activity?.link != null &&
                     presentation.activity!.label != presentation.title) ||
-                presentation.occurrence?.link != null) ...[
+                (presentation.occurrence?.link != null &&
+                    presentation.occurrence!.label.trim().isNotEmpty &&
+                    presentation.occurrence!.label != 'Occurrence' &&
+                    presentation.occurrence!.label != presentation.title)) ...[
               const SizedBox(height: MakoloSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -801,7 +804,10 @@ class _JourneyContent extends StatelessWidget {
                           contextLabel: 'Activité',
                           onTap: () => onOpenActivity(presentation.activity!),
                         ),
-                      if (presentation.occurrence?.link != null)
+                      if (presentation.occurrence?.link != null &&
+                          presentation.occurrence!.label.trim().isNotEmpty &&
+                          presentation.occurrence!.label != 'Occurrence' &&
+                          presentation.occurrence!.label != presentation.title)
                         _ReferenceCard(
                           reference: presentation.occurrence!,
                           contextLabel: 'Occurrence',
