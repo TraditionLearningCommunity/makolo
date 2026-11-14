@@ -225,14 +225,14 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
                   _checking
                       ? 'Microphone…'
                       : _active
-                          ? 'Je vous écoute'
-                          : _busy
-                              ? 'Un instant…'
-                              : _text.text.isNotEmpty
-                                  ? 'Texte prêt à corriger'
-                                  : _available
-                                      ? 'Dicter'
-                                      : 'Dictée indisponible',
+                      ? 'Je vous écoute'
+                      : _busy
+                      ? 'Un instant…'
+                      : _text.text.isNotEmpty
+                      ? 'Texte prêt à corriger'
+                      : _available
+                      ? 'Dicter'
+                      : 'Dictée indisponible',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -271,9 +271,8 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
               padding: const EdgeInsets.fromLTRB(8, 3, 8, 4),
               child: Text(
                 _error!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.error,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.error),
               ),
             ),
         ],

@@ -284,9 +284,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                 _recording && !_paused
                     ? Icons.fiber_manual_record
                     : Icons.graphic_eq,
-                color: _recording && !_paused
-                    ? scheme.error
-                    : scheme.primary,
+                color: _recording && !_paused ? scheme.error : scheme.primary,
                 size: 19,
               ),
               const SizedBox(width: 7),
@@ -295,10 +293,10 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                   _recording
                       ? (_paused ? 'En pause · $time' : 'En cours · $time')
                       : _staged != null
-                          ? 'Audio · $time'
-                          : _busy
-                              ? 'Microphone…'
-                              : 'Audio',
+                      ? 'Audio · $time'
+                      : _busy
+                      ? 'Microphone…'
+                      : 'Audio',
                   style: Theme.of(context).textTheme.bodyMedium,
                   maxLines: 1,
                 ),
@@ -347,9 +345,8 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   _error!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.error),
                 ),
               ),
             ),
