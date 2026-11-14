@@ -68,8 +68,18 @@ String _iso(DateTime? date) => date == null
           '${date.month.toString().padLeft(2, '0')}-'
           '${date.day.toString().padLeft(2, '0')}';
 const _monthsFr = <String>[
-  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
 ];
 String _monthYearFr(DateTime date) =>
     '${_monthsFr[date.month - 1]} ${date.year}';
@@ -77,7 +87,8 @@ String _dateLabel(BuildContext context, DateTime date) =>
     '${date.day} ${_monthYearFr(date)}';
 String _instantLabel(BuildContext context, DateTime date) {
   final local = date.toLocal();
-  final time = '${local.hour.toString().padLeft(2, '0')}:'
+  final time =
+      '${local.hour.toString().padLeft(2, '0')}:'
       '${local.minute.toString().padLeft(2, '0')}';
   return '${_dateLabel(context, local)} · $time';
 }
@@ -842,7 +853,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         _rows(data['visible_journeys']).isNotEmpty ||
         _rows(data['visible_dependencies']).isNotEmpty;
     final canLink =
-        _canMutate && _cap(data, 'dossier.journey.link') &&
+        _canMutate &&
+        _cap(data, 'dossier.journey.link') &&
         (_mode == _DossierMode.overview || _mode == _DossierMode.list);
     final scheme = Theme.of(context).colorScheme;
     final title = Row(
@@ -1170,10 +1182,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   Widget _collaboration(Map<String, dynamic> data) {
     final assignments = _rows(data['assignments']);
     final mandates = _rows(data['mandates']);
-    final canAssign = _canMutate &&
-        _cap(data, 'dossier.assignment.manage');
-    final canGrant = _canMutate &&
-        _cap(data, 'dossier.authority.manage');
+    final canAssign = _canMutate && _cap(data, 'dossier.assignment.manage');
+    final canGrant = _canMutate && _cap(data, 'dossier.authority.manage');
     if (assignments.isEmpty && mandates.isEmpty && !canAssign && !canGrant) {
       return const SizedBox.shrink();
     }
@@ -1330,9 +1340,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
     final nextId = _text(next['journey_id']);
-    final nextJourney = items.where(
-      (item) => _text(item['id']) == nextId,
-    ).toList();
+    final nextJourney = items
+        .where((item) => _text(item['id']) == nextId)
+        .toList();
     final nextTitle = nextJourney.isEmpty
         ? ''
         : _text(nextJourney.first['label']);
