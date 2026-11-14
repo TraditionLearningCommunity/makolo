@@ -736,15 +736,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                         ),
                       ),
                     ),
-                  if (!hasRows && !_busy && _errors.isEmpty)
-                    Center(
+                  if (!hasRows && !_busy && _errors.isEmpty &&
+                      _knownFamilies.length == families.length)
+                    const Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text(
-                          _knownFamilies.length == families.length
-                              ? 'Aucun appui à afficher.'
-                              : 'Appuis indisponibles.',
-                        ),
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text('Aucun appui à afficher.'),
                       ),
                     ),
                 ],
