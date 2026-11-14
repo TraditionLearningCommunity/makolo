@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from recognition.economy import accept_redemption, decline_redemption, redeem_reward
 from recognition.models import RecognitionRedemption, RedemptionStatus, RewardKind
 from recognition.valuation import credit_money_equivalent
-from recognition.presentation import reward_spend_presentation
+from recognition.presentation import reward_spend_presentation, reward_self_actionable
 from recognition.selectors import (
     account_for_profile,
     account_for_space,
@@ -35,10 +35,15 @@ def _raise_service(exc):
     raise ValidationError(getattr(exc, "messages", [str(exc)])) from exc
 
 
-def _reward_payload(reward, *, allow_redeem=None, redeem_url=None):
-    self_eligible = bool(getattr(reward, "recognition_self_eligible", False))
+def _reward_payload(reward, *, allow_redeem=None, redeem_url=None, owner_account=None):
+    self_eligible = bool(
+        getattr(reward, "recognition_self_eligible", False)
+        and (owner_account is None or reward_self_actionable(reward, owner_account))
+    )
     if allow_redeem is None:
         allow_redeem = self_eligible
+    else:
+        allow_redeem = bool(allow_redeem and self_eligible)
     capabilities = ["redeem"] if allow_redeem else []
     links = {}
     if allow_redeem:
@@ -190,7 +195,7 @@ class MyRecognitionAPIView(APIView):
                 "account": _account_payload(account),
                 "monetary_equivalent": credit_money_equivalent(account),
                 "achievements": achievements,
-                "rewards": [_reward_payload(reward) for reward in rewards],
+                "rewards": [_reward_payload(reward, owner_account=account) for reward in rewards],
                 "incoming": [
                     _redemption_payload(redemption, incoming=True)
                     for redemption in incoming
@@ -409,6 +414,7 @@ class SpaceRecognitionAPIView(APIView):
                 _reward_payload(
                     reward,
                     allow_redeem=can_spend,
+                    owner_account=account,
                     redeem_url=f"/api/v1/recognition/spaces/{space.pk}/rewards/{reward.pk}/redeem/",
                 )
                 for reward in rewards
