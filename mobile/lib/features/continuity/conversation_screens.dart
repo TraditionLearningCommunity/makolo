@@ -1417,7 +1417,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _olderLoaded = false;
   bool _loadingOlder = false;
   String? _olderError;
-  final ConversationCompressionState _compressionState = ConversationCompressionState();
+  final ConversationCompressionState _compressionState =
+      ConversationCompressionState();
 
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
@@ -1935,7 +1936,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return Padding(
       key: Key('conversation-folded-$key'),
       padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
+        MakoloSpacing.inner,
+        0,
+        MakoloSpacing.inner,
+        MakoloSpacing.sm,
       ),
       child: Material(
         color: scheme.surfaceContainerLow,
@@ -1963,7 +1967,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.layers_outlined, size: 19, color: scheme.onSurfaceVariant),
+                      Icon(
+                        Icons.layers_outlined,
+                        size: 19,
+                        color: scheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: MakoloSpacing.sm),
                       Expanded(
                         child: Text(
@@ -1974,14 +1982,15 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       if (period != null)
                         Text(
                           period,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
                         ),
                       const SizedBox(width: MakoloSpacing.xs),
-                      Icon(expanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded),
+                      Icon(
+                        expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                      ),
                     ],
                   ),
                 ),
@@ -1990,7 +1999,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             if (expanded)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.sm, 0, MakoloSpacing.sm, MakoloSpacing.sm,
+                  MakoloSpacing.sm,
+                  0,
+                  MakoloSpacing.sm,
+                  MakoloSpacing.sm,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2309,11 +2321,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final segments = _compressionState.project<int>([
       for (var i = 0; i < combined.length; i++)
         ConversationThreadItem<int>(
-          id: combined[i].point?.point.id ??
+          id:
+              combined[i].point?.point.id ??
               'local:${combined[i].outgoing!.reference}',
           value: i,
           publishedAt: combined[i].at,
-          keepVisible: combined[i].outgoing != null ||
+          keepVisible:
+              combined[i].outgoing != null ||
               (() {
                 final point = combined[i].point!.point;
                 final intent = _pointResponseIntent(point, outgoing);
@@ -2339,7 +2353,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                         'form_request': point.formRequest,
                       },
                       ownerAttentionReason: point.attentionReason,
-                      hasPendingIntent: intent != null &&
+                      hasPendingIntent:
+                          intent != null &&
                           (!intent.isConfirmed ||
                               !point.hasRespondedForScope(
                                 widget.representedSpaceId,
@@ -2362,15 +2377,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       }
       if (segment.foldable) {
         children.add(
-          _foldedTimelineGroup(
-            context,
-            segment,
-            [
-              for (final item in segment.items)
-                combined[item.value].point!,
-            ],
-            outgoing: outgoing,
-          ),
+          _foldedTimelineGroup(context, segment, [
+            for (final item in segment.items) combined[item.value].point!,
+          ], outgoing: outgoing),
         );
       } else {
         final item = combined[segment.items.single.value];
