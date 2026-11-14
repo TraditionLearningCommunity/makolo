@@ -86,6 +86,26 @@ Map<String, dynamic> _projection({bool limited = false}) => {
 };
 
 void main() {
+  testWidgets('Nous does not invent an absent Trust verification preview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: _projection(),
+            fallbackSpaceName: 'Espace',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Notre confiance'), findsOneWidget);
+    expect(find.textContaining('Aucune vérification publique'), findsNothing);
+    expect(find.textContaining('Des faits publics de vérification'), findsNothing);
+  });
+
   for (final width in [360.0, 834.0, 1440.0]) {
     testWidgets('Nous is readable at width $width', (tester) async {
       tester.view.physicalSize = Size(width, 1100);
