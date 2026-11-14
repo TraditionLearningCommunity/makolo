@@ -616,8 +616,6 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Retrouve ici les Espaces, équipes et groupes liés à toi.'),
-        const SizedBox(height: 16),
         _summary(context),
         const SizedBox(height: 14),
         _filters(context),
@@ -634,14 +632,6 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                   ? 'Les autres collectifs seront affichés après chargement.'
                   : 'Aucun collectif dans cette catégorie.',
               textAlign: TextAlign.center,
-            ),
-          ),
-        if (widget.hasMore && _search.text.trim().isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(
-              'Recherche sur les informations déjà reçues. '
-              'D’autres collectifs peuvent encore être synchronisés.',
             ),
           ),
       ],
