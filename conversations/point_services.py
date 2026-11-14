@@ -246,7 +246,7 @@ def _assert_policy_allows(point):
 
 @transaction.atomic
 def create_point(
-    *, actor, conversation, kind, response_mode=ConversationPointResponseMode.NONE,
+    *, actor, conversation, kind, response_mode=None,
     resolution_policy=ConversationPointResolutionPolicy.MANUAL, title="", body="", importance="normal",
     visibility_audience=None, response_audience=None, expected_action_audience=None, resolution_audience=None,
     response_visibility="respondent_and_authorities", requires_acknowledgement=False,
@@ -261,6 +261,15 @@ def create_point(
     if conversation.lifecycle != ConversationLifecycle.OPEN:
         raise ValidationError("La Conversation doit être ouverte pour publier un Point.")
     _validate_represented_space(actor, represented_space)
+    # An Exchange is intrinsically free-text; callers omitting the optional
+    # response mode must not produce a Point that violates its own contract.
+    # Explicit incompatible modes still fail model validation.
+    if response_mode is None:
+        response_mode = (
+            ConversationPointResponseMode.FREE_TEXT
+            if kind == ConversationPointKind.EXCHANGE
+            else ConversationPointResponseMode.NONE
+        )
     ref = (client_reference or "").strip() or None
     if ref:
         existing = ConversationPoint.objects.filter(client_reference=ref).first()
