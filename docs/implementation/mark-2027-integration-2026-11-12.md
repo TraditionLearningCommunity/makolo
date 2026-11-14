@@ -115,3 +115,16 @@ Le périmètre de cette passe étend **la préparation et l'interface**, pas les
 **Implémentation écrite, mais non compilée ni exécutée dans cet environnement connecté GitHub.** Les tests Dart, Python, E2E Web et Android, la validation visuelle, le formatter canonique et la recette multi-écran restent à réaliser séparément. Le parcours générique de transfert multimodal entre Mark et tous les autres owners, l'interprétation visuelle, les PDF, la compréhension audio générique et toute intelligence nécessitant un fournisseur/modèle ou des contrats propriétaires non présents restent des capacités **non closes**, pas des fonctionnalités simulées.
 
 Aucune CI, aucun workflow ni aucune configuration de workflow n'a été lancée, annulée ou modifiée dans cette passe. La PR #522 demeure ouverte et `main` non modifiée.
+
+## Recette UX/UI mobile — corrections du 14 novembre 2026
+
+À partir des captures d'émulateur reçues (écran Mark, pièce texte, galerie/caméra, audio enregistré et dictée), la priorité est **la présentation**, sans prétendre valider la logique serveur.
+
+- Composeur Flutter regroupé dans une seule surface arrondie : saisie, pièces et outils forment un ensemble. Le grand bouton « Continuer » est remplacé par une flèche circulaire intégrée, inactive sans texte.
+- Les gestes distincts **Joindre**, **Appareil photo**, **Galerie d'images** et **Voix** restent accessibles comme quatre icônes seules, avec intitulés d'accessibilité et cibles tactiles de 48 dp. Le bouton dédié « Lien » est retiré de la rangée.
+- Photos issues de l'appareil et images déjà présentes dans le stockage : **miniatures locales** dans le composeur, clic pour aperçu, bouton de retrait. Les fichiers non visuels et audios restent des chips sobres.
+- La caméra native demeure le propriétaire de l'interface de capture. Au retour, **Mark présente une revue de l'image** avec « Reprendre/Changer », « Garder » et « Annuler », puis ajoute une miniature seulement après consentement. L'image refusée est retirée du staging local.
+- Le texte technique permanent sur le cache, les transmissions, le réseau et les fournisseurs de transcription a été ôté des surfaces normales d'édition/voix. Les erreurs qui empêchent une action restent visibles et formulées en conséquence humaine.
+- Le compteur de caractères est discret et n'apparaît qu'à l'approche de la limite ; la restauration et l'annulation sans conséquence restent silencieuses.
+
+**Vérification effectuée :** relecture des composants source et de la structure des widgets. **Non effectué :** lancement, hot restart, comparaison de captures après modification, golden tests, formatter canonique, tests Flutter et recette Samsung. Ces changements UI n'impliquent aucun nouveau modèle, droit, upload ou succès serveur. La PR reste non fusionnée.
