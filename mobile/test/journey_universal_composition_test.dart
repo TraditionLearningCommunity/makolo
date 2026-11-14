@@ -147,6 +147,28 @@ void main() {
     expect(composed.interventions.length, 2);
   });
 
+  test('two checks leading to the same owner depth are one choice', () {
+    final composed = JourneyComposition.from(
+      _journey(
+        interventions: const [
+          JourneyReadinessItem(
+            key: 'requirement-1',
+            summary: 'Fournir la pièce',
+            nextLink: '/api/v1/me/journeys/1/requirements/r1/',
+          ),
+          JourneyReadinessItem(
+            key: 'followup-1',
+            summary: 'Compléter le même élément',
+            nextLink: '/api/v1/me/journeys/1/requirements/r1/',
+          ),
+        ],
+        nextKey: 'next',
+        nextLink: '/api/v1/me/journeys/1/requirements/r1/',
+      ),
+    );
+    expect(composed.situation, JourneySituation.action);
+  });
+
   test('a technical, repeated objective is not an extra user task', () {
     final p = JourneyComposition.from(
       _journey(
