@@ -111,12 +111,21 @@ void main() {
 
       expect(find.text('Qu’est-ce que vous avez en tête ?'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Joindre'), findsOneWidget);
-      expect(find.text('Photo'), findsOneWidget);
-      expect(find.text('Image'), findsOneWidget);
-      expect(find.text('Lien'), findsOneWidget);
-      expect(find.text('Voix'), findsOneWidget);
-      expect(find.text('Continuer'), findsOneWidget);
+      expect(find.text('Joindre'), findsNothing);
+      expect(find.text('Photo'), findsNothing);
+      expect(find.text('Image'), findsNothing);
+      expect(find.text('Lien'), findsNothing);
+      expect(find.text('Voix'), findsNothing);
+      expect(find.text('Continuer'), findsNothing);
+      expect(find.byTooltip('Joindre un fichier'), findsOneWidget);
+      expect(find.byTooltip('Prendre une photo'), findsOneWidget);
+      expect(find.byTooltip('Choisir une image'), findsOneWidget);
+      expect(find.byTooltip('Enregistrer un audio'), findsOneWidget);
+      expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
+      expect(
+        find.textContaining('Pièces et liens conservés dans le brouillon local'),
+        findsNothing,
+      );
       expect(find.textContaining('A1'), findsNothing);
       expect(find.textContaining('A2'), findsNothing);
     },
@@ -132,7 +141,7 @@ void main() {
       );
       await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
       await tester.pump();
-      await tester.tap(find.text('Voix'));
+      await tester.tap(find.byTooltip('Enregistrer un audio'));
       await tester.pumpAndSettle();
       expect(find.text('Enregistrer un audio'), findsOneWidget);
       await tester.tap(find.text('Enregistrer un audio'));
