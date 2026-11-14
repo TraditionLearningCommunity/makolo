@@ -450,42 +450,42 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               );
       }
       final programs = AppuisViewData.programs(data);
+      final availableRewards = AppuisViewData.rows(data['available_rewards']);
       final obtained = AppuisViewData.rows(data['rewards']);
-      return Column(
-        children: [
-          if (programs.isEmpty && obtained.isNotEmpty)
-            _card(
-              Icons.workspace_premium_outlined,
-              'Récompenses obtenues',
-              highlight: '${obtained.length} récompense(s)',
-              open: () => _openFamily(family),
-            ),
-          for (final row in (all ? programs : programs.take(3)))
-            _card(
-              Icons.card_giftcard_outlined,
-              AppuisViewData.text(row['program_name']).isNotEmpty
-                  ? AppuisViewData.text(row['program_name'])
-                  : AppuisViewData.text(row['organization_name']),
-              subtitle: AppuisViewData.text(row['program_name']).isNotEmpty
-                  ? AppuisViewData.text(row['organization_name'])
-                  : '',
+      if (programs.isEmpty && obtained.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      if (all) {
+        return Column(children: [
+          for (final row in programs)
+            _card(Icons.card_giftcard_outlined,
+              AppuisViewData.text(row['program_name']).isEmpty
+                ? 'Programme de fidélité'
+                : AppuisViewData.text(row['program_name']),
+              subtitle: AppuisViewData.text(row['organization_name']),
               highlight: [
                 if (AppuisViewData.positive(row['points_balance']))
-                  '${AppuisViewData.text(row['points_balance'])} ${AppuisViewData.text(row['points_name'])}',
-                if (AppuisViewData.text(
-                  AppuisViewData.map(row['current_tier'])['name'],
-                ).isNotEmpty)
-                  AppuisViewData.text(
-                    AppuisViewData.map(row['current_tier'])['name'],
-                  ),
+                  AppuisViewData.text(row['points_balance']) + ' ' +
+                      AppuisViewData.text(row['points_name']),
                 if (AppuisViewData.availableRewardCount(data, row) > 0)
-                  '${AppuisViewData.availableRewardCount(data, row)} avantage(s) disponible(s)',
+                  AppuisViewData.availableRewardCount(data, row).toString() +
+                      ' avantages disponibles',
               ].join(' · '),
-              open: () => _openProgram(row),
-            ),
-        ],
-      );
+              open: () => _openProgram(row)),
+          if (programs.isEmpty && obtained.isNotEmpty)
+            _card(Icons.workspace_premium_outlined,
+              'Récompenses obtenues', open: () => _openFamily(family)),
+        ]);
+      }
+      // No program catalog on the Appuis landing. Open it intentionally.
+      return _card(Icons.card_giftcard_outlined,
+        'Mes programmes de fidélité',
+        subtitle: 'Adhésions et avantages de mes Espaces',
+        highlight: availableRewards.isEmpty ? '' :
+            availableRewards.length.toString() + ' avantages disponibles',
+        open: () => _openFamily(family));
     }
+
     if (family == 'recognition') {
       final rows = _recognitionRows();
       final credits = AppuisViewData.map(data['summary'])['available_credits'];
