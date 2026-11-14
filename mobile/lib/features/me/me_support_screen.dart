@@ -675,6 +675,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final offline =
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
     final hasRows = AppuisViewData.available(_snapshots, _space).isNotEmpty;
+    final currentScope = _scope;
     return Scaffold(
       appBar: AppBar(
         title: Text(_space ? 'Nos appuis' : 'Mes appuis'),
@@ -705,6 +706,15 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                     onReadProgram: _readProgram,
                     onCreateSpaceItem: _createSpaceProgramItem,
                     canMutate: !offline && !_denied && !_busy,
+                    canSpendRecognition: () =>
+                      !_denied && !_busy &&
+                      SyncStatusScope.maybeOf(context)?.state != SyncVisualState.offline &&
+                      _scope == currentScope,
+                    onRedeemRecognition: _redeemRecognition,
+                    onReloadRecognition: _reloadRecognition,
+                    actorChanges: widget.runtime.actorContext,
+                    actorIsCurrent: () =>
+                      !_denied && _scope == currentScope,
                     allowed: (row, family, action) =>
                         _action(row, family, action) != null,
                   ),
