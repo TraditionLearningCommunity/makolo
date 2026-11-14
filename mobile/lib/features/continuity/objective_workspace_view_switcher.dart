@@ -16,11 +16,13 @@ class ObjectiveWorkspaceViewSwitcher<T> extends StatelessWidget {
     required this.selected,
     required this.options,
     required this.onSelected,
+    this.compact = false,
   });
 
   final T selected;
   final List<ObjectiveViewOption<T>> options;
   final ValueChanged<T> onSelected;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +30,11 @@ class ObjectiveWorkspaceViewSwitcher<T> extends StatelessWidget {
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: options.length * 56.0),
+        constraints: BoxConstraints(maxWidth: options.length * (compact ? 44.0 : 56.0)),
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: scheme.outlineVariant),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(compact ? 10 : 12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -50,7 +52,7 @@ class ObjectiveWorkspaceViewSwitcher<T> extends StatelessWidget {
                           ? scheme.onPrimaryContainer
                           : scheme.onSurfaceVariant,
                       style: IconButton.styleFrom(
-                        fixedSize: const Size(48, 44),
+                        fixedSize: Size(compact ? 42 : 48, 44),
                         padding: EdgeInsets.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         backgroundColor: selected == option.value
