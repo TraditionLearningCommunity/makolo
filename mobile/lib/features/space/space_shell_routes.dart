@@ -1253,9 +1253,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               )
             : ListView(
                 padding: const EdgeInsets.all(MakoloSpacing.lg),
-                children: [
-                  SpaceUsAuthorityFacts(payload: _authorityFacts!),
-                ],
+                children: [SpaceUsAuthorityFacts(payload: _authorityFacts!)],
               ),
       );
     }
@@ -1313,7 +1311,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             const SizedBox(height: MakoloSpacing.md),
             MakoloActionButton(
               label: 'Voir mes autorisations',
-              onPressed: () => context.push('/space/${widget.slug}/us/authority'),
+              onPressed: () =>
+                  context.push('/space/${widget.slug}/us/authority'),
               appearance: MakoloActionAppearance.secondary,
               icon: Icons.shield_outlined,
             ),

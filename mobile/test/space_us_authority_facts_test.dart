@@ -8,9 +8,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: SpaceUsAuthorityFacts(payload: {}),
-        ),
+        home: Scaffold(body: SpaceUsAuthorityFacts(payload: {})),
       ),
     );
     expect(find.text('Autorisations indisponibles.'), findsOneWidget);

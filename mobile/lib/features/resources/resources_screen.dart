@@ -137,11 +137,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                         if (!source.ownerDenied)
                           ResourceHubEntryData(
                             icon: Icons.folder_copy_outlined,
-                          title: 'Mes documents',
-                          subtitle: 'Fichiers et pièces personnelles',
-                          count: counts.documents,
-                          onTap: widget.onOpenDocuments,
-                        ),
+                            title: 'Mes documents',
+                            subtitle: 'Fichiers et pièces personnelles',
+                            count: counts.documents,
+                            onTap: widget.onOpenDocuments,
+                          ),
                         ResourceHubEntryData(
                           icon: Icons.verified_outlined,
                           title: 'Mes preuves',

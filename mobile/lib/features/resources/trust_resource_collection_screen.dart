@@ -496,9 +496,8 @@ class _TrustResourceCollectionScreenState
 
             return ResourceCollectionScaffold(
               title: _title,
-              count: !source.invalidated &&
-                      view.total != null &&
-                      view.total! > 0
+              count:
+                  !source.invalidated && view.total != null && view.total! > 0
                   ? view.total
                   : null,
               searching: _searching,

@@ -108,15 +108,17 @@ void main() {
           'page': {'offset': 0, 'limit': 24, 'has_more': false},
         },
       );
-      await database.into(database.syncSources).insert(
-        SyncSourcesCompanion.insert(
-          profileId: 'profile-a',
-          sourceKey: source.sourceKey,
-          route: source.path,
-          lastSuccessAt: Value(DateTime.now().toUtc()),
-          lastErrorCode: const Value('transport_unreachable'),
-        ),
-      );
+      await database
+          .into(database.syncSources)
+          .insert(
+            SyncSourcesCompanion.insert(
+              profileId: 'profile-a',
+              sourceKey: source.sourceKey,
+              route: source.path,
+              lastSuccessAt: Value(DateTime.now().toUtc()),
+              lastErrorCode: const Value('transport_unreachable'),
+            ),
+          );
       await tester.pumpWidget(
         MaterialApp(
           home: TrustResourceCollectionScreen(
@@ -131,15 +133,20 @@ void main() {
       expect(find.textContaining('Mise à jour indisponible'), findsNothing);
       expect(find.textContaining('Données enregistrées'), findsNothing);
 
-      await database.update(database.syncSources).write(
-        const SyncSourcesCompanion(
-          invalidated: Value(true),
-          lastErrorCode: Value('permission_denied'),
-        ),
-      );
+      await database
+          .update(database.syncSources)
+          .write(
+            const SyncSourcesCompanion(
+              invalidated: Value(true),
+              lastErrorCode: Value('permission_denied'),
+            ),
+          );
       await tester.pumpAndSettle();
       expect(find.text('Formation attestée'), findsNothing);
-      expect(find.text('Ces preuves ne sont plus disponibles.'), findsOneWidget);
+      expect(
+        find.text('Ces preuves ne sont plus disponibles.'),
+        findsOneWidget,
+      );
       expect(find.byTooltip('Rechercher'), findsNothing);
       expect(find.text('1'), findsNothing);
     },

@@ -534,7 +534,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
             return ResourceCollectionScaffold(
               title: 'Nos documents',
-              count: view.hasSnapshot &&
+              count:
+                  view.hasSnapshot &&
                       source.lastSuccessAt != null &&
                       source.lastErrorCode == null &&
                       !source.invalidated

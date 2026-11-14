@@ -103,7 +103,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Notre confiance'), findsOneWidget);
     expect(find.textContaining('Aucune vérification publique'), findsNothing);
-    expect(find.textContaining('Des faits publics de vérification'), findsNothing);
+    expect(
+      find.textContaining('Des faits publics de vérification'),
+      findsNothing,
+    );
   });
 
   for (final width in [360.0, 834.0, 1440.0]) {

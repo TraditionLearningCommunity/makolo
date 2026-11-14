@@ -492,7 +492,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         padding: EdgeInsets.symmetric(
                           vertical: MakoloSpacing.xl,
                         ),
-                        child: Center(child: Text('Aucun document à afficher.')),
+                        child: Center(
+                          child: Text('Aucun document à afficher.'),
+                        ),
                       )
               else
                 for (final item in view.items)
@@ -525,9 +527,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
             return ResourceCollectionScaffold(
               title: 'Mes documents',
-              count: !source.invalidated &&
-                      view.total != null &&
-                      view.total! > 0
+              count:
+                  !source.invalidated && view.total != null && view.total! > 0
                   ? view.total
                   : null,
               searching: _searching,
@@ -542,10 +543,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               actions: [
                 if (!source.invalidated)
                   MakoloIconActionButton(
-                  tooltip: 'Ajouter',
-                  icon: Icons.add_rounded,
-                  onPressed: widget.onAddDocument,
-                ),
+                    tooltip: 'Ajouter',
+                    icon: Icons.add_rounded,
+                    onPressed: widget.onAddDocument,
+                  ),
               ],
               filterBar: source.invalidated ? null : filterBar,
               scrollController: _scroll,
