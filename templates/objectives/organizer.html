@@ -11,6 +11,13 @@
   </nav>
   <header class="mk-organizer__heading">
     <div><h1>Mes démarches</h1></div>
+    {% if not space_context %}
+      <a href="{% url 'objectives:project-invitations' %}"
+         aria-label="Invitations de Projet" title="Invitations de Projet"
+         style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin-left:auto;color:var(--mk-brand)">
+        <i data-lucide="mail" aria-hidden="true"></i>
+      </a>
+    {% endif %}
   </header>
   {% if not space_context or organizer_data.manageable_spaces %}
   <div class="mk-organizer__create" aria-label="Créer">
