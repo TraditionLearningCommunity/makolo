@@ -4,7 +4,6 @@ from __future__ import annotations
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from accounts.models import UserProfile
 from authorization.constants import STANDARD_PROJECT_ROLE_CODES
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
