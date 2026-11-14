@@ -375,6 +375,29 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertNotIn("live", outsider.json()["data"]["links"])
         self.assertNotIn("open_live", outsider.json()["data"]["capabilities"])
 
+    def test_journey_day_of_link_depends_on_operations_beneficiary_gate(self):
+        occurrence = create_occurrence(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=2),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        journey = self.journey(occurrence=occurrence, status=JourneyStatus.CONFIRMED)
+        self.client.force_authenticate(self.user)
+        url = f"/api/v1/me/journeys/{journey.pk}/"
+        allowed = self.client.get(url)
+        self.assertEqual(allowed.status_code, 200)
+        self.assertIn("open_day_of", allowed.json()["data"]["capabilities"])
+        self.assertIn("day_of", allowed.json()["data"]["links"])
+
+        journey.status = JourneyStatus.CANCELLED
+        journey.save(update_fields=["status", "updated_at"])
+        cancelled = self.client.get(url)
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertNotIn("open_day_of", cancelled.json()["data"]["capabilities"])
+        self.assertNotIn("day_of", cancelled.json()["data"]["links"])
+
     def test_capacity_unlimited_and_access_terminal_states_are_preserved(self):
         unlimited = CapacityPool.objects.create(
             activity=self.activity,
