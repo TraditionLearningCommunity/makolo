@@ -206,6 +206,7 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
                 "timeline_points": timeline["points"],
                 "attention": conversation_attention_sections(self.request.user, conversation),
                 "timeline_older_query": older_query,
+                "timeline_older_cursor": timeline["next_cursor"] or "",
                 "focused_point": focused_point,
                 "q": q,
                 "search_results": search_conversation(self.request.user, conversation, q) if q else [],
