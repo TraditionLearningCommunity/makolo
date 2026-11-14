@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -31,6 +33,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
   Map<String, dynamic>? payload;
   bool loading = false;
   bool denied = false;
+  bool pageFailed = false;
   int version = 0;
   int nextOffset = 0;
   bool get actorValid => widget.runtime.actorContext?.value == widget.actor;
@@ -71,6 +74,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
       nextOffset = 0;
       loading = false;
       denied = false;
+      pageFailed = false;
     });
     if (actorValid) unawaited(_bootstrap());
   }
@@ -137,6 +141,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
     final offset = nextOffset;
     setState(() {
       loading = true;
+      pageFailed = false;
     });
     try {
       final api = widget.runtime.api;
@@ -195,6 +200,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
     } on Object catch (error) {
       if (!mounted || currentVersion != version) return;
       setState(() {
+        pageFailed = true;
         denied =
             error is MakoloApiError &&
             const {401, 403, 404}.contains(error.statusCode);
@@ -230,10 +236,21 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                         payload: payload!,
                         mediaBaseUri: widget.runtime.api?.baseUri,
                         onLoadMore: (_) {
-                          if (!loading) unawaited(loadPage());
+                          if (!loading && !pageFailed) {
+                            unawaited(loadPage());
+                          }
                         },
                       ),
               ),
+              if (pageFailed && payload != null && !denied)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: MakoloActionButton(
+                    label: 'Réessayer la liste',
+                    onPressed: loadPage,
+                    appearance: MakoloActionAppearance.quiet,
+                  ),
+                ),
             ],
           ),
   );
