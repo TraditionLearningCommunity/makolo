@@ -2365,8 +2365,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                         : point.responseWindowOpen) &&
                     !point.hasRespondedForScope(widget.representedSpaceId);
                 return awaitingResponse ||
-                    point.canResolve ||
-                    point.canCloseResponses ||
+                    (point.canResolve &&
+                        point.attentionReason == 'resolve') ||
                     point.importance == 'critical' ||
                     conversationPointNeedsVisibility(
                       point: {
