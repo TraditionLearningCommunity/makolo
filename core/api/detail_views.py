@@ -48,6 +48,15 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             viewer=request.user,
             observed_at=observed_at,
         )
+        # Jour J is a separate, authorized Operations experience. An
+        # Occurrence link alone is never a participant admission.
+        day_of_available = (
+            journey.occurrence_id is not None
+            and participant_occurrence_live_available(
+                occurrence=journey.occurrence,
+                actor=request.user,
+            )
+        )
         live = (
             True
             if journey.occurrence_id
@@ -64,6 +73,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
                 journey=journey,
                 readiness=readiness,
                 profile=request.user,
+                day_of_available=day_of_available,
                 live=live,
             ),
             observed_at=observed_at,
