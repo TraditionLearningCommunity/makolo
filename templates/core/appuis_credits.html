@@ -1,0 +1,53 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}{% if is_space %}Utiliser nos crédits{% else %}Utiliser mes crédits{% endif %} | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/appuis.css' %}">{% endblock %}
+{% block content %}
+<main data-mk-surface="appuis" class="ap-spend" data-appuis-actor="{% if is_space %}space{% else %}profile{% endif %}">
+  <a class="ap-back" href="{{ back_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i> Retour</a>
+  <header class="ap-intro">
+    <h1>{% if is_space %}Utiliser nos crédits{% else %}Utiliser mes crédits{% endif %}</h1>
+  </header>
+  <section class="ap-spend-balance" aria-label="Crédits disponibles">
+    <i data-lucide="coins" aria-hidden="true"></i>
+    <strong>{{ credits }} crédits</strong>
+  </section>
+  {% if monetary_equivalent %}
+  <section class="ap-money" aria-label="Valeur en argent">
+    <div><small>Valeur en argent</small>
+      <strong>{{ monetary_equivalent.amount }} {{ monetary_equivalent.currency }}</strong>
+    </div>
+    <button type="button" disabled aria-disabled="true" title="Retrait indisponible">Retirer</button>
+  </section>
+  {% endif %}
+  {% if error_message %}<p class="ap-feedback" role="alert">{{ error_message }}</p>{% endif %}
+  {% if subscriptions %}
+    <section class="ap-family">
+      <div class="ap-section-head"><i data-lucide="crown" aria-hidden="true"></i><h2>Abonnements</h2></div>
+      <div class="ap-grid">
+      {% for item in subscriptions %}{% include "core/partials/appuis_credit_reward.html" %}{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  {% if features %}
+    <section class="ap-family">
+      <div class="ap-section-head"><i data-lucide="unlock-keyhole" aria-hidden="true"></i><h2>Fonctionnalités</h2></div>
+      <div class="ap-grid">
+      {% for item in features %}{% include "core/partials/appuis_credit_reward.html" %}{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  {% if benefits %}
+    <section class="ap-family">
+      <div class="ap-section-head"><i data-lucide="gift" aria-hidden="true"></i><h2>Autres avantages</h2></div>
+      <div class="ap-grid">
+      {% for item in benefits %}{% include "core/partials/appuis_credit_reward.html" %}{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  {% if not has_rewards %}
+    <p class="ap-note">Aucune récompense disponible pour le moment.</p>
+  {% endif %}
+</main>
+<script src="{% static 'js/appuis.js' %}" defer></script>
+{% endblock %}
