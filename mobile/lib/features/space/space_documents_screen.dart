@@ -541,6 +541,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   ? view.count
                   : null,
               searching: _searching,
+              searchEnabled: !source.invalidated,
               searchController: _search,
               searchHint: 'Rechercher dans nos documents',
               onSearchChanged: _onSearchChanged,

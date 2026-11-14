@@ -140,6 +140,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Formation attestée'), findsNothing);
       expect(find.text('Ces preuves ne sont plus disponibles.'), findsOneWidget);
+      expect(find.byTooltip('Rechercher'), findsNothing);
       expect(find.text('1'), findsNothing);
     },
   );

@@ -502,6 +502,7 @@ class _TrustResourceCollectionScreenState
                   ? view.total
                   : null,
               searching: _searching,
+              searchEnabled: !source.invalidated,
               searchController: _search,
               searchHint: widget.family == TrustResourceFamily.proofs
                   ? 'Rechercher dans mes preuves'

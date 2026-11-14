@@ -531,6 +531,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   ? view.total
                   : null,
               searching: _searching,
+              searchEnabled: !source.invalidated,
               searchController: _search,
               searchHint: 'Rechercher dans mes documents',
               onSearchChanged: _onSearchChanged,

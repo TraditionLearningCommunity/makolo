@@ -208,6 +208,7 @@ class ResourceCollectionScaffold extends StatelessWidget {
     required this.refreshing,
     required this.children,
     this.actions = const [],
+    this.searchEnabled = true,
     this.filterBar,
     this.scrollController,
     this.storageKey,
@@ -216,6 +217,7 @@ class ResourceCollectionScaffold extends StatelessWidget {
   final String title;
   final int? count;
   final bool searching;
+  final bool searchEnabled;
   final TextEditingController searchController;
   final String searchHint;
   final ValueChanged<String> onSearchChanged;
@@ -232,7 +234,7 @@ class ResourceCollectionScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: searching
+      title: searching && searchEnabled
           ? TextField(
               controller: searchController,
               autofocus: true,
@@ -246,18 +248,20 @@ class ResourceCollectionScaffold extends StatelessWidget {
             )
           : ResourceCountTitle(title: title, count: count),
       actions: [
-        if (searching)
-          MakoloIconActionButton(
-            tooltip: 'Fermer la recherche',
-            icon: Icons.close_rounded,
-            onPressed: onCloseSearch,
-          )
-        else
-          MakoloIconActionButton(
-            tooltip: 'Rechercher',
-            icon: Icons.search_rounded,
-            onPressed: onOpenSearch,
-          ),
+        if (searchEnabled) ...[
+          if (searching)
+            MakoloIconActionButton(
+              tooltip: 'Fermer la recherche',
+              icon: Icons.close_rounded,
+              onPressed: onCloseSearch,
+            )
+          else
+            MakoloIconActionButton(
+              tooltip: 'Rechercher',
+              icon: Icons.search_rounded,
+              onPressed: onOpenSearch,
+            ),
+        ],
         ...actions,
         MakoloIconActionButton(
           tooltip: 'Actualiser',
