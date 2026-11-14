@@ -1384,6 +1384,7 @@ class ConversationDetailScreen extends StatefulWidget {
     this.representedSpaceId,
     this.focusPointId,
     this.onOpenFormRequest,
+    this.inlineFormBuilder,
     this.onOpenHistory,
     this.onOpenDetails,
     this.onOpenRelatedPoint,
@@ -1395,6 +1396,7 @@ class ConversationDetailScreen extends StatefulWidget {
   final String? representedSpaceId;
   final String? focusPointId;
   final Future<void> Function(String requestId)? onOpenFormRequest;
+  final Widget Function(String requestId)? inlineFormBuilder;
   final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenDetails;
   final ValueChanged<String>? onOpenRelatedPoint;
@@ -1754,6 +1756,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         readOnly: readOnly,
         responseIntent: _pointResponseIntent(point, outgoing),
         onOpenFormRequest: widget.onOpenFormRequest,
+        inlineFormBuilder: widget.inlineFormBuilder,
         onOpenExchange: () => _openExchange(point),
         onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
         onOpenRelatedPoint: widget.onOpenRelatedPoint,
@@ -2769,6 +2772,7 @@ class _PointCard extends StatefulWidget {
     this.readOnly = false,
     this.responseIntent,
     this.onOpenFormRequest,
+    this.inlineFormBuilder,
     this.onOpenExchange,
     this.onRespondWithMedia,
     this.onOpenRelatedPoint,
@@ -2782,6 +2786,7 @@ class _PointCard extends StatefulWidget {
   final bool readOnly;
   final ConversationOutgoing? responseIntent;
   final Future<void> Function(String requestId)? onOpenFormRequest;
+  final Widget Function(String requestId)? inlineFormBuilder;
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
   final ValueChanged<String>? onOpenRelatedPoint;
@@ -3305,18 +3310,32 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         ],
-        if (point.formRequest != null && widget.onOpenFormRequest != null) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          FilledButton.tonalIcon(
+        if (point.formRequest != null &&
+            widget.inlineFormBuilder != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          ExpansionTile(
+            key: PageStorageKey<String>('conversation-inline-form-${point.id}'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+            title: Text(
+              point.formRequest!['status'] == 'completed'
+                  ? 'Votre réponse'
+                  : 'Répondre',
+              style: theme.labelLarge,
+            ),
+            children: [
+              widget.inlineFormBuilder!(
+                point.formRequest!['id']?.toString() ?? '',
+              ),
+            ],
+          ),
+        ] else if (point.formRequest != null &&
+            widget.onOpenFormRequest != null) ...[
+          TextButton(
             onPressed: () => widget.onOpenFormRequest!(
               point.formRequest!['id']?.toString() ?? '',
             ),
-            icon: const Icon(Icons.assignment_outlined),
-            label: Text(
-              point.formRequest!['status'] == 'completed'
-                  ? 'Voir le formulaire'
-                  : 'Compléter le formulaire',
-            ),
+            child: const Text('Répondre'),
           ),
         ],
         for (final response in point.responseMedia)
