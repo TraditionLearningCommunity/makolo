@@ -1508,15 +1508,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       _attentionFocusedId ?? _justPublishedPointId ?? widget.focusPointId;
   String? _attentionFocusedId;
 
-  void _openAttentionPoint(String pointId) {
-    if (pointId.isEmpty) return;
-    setState(() {
-      _attentionFocusedId = pointId;
-      _handledFocus = null;
-    });
-    unawaited(_refreshPublishedFocus(pointId));
-  }
-
   @override
   void initState() {
     super.initState();
