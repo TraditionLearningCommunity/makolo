@@ -4,6 +4,7 @@ from commerce.order_web_views import PersonalCommerceOrderWebDetailView
 
 from .home_views import MatureParticipantHomeView
 from .appuis_web import AppuisWebView
+from .appuis_credits_web import AppuisCreditsWebView
 from .transverse_search_web import PersonalSearchWebView
 from .interoperability_views import PersonalConnectionsView
 from .m8c_participant_views import ParticipantJourneyDetailView
@@ -38,6 +39,7 @@ urlpatterns = [
     path("me/ongoing/", MatureParticipantOngoingView.as_view(), name="participant-ongoing"),
     path("me/moi/", MatureParticipantMeView.as_view(), name="participant-me"),
     path("me/moi/appuis/", AppuisWebView.as_view(), name="participant-appuis"),
+    path("me/moi/appuis/utiliser/", AppuisCreditsWebView.as_view(), name="participant-appuis-use"),
     path("me/moi/choix/", MatureParticipantConsiderationsView.as_view(), name="participant-me-choices"),
     path("me/connections/", PersonalConnectionsView.as_view(), name="participant-connections"),
     path("mark/", MakoloMarkView.as_view(), name="makolo-mark"),
