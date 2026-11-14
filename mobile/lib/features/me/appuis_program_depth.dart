@@ -184,14 +184,14 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
 
   String _planPrice(Map<String, dynamic> plan) {
     if (plan['is_free'] == true || !_positive(plan['price'])) return 'Gratuite';
-    return _text(plan['price']) + ' ' + _text(plan['currency']);
+    return '${_text(plan['price'])} ${_text(plan['currency'])}';
   }
 
   String _planDetail(Map<String, dynamic> plan) {
     final details = [
       _planPrice(plan),
       if (_positive(plan['duration_days']))
-        'Durée : ' + _text(plan['duration_days']) + ' jours',
+        'Durée : ${_text(plan['duration_days'])} jours',
       if (_text(plan['description']).isNotEmpty) _text(plan['description']),
       if (_text(plan['benefits']).isNotEmpty) _text(plan['benefits']),
     ];
@@ -209,8 +209,8 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
     final end = _date(membership['ends_at']);
     final infos = [
       if (status.isNotEmpty) status,
-      if (start.isNotEmpty) 'Depuis le ' + start,
-      if (end.isNotEmpty) 'Jusqu’au ' + end,
+      if (start.isNotEmpty) 'Depuis le $start',
+      if (end.isNotEmpty) 'Jusqu’au $end',
       if (plan != null && _text(plan['benefits']).isNotEmpty)
         _text(plan['benefits']),
     ];
@@ -276,7 +276,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
     final prefix = compact.isEmpty ? 'APPUI' : compact;
     final stamp = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final length = prefix.length > 25 ? 25 : prefix.length;
-    return prefix.substring(0, length) + '_' + stamp;
+    return '${prefix.substring(0, length)}_$stamp';
   }
 
   Future<void> _add(String kind) async {
@@ -444,11 +444,10 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                             ? organization
                             : 'Programme de fidélité')),
             note: [
-              if (_positive(balance)) _text(balance) + ' points',
+              if (_positive(balance)) '${_text(balance)} points',
               if (tier.isNotEmpty) tier,
               if (tiers.isNotEmpty)
-                tiers.length.toString() +
-                    (tiers.length == 1 ? ' niveau' : ' niveaux'),
+                '${tiers.length} ${tiers.length == 1 ? 'niveau' : 'niveaux'}',
               if (plans.isNotEmpty)
                 plans.length.toString() +
                     (plans.length == 1 ? ' formule' : ' formules'),
@@ -464,7 +463,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                     : 'Adhésion',
                 detail: _status(membership['status']),
                 note: _date(membership['ends_at']).isNotEmpty
-                    ? 'Jusqu’au ' + _date(membership['ends_at'])
+                    ? 'Jusqu’au ${_date(membership['ends_at'])}'
                     : '',
                 open: widget.space ? null : () => _memberDetail(membership),
               ),
@@ -482,7 +481,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                 _text(item['name']),
                 detail: [
                   if (_positive(item['threshold_points']))
-                    'Dès ' + _text(item['threshold_points']) + ' points'
+                    'Dès ${_text(item['threshold_points'])} points'
                   else if (item['threshold_points'] != null)
                     'Niveau de départ',
                   if (_text(item['benefits']).isNotEmpty)
@@ -532,9 +531,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                     _text(item['name']),
                     detail: [
                       if (_positive(item['points_cost']))
-                        _text(item['points_cost']) +
-                            ' ' +
-                            _text(program['points_name']).trim(),
+                        '${_text(item['points_cost'])} ${_text(program['points_name']).trim()}',
                       if (_text(item['description']).isNotEmpty)
                         _text(item['description']),
                       if (_text(item['fulfillment_instructions']).isNotEmpty)
@@ -581,7 +578,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
             detail: [
               if (_text(entry['kind']).isNotEmpty) _text(entry['kind']),
               if (_positive(entry['points_delta']))
-                '+' + _text(entry['points_delta']) + ' points',
+                '+${_text(entry['points_delta'])} points',
             ].join(' · '),
           ),
       ],
