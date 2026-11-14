@@ -851,7 +851,9 @@ class _JourneyContent extends StatelessWidget {
         : MakoloActionAppearance.secondary;
 
     for (final form in presentation.forms) {
-      if (form.canComplete && form.detailLink == link) {
+      if (form.detailLink == link ||
+          (form.canComplete &&
+              (form.saveLink == link || form.submitLink == link))) {
         return MakoloActionButton(
           appearance: appearance,
           label: label,
@@ -867,6 +869,34 @@ class _JourneyContent extends StatelessWidget {
           onPressed: () => onOpenRequirement(requirement),
         );
       }
+    }
+    // A Readiness next-action may point to an owner's payment/commerce
+    // operation rather than its detail endpoint. Open the known local owner
+    // depth, never the raw URL and never a different obligation.
+    final segments = Uri.tryParse(link)?.pathSegments ?? const <String>[];
+    if (onOpenPaymentObligation != null &&
+        segments.contains('obligations')) {
+      for (final obligation in presentation.payments) {
+        final id = obligation.obligationId;
+        if (id != null && segments.contains(id)) {
+          return MakoloActionButton(
+            appearance: appearance,
+            label: label,
+            onPressed: () => onOpenPaymentObligation!(id),
+          );
+        }
+      }
+    }
+    final order = presentation.order;
+    if (onOpenCommerceOrder != null &&
+        order != null &&
+        segments.contains('orders') &&
+        segments.contains(order.id)) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenCommerceOrder!(order.id),
+      );
     }
     if (presentation.resourcesLink == link) {
       return MakoloActionButton(
