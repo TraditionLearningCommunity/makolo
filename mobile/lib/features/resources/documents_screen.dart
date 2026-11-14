@@ -478,7 +478,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   onRetry: _refreshFirst,
                 )
               else if (view.items.isEmpty)
-                view.total == 0 && source.lastSuccessAt != null
+                view.total == 0 &&
+                        source.lastSuccessAt != null &&
+                        source.lastErrorCode == null
                     ? _EmptyDocuments(
                         query: _query,
                         archived: _view == 'archived',
