@@ -119,3 +119,29 @@ class AppuisProgramDepthAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["capabilities"], [])
         self.assertEqual(response.json()["links"], {})
+
+    def test_owner_refuses_strategy_mutation_without_manage_permission(self):
+        self.client.force_login(self.member)
+        payload = {
+            "program_id": str(self.program.pk),
+            "name": "Niveau non autorisé",
+            "code": "NO_ACCESS",
+            "threshold_points": 75,
+        }
+        with (
+            patch(
+                "loyalty.api.views.get_programs_visible_to",
+                return_value=LoyaltyProgram.objects.filter(pk=self.program.pk),
+            ),
+            patch(
+                "loyalty.api.views.user_can_manage_loyalty_strategy",
+                return_value=False,
+            ),
+        ):
+            response = self.client.post(
+                "/api/v1/loyalty/tiers/", payload,
+            )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(
+            LoyaltyTier.objects.filter(code="NO_ACCESS").exists()
+        )
