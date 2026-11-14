@@ -13,6 +13,9 @@ urlpatterns = [
     path("from-activity/<uuid:activity_id>/", dossier_from_activity, name="dossier-from-activity"),
     path("projects/", views.project_list, name="project-list"),
     path("projects/new/", views.project_create, name="project-create"),
+    path("projects/invitations/", views.project_invitations, name="project-invitations"),
+    path("projects/invitations/<uuid:invitation_id>/respond/", views.project_invitation_respond, name="project-invitation-respond"),
+
     path("projects/<uuid:project_id>/", views.project_detail, name="project-detail"),
     path("projects/<uuid:project_id>/dossiers/create/", views.project_create_child, name="project-create-child"),
     path("projects/<uuid:project_id>/edit/", views.project_edit, name="project-edit"),
