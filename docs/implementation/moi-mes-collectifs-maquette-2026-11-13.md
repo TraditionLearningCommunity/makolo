@@ -44,6 +44,10 @@ Aucun écran e-commerce indépendant, aucune grille de tuiles purement décorati
 
 L'absence de réseau ne supprime pas les noms connus mais retire le CTA « Agir » sans afficher de bannière permanente. Révocation explicite et changement de Profile restent gérés par les sources natives existantes.
 
+## Identité factuelle du Space et frontière API
+
+La projection propriétaire `core/api/me_projection.py` enrichit maintenant uniquement les entrées `authorized_spaces` avec `archetype_label` (libellé réel de l'archétype) et `description` (description actuelle de l'Organization). Il s'agit d'une extension additive, sans nouveau modèle ni transfert d'autorité. Teams/Groups ne reçoivent pas ces champs par inférence. La vérification `core/test_z8_secondary_surfaces_api.py` couvre l'identité projetée pour un Space autorisé et l'absence de divulgation d'un autre Space.
+
 ## Médias : vérité disponible, pas de faux logo
 
 Le modèle canonique `Organization` présent dans le runtime n'a **pas de champ logo/avatar/photo Space**. Le sélecteur de `PresentationMediaUse` relie ses médias publiés aux **Activities/Occurrences**, pas à l'identité durable d'un Space. Ni une image d'Activity, ni l'avatar personnel d'un membre ne peuvent devenir un « logo Space » par inférence.
@@ -66,6 +70,6 @@ La présentation native accueille un `media_bindings` de reconnaissance **explic
 - Formatter canonique : `cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check` (Flutter 3.47.3 / Dart 3.13.3).
 - `flutter analyze`, `flutter test test/me_collectives_content_test.dart test/me_mature_test.dart`, puis Mobile CI et régression visuelle.
 - Recette émulateur + Samsung : pile de navigation, Back, retour Moi, clavier/recherche, tri, catégories à zéro, gros texte Android, listes longues, Team sans autorité, Group privé, Space révoqué, local disponible hors réseau, médias owner-backed.
-- Pas de merge #522 avec une gate rouge. Aucun runtime Web ou Django modifié par cette adaptation.
+- Pas de merge #522 avec une gate rouge. Django : uniquement les deux faits d'identité d'un Space déjà autorisé dans la projection personnelle, sans migration. Aucun runtime Web modifié.
 
 La nouvelle interface doit rester une surface qui aide à avancer : reconnaissance, sélection et handoff réel — pas un tableau de bord ni un annuaire de gestion.
