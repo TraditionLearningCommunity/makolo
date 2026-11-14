@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../design/action_controls.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -31,7 +30,6 @@ class SpaceWorkCollectionScreen extends StatefulWidget {
 class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
   Map<String, dynamic>? payload;
   bool loading = false;
-  bool failed = false;
   bool denied = false;
   int version = 0;
   int nextOffset = 0;
@@ -72,7 +70,6 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
       payload = null;
       nextOffset = 0;
       loading = false;
-      failed = false;
       denied = false;
     });
     if (actorValid) unawaited(_bootstrap());
@@ -140,7 +137,6 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
     final offset = nextOffset;
     setState(() {
       loading = true;
-      failed = false;
     });
     try {
       final api = widget.runtime.api;
@@ -199,7 +195,6 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
     } on Object catch (error) {
       if (!mounted || currentVersion != version) return;
       setState(() {
-        failed = true;
         denied =
             error is MakoloApiError &&
             const {401, 403, 404}.contains(error.statusCode);
@@ -223,28 +218,6 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
         : Column(
             children: [
               if (loading) const LinearProgressIndicator(),
-              if (failed)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          payload == null
-                              ? 'Impossible de vérifier cette collection.'
-                              : 'Actualisation impossible. Les éléments affichés '
-                                    'proviennent de la dernière lecture réussie ; '
-                                    'chaque ouverture sera revérifiée.',
-                        ),
-                      ),
-                      MakoloActionButton(
-                        label: 'Réessayer',
-                        onPressed: loadPage,
-                        appearance: MakoloActionAppearance.quiet,
-                      ),
-                    ],
-                  ),
-                ),
               Expanded(
                 child: payload == null
                     ? loading
