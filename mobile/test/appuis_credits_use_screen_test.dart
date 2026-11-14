@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/me/appuis_credits_use_screen.dart';
@@ -211,6 +213,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('240 crédits'), findsNothing);
     current.dispose();
+  });
+
+  testWidgets('fresh owner confirmation is required before showing cash value',
+      (tester) async {
+    final fresh = Completer<Map<String, dynamic>?>();
+    final initial = projection(
+      money: {'amount': '12.00', 'currency': 'USD'},
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: AppuisCreditsUseScreen(
+        initial: initial,
+        space: false,
+        canSpend: () => true,
+        canUseReward: (_) => false,
+        onRedeem: (_) async => null,
+        onReload: () => fresh.future,
+      ),
+    ));
+    expect(find.text('12.00 USD'), findsNothing);
+    expect(find.text('Retirer'), findsNothing);
+    fresh.complete(initial);
+    await tester.pumpAndSettle();
+    expect(find.text('12.00 USD'), findsOneWidget);
+    expect(find.text('Retirer'), findsOneWidget);
   });
 
   testWidgets('pending credits cannot pay for a reward', (tester) async {
