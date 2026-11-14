@@ -2876,13 +2876,18 @@ class _PointCardState extends State<_PointCard> {
       );
       if (!mounted ||
           pointId != widget.point.id ||
-          _inlineResponse.text.isNotEmpty ||
-          widget.point.hasRespondedForScope(widget.representedSpaceId)) {
+          _inlineResponse.text.isNotEmpty) {
         return;
       }
+      final editingConfirmedResponse =
+          widget.point.hasRespondedForScope(widget.representedSpaceId);
+      if (editingConfirmedResponse && !widget.point.canChangeResponse) return;
       final value = saved?['value']?.toString() ?? '';
       if (value.isNotEmpty) {
-        setState(() => _inlineResponse.text = value);
+        setState(() {
+          _inlineResponse.text = value;
+          if (editingConfirmedResponse) _editingResponse = true;
+        });
       }
     } on Object {
       // Missing draft never blocks this Point.
@@ -3599,11 +3604,13 @@ class _PointCardState extends State<_PointCard> {
                   'date',
                   'datetime',
                 }.contains(point.responseMode)) {
-                  _inlineResponse.text =
-                      point
-                          .responseForScope(widget.representedSpaceId)['value']
-                          ?.toString() ??
-                      '';
+                  if (_inlineResponse.text.isEmpty) {
+                    _inlineResponse.text =
+                        point
+                            .responseForScope(widget.representedSpaceId)['value']
+                            ?.toString() ??
+                        '';
+                  }
                 }
               }),
               child: const Text('Modifier'),
