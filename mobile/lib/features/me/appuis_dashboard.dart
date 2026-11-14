@@ -363,7 +363,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               style: const TextStyle(color: Color(0xFFE5DDFF), fontSize: 13),
             ),
           ],
-          if (hasAccount && maySpend) ...[
+          if (hasAccount && maySpend && AppuisViewData.positive(credit)) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
