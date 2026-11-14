@@ -84,6 +84,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   String? _invitationNotice;
   bool _requestedInitialRefresh = false;
   int _identityRevision = 0;
+  late Stream<StoredProjection?> _ongoingSummaryStream;
 
   bool _isCurrent(int revision, String id, JourneyRepository repository) =>
       mounted &&
@@ -94,6 +95,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _ongoingSummaryStream = widget.repository.watchOngoingSummary();
     unawaited(_acquireOrRefresh());
   }
 
@@ -103,6 +105,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     if (oldWidget.journeyId != widget.journeyId ||
         oldWidget.repository != widget.repository) {
       // Old owner responses must not change another Journey/Profile's page.
+      _ongoingSummaryStream = widget.repository.watchOngoingSummary();
       _identityRevision++;
       _refreshing = false;
       _respondingInvitation = false;
@@ -324,7 +327,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     label: 'Chargement de la démarche…',
                   ),
                   empty: StreamBuilder<StoredProjection?>(
-                    stream: widget.repository.watchOngoingSummary(),
+                    stream: _ongoingSummaryStream,
                     builder: (context, ongoingSnapshot) {
                       final summary = JourneyRepository.knownOngoingSummary(
                         ongoingSnapshot.data,
