@@ -78,6 +78,89 @@ const _empty = <String, dynamic>{
 };
 
 void main() {
+  test('local Ongoing summary never resolves an unrelated Journey', () {
+    final ongoing = StoredProjection(
+      kind: 'personal.ongoing',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 14),
+      payload: const {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': 'known-journey'},
+            'title': 'Inscription connue',
+          },
+          {
+            'source': {'kind': 'access', 'id': 'other-journey'},
+            'title': 'Accès sans Journey',
+          },
+        ],
+      },
+    );
+    expect(
+      JourneyRepository.knownOngoingSummary(
+        ongoing,
+        'known-journey',
+      )?['title'],
+      'Inscription connue',
+    );
+    expect(
+      JourneyRepository.knownOngoingSummary(
+        ongoing,
+        'other-journey',
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('local Ongoing cover remains visible before detail acquisition', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-local');
+    await store.putProjection(
+      kind: 'personal.ongoing',
+      resourceKey: '',
+      schemaVersion: 1,
+      payload: const {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': 'journey-local'},
+            'title': 'Mon inscription locale',
+            'timing': {'start_date': '2026-12-11'},
+            'place': {'name': 'Lubumbashi'},
+          },
+        ],
+      },
+    );
+    final journeys = JourneyRepository(
+      database: db,
+      store: store,
+      profileId: 'profile-local',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JourneyDetailScreen(
+          journeyId: 'journey-local',
+          repository: journeys,
+          onOpenForm: (_) {},
+          onOpenRequirement: (_) {},
+          onOpenResources: (_) {},
+          onOpenActivity: (_) {},
+          onOpenOccurrence: (_) {},
+          onOpenAccess: (_) {},
+          onOpenDayOf: (_) {},
+          onOpenLive: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mon inscription locale'), findsOneWidget);
+    expect(find.byKey(const Key('journey-partial-local')), findsOneWidget);
+    expect(find.byKey(const Key('journey-relative-day')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('technical Readiness checks do not create a false preparation', (
     tester,
   ) async {
