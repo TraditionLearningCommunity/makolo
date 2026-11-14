@@ -469,17 +469,18 @@ void main() {
   );
 
   testWidgets(
-    'C5: attention panel keeps expansion state separate from scroll offset',
+    'C5: older owner action remains in chronological fil without attention banner',
     (tester) async {
       final repository = repositoryFor((request) async {
         if (request.url.path == '/api/v1/conversations/conversation-1/') {
           return const MockResponse(
             '{"id":"conversation-1","title":"Coordination",'
-            '"points":[],"essential":[],"composer":{"can_create":false,'
-            '"media_kinds":[]},'
-            '"attention":{"action_count":1,'
-            '"for_me":[{"id":"point-1","label":"Action en cours"}],'
-            '"to_resolve":[],"to_know":[]}}',
+            '"points":[{"id":"point-1","title":"Action en cours",'
+            '"kind":"question","response_mode":"free_text",'
+            '"lifecycle":"open","can_respond":true,'
+            '"attention_reason":"respond"}],'
+            '"essential":[],"timeline":[],'
+            '"composer":{"can_create":false,"media_kinds":[]}}',
             200,
           );
         }
@@ -494,9 +495,12 @@ void main() {
           onOpenHistory: () {},
         ),
       );
-      await tester.tap(find.textContaining('À présent · 1 à traiter'));
-      await tester.pumpAndSettle();
+      expect(find.textContaining('À présent'), findsNothing);
       expect(find.text('Action en cours'), findsOneWidget);
+      expect(
+        find.byKey(const Key('conversation-inline-answer-point-1')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
