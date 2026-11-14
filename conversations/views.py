@@ -152,6 +152,51 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         return results
 
 
+class ConversationInlineFormRespondView(LoginRequiredMixin, View):
+    """Save/submit the existing authorized Questionnaire without leaving the fil."""
+
+    login_url = "core:login"
+
+    def post(self, request, point_pk):
+        from django.template.loader import render_to_string
+        from questionnaires.views import _answers_from_post
+        from questionnaires.services import save_response, submit_response
+        from .form_services import form_request_for_profile
+
+        point = get_object_or_404(ConversationPoint, pk=point_pk)
+        if not point_visible_to(request.user, point):
+            raise PermissionDenied("Ce Point n’est pas accessible.")
+        form_request = form_request_for_profile(point, request.user)
+        if point.kind != "form_request" or form_request is None:
+            raise PermissionDenied("Formulaire indisponible.")
+        action = request.POST.get("action")
+        if action not in {"save", "submit"}:
+            return JsonResponse({"error": "Action indisponible."}, status=400)
+        try:
+            save_response(
+                request=form_request, actor=request.user,
+                answers=_answers_from_post(request, form_request),
+            )
+            if action == "submit":
+                submit_response(request=form_request, actor=request.user)
+        except (ValidationError, PermissionDenied) as exc:
+            error = "; ".join(getattr(exc, "messages", [str(exc)]))
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"error": error}, status=400)
+            messages.error(request, error)
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                point.refresh_from_db()
+                html = render_to_string(
+                    "conversations/_point.html", {"point": point}, request=request,
+                )
+                return JsonResponse({"html": html})
+        return redirect(
+            reverse("conversations:detail", kwargs={"pk": point.conversation_id})
+            + f"?focus={point.pk}#point-{point.pk}"
+        )
+
+
 class ConversationOlderTimelineView(ConversationAccessMixin, View):
     """Authorized chronological HTML continuation for in-place Web expansion."""
 
