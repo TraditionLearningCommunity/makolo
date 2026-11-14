@@ -28,3 +28,7 @@
 .mk-conversation-inline-form>section{padding:.6rem .75rem;border-radius:.75rem}
 .mk-conversation-inline-form .mk-input{min-height:2.6rem}
 @media(max-width:450px){.mk-thread-point{padding:.65rem .75rem}.mk-point-author-avatar{width:1.85rem;height:1.85rem;left:-2.25rem}.mk-point-author-own{left:auto;right:-2.25rem}}
+
+.mk-voice-inline{background:color-mix(in srgb,var(--mk-brand,#5232db) 5%,transparent)}
+.mk-voice-audio{height:2.8rem;max-width:100%}
+.mk-voice-audio::-webkit-media-controls-panel{background:transparent}
