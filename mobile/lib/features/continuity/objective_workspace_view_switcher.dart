@@ -30,7 +30,9 @@ class ObjectiveWorkspaceViewSwitcher<T> extends StatelessWidget {
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: options.length * (compact ? 44.0 : 56.0)),
+        constraints: BoxConstraints(
+          maxWidth: options.length * (compact ? 44.0 : 56.0),
+        ),
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(color: scheme.outlineVariant),
