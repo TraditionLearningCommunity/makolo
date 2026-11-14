@@ -40,6 +40,7 @@ Widget harness(
 }) => MaterialApp(
   home: AppuisCreditsUseScreen(
     initial: data,
+    refreshOnOpen: false,
     space: space,
     canSpend: () => canSpend,
     canUseReward: canUseReward ?? (_) => true,
