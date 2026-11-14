@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'appuis_program_depth.dart';
+
 /// The three owners remain authoritative: this is presentation only.
 class AppuisViewData {
   const AppuisViewData._();
@@ -142,6 +144,7 @@ class AppuisDashboard extends StatefulWidget {
     required this.onAction,
     required this.onReadProgram,
     required this.onCreateSpaceItem,
+    required this.canMutate,
     required this.allowed,
   });
 
@@ -152,6 +155,7 @@ class AppuisDashboard extends StatefulWidget {
   final AppuisAction onAction;
   final AppuisProgramReader onReadProgram;
   final AppuisSpaceCreator onCreateSpaceItem;
+  final bool canMutate;
   final AppuisAllowed allowed;
 
   @override
@@ -692,64 +696,28 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
   }
 
   void _openProgram(Map<String, dynamic>? account) {
-    final data = _data('loyalty');
-    final id = account == null ? '' : AppuisViewData.programId(account);
-    final memberships = AppuisViewData.rows(data['memberships'])
-        .where((row) => AppuisViewData.programId(row) == id)
-        .toList();
-    final rewards = AppuisViewData.rows(data['available_rewards'])
-        .where((row) => AppuisViewData.programId(row) == id)
-        .toList();
-    final program = AppuisViewData.map(data['program']);
-    final name = AppuisViewData.text(
-      account?['program_name'] ?? program['name'],
-    );
-    _open(name.isEmpty ? 'Programme de fidélité' : name, [
-      if (account != null)
-        _card(
-          Icons.storefront_outlined,
-          AppuisViewData.text(account['organization_name']),
-          highlight: AppuisViewData.positive(account['points_balance'])
-              ? '${AppuisViewData.text(account['points_balance'])} ${AppuisViewData.text(account['points_name'])}'
-              : '',
-        ),
-      _details(
-        'loyalty',
-        'Mes adhésions',
-        memberships,
-        Icons.card_membership_outlined,
-        actions: true,
+    final loyalty = _data('loyalty');
+    final spaceProgram = AppuisViewData.map(loyalty['program']);
+    final selected = widget.space
+        ? spaceProgram
+        : (account ?? <String, dynamic>{});
+    final id = widget.space
+        ? AppuisViewData.text(spaceProgram['id'])
+        : AppuisViewData.programId(selected);
+    if (id.isEmpty) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (context) => AppuisProgramDepth(
+        programId: id,
+        initialProgram: selected,
+        loyalty: loyalty,
+        space: widget.space,
+        onReadProgram: widget.onReadProgram,
+        onAction: widget.onAction,
+        allowed: widget.allowed,
+        onCreateSpaceItem: widget.onCreateSpaceItem,
+        canMutate: widget.canMutate,
       ),
-      _details(
-        'loyalty',
-        'Avantages disponibles',
-        rewards,
-        Icons.redeem_outlined,
-        actions: true,
-      ),
-      if (account != null)
-        _details(
-          'loyalty',
-          'Mouvements',
-          account['recent_activity'],
-          Icons.history_outlined,
-        ),
-      if (account == null) ...[
-        _details('loyalty', 'Niveaux', program['tiers'], Icons.layers_outlined),
-        _details(
-          'loyalty',
-          'Formules',
-          program['membership_plans'],
-          Icons.card_membership_outlined,
-        ),
-        _details(
-          'loyalty',
-          'Récompenses proposées',
-          program['rewards'],
-          Icons.redeem_outlined,
-        ),
-      ],
-    ]);
+    ));
   }
 
   void _openPartner(Map<String, dynamic> partner) {
