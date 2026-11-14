@@ -1387,6 +1387,7 @@ class ConversationDetailScreen extends StatefulWidget {
     this.onOpenHistory,
     this.onOpenDetails,
     this.onOpenRelatedPoint,
+    this.onOpenAuthor,
   });
 
   final String id;
@@ -1397,6 +1398,7 @@ class ConversationDetailScreen extends StatefulWidget {
   final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenDetails;
   final ValueChanged<String>? onOpenRelatedPoint;
+  final ValueChanged<String>? onOpenAuthor;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -1755,6 +1757,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         onOpenExchange: () => _openExchange(point),
         onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
         onOpenRelatedPoint: widget.onOpenRelatedPoint,
+        onOpenAuthor: widget.onOpenAuthor,
       ),
     );
   }
@@ -2769,6 +2772,7 @@ class _PointCard extends StatefulWidget {
     this.onOpenExchange,
     this.onRespondWithMedia,
     this.onOpenRelatedPoint,
+    this.onOpenAuthor,
   });
 
   final _ConversationPoint point;
@@ -2781,6 +2785,7 @@ class _PointCard extends StatefulWidget {
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
   final ValueChanged<String>? onOpenRelatedPoint;
+  final ValueChanged<String>? onOpenAuthor;
 
   @override
   State<_PointCard> createState() => _PointCardState();
@@ -3601,6 +3606,9 @@ class _PointCardState extends State<_PointCard> {
       kind: point.kind ?? 'information',
       isMine: point.isMine,
       authorLabel: point.authorLabel,
+      onOpenAuthor: point.authorPublicProfileId == null
+          ? null
+          : () => widget.onOpenAuthor?.call(point.authorPublicProfileId!),
       representedSpace: point.representedSpace,
       representedSpaceLabel: point.representedSpaceLabel,
       publishedAt: point.publishedAt ?? point.updatedAt,
@@ -4189,6 +4197,7 @@ class _ConversationPoint {
     this.canChangeResponse = false,
     this.replacedByPointId,
     this.authorLabel,
+    this.authorPublicProfileId,
     this.isMine = false,
     this.representedSpace = false,
     this.representedSpaceLabel,
@@ -4199,6 +4208,7 @@ class _ConversationPoint {
   final String id;
   final String title;
   final String? authorLabel;
+  final String? authorPublicProfileId;
   final bool isMine;
   final bool representedSpace;
   final String? representedSpaceLabel;
@@ -4316,6 +4326,7 @@ class _ConversationPoint {
       id: _string(row['id']) ?? '',
       title: _string(row['title']) ?? '',
       authorLabel: _string(_map(row['author'])['label']),
+      authorPublicProfileId: _string(_map(row['author'])['public_profile_id']),
       isMine: _map(row['author'])['is_mine'] == true,
       representedSpace: _map(row['author'])['represented_space'] == true,
       representedSpaceLabel: _string(_map(row['author'])['space_label']),
