@@ -290,6 +290,9 @@
 
     function setMode(next) {
       if (next === 'minimized' || next === 'inline') closePreview();
+      if (next === 'minimized' && speechPanel && !speechPanel.hidden) {
+        closeDictation(false);
+      }
       const desktop = window.matchMedia('(min-width: 1200px)').matches;
       mode = desktop ? next : 'inline';
       root.dataset.mkMarkMode = mode;
@@ -555,8 +558,14 @@
         setMode('inline');
       }
     }
+    function stopHiddenDictation() {
+      if (document.hidden && speechPanel && !speechPanel.hidden) {
+        closeDictation(false);
+      }
+    }
     function teardown() {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', stopHiddenDictation);
       document.removeEventListener('htmx:beforeSwap', beforeSwap);
       window.removeEventListener('pagehide', teardown);
       try { recognizer?.abort(); } catch (_) {}
@@ -570,6 +579,7 @@
       if (target && (target === root || target.contains?.(root))) teardown();
     }
     window.addEventListener('resize', handleResize);
+    document.addEventListener('visibilitychange', stopHiddenDictation);
     document.addEventListener('htmx:beforeSwap', beforeSwap);
     window.addEventListener('pagehide', teardown);
     updateComposer();
