@@ -3,11 +3,7 @@ import 'package:makolo_mobile/features/continuity/conversation_compression.dart'
 
 void main() {
   ConversationThreadItem<int> item(int id, {bool visible = false}) =>
-      ConversationThreadItem(
-        id: 'point-$id',
-        value: id,
-        keepVisible: visible,
-      );
+      ConversationThreadItem(id: 'point-$id', value: id, keepVisible: visible);
 
   test('900 chronological contributions fold around only relevant Points', () {
     final state = ConversationCompressionState();
@@ -16,10 +12,14 @@ void main() {
         item(i, visible: {61, 62, 201}.contains(i)),
     ];
     final result = state.project(source);
-    expect(
-      result.map((segment) => segment.items.length).toList(),
-      [60, 1, 1, 138, 1, 699],
-    );
+    expect(result.map((segment) => segment.items.length).toList(), [
+      60,
+      1,
+      1,
+      138,
+      1,
+      699,
+    ]);
     expect(
       result.expand((segment) => segment.items.map((item) => item.id)).toList(),
       source.map((item) => item.id).toList(),
