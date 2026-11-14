@@ -28,6 +28,7 @@ class QuestionnaireFormScreen extends StatefulWidget {
     required this.outbox,
     required this.submitCoordinator,
     this.outboxProcessor,
+    this.embedded = false,
   });
 
   final String requestId;
@@ -38,6 +39,7 @@ class QuestionnaireFormScreen extends StatefulWidget {
   final OutboxRepository outbox;
   final QuestionnaireSubmitCoordinator submitCoordinator;
   final OutboxProcessor? outboxProcessor;
+  final bool embedded;
 
   @override
   State<QuestionnaireFormScreen> createState() =>
@@ -268,6 +270,32 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                 : null;
             final commit = _commitCue(operation);
 
+            final body = detail == null
+                ? (_refreshing
+                    ? const Center(child: CircularProgressIndicator())
+                    : Center(
+                        child: TextButton(
+                          onPressed: _refresh,
+                          child: const Text('Réessayer'),
+                        ),
+                      ))
+                : _FormContent(
+                    repository: widget.repository,
+                    detail: detail,
+                    answers: _answers,
+                    errors: _serverErrors,
+                    commit: commit,
+                    retryScheduled: operation?.retryScheduled ?? false,
+                    refreshing: _refreshing,
+                    canEdit: !_submitting,
+                    canSubmit: widget.links.canSubmit &&
+                        !detail.isSubmitted && !_submitting &&
+                        !_submittedLocally && !_operationActive(operation),
+                    onChanged: _changed,
+                    onSubmit: () => _submit(detail!),
+                    embedded: widget.embedded,
+                  );
+            if (widget.embedded) return body;
             return Scaffold(
               appBar: AppBar(
                 title: Text(detail?.title ?? 'Formulaire'),
@@ -353,6 +381,7 @@ class _FormContent extends StatelessWidget {
     required this.canSubmit,
     required this.onChanged,
     required this.onSubmit,
+    this.embedded = false,
   });
 
   final QuestionnaireRepository repository;
@@ -366,15 +395,13 @@ class _FormContent extends StatelessWidget {
   final bool canSubmit;
   final void Function(String key, Object? value) onChanged;
   final VoidCallback onSubmit;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
-    return MakoloReadingWidth(
-      child: ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        children: [
-          MakoloCard(
+    final content = <Widget>[
+
+          if (!embedded) MakoloCard(
             child: MakoloStatusMetadataAction(
               title: detail.required
                   ? 'Formulaire requis'
@@ -397,7 +424,7 @@ class _FormContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: MakoloSpacing.lg),
-          if (detail.description != null) ...[
+          if (!embedded && detail.description != null) ...[
             Text(
               detail.description!,
               style: Theme.of(context).textTheme.bodyLarge,
@@ -418,15 +445,7 @@ class _FormContent extends StatelessWidget {
             const SizedBox(height: MakoloSpacing.md),
           ],
           MakoloCommitIndicator(commit: commit),
-          if (retryScheduled) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            const InlineMessage(
-              message:
-                  'L’envoi a été interrompu. Une nouvelle tentative '
-                  'est prévue avec la même intention ; aucune seconde '
-                  'soumission n’est nécessaire.',
-            ),
-          ],
+
           if (errors['_form'] != null) ...[
             const SizedBox(height: MakoloSpacing.md),
             InlineMessage(message: errors['_form'].toString()),
@@ -480,7 +499,7 @@ class _FormContent extends StatelessWidget {
                 ? MakoloActionPhase.available
                 : MakoloActionPhase.unavailable,
           ),
-          if (!canSubmit &&
+          if (!embedded && !canSubmit &&
               !detail.isSubmitted &&
               commit == MakoloCommitCue.none) ...[
             const SizedBox(height: MakoloSpacing.sm),
@@ -490,7 +509,18 @@ class _FormContent extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ],
-        ],
+        ];
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: content,
+      );
+    }
+    return MakoloReadingWidth(
+      child: ListView(
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: content,
       ),
     );
   }
