@@ -17,6 +17,17 @@
       }
     });
   }
+  for (const form of root.querySelectorAll('[data-credits-confirm]')) {
+    form.addEventListener('submit', (event) => {
+      const label = form.dataset.creditsConfirm;
+      if (!window.confirm(label)) {
+        event.preventDefault();
+        return;
+      }
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) submit.disabled = true;
+    });
+  }
   for (const button of root.querySelectorAll('[data-appuis-expand]')) {
     button.addEventListener('click', () => {
       const key = button.dataset.appuisExpand;
