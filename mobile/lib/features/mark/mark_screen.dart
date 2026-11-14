@@ -1534,7 +1534,7 @@ class _MarkScreenState extends State<MarkScreen> {
                                   if (_isVisualAttachment(item))
                                     _MarkImageThumbnail(
                                       key: ValueKey(
-                                        'mark-thumb:${_draftRevision}:${item['file_id']}',
+                                        'mark-thumb:$_draftRevision:${item['file_id']}',
                                       ),
                                       loadPath: () => _localThumbnailPath(
                                         item['file_id']?.toString() ?? '',
@@ -1554,7 +1554,7 @@ class _MarkScreenState extends State<MarkScreen> {
                                   else if (item['kind'] != 'audio')
                                     _MarkDocumentThumbnail(
                                       key: ValueKey(
-                                        'mark-file:${_draftRevision}:${item['file_id']}',
+                                        'mark-file:$_draftRevision:${item['file_id']}',
                                       ),
                                       filename:
                                           item['name']?.toString() ??
