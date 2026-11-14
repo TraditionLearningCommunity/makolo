@@ -125,8 +125,16 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
       if (!permission.permitsCapability) {
         throw StateError('Microphone refused');
       }
-      await widget.channel.invokeMethod<void>('start');
       if (!mounted) return;
+      await widget.channel.invokeMethod<void>('start');
+      if (!mounted) {
+        try {
+          await widget.channel.invokeMethod<void>('cancel');
+        } on Object {
+          // The native recognizer may already have stopped.
+        }
+        return;
+      }
       setState(() {
         _busy = false;
         _active = true;
