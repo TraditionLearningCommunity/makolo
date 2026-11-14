@@ -14,12 +14,12 @@ from django.views.decorators.http import require_POST
 from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierEditForm, DossierJourneyLinkForm, DossierLifecycleForm, DossierProjectForm, ProjectCreateForm, ProjectDossierLinkForm, ProjectLifecycleForm, ProjectEditForm, ProjectChildDossierForm, ProjectAuthorityGrantForm
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
-from .models import DossierAssignment, DossierJourneyDependencyState
+from .models import DossierAssignment, DossierJourneyDependencyState, ProjectInvitation, ProjectInvitationStatus
 from .readiness import resolve_dossier_readiness
 from .dossier_workspace import dossier_workspace
 from .project_workspace import project_workspace
 from .selectors import active_assignments_for_dossier, active_project_for_dossier, current_dossier_authority_mandates, dossier_for_profile, dossiers_for_profile, project_for_profile, projects_for_profile, visible_dependencies_for_profile, visible_dossiers_for_project, visible_linked_journeys, visible_project_for_dossier
-from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, can_manage_project_authority, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, grant_project_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, revoke_project_authority, replace_project_authority, set_dossier_lifecycle, set_project_lifecycle, update_project, update_dossier, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
+from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, can_manage_project_authority, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, grant_project_authority, link_dossier_to_project, invite_to_project, respond_project_invitation, cancel_project_invitation, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, revoke_project_authority, replace_project_authority, set_dossier_lifecycle, set_project_lifecycle, update_project, update_dossier, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
 
 
 login_required = django_login_required(login_url="core:login")
@@ -186,13 +186,61 @@ def project_detail(request, project_id):
 
 
 @login_required
+def project_invitations(request):
+    invitations = ProjectInvitation.objects.filter(
+        invitee=request.user, status=ProjectInvitationStatus.PENDING,
+    ).select_related("project", "role", "invited_by").order_by("-created_at", "pk")[:100]
+    return render(request, "objectives/project_invitations.html", {
+        "invitations": invitations,
+    })
+
+
+@login_required
+@require_POST
+def project_invitation_respond(request, invitation_id):
+    invitation = ProjectInvitation.objects.filter(
+        pk=invitation_id, invitee=request.user,
+    ).first()
+    if invitation is None:
+        raise Http404
+    action = request.POST.get("action")
+    if action not in {"accept", "decline"}:
+        raise Http404
+    try:
+        respond_project_invitation(
+            actor=request.user, invitation=invitation,
+            accept=action == "accept",
+        )
+        messages.success(
+            request, "Invitation acceptée." if action == "accept"
+            else "Invitation déclinée.",
+        )
+    except (ValidationError, PermissionDenied):
+        messages.error(request, "Réponse non confirmée.")
+    return redirect("objectives:project-invitations")
+
+
+@login_required
 @require_POST
 def project_authority(request, project_id):
     """Web submits the same canonical delegation service as the native API."""
     project = _visible_project_or_404(request.user, project_id, _web_context(request))
     if not can_manage_project_authority(request.user, project):
         raise Http404
-    if request.POST.get("action") == "grant":
+    if request.POST.get("action") == "invite":
+        form = ProjectAuthorityGrantForm(request.POST)
+        if form.is_valid():
+            try:
+                invite_to_project(
+                    actor=request.user, project=project,
+                    invitee=form.profile, role=form.cleaned_data["role"],
+                )
+                messages.success(request, "Invitation envoyée.")
+            except ValidationError:
+                messages.error(request, "Cette invitation n'a pas été envoyée.")
+        else:
+            messages.error(request, "Vérifiez l'identifiant et le rôle.")
+    elif request.POST.get("action") == "grant":
         form = ProjectAuthorityGrantForm(request.POST)
         if form.is_valid():
             try:
