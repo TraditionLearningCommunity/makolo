@@ -333,7 +333,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       return summary == null
                           ? const MakoloEmptyState(
                               title: 'Démarche',
-                              body: 'Les détails ne sont pas encore disponibles.',
+                              body:
+                                  'Les détails ne sont pas encore disponibles.',
                             )
                           : _JourneyPartialLocalSummary(summary: summary);
                     },
@@ -431,13 +432,15 @@ class _JourneyPartialLocalSummary extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MON OBJECTIF', style: Theme.of(context).textTheme.labelSmall),
+                  Text(
+                    'MON OBJECTIF',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
@@ -453,7 +456,8 @@ class _JourneyPartialLocalSummary extends StatelessWidget {
               if (date != null)
                 _JourneyHeroFact(
                   icon: Icons.calendar_today_outlined,
-                  label: MaterialLocalizations.of(context).formatMediumDate(date),
+                  label: MaterialLocalizations.of(context)
+                      .formatMediumDate(date),
                 ),
               if (clock != null)
                 _JourneyHeroFact(icon: Icons.schedule_outlined, label: clock),

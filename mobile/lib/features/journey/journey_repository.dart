@@ -61,7 +61,6 @@ class JourneyRepository {
     return null;
   }
 
-
   static const freshnessPolicy = FreshnessPolicy(
     id: 'journey-contextual',
     refreshRecommendedAfter: Duration(hours: 1),

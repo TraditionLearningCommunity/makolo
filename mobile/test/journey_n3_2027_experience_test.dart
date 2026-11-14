@@ -97,17 +97,11 @@ void main() {
       },
     );
     expect(
-      JourneyRepository.knownOngoingSummary(
-        ongoing,
-        'known-journey',
-      )?['title'],
+      JourneyRepository.knownOngoingSummary(ongoing, 'known-journey')?['title'],
       'Inscription connue',
     );
     expect(
-      JourneyRepository.knownOngoingSummary(
-        ongoing,
-        'other-journey',
-      ),
+      JourneyRepository.knownOngoingSummary(ongoing, 'other-journey'),
       isNull,
     );
   });
