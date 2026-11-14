@@ -33,6 +33,11 @@ Widget harness(
   Map<String, dynamic>? owner,
   bool Function(Map<String, dynamic>, String, String)? allowed,
   Future<void> Function(Map<String, dynamic>, String, String)? onAction,
+  Future<Map<String, dynamic>?> Function(Map<String, dynamic>)? onRedeem,
+  Future<Map<String, dynamic>?> Function()? onReload,
+  bool Function()? canSpend,
+  Listenable? actorChanges,
+  bool Function()? actorIsCurrent,
 }) => MaterialApp(
   home: Scaffold(
     body: SingleChildScrollView(
@@ -45,6 +50,11 @@ Widget harness(
         onReadProgram: (id) async => owner,
         onCreateSpaceItem: (owner, action, body) async => false,
         canMutate: canMutate,
+        canSpendRecognition: canSpend ?? () => canMutate,
+        onRedeemRecognition: onRedeem ?? (reward) async => null,
+        onReloadRecognition: onReload ?? () async => snapshots['recognition'],
+        actorChanges: actorChanges,
+        actorIsCurrent: actorIsCurrent,
         allowed: allowed ?? (row, family, action) => false,
       ),
     ),
