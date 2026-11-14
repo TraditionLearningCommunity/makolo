@@ -1177,7 +1177,6 @@ class _JourneySituationPanel extends StatelessWidget {
                         Text(item.summary),
                   ),
                 ],
-
             ] else if (primaryAction != null &&
                 (situation == JourneySituation.action ||
                     situation == JourneySituation.blocked)) ...[

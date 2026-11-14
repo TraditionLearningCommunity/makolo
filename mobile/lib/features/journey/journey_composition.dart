@@ -56,8 +56,7 @@ class JourneyComposition {
       for (final item in p.actorInterventions)
         if (item.nextLink != null && item.nextLink!.trim().isNotEmpty)
           item.nextLink!.trim(),
-      if (p.nextActionLink != null &&
-          p.nextActionLink!.trim().isNotEmpty)
+      if (p.nextActionLink != null && p.nextActionLink!.trim().isNotEmpty)
         p.nextActionLink!.trim(),
     };
     final situation = p.isTerminal
