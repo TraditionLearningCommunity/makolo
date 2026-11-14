@@ -2997,10 +2997,12 @@ class _PointCardState extends State<_PointCard> {
       _editingResponse = false;
       _clientReference = null;
       final ownerReplyChanged =
-          oldWidget.point.responseForScope(oldWidget.representedSpaceId)[
-                  'submitted_at'] !=
-              widget.point.responseForScope(widget.representedSpaceId)[
-                  'submitted_at'];
+          oldWidget.point.responseForScope(
+            oldWidget.representedSpaceId,
+          )['submitted_at'] !=
+          widget.point.responseForScope(
+            widget.representedSpaceId,
+          )['submitted_at'];
       if (ownerReplyChanged &&
           widget.point.hasRespondedForScope(widget.representedSpaceId)) {
         _inlineDraftTimer?.cancel();
