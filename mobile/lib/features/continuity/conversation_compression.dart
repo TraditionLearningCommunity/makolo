@@ -54,13 +54,16 @@ class ConversationCompressionState {
     void flush() {
       if (run.isEmpty) return;
       final items = List<ConversationThreadItem<T>>.unmodifiable(run);
-      result.add(ConversationThreadSegment<T>(
-        id: 'range:${items.first.id}',
-        items: items,
-        foldable: items.length > 1,
-        expanded: items.length == 1 ||
-            items.any((item) => _expandedIds.contains(item.id)),
-      ));
+      result.add(
+        ConversationThreadSegment<T>(
+          id: 'range:${items.first.id}',
+          items: items,
+          foldable: items.length > 1,
+          expanded:
+              items.length == 1 ||
+              items.any((item) => _expandedIds.contains(item.id)),
+        ),
+      );
       run.clear();
     }
 
@@ -70,12 +73,14 @@ class ConversationCompressionState {
       if (item.id.isEmpty || !seen.add(item.id)) continue;
       if (item.keepVisible) {
         flush();
-        result.add(ConversationThreadSegment<T>(
-          id: 'item:${item.id}',
-          items: List<ConversationThreadItem<T>>.unmodifiable([item]),
-          foldable: false,
-          expanded: true,
-        ));
+        result.add(
+          ConversationThreadSegment<T>(
+            id: 'item:${item.id}',
+            items: List<ConversationThreadItem<T>>.unmodifiable([item]),
+            foldable: false,
+            expanded: true,
+          ),
+        );
       } else {
         run.add(item);
       }
@@ -98,8 +103,14 @@ bool conversationPointNeedsVisibility({
 }) {
   if (hasPendingIntent || editing || focused) return true;
   final reason = ownerAttentionReason ?? point['attention_reason']?.toString();
-  if (const {'respond', 'acknowledge', 'form', 'resolve', 'result', 'upcoming'}
-      .contains(reason)) {
+  if (const {
+    'respond',
+    'acknowledge',
+    'form',
+    'resolve',
+    'result',
+    'upcoming',
+  }.contains(reason)) {
     return true;
   }
   if (point['can_acknowledge'] == true && point['acknowledged'] != true) {
