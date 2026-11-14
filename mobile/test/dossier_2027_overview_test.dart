@@ -95,8 +95,8 @@ void main() {
       await tester.ensureVisible(peopleLink);
       await tester.tap(peopleLink);
       expect(openedPeople, isTrue);
-      await tester.ensureVisible(find.text('Continuer la démarche'));
-      await tester.tap(find.text('Continuer la démarche'));
+      await tester.ensureVisible(find.text('Démarche une').first);
+      await tester.tap(find.text('Démarche une').first);
       expect(openedJourney, 'j-1');
       await tester.ensureVisible(find.text('1 à traiter'));
       await tester.tap(find.text('1 à traiter'));
