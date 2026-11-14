@@ -1,0 +1,10 @@
+.mk-conversation-fold{margin:.3rem 0 .7rem;background:var(--mk-soft,#f5f3ff);border:1px solid var(--mk-border,#ddd);border-radius:.85rem;overflow:clip}
+.mk-conversation-fold-summary{display:flex;align-items:center;gap:.65rem;min-height:2.9rem;padding:.55rem .9rem;cursor:pointer;list-style:none;font-size:.88rem;font-weight:600;color:var(--mk-text,#0f172a)}
+.mk-conversation-fold-summary::-webkit-details-marker{display:none}
+.mk-conversation-fold-summary small{margin-left:auto;font-weight:400;color:var(--mk-muted,#64748b);font-size:.76rem}
+.mk-conversation-fold-chevron{font-size:1.25rem;color:var(--mk-muted,#64748b);transition:transform .15s ease}
+.mk-conversation-fold[open] .mk-conversation-fold-chevron{transform:rotate(180deg)}
+.mk-conversation-fold-body{padding:.2rem .55rem .6rem;display:grid;gap:.5rem}
+.mk-conversation-fold-summary:focus-visible{outline:2px solid #5232db;outline-offset:-2px}
+.mk-thread-entry{min-width:0}
+@media(prefers-reduced-motion:reduce){.mk-conversation-fold-chevron{transition:none}}
