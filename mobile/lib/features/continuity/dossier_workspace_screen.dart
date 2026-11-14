@@ -827,51 +827,66 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   /// Keep view icons attached to Démarches, never in a separate footer.
+  /// Iconic, compact switcher stays with the content it controls.
+  /// Detailed views start immediately under the AppBar; only the overview
+  /// displays the full identity and its secondary modules.
   Widget _journeysHeading(Map<String, dynamic> data) {
-    final showViews =
-        _mode != _DossierMode.overview ||
+    final hasContent = _mode != _DossierMode.overview ||
         _rows(data['visible_journeys']).isNotEmpty ||
         _rows(data['visible_dependencies']).isNotEmpty;
-    final canLink =
-        _cap(data, 'dossier.journey.link') &&
+    final canLink = _cap(data, 'dossier.journey.link') &&
         (_mode == _DossierMode.overview || _mode == _DossierMode.list);
-    final theme = Theme.of(context);
-    Widget heading() => Row(
+    final scheme = Theme.of(context).colorScheme;
+    final title = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.route_outlined, color: theme.colorScheme.primary, size: 21),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Démarches',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+        Icon(Icons.route_outlined, color: scheme.primary, size: 19),
+        const SizedBox(width: 6),
+        Text(
+          'Démarches',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
         ),
-        if (canLink) _linkAction(data),
       ],
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (!showViews) return heading();
-        if (constraints.maxWidth >= 560) {
-          return Row(
-            children: [
-              Expanded(child: heading()),
-              const SizedBox(width: 12),
-              SizedBox(width: 224, child: _tabs()),
-            ],
-          );
-        }
+        final canShareLine = hasContent &&
+            constraints.maxWidth >= (canLink ? 360 : 280);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            heading(),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: SizedBox(width: 224, child: _tabs()),
-            ),
+            if (canShareLine)
+              Row(
+                children: [
+                  title,
+                  const Spacer(),
+                  SizedBox(width: 176, child: _tabs()),
+                  if (canLink) ...[
+                    const SizedBox(width: 5),
+                    _linkAction(data),
+                  ],
+                ],
+              )
+            else ...[
+              Row(
+                children: [
+                  title,
+                  const Spacer(),
+                  if (canLink) _linkAction(data),
+                  if (hasContent && !canLink) ...[
+                    const SizedBox(width: 5),
+                    SizedBox(width: 176, child: _tabs()),
+                  ],
+                ],
+              ),
+              if (hasContent && canLink)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(width: 176, child: _tabs()),
+                ),
+            ],
           ],
         );
       },
@@ -1059,6 +1074,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _tabs() => ObjectiveWorkspaceViewSwitcher<_DossierMode>(
+    compact: true,
     selected: _mode,
     options: const [
       ObjectiveViewOption(
@@ -2245,13 +2261,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _header(data),
-                                const SizedBox(height: 5),
-                                if (_mode == _DossierMode.overview)
-                                  _overview(data)
-                                else ...[
+                                if (_mode == _DossierMode.overview) ...[
+                                  _header(data),
+                                  const SizedBox(height: 5),
+                                  _overview(data),
+                                ] else ...[
                                   _journeysHeading(data),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 6),
                                   if (_mode == _DossierMode.list)
                                     _journeyList(data)
                                   else if (_mode == _DossierMode.timeline)
