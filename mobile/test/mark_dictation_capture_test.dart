@@ -32,10 +32,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Dictée indisponible'),
-        findsOneWidget,
-      );
+      expect(find.text('Dictée indisponible'), findsOneWidget);
       expect(find.text('Commencer'), findsNothing);
       expect(suppliedText, isNull);
       await tester.pumpWidget(const SizedBox.shrink());

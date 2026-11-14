@@ -862,7 +862,8 @@ class _MarkScreenState extends State<MarkScreen> {
       // File existence was checked asynchronously: a draft or actor may have
       // changed while awaiting the platform filesystem.
       if (!mounted || revision != _draftRevision || actor != _actor) return;
-      final canConserve = actor is PersonalActorContext &&
+      final canConserve =
+          actor is PersonalActorContext &&
           widget.runtime.resources != null &&
           item['kind'] != 'audio' &&
           item['saved_asset_id'] == null;
@@ -914,12 +915,12 @@ class _MarkScreenState extends State<MarkScreen> {
                   ),
                 )
               : isPdf
-                  ? SizedBox(
-                      width: 470,
-                      height: MediaQuery.sizeOf(dialogContext).height * 0.55,
-                      child: PrivatePdfView(path: file.path),
-                    )
-                  : const Icon(Icons.description_outlined, size: 64),
+              ? SizedBox(
+                  width: 470,
+                  height: MediaQuery.sizeOf(dialogContext).height * 0.55,
+                  child: PrivatePdfView(path: file.path),
+                )
+              : const Icon(Icons.description_outlined, size: 64),
           actions: [
             if (canConserve)
               TextButton.icon(
