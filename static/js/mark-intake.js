@@ -321,6 +321,7 @@
       attachMenu.hidden = !attachMenu.hidden;
       attachOpen.setAttribute('aria-expanded', String(!attachMenu.hidden));
       if (!attachMenu.hidden) attachMenu.querySelector('button')?.focus();
+      updateComposer();
     });
     const pickerMap = {
       '[data-mk-mark-photo-open]': '[data-mk-mark-photo]',
@@ -331,6 +332,7 @@
       $(button)?.addEventListener('click', () => {
         if (attachMenu) attachMenu.hidden = true;
         attachOpen?.setAttribute('aria-expanded', 'false');
+        updateComposer();
         $(picker)?.click();
       });
     });
@@ -351,7 +353,12 @@
         count.textContent = input.value.length + '/600';
       }
       if (send) send.disabled = !input.value.trim() || input.value.length > MAX_TEXT;
-      root.classList.toggle('mk-mark-writing', document.activeElement === input);
+      root.classList.toggle(
+        'mk-mark-writing',
+        document.activeElement === input ||
+          (attachMenu && !attachMenu.hidden) ||
+          (speechPanel && !speechPanel.hidden),
+      );
     }
 
     input.addEventListener('input', () => {
@@ -412,6 +419,7 @@
       dictationBase = input.value;
       spoken = '';
       if (speechPanel) speechPanel.hidden = false;
+      updateComposer();
       if (useSpeech) useSpeech.disabled = true;
       if (status) status.textContent = 'J’écoute…';
       try {
@@ -516,11 +524,11 @@
       if (!window.confirm('Effacer votre brouillon de cet onglet ? Cette action ne revient pas sur les décisions déjà confirmées.')) return;
       closePreview();
       closeAssetForm();
-      if (recognizer) recognizer.abort();
+      if (speechPanel && !speechPanel.hidden) closeDictation(false);
+      else if (recognizer) recognizer.abort();
       input.value = '';
       links = [];
       attachments = [];
-      if (speechPanel && !speechPanel.hidden) closeDictation(false);
       resetConsent();
       try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
       renderReferences();
@@ -555,6 +563,8 @@
       try { recognizer?.abort(); } catch (_) {}
       recognizer = null;
       closePreview();
+      for (const url of thumbnailUrls.values()) URL.revokeObjectURL(url);
+      thumbnailUrls.clear();
     }
     function beforeSwap(event) {
       const target = event.detail?.target || event.target;
