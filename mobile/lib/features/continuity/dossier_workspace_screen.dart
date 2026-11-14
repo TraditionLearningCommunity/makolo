@@ -1710,7 +1710,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
             const Spacer(),
             if (_search.text.trim().isNotEmpty ||
-                _filter != 'all' || _sort != _ListSort.recent)
+                _filter != 'all' ||
+                _sort != _ListSort.recent)
               IconButton(
                 key: const ValueKey<String>('objective-filters-clear'),
                 tooltip: 'Effacer les filtres',

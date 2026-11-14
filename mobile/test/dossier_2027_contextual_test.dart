@@ -140,7 +140,9 @@ void main() {
     addTearDown(db.close);
     final store = ProfileStore(db, 'viewer');
     final repository = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
+      database: db,
+      store: store,
+      profileId: 'viewer',
     );
     await store.putProjection(
       kind: ObjectiveRepository.dossierProjectionKind,
@@ -155,8 +157,10 @@ void main() {
         'visible_journeys_complete': true,
         'visible_journeys': [
           {
-            'id': 'j1', 'label': 'Démarche datée',
-            'state': 'draft', 'created_at': '2026-11-02T16:19:00Z',
+            'id': 'j1',
+            'label': 'Démarche datée',
+            'state': 'draft',
+            'created_at': '2026-11-02T16:19:00Z',
           },
         ],
         'visible_dependencies': [],
@@ -189,5 +193,4 @@ void main() {
     expect(find.text('novembre 2026'), findsOneWidget);
     expect(find.textContaining('Ce sont des faits temporels'), findsNothing);
   });
-
 }
