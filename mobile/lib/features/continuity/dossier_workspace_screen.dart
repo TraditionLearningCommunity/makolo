@@ -67,12 +67,18 @@ String _iso(DateTime? date) => date == null
     : '${date.year.toString().padLeft(4, '0')}-'
           '${date.month.toString().padLeft(2, '0')}-'
           '${date.day.toString().padLeft(2, '0')}';
+const _monthsFr = <String>[
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+];
+String _monthYearFr(DateTime date) =>
+    '${_monthsFr[date.month - 1]} ${date.year}';
 String _dateLabel(BuildContext context, DateTime date) =>
-    MaterialLocalizations.of(context).formatMediumDate(date);
+    '${date.day} ${_monthYearFr(date)}';
 String _instantLabel(BuildContext context, DateTime date) {
   final local = date.toLocal();
-  final time = MaterialLocalizations.of(context)
-      .formatTimeOfDay(TimeOfDay.fromDateTime(local));
+  final time = '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
   return '${_dateLabel(context, local)} · $time';
 }
 
@@ -836,7 +842,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         _rows(data['visible_journeys']).isNotEmpty ||
         _rows(data['visible_dependencies']).isNotEmpty;
     final canLink =
-        _cap(data, 'dossier.journey.link') &&
+        _canMutate && _cap(data, 'dossier.journey.link') &&
         (_mode == _DossierMode.overview || _mode == _DossierMode.list);
     final scheme = Theme.of(context).colorScheme;
     final title = Row(
@@ -854,7 +860,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canShareLine =
-            hasContent && constraints.maxWidth >= (canLink ? 360 : 280);
+            hasContent && constraints.maxWidth >= (canLink ? 440 : 280);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1164,8 +1170,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   Widget _collaboration(Map<String, dynamic> data) {
     final assignments = _rows(data['assignments']);
     final mandates = _rows(data['mandates']);
-    final canAssign = _cap(data, 'dossier.assignment.manage');
-    final canGrant = _cap(data, 'dossier.authority.manage');
+    final canAssign = _canMutate &&
+        _cap(data, 'dossier.assignment.manage');
+    final canGrant = _canMutate &&
+        _cap(data, 'dossier.authority.manage');
     if (assignments.isEmpty && mandates.isEmpty && !canAssign && !canGrant) {
       return const SizedBox.shrink();
     }
@@ -1762,7 +1770,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           break;
         case _TimeScale.month:
           key = 'month-${local.year}-${local.month}';
-          caption = MaterialLocalizations.of(context).formatMonthYear(local);
+          caption = _monthYearFr(local);
           break;
         case _TimeScale.quarter:
           final quarter = ((local.month - 1) ~/ 3) + 1;
@@ -1789,7 +1797,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       }
       widgets.add(_momentTile(event));
     }
-    if (!todayInserted) widgets.add(_todayMarker(today));
+    if (!todayInserted && events.isNotEmpty) widgets.add(_todayMarker(today));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
