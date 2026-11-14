@@ -709,33 +709,51 @@ class _JourneyContent extends StatelessWidget {
                           label: const Text('Consulter les ressources'),
                         ),
                       )
-                    : MakoloCard(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MakoloSpacing.compact,
-                          vertical: MakoloSpacing.sm,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final resource in resourcesPreview.take(2))
-                              _JourneyResourceTile(resource: resource),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: () => onOpenResources(
-                                  presentation.resourcesLink!,
-                                ),
-                                icon: const Icon(Icons.arrow_forward_rounded),
-                                iconAlignment: IconAlignment.end,
-                                label: Text(
-                                  resourcesKnown
-                                      ? 'Voir les ${resourcesPreview.length} ressources'
-                                      : 'Voir les ressources',
-                                ),
+                    : Column(
+                        children: [
+                          SizedBox(
+                            height: 120,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final count = resourcesPreview.length > 4
+                                    ? 4
+                                    : resourcesPreview.length;
+                                final tileWidth = (constraints.maxWidth - 12) /
+                                    (constraints.maxWidth >= 700 ? 4 : 2.15);
+                                return ListView.separated(
+                                  key: const Key('journey-resource-preview'),
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: count,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, index) => SizedBox(
+                                    width: tileWidth,
+                                    child: _JourneyResourceTile(
+                                      resource: resourcesPreview[index],
+                                      onOpen: () => onOpenResources(
+                                        presentation.resourcesLink!,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () =>
+                                  onOpenResources(presentation.resourcesLink!),
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              iconAlignment: IconAlignment.end,
+                              label: Text(
+                                resourcesKnown
+                                    ? 'Voir les ${resourcesPreview.length} ressources'
+                                    : 'Voir les ressources',
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
               ),
             ],
@@ -1801,43 +1819,48 @@ IconData _resourceIcon(JourneyResourcePreview resource) {
 }
 
 class _JourneyResourceTile extends StatelessWidget {
-  const _JourneyResourceTile({required this.resource});
+  const _JourneyResourceTile({
+    required this.resource,
+    required this.onOpen,
+  });
 
   final JourneyResourcePreview resource;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final type = switch (resource.kind) {
-      'url' => 'Lien',
-      'text' => 'Instruction',
-      'file' => 'Document',
-      _ => 'Ressource',
-    };
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
-      label: '${resource.title}. $type',
-      child: ExcludeSemantics(
-        child: ListTile(
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            _resourceIcon(resource),
-            size: 22,
-            color: _journeyAccent(context),
+      button: true,
+      label: 'Consulter les ressources : ' + resource.title,
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(14),
           ),
-          title: Text(
-            resource.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          subtitle: resource.description == null
-              ? null
-              : Text(
-                  resource.description!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                _resourceIcon(resource),
+                size: 24,
+                color: scheme.primary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                resource.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
+              ),
+            ],
+          ),
         ),
       ),
     );
