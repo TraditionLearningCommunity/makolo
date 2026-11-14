@@ -426,7 +426,7 @@ class _FormContent extends StatelessWidget {
             ],
           ),
         ),
-      const SizedBox(height: MakoloSpacing.lg),
+      if (!embedded) const SizedBox(height: MakoloSpacing.lg),
       if (!embedded && detail.description != null) ...[
         Text(detail.description!, style: Theme.of(context).textTheme.bodyLarge),
         const SizedBox(height: MakoloSpacing.lg),
@@ -440,17 +440,22 @@ class _FormContent extends StatelessWidget {
         ),
         const SizedBox(height: MakoloSpacing.md),
       ],
-      if (refreshing) ...[
+      if (refreshing && !embedded) ...[
         const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
         const SizedBox(height: MakoloSpacing.md),
       ],
-      MakoloCommitIndicator(commit: commit),
+      if (!embedded ||
+          commit == MakoloCommitCue.pending ||
+          commit == MakoloCommitCue.awaitingConfirmation ||
+          commit == MakoloCommitCue.failed ||
+          commit == MakoloCommitCue.conflict)
+        MakoloCommitIndicator(commit: commit),
 
       if (errors['_form'] != null) ...[
         const SizedBox(height: MakoloSpacing.md),
         InlineMessage(message: errors['_form'].toString()),
       ],
-      const SizedBox(height: MakoloSpacing.lg),
+      SizedBox(height: embedded ? MakoloSpacing.sm : MakoloSpacing.lg),
       for (final question in detail.questions) ...[
         _QuestionField(
           repository: repository,
@@ -474,7 +479,7 @@ class _FormContent extends StatelessWidget {
                 .map((item) => item.toViewerMap())
                 .toList(growable: false),
           ),
-        const SizedBox(height: MakoloSpacing.inner),
+        SizedBox(height: embedded ? MakoloSpacing.sm : MakoloSpacing.inner),
       ],
       MakoloActionButton(
         onPressed: canSubmit ? onSubmit : null,
