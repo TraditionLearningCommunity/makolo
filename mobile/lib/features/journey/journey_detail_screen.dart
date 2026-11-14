@@ -1118,8 +1118,7 @@ class _JourneySituationPanel extends StatelessWidget {
         firstBlocker?.summary ?? 'Une demande a été refusée.',
       JourneySituation.waiting =>
         firstWaiting?.summary ?? 'Une réponse est attendue.',
-      JourneySituation.action ||
-      JourneySituation.choices =>
+      JourneySituation.action || JourneySituation.choices =>
         primaryAction == null ? presentation.nextActionLabel : null,
       _ => null,
     };
@@ -1254,7 +1253,8 @@ class _JourneyIdentity extends StatelessWidget {
             presentation.stateCode == 'fulfilled'
         ? 'Suivi terminé dans Makolo'
         : MakoloHumanization.presentationLabel(presentation.journeyState);
-    final successful = presentation.stateCode == 'fulfilled' &&
+    final successful =
+        presentation.stateCode == 'fulfilled' &&
         presentation.workflowKind != 'service';
     final style = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
