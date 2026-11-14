@@ -45,7 +45,7 @@ dart run build_runner build --delete-conflicting-outputs
 bash tool/dart_format.sh write
 bash tool/dart_format.sh check
 flutter analyze
-flutter test --exclude-tags golden
+flutter test
 ```
 
 Les `*.g.dart` sont générés et ignorés par Git. Drift et json_serializable utilisent le même passage build_runner.
