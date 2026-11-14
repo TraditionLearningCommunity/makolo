@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from math import ceil
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -179,7 +179,12 @@ def configure_credit_valuation(
     current.amount_per_credit = per_credit
     current.is_active = bool(activate)
     current.version = int(version) + 1
-    current.save()
+    try:
+        current.save()
+    except IntegrityError as exc:
+        raise ValidationError(
+            "La configuration a changé ; actualisez avant de modifier."
+        ) from exc
     audit_action(
         actor=actor,
         action="recognition.credit_valuation_configured",
