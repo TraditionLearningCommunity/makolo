@@ -201,3 +201,44 @@ class ProjectDossierLink(models.Model):
     def clean(self):
         super().clean()
         if not self.is_active and not self.removed_at: raise ValidationError({"removed_at": "Un rattachement retiré doit conserver sa date de retrait."})
+
+
+class ProjectInvitationStatus(models.TextChoices):
+    PENDING = "pending", "En attente"
+    ACCEPTED = "accepted", "Acceptée"
+    DECLINED = "declined", "Refusée"
+    CANCELLED = "cancelled", "Annulée"
+
+
+class ProjectInvitation(models.Model):
+    """A pending invitation is NOT a Mandate and grants no Project access."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey("objectives.Project", on_delete=models.CASCADE, related_name="invitations")
+    invitee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="project_invitations_received")
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="project_invitations_sent")
+    role = models.ForeignKey("authorization.Role", on_delete=models.PROTECT, related_name="project_invitations")
+    status = models.CharField(max_length=16, choices=ProjectInvitationStatus.choices, default=ProjectInvitationStatus.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "invitee"],
+                condition=Q(status="pending"),
+                name="project_one_pending_invitation_per_invitee",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["invitee", "status"], name="proj_inv_invitee_status_idx"),
+            models.Index(fields=["project", "status"], name="proj_inv_project_status_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.role_id and self.role.scope_type != "project":
+            raise ValidationError({"role": "Seul un rôle Projet peut être proposé."})
+        if self.status != ProjectInvitationStatus.PENDING and not self.responded_at:
+            raise ValidationError({"responded_at": "La réponse doit être horodatée."})
+
