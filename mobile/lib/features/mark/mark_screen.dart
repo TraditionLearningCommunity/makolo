@@ -1217,24 +1217,34 @@ class _MarkScreenState extends State<MarkScreen> {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Dites-le comme vous le diriez à quelqu’un.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 22),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                     TextField(
                       controller: _input,
                       focusNode: _inputFocus,
                       readOnly: _busy || _restoring,
-                      minLines: 4,
-                      maxLines: 9,
+                      minLines: 3,
+                      maxLines: 8,
                       maxLength: 600,
                       textInputAction: TextInputAction.newline,
                       decoration: const InputDecoration(
-                        hintText: 'Ex. Retrouve mon billet pour ce soir',
+                        hintText: 'Qu’aimeriez-vous faire ?',
                         alignLabelWithHint: true,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        counterText: '',
                       ),
                       onChanged: (_) {
                         setState(() {
@@ -1295,6 +1305,21 @@ class _MarkScreenState extends State<MarkScreen> {
                               deleteButtonTooltipMessage: 'Retirer ce lien',
                             ),
                           for (final item in _attachments) ...[
+                            if (_isVisualAttachment(item))
+                              _MarkImageThumbnail(
+                                key: ValueKey('mark-thumb:${_draftRevision}:${item['file_id']}'),
+                                loadPath: () => _localThumbnailPath(
+                                  item['file_id']?.toString() ?? '',
+                                ),
+                                name: item['name']?.toString() ?? 'Image',
+                                onOpen: _busy
+                                    ? null
+                                    : () => unawaited(_previewAttachment(item)),
+                                onRemove: _busy
+                                    ? null
+                                    : () => unawaited(_removeAttachment(item)),
+                              )
+                            else
                             InputChip(
                               avatar: Icon(
                                 item['kind'] == 'audio'
@@ -1332,51 +1357,54 @@ class _MarkScreenState extends State<MarkScreen> {
                           ],
                         ],
                       ),
-                      if (_attachments.isNotEmpty || _links.isNotEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Pièces et liens conservés dans le brouillon local. '
-                            'Ils ne sont pas transmis avec la demande.',
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        MakoloIconActionButton(
+                          tooltip: 'Joindre un fichier',
+                          icon: Icons.attach_file_rounded,
+                          onPressed: _busy ? null : _pickFiles,
+                        ),
+                        MakoloIconActionButton(
+                          tooltip: 'Prendre une photo',
+                          icon: Icons.photo_camera_outlined,
+                          onPressed: _busy ? null : _capturePhoto,
+                        ),
+                        MakoloIconActionButton(
+                          tooltip: 'Choisir une image',
+                          icon: Icons.photo_library_outlined,
+                          onPressed: _busy ? null : _pickPhoto,
+                        ),
+                        MakoloIconActionButton(
+                          tooltip: 'Enregistrer un audio',
+                          icon: Icons.mic_none_rounded,
+                          onPressed: _busy ? null : _openVoiceInput,
+                        ),
+                        const Spacer(),
+                        IconButton.filled(
+                          key: const ValueKey('mark-submit'),
+                          tooltip: 'Continuer avec cette demande',
+                          onPressed: _busy || _restoring || _voiceCapture || _dictating
+                              ? null
+                              : _submit,
+                          icon: _busy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.arrow_upward_rounded),
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(48, 48),
                           ),
                         ),
-                    ],
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        MakoloActionButton(
-                          label: 'Joindre',
-                          onPressed: _busy ? null : _pickFiles,
-                          appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.attach_file,
-                        ),
-                        MakoloActionButton(
-                          label: 'Photo',
-                          onPressed: _busy ? null : _capturePhoto,
-                          appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.photo_camera_outlined,
-                        ),
-                        MakoloActionButton(
-                          label: 'Image',
-                          onPressed: _busy ? null : _pickPhoto,
-                          appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.photo_library_outlined,
-                        ),
-                        MakoloActionButton(
-                          label: 'Voix',
-                          onPressed: _busy ? null : _openVoiceInput,
-                          appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.mic_none,
-                        ),
-                        MakoloActionButton(
-                          label: 'Lien',
-                          onPressed: _busy ? null : _addLink,
-                          appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.link,
-                        ),
                       ],
+                    ),
+                        ],
+                      ),
                     ),
                     if (_dictating) ...[
                       const SizedBox(height: 12),
@@ -1409,16 +1437,6 @@ class _MarkScreenState extends State<MarkScreen> {
                         },
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    MakoloActionButton(
-                      appearance: MakoloActionAppearance.primary,
-                      onPressed:
-                          _busy || _restoring || _voiceCapture || _dictating
-                          ? null
-                          : _submit,
-                      busy: _busy,
-                      label: _busy ? 'Envoi…' : 'Continuer',
-                    ),
                     if (_restoring)
                       const Padding(
                         padding: EdgeInsets.only(top: 12),
