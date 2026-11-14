@@ -1016,12 +1016,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 child: Text('Interventions visibles uniquement.'),
               ),
             if (manage)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: MakoloActionButton(
-                  label: 'Inviter',
-                  appearance: MakoloActionAppearance.primary,
-                  icon: Icons.person_add_alt_1_outlined,
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('Inviter'),
                   onPressed: _enabled
                       ? () {
                           Navigator.pop(sheet);
