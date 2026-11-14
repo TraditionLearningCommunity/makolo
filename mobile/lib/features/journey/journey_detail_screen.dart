@@ -1125,7 +1125,10 @@ class _JourneySituationPanel extends StatelessWidget {
     final color = situation == JourneySituation.blocked
         ? Theme.of(context).colorScheme.error
         : _journeyAccent(context);
-    final seen = <String>{};
+    final seen = <String>{
+      if (primaryAction != null && presentation.nextActionLink != null)
+        presentation.nextActionLink!,
+    };
     return DecoratedBox(
       key: const Key('journey-current-situation'),
       decoration: BoxDecoration(
@@ -1159,12 +1162,11 @@ class _JourneySituationPanel extends StatelessWidget {
             ],
             if (situation == JourneySituation.choices) ...[
               const SizedBox(height: MakoloSpacing.sm),
+              if (primaryAction != null) primaryAction!,
               for (final item in presentation.actorInterventions)
                 if (item.nextLink != null &&
                     item.nextLink!.isNotEmpty &&
-                    seen.add(
-                      item.key.isNotEmpty ? item.key : item.nextLink!,
-                    )) ...[
+                    seen.add(item.nextLink!)) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
                     child:
@@ -1175,11 +1177,7 @@ class _JourneySituationPanel extends StatelessWidget {
                         Text(item.summary),
                   ),
                 ],
-              if (presentation.nextActionLink != null &&
-                  seen.add(
-                    presentation.nextActionKey ?? presentation.nextActionLink!,
-                  ))
-                primaryAction ?? const SizedBox.shrink(),
+
             ] else if (primaryAction != null &&
                 (situation == JourneySituation.action ||
                     situation == JourneySituation.blocked)) ...[
