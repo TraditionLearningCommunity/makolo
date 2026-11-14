@@ -341,33 +341,42 @@ void main() {
     expect(find.text('Mes programmes de fidélité'), findsOneWidget);
     expect(find.text('Récompense'), findsWidgets);
   });
-  testWidgets('Recognition credits lead Appuis, not the program count',
-      (tester) async {
-    await tester.pumpWidget(harness(data(
-      accounts: [account('one', 'Club A'), account('two', 'Club B')],
-      recognition: {
-        'summary': {'available_credits': 18, 'pending_credits': 2},
-        'account': {'lifetime_earned': 25},
-        'recent_activity': [{'description': 'Contribution reconnue'}],
-      },
-    )));
+  testWidgets('Recognition credits lead Appuis, not the program count', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(
+        data(
+          accounts: [account('one', 'Club A'), account('two', 'Club B')],
+          recognition: {
+            'summary': {'available_credits': 18, 'pending_credits': 2},
+            'account': {'lifetime_earned': 25},
+            'recent_activity': [
+              {'description': 'Contribution reconnue'},
+            ],
+          },
+        ),
+      ),
+    );
     expect(find.text('18 crédits disponibles'), findsOneWidget);
     expect(find.text('2 crédits en attente'), findsWidgets);
     expect(find.textContaining('2 programmes'), findsNothing);
     expect(find.text('Mes programmes de fidélité'), findsOneWidget);
   });
 
-  testWidgets('Space pending Recognition remains visible with zero available',
-      (tester) async {
-    await tester.pumpWidget(harness({
-      'recognition': {
-        'summary': {'available_credits': 0, 'pending_credits': 4},
-        'account': {'lifetime_earned': 4},
-      },
-    }, space: true));
+  testWidgets('Space pending Recognition remains visible with zero available', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness({
+        'recognition': {
+          'summary': {'available_credits': 0, 'pending_credits': 4},
+          'account': {'lifetime_earned': 4},
+        },
+      }, space: true),
+    );
     expect(find.text('Nos reconnaissances'), findsOneWidget);
     expect(find.text('Crédits en attente'), findsOneWidget);
     expect(find.textContaining('0 crédits'), findsNothing);
   });
-
 }

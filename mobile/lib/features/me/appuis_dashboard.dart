@@ -666,7 +666,10 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
   }
 
   String _detailDescription(
-      String family, String section, Map<String, dynamic> row) {
+    String family,
+    String section,
+    Map<String, dynamic> row,
+  ) {
     final parts = <String>[];
     if (family == 'recognition' && section == 'Récompenses') {
       final cost = row['points_cost'];
@@ -678,12 +681,15 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     } else if (family == 'recognition' && section == 'Mouvements') {
       final delta = row['credits_delta'];
       if (delta is num && delta != 0) {
-        parts.add((delta > 0 ? '+' : '') +
-            AppuisViewData.text(delta) + ' crédits');
+        parts.add(
+          (delta > 0 ? '+' : '') + AppuisViewData.text(delta) + ' crédits',
+        );
       }
     }
     for (final field in [
-      row['status_label'], row['description'], row['status'],
+      row['status_label'],
+      row['description'],
+      row['status'],
     ]) {
       final value = AppuisViewData.text(field);
       if (value.isNotEmpty && !parts.contains(value)) {
