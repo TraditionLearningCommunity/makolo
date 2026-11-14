@@ -125,6 +125,14 @@ final class SpaceSyncKeys {
   static const inventorySourceKey = 'space.inventory';
   static const documentsProjectionKind = 'space.documents';
   static const resourcesProjectionKind = 'space.resources';
+  static const resourceFamilyProjectionKind = 'space.resource.family';
+
+  static String resourceFamilyResourceKey(String spaceId, String kind) =>
+      '${Uri.encodeComponent(spaceId)}|${Uri.encodeComponent(kind)}';
+
+  static String resourceFamilySourceKey(String spaceId, String kind) =>
+      'space:${Uri.encodeComponent(spaceId)}:resources:'
+      '${Uri.encodeComponent(kind)}';
 
   static String resourcesResourceKey(String spaceId) =>
       Uri.encodeComponent(spaceId);
@@ -305,8 +313,47 @@ final class WorkspaceContextRepository {
       resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: surfaceFreshness,
-      parser: (response) =>
-          _parseResources(response, expectedSpaceId: space.id),
+      parser: (response) => _parseResources(
+        response,
+        expectedSpaceId: space.id,
+        expectedKind: 'document',
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
+  SyncSourceDefinition resourceFamilySource(
+    SpaceActorIdentity space,
+    String kind,
+  ) {
+    const allowed = {
+      'asset',
+      'template',
+      'theme',
+      'credential',
+      'received_title',
+    };
+    if (!allowed.contains(kind)) {
+      throw ArgumentError.value(kind, 'kind', 'unsupported resource family');
+    }
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.resourceFamilySourceKey(space.id, kind),
+      owner: 'SpaceResources',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: _spaceSegmentPath(
+        space.slug,
+        'us/resources',
+        queryParameters: {'kind': kind, 'offset': '0'},
+      ),
+      projectionKind: SpaceSyncKeys.resourceFamilyProjectionKind,
+      resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseResources(
+        response,
+        expectedSpaceId: space.id,
+        expectedKind: kind,
+      ),
       applier: applyProjectionSnapshot,
     );
   }
@@ -463,6 +510,22 @@ final class WorkspaceContextRepository {
         SpaceSyncKeys.resourcesProjectionKind,
         resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
       );
+
+  Stream<StoredProjection?> watchResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) => store.watchProjection(
+    SpaceSyncKeys.resourceFamilyProjectionKind,
+    resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+  );
+
+  Future<StoredProjection?> readResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) => store.readProjection(
+    SpaceSyncKeys.resourceFamilyProjectionKind,
+    resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+  );
 
   Stream<StoredProjection?> watchDocumentDetail(
     SpaceActorIdentity space,
@@ -691,6 +754,33 @@ final class WorkspaceContextRepository {
 
   Future<void> refreshResources(SpaceActorIdentity space) =>
       _refresh(resourcesSource(space));
+
+  Future<void> ensureResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) async {
+    final source = resourceFamilySource(space, kind);
+    final state = await readSource(source);
+    final projection = await readResourceFamily(space, kind);
+    final shouldRefresh =
+        projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated ||
+        surfaceFreshness.evaluate(
+              projection,
+              now: DateTime.now().toUtc(),
+            ) !=
+            FreshnessState.fresh;
+    if (shouldRefresh) {
+      await refreshResourceFamily(space, kind);
+    }
+  }
+
+  Future<void> refreshResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) => _refresh(resourceFamilySource(space, kind));
 
   Future<bool> shouldRefreshDocumentDetail(
     SpaceActorIdentity space,
@@ -1129,6 +1219,7 @@ final class WorkspaceContextRepository {
   static AcquiredProjection _parseResources(
     ApiResponse response, {
     required String expectedSpaceId,
+    required String expectedKind,
   }) {
     final payload = response.jsonObject();
     if (payload['space_id']?.toString() != expectedSpaceId) {
@@ -1143,7 +1234,7 @@ final class WorkspaceContextRepository {
         payload['count'] is! num ||
         payload['has_more'] is! bool ||
         payload['next_offset'] is! num ||
-        payload['kind'] != 'document') {
+        payload['kind'] != expectedKind) {
       throw const FormatException('Space resources response is incomplete.');
     }
     return AcquiredProjection(schemaVersion: 1, payload: payload);
