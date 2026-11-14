@@ -201,12 +201,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text('Dictée', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const Text(
-              'La reconnaissance dépend du téléphone, de sa langue '
-              'et parfois du réseau ou d’un service système. '
-              'Aucun moteur IA Makolo n’est nécessaire.',
-            ),
             if (_status != null) ...[
               const SizedBox(height: 8),
               Text(_status!, semanticsLabel: _status),
@@ -272,8 +266,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'La dictée n’est pas disponible ici. Vous pouvez écrire '
-                  'ou conserver un enregistrement audio.',
+                  'Dictée indisponible. Vous pouvez écrire ou enregistrer un audio.',
                 ),
               ),
           ],
