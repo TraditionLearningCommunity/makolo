@@ -12,12 +12,14 @@ class MarkDictationCapture extends StatefulWidget {
   const MarkDictationCapture({
     super.key,
     required this.onText,
+    required this.onPreview,
     required this.onClose,
     this.permissions = const PermissionHandlerGateway(),
     this.channel = const MethodChannel('makolo/native_dictation'),
   });
 
   final ValueChanged<String> onText;
+  final ValueChanged<String> onPreview;
   final VoidCallback onClose;
   final PermissionGateway permissions;
   final MethodChannel channel;
@@ -56,6 +58,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         _available = available;
         _checking = false;
       });
+      if (available) unawaited(_start());
     }
   }
 
@@ -79,6 +82,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
             text: next,
             selection: TextSelection.collapsed(offset: next.length),
           );
+          widget.onPreview(next);
         }
         if (type == 'final') {
           setState(() {
@@ -193,81 +197,86 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Dictée', style: Theme.of(context).textTheme.titleMedium),
-            if (_status != null) ...[
-              const SizedBox(height: 8),
-              Text(_status!, semanticsLabel: _status),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              if (_active)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(Icons.mic_rounded, color: scheme.primary),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(Icons.mic_none_outlined),
+                ),
+              Expanded(
+                child: Text(
+                  _checking
+                      ? 'Microphone…'
+                      : _active
+                          ? 'Je vous écoute'
+                          : _busy
+                              ? 'Un instant…'
+                              : _text.text.isNotEmpty
+                                  ? 'Texte prêt à corriger'
+                                  : _available
+                                      ? 'Dicter'
+                                      : 'Dictée indisponible',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _text,
-              minLines: 2,
-              maxLines: 5,
-              readOnly: _active,
-              decoration: const InputDecoration(
-                labelText: 'Texte reconnu, modifiable',
-                hintText: 'Votre dictée apparaîtra ici',
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (!_active)
-                  MakoloActionButton(
-                    label: _checking ? 'Vérification…' : 'Commencer',
-                    icon: Icons.mic_none,
-                    onPressed: _checking || !_available || _busy
-                        ? null
-                        : () => unawaited(_start()),
-                    appearance: MakoloActionAppearance.secondary,
-                  ),
-                if (_active)
-                  MakoloActionButton(
-                    label: 'Terminer',
-                    icon: Icons.stop_circle_outlined,
-                    busy: _busy,
-                    onPressed: _busy ? null : () => unawaited(_stop()),
-                  ),
-                MakoloActionButton(
-                  label: 'Utiliser ce texte',
-                  icon: Icons.check,
-                  onPressed: _active || _text.text.trim().isEmpty
+              if (_active)
+                IconButton(
+                  tooltip: 'Terminer la dictée',
+                  onPressed: _busy ? null : () => unawaited(_stop()),
+                  icon: const Icon(Icons.stop_circle_outlined),
+                )
+              else if (!_checking && _available)
+                IconButton(
+                  tooltip: 'Recommencer la dictée',
+                  onPressed: _busy ? null : () => unawaited(_start()),
+                  icon: const Icon(Icons.mic_none_rounded),
+                ),
+              if (_text.text.trim().isNotEmpty && !_active)
+                IconButton.filledTonal(
+                  tooltip: 'Garder la dictée et corriger le texte',
+                  onPressed: _busy
                       ? null
                       : () => widget.onText(_text.text.trim()),
-                  appearance: MakoloActionAppearance.primary,
+                  icon: const Icon(Icons.check_rounded),
                 ),
-                MakoloActionButton(
-                  label: 'Annuler',
-                  onPressed: () {
-                    unawaited(_cancelNative());
-                    widget.onClose();
-                  },
-                  appearance: MakoloActionAppearance.quiet,
-                ),
-              ],
-            ),
-            if (!_checking && !_available)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text('Dictée indisponible ici.'),
+              IconButton(
+                tooltip: 'Annuler la dictée',
+                onPressed: () {
+                  unawaited(_cancelNative());
+                  widget.onClose();
+                },
+                icon: const Icon(Icons.close_rounded),
               ),
-          ],
-        ),
+            ],
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 3, 8, 4),
+              child: Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.error,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
