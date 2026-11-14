@@ -30,7 +30,7 @@ on:
         default: ""
         type: string
   push:
-    branches: [main, fix/discover-a-continuation-context-20261014]
+    branches: [main]
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
