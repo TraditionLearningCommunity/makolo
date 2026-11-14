@@ -269,6 +269,48 @@ class _ConversationAttachmentViewerState
             final maximum = duration.inMilliseconds > 0
                 ? duration.inMilliseconds.toDouble()
                 : 1.0;
+            if (widget.inline) {
+              return Row(
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: player.playing ? 'Pause' : 'Écouter',
+                    onPressed: () async {
+                      if (player.playing) {
+                        await player.pause();
+                      } else {
+                        if (duration > Duration.zero && position >= duration) {
+                          await player.seek(Duration.zero);
+                        }
+                        unawaited(player.play());
+                      }
+                    },
+                    icon: Icon(
+                      player.playing
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                    ),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: position.inMilliseconds
+                          .toDouble()
+                          .clamp(0, maximum)
+                          .toDouble(),
+                      max: maximum,
+                      onChanged: duration > Duration.zero
+                          ? (value) => player.seek(
+                              Duration(milliseconds: value.round()),
+                            )
+                          : null,
+                    ),
+                  ),
+                  Text(
+                    _time(duration == Duration.zero ? position : duration),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
+              );
+            }
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -436,11 +478,11 @@ class _ConversationAttachmentViewerState
               mime == 'text/plain'
           ? 220.0
           : kind == 'voice' || kind == 'audio'
-          ? 144.0
+          ? 68.0
           : 84.0;
       if (_future == null) {
         final label = switch (kind) {
-          'audio' || 'voice' => 'Écouter le message vocal',
+          'audio' || 'voice' => 'Note vocale',
           'video' => 'Lire la vidéo',
           _ when mime == 'application/pdf' => 'Lire le PDF',
           _ when mime == 'text/plain' => 'Lire le document',
