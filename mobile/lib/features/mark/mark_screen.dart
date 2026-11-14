@@ -1707,6 +1707,82 @@ class _MarkMediaSource extends StatelessWidget {
   }
 }
 
+class _MarkDocumentThumbnail extends StatelessWidget {
+  const _MarkDocumentThumbnail({
+    super.key,
+    required this.filename,
+    required this.onOpen,
+    required this.onRemove,
+  });
+
+  final String filename;
+  final VoidCallback? onOpen;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final ext = p.extension(filename).replaceFirst('.', '').toUpperCase();
+    final label = ext.isEmpty ? 'Fichier' : ext;
+    return SizedBox(
+      width: 96,
+      height: 108,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            bottom: 8,
+            child: Material(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 12, 8, 5),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        label == 'PDF'
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.description_outlined,
+                        size: 32,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        filename,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton.filledTonal(
+              tooltip: 'Retirer $filename',
+              onPressed: onRemove,
+              icon: const Icon(Icons.close_rounded, size: 16),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 36,
+                minHeight: 36,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Thumbnail reads only the active Profile's locally staged file.
 /// No network request, image upload or inferred owner state is involved.
 class _MarkImageThumbnail extends StatefulWidget {
