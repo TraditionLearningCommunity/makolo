@@ -76,17 +76,23 @@ class _MarkScreenState extends State<MarkScreen> {
   StreamSubscription<void>? _shareSubscription;
   bool _processingShare = false;
   bool _textOnlyConsent = false;
+  bool _editing = false;
 
   @override
   void initState() {
     super.initState();
     _input = TextEditingController();
+    _inputFocus.addListener(_onInputFocus);
     _repository = MarkRepository(widget.runtime);
     _meStream = widget.runtime.personal?.watchMe();
     widget.runtime.actorContext?.addListener(_onActorChanged);
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
     _selectedContext = widget.selectedContext;
     _restoreDraft();
+  }
+
+  void _onInputFocus() {
+    if (mounted) setState(() => _editing = _inputFocus.hasFocus);
   }
 
   @override
@@ -152,6 +158,7 @@ class _MarkScreenState extends State<MarkScreen> {
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     _shareSubscription?.cancel();
     _input.dispose();
+    _inputFocus.removeListener(_onInputFocus);
     _inputFocus.dispose();
     super.dispose();
   }
@@ -264,48 +271,69 @@ class _MarkScreenState extends State<MarkScreen> {
         uri.userInfo.isEmpty;
   }
 
-  Future<void> _addLink() async {
-    final revision = _draftRevision;
-    final controller = TextEditingController();
-    var accepted = false;
-    final link = await showDialog<String>(
+  // Only observe explicit http(s) URLs already typed or pasted by the person.
+  // This is a visual affordance, not fetching, analysis, or owner submission.
+  List<String> get _typedLinks {
+    final found = <String>{};
+    final pattern = RegExp(r'https?://[^\\s<>"\x27]+', caseSensitive: false);
+    for (final match in pattern.allMatches(_input.text)) {
+      final raw = match.group(0);
+      if (raw == null) continue;
+      final url = raw.replaceFirst(RegExp(r'[.,;!?\\)\\]]+$'), '');
+      if (_isSafeLink(url) && !_links.contains(url)) found.add(url);
+    }
+    return found.take(6).toList();
+  }
+
+  Future<void> _openAttachmentPicker() async {
+    if (_busy || _restoring || _voiceCapture || _dictating) return;
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, refresh) => AlertDialog(
-          title: const Text('Ajouter un lien'),
-          content: TextField(
-            key: const ValueKey('mark-url-input'),
-            controller: controller,
-            autofocus: true,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            decoration: const InputDecoration(hintText: 'https://…'),
-            onChanged: (value) =>
-                refresh(() => accepted = _isSafeLink(value.trim())),
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  _MarkMediaSource(
+                    icon: Icons.photo_camera_outlined,
+                    label: 'Appareil photo',
+                    onTap: () => Navigator.pop(sheetContext, 'camera'),
+                  ),
+                  const SizedBox(width: 8),
+                  _MarkMediaSource(
+                    icon: Icons.photo_library_outlined,
+                    label: 'Photos',
+                    onTap: () => Navigator.pop(sheetContext, 'gallery'),
+                  ),
+                  const SizedBox(width: 8),
+                  _MarkMediaSource(
+                    icon: Icons.attach_file_rounded,
+                    label: 'Fichiers',
+                    onTap: () => Navigator.pop(sheetContext, 'files'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: accepted
-                  ? () => Navigator.pop(dialogContext, controller.text.trim())
-                  : null,
-              child: const Text('Ajouter'),
-            ),
-          ],
         ),
       ),
     );
-    controller.dispose();
-    if (!mounted || revision != _draftRevision || link == null) return;
-    if (!_isSafeLink(link) || _links.contains(link)) return;
-    setState(() {
-      _links = [..._links, link];
-      _textOnlyConsent = false;
-    });
-    await _saveDraft();
+    if (!mounted) return;
+    switch (choice) {
+      case 'camera':
+        await _capturePhoto();
+      case 'gallery':
+        await _pickPhoto();
+      case 'files':
+        await _pickFiles();
+      default:
+        break;
+    }
   }
 
   Future<void> _removeLink(String link) async {
