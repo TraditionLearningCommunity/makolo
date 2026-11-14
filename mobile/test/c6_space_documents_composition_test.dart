@@ -65,7 +65,7 @@ void main() {
         'visibility': 'visible',
         'kind': 'document',
         'count': 2,
-        'total_count': 6,
+        'total_count': 5,
         'counts': {
           'document': 2,
           'asset': 0,
