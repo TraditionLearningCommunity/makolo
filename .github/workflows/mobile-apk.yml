@@ -2,7 +2,7 @@ name: Mobile APK
 
 # Package an installable Android DEV artifact.
 # PR quality remains owned by Mobile CI / Mobile Android Build.
-# Automatic main packaging stays fast; a manual full mode is available for checkpoints.
+# Package automatically on PR #522 branch pushes; main packaging is manual only.
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ on:
         default: ""
         type: string
   push:
-    branches: [main]
+    branches: [fix/discover-a-continuation-context-20261014]
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
@@ -50,6 +50,7 @@ permissions:
 
 jobs:
   package-dev-debug-apk:
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
