@@ -23,6 +23,11 @@ class AppuisCreditsWebView(LoginRequiredMixin, TemplateView):
     template_name = "core/appuis_credits.html"
     login_url = "core:login"
 
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def _subject(self):
         slug = self.kwargs.get("slug")
         if slug is None:
