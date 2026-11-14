@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.db import migrations, models
 from django.db.models import Q
 
