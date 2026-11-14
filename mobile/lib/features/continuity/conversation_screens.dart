@@ -2873,10 +2873,7 @@ class _PointCardState extends State<_PointCard> {
       }
     } on Object {
       if (mounted) {
-        setState(
-          () =>
-              _feedback = 'Enregistrement non confirmé.',
-        );
+        setState(() => _feedback = 'Enregistrement non confirmé.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
