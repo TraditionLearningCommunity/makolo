@@ -174,10 +174,21 @@
       {% if access_form %}
       <button class="mk-action-button" data-variant="secondary" type="button"
               data-dialog-open="project-authority">
-        <i data-lucide="user-plus" aria-hidden="true"></i> Donner accès
+        <i data-lucide="send" aria-hidden="true"></i> Inviter
       </button>
       {% endif %}
     </div>
+    {% if workspace.collaboration.pending_invitations %}
+      <h3>Invitations en attente</h3>
+      {% for invitation in workspace.collaboration.pending_invitations %}
+        <div class="mk-project__person">
+          <div>
+            <strong>{{ invitation.label }}</strong>
+            <small>{{ invitation.role }} · En attente</small>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
     {% if workspace.collaboration.members %}<h3>Accès délégués</h3>{% endif %}
     {% for member in workspace.collaboration.members %}
       <div class="mk-project__person">
@@ -236,10 +247,10 @@
   <dialog id="project-authority" class="mk-project__dialog">
     <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
       {% csrf_token %}
-      <input type="hidden" name="action" value="grant">
+      <input type="hidden" name="action" value="invite">
       <header>
-        <h2>Donner accès au Projet</h2>
-        <p>Le rôle Projet n’accorde pas automatiquement des droits sur les Dossiers ou les démarches.</p>
+        <h2>Inviter à collaborer</h2>
+        <p>La personne choisit d’accepter ou de décliner. Son accès au Projet n’est accordé qu’après son acceptation.</p>
       </header>
       {% for field in access_form %}
       <div class="mk-project__field">
