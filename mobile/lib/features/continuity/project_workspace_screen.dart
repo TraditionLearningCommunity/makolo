@@ -1414,6 +1414,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     children: [
       Expanded(
         child: ObjectiveWorkspaceViewSwitcher<_ProjectMode>(
+          compact: true,
           selected: _mode,
           options: const [
             ObjectiveViewOption(
