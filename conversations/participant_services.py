@@ -351,7 +351,7 @@ def answer_collective_invitation(*, actor, access, accept):
     Conversation.objects.select_for_update(of=("self",)).get(
         pk=access.conversation_id,
     )
-    locked = ConversationCollectiveAccess.objects.select_for_update().select_related(
+    locked = ConversationCollectiveAccess.objects.select_for_update(of=("self",)).select_related(
         "space", "group", "conversation", "created_by",
     ).get(pk=access.pk)
     if not _collective_manage_allowed(actor, space=locked.space, group=locked.group):
@@ -382,7 +382,7 @@ def answer_collective_invitation(*, actor, access, accept):
 
 @transaction.atomic
 def revoke_collective_access(*, actor, access):
-    locked = ConversationCollectiveAccess.objects.select_for_update().select_related(
+    locked = ConversationCollectiveAccess.objects.select_for_update(of=("self",)).select_related(
         "conversation", "space", "group",
     ).get(pk=access.pk)
     if not (
