@@ -117,10 +117,11 @@ void main() {
       expect(find.text('Lien'), findsNothing);
       expect(find.text('Voix'), findsNothing);
       expect(find.text('Continuer'), findsNothing);
-      expect(find.byTooltip('Joindre un fichier'), findsOneWidget);
-      expect(find.byTooltip('Prendre une photo'), findsOneWidget);
-      expect(find.byTooltip('Choisir une image'), findsOneWidget);
-      expect(find.byTooltip('Enregistrer un audio'), findsOneWidget);
+      expect(find.byTooltip('Ajouter une pièce'), findsOneWidget);
+      expect(find.byTooltip('Dicter ou enregistrer'), findsOneWidget);
+      expect(find.byTooltip('Joindre un fichier'), findsNothing);
+      expect(find.byTooltip('Prendre une photo'), findsNothing);
+      expect(find.byTooltip('Choisir une image'), findsNothing);
       expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
       expect(
         find.textContaining(
@@ -143,7 +144,7 @@ void main() {
       );
       await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
       await tester.pump();
-      await tester.tap(find.byTooltip('Enregistrer un audio'));
+      await tester.tap(find.byTooltip('Dicter ou enregistrer'));
       await tester.pumpAndSettle();
       expect(find.text('Enregistrer un audio'), findsOneWidget);
       await tester.tap(find.text('Enregistrer un audio'));
@@ -154,6 +155,45 @@ void main() {
       );
     },
   );
+
+  testWidgets('single add button reveals three native media sources', (
+    tester,
+  ) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Ajouter une pièce'));
+    await tester.pumpAndSettle();
+    expect(find.text('Appareil photo'), findsOneWidget);
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Fichiers'), findsOneWidget);
+    expect(find.text('Lien'), findsNothing);
+  });
+
+  testWidgets('typed safe URL is recognized without a link tool', (
+    tester,
+  ) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    await tester.enterText(
+      find.byType(TextField),
+      'Voir https://example.org/activity',
+    );
+    await tester.pump();
+    expect(find.text('https://example.org/activity'), findsOneWidget);
+    expect(find.text('Lien'), findsNothing);
+    expect(find.text('Qu’est-ce que vous avez en tête ?'), findsNothing);
+    expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
+  });
 
   testWidgets('Mark runtime switch does not display another Profile draft', (
     tester,
