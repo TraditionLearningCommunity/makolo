@@ -35,13 +35,6 @@
     </details>
   </header>
 
-  {% if focused_point %}
-    <section class="mb-7" aria-labelledby="focused-point-heading">
-      <h2 id="focused-point-heading" class="mb-3 text-sm font-bold">Point recherché</h2>
-      {% include 'conversations/_point.html' with point=focused_point %}
-    </section>
-  {% endif %}
-
   <section id="conversation-points" class="mb-8" aria-labelledby="conversation-timeline-heading">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div>
