@@ -41,7 +41,6 @@ class _TrustResourceCollectionScreenState
   bool _initializing = true;
   bool _searching = false;
   bool _refreshing = false;
-  bool _refreshFailed = false;
   bool _loadingMore = false;
   bool _loadFailed = false;
   bool _canLoadNext = false;
@@ -105,7 +104,6 @@ class _TrustResourceCollectionScreenState
     if (mounted) {
       setState(() {
         _initializing = true;
-        _refreshFailed = false;
       });
     }
     try {
@@ -118,7 +116,6 @@ class _TrustResourceCollectionScreenState
         offset: 0,
       );
     } on Object {
-      if (mounted) setState(() => _refreshFailed = true);
     } finally {
       if (mounted) setState(() => _initializing = false);
     }
@@ -128,7 +125,6 @@ class _TrustResourceCollectionScreenState
     if (_refreshing) return;
     setState(() {
       _refreshing = true;
-      _refreshFailed = false;
       _loadFailed = false;
       _completedRequest = null;
     });
@@ -235,7 +231,6 @@ class _TrustResourceCollectionScreenState
       _sort = nextSort;
       _completedRequest = null;
       _loadFailed = false;
-      _refreshFailed = false;
       _initializing = true;
       _resetSource();
     });
