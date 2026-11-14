@@ -253,6 +253,17 @@ def project_authority(request, project_id):
                 messages.error(request, "Cet accès Projet n'a pas été accordé.")
         else:
             messages.error(request, "Vérifiez l'adresse du compte et le rôle.")
+    elif request.POST.get("action") == "cancel-invitation":
+        invitation = ProjectInvitation.objects.filter(
+            project=project, pk=request.POST.get("invitation_id"),
+        ).first()
+        if invitation is None:
+            raise Http404
+        try:
+            cancel_project_invitation(actor=request.user, invitation=invitation)
+            messages.success(request, "Invitation annulée.")
+        except (ValidationError, PermissionDenied):
+            messages.error(request, "Invitation non annulée.")
     elif request.POST.get("action") == "replace":
         mandate = current_mandates().filter(
             scope_type=AuthorityScope.PROJECT, project=project,
