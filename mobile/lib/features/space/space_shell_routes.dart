@@ -1232,7 +1232,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         appBar: AppBar(title: const Text('Mes autorisations')),
         body: _authorityLoading
             ? const Center(child: CircularProgressIndicator())
-            : _authorityFacts == null || observationOnly
+            : _authorityFacts == null
             ? ListView(
                 padding: const EdgeInsets.all(MakoloSpacing.lg),
                 children: [
@@ -1387,11 +1387,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         ),
                       ),
                     )
-              else
+              else if (!observationOnly)
                 const MakoloEmptyState(title: 'Aucun fait à afficher.'),
-            else
+            else if (!observationOnly)
               const MakoloEmptyState(title: 'Aucun fait à afficher.'),
-          ] else if (rows.isEmpty)
+          ] else if (rows.isEmpty && !observationOnly)
             const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
             for (final row in rows)

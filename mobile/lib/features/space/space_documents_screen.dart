@@ -503,14 +503,14 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                       ),
                     ),
                   ),
-              if (_loadingMore && view.hasMore)
+              if (!source.invalidated && _loadingMore && view.hasMore)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(MakoloSpacing.md),
                     child: CircularProgressIndicator.adaptive(),
                   ),
                 ),
-              if (_loadFailed && view.hasMore)
+              if (!source.invalidated && _loadFailed && view.hasMore)
                 Center(
                   child: MakoloActionButton(
                     label: 'Réessayer la suite',
@@ -521,7 +521,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                     },
                   ),
                 )
-              else if (view.hasMore && !_loadingMore)
+              else if (!source.invalidated && view.hasMore && !_loadingMore)
                 Center(
                   child: MakoloActionButton(
                     label: 'Voir plus',
