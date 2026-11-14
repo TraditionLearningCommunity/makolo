@@ -10,6 +10,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, revoke_mandate
 from capacity.models import CapacityPool
 from operations.models import OccurrenceQueue
+from operations.occurrence_web_depth import depth_page
 
 
 User = get_user_model()
@@ -125,6 +126,92 @@ class ExperienceDepthsL5Tests(TestCase):
             404,
         )
         self.assertEqual(self.client.get(f"{self.base}/day-of/").status_code, 404)
+
+    def test_personal_readiness_depth_keeps_grouped_checks(self):
+        projection = {
+            "depths": [{
+                "kind": "readiness", "label": "Ma préparation",
+                "territory": "participant",
+            }],
+            "sections": {
+                "participant": {
+                    "readiness": {
+                        "state": "blocked",
+                        "blockers": [{
+                            "key": "operations.access.me",
+                            "summary": "Accès indisponible",
+                            "reason": "participant_access_unavailable",
+                            "source": "access.access",
+                        }],
+                        "waiting": [{
+                            "key": "operations.placement.me",
+                            "summary": "Placement en attente",
+                            "source": "operations.placement",
+                        }],
+                        "actor_interventions": [],
+                        "ready": [],
+                    }
+                }
+            },
+        }
+        detail = depth_page(
+            occurrence=self.occurrence, actor=self.operator,
+            projection=projection, kind="readiness",
+        )
+        self.assertEqual(len(detail["rows"]), 2)
+        self.assertEqual(detail["rows"][0]["label"], "Accès indisponible")
+        self.assertEqual(detail["rows"][0]["state"], "blocking")
+        self.assertEqual(detail["rows"][1]["state"], "waiting")
+        self.assertEqual(detail["rows"][1]["source"], "operations.placement")
+
+    def test_dual_role_readiness_stays_on_participant_territory(self):
+        projection = {
+            "depths": [{
+                "kind": "readiness",
+                "label": "Ma préparation",
+                "territory": "participant",
+            }],
+            "sections": {
+                "participant": {
+                    "readiness": {
+                        "blockers": [{"key": "my-access", "summary": "Mon accès"}],
+                    },
+                },
+                "organizer": {
+                    "operational_readiness": {
+                        "contributors": [{
+                            "key": "private-operations",
+                            "summary": "Préparation de l'organisateur",
+                        }],
+                    },
+                },
+            },
+        }
+        detail = depth_page(
+            occurrence=self.occurrence, actor=self.operator,
+            projection=projection, kind="readiness",
+        )
+        self.assertEqual(len(detail["rows"]), 1)
+        self.assertEqual(detail["rows"][0]["label"], "Mon accès")
+
+    def test_operator_readiness_keeps_flat_owner_contributors(self):
+        contributor = {"key": "operations.queue", "state": "action_required"}
+        projection = {
+            "depths": [{
+                "kind": "readiness", "label": "Préparation",
+                "territory": "organizer",
+            }],
+            "sections": {
+                "organizer": {
+                    "operational_readiness": {"contributors": [contributor]}
+                }
+            },
+        }
+        detail = depth_page(
+            occurrence=self.occurrence, actor=self.operator,
+            projection=projection, kind="readiness",
+        )
+        self.assertEqual(detail["rows"], [contributor])
 
     def test_web_depth_rejects_operator_mutation_without_manage_authority(self):
         url = (

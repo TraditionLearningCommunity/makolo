@@ -121,8 +121,13 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
     if surface == "live" and not live_available:
         return None
 
-    participant = resolve_participant_occurrence_live(
-        occurrence=occurrence, actor=viewer, observed_at=observed_at,
+    # A Space actor never inherits this viewer's personal admission or QR.
+    # The same viewer may still operate in the personal perspective separately.
+    participant = (
+        resolve_participant_occurrence_live(
+            occurrence=occurrence, actor=viewer, observed_at=observed_at,
+        )
+        if actor_space_id is None else None
     )
     same_operator_space = (
         actor_space_id is None or
@@ -151,7 +156,8 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
         viewer, occurrence,
         PermissionCode.ACTIVITY_FINANCE_VIEW, PermissionCode.FINANCE_VIEW,
     )
-    platform_allowed = has_platform_authority(viewer)
+    # Platform supervision is a Profile perspective, not a Space mandate.
+    platform_allowed = actor_space_id is None and has_platform_authority(viewer)
     # Platform supervision is not automatically an organizer relationship.
     owner_operations_allowed = same_operator_space and _owner_permission(
         viewer, occurrence,

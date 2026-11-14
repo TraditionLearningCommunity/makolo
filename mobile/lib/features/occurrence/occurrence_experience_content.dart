@@ -81,6 +81,16 @@ class OccurrenceExperienceContent extends StatelessWidget {
     return value.toString();
   }
 
+  static String _accessStateLabel(String? state) => switch (state) {
+    'pending' => 'En préparation',
+    'valid' => 'Valide à la dernière vérification',
+    'used' => 'Déjà utilisé',
+    'revoked' => 'Révoqué',
+    'expired' => 'Expiré',
+    'cancelled' => 'Annulé',
+    _ => 'À vérifier',
+  };
+
   static String _capacityValue(Map<String, dynamic> item) {
     if (item['unlimited'] == true) return 'sans limite configurée';
     return '${item['available'] ?? 'à vérifier'} disponible(s)';
@@ -162,7 +172,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
                   const SizedBox(height: MakoloSpacing.xs),
                   const Text(
                     'Les informations conservées ne confirment ni les droits actuels '
-                    'ni une action serveur. Actualisez pour agir.',
+                    'ni une action serveur. Un justificatif déjà autorisé peut '
+                    'être présenté localement selon les conditions Access.',
                   ),
                 ],
               ),
@@ -448,7 +459,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Mon accès · ${_text(access['state']) ?? 'à vérifier'}'),
+                Text('Mon accès · ${_accessStateLabel(_text(access['state']))}'),
                 Text(
                   access['usable'] == true
                       ? 'Utilisable selon ses conditions'
@@ -459,12 +470,12 @@ class OccurrenceExperienceContent extends StatelessWidget {
                     onPresentCredential != null) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   FilledButton.icon(
-                    onPressed: remoteActionsAvailable
-                        ? () => onPresentCredential!(
-                            _text(_map(access['identity'])['id']) ?? '',
-                            _text(_map(access['links'])['credential'])!,
-                          )
-                        : null,
+                    // Opening the Access depth is not a server mutation.
+                    // Access itself decides whether a retained QR may be shown.
+                    onPressed: () => onPresentCredential!(
+                      _text(_map(access['identity'])['id']) ?? '',
+                      _text(_map(access['links'])['credential'])!,
+                    ),
                     icon: const Icon(Icons.qr_code_2_rounded),
                     label: const Text('Présenter mon accès'),
                   ),
