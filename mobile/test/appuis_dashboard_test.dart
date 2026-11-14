@@ -311,4 +311,23 @@ void main() {
     expect(find.text('Mettre fin à cette adhésion'), findsNothing);
     expect(called, false);
   });
+  testWidgets('local content remains usable during a silent network pause',
+      (tester) async {
+    final local = data(accounts: [account('one', 'Club A')]);
+    await tester.pumpWidget(harness(local, canMutate: false));
+    expect(find.text('Club A'), findsOneWidget);
+    expect(find.textContaining('Actualisation impossible'), findsNothing);
+    await tester.pumpWidget(harness(data(
+      accounts: [account('one', 'Club A')],
+      recognition: {
+        'summary': {'available_credits': 1},
+        'rewards': [{'id': 'reward-1', 'name': 'Récompense'}],
+      },
+    ), canMutate: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChoiceChip), findsNWidgets(3));
+    expect(find.text('Club A'), findsOneWidget);
+    expect(find.text('Récompense'), findsWidgets);
+  });
+
 }
