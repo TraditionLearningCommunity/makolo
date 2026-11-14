@@ -569,19 +569,6 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-            // The cover already states a completed/declined/cancelled Journey.
-            // Only Service needs a separate final note to distinguish
-            // Makolo follow-up from an external decision.
-            if (presentation.isTerminal &&
-                presentation.workflowKind == 'service') ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _journeyContentInset,
-                ),
-                child: _JourneyOutcomeCard(presentation: presentation),
-              ),
-            ],
             if (presentation.canRespondInvitation &&
                 !presentation.isTerminal) ...[
               Padding(
@@ -1207,47 +1194,6 @@ class _JourneySituationPanel extends StatelessWidget {
   }
 }
 
-class _JourneyOutcomeCard extends StatelessWidget {
-  const _JourneyOutcomeCard({required this.presentation});
-
-  final JourneyDetailPresentation presentation;
-
-  @override
-  Widget build(BuildContext context) {
-    final outcome = switch (presentation.stateCode) {
-      'fulfilled' when presentation.workflowKind == 'service' => (
-        'Suivi terminé dans Makolo',
-        Icons.check_circle_outline_rounded,
-      ),
-      'fulfilled' => ('Démarche réalisée', Icons.check_circle_outline_rounded),
-      'rejected' => ('Demande refusée', Icons.info_outline_rounded),
-      'cancelled' => ('Démarche annulée', Icons.cancel_outlined),
-      'expired' => ('Démarche expirée', Icons.event_busy_outlined),
-      _ => ('Démarche', Icons.route_outlined),
-    };
-    return MakoloCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(outcome.$2, size: 28, color: _journeyAccent(context)),
-          const SizedBox(width: MakoloSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  outcome.$1,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Full-width cover for the person's objective. Time, place and Journey
 /// status are presented once; details and authority remain with their owners.
 class _JourneyIdentity extends StatelessWidget {
@@ -1303,10 +1249,13 @@ class _JourneyIdentity extends StatelessWidget {
       locality: facts?.placeLocality,
       address: facts?.placeAddress,
     );
-    final status = MakoloHumanization.presentationLabel(
-      presentation.journeyState,
-    );
-    final successful = presentation.stateCode == 'fulfilled';
+    final status =
+        presentation.workflowKind == 'service' &&
+            presentation.stateCode == 'fulfilled'
+        ? 'Suivi terminé dans Makolo'
+        : MakoloHumanization.presentationLabel(presentation.journeyState);
+    final successful = presentation.stateCode == 'fulfilled' &&
+        presentation.workflowKind != 'service';
     final style = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
 
