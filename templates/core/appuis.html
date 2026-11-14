@@ -19,7 +19,7 @@
       {% if recognition_pending_credits %}
       <span class="ap-recognition-pending">{{ recognition_pending_credits }} crédits en attente</span>
       {% endif %}
-      {% if recognition_account and recognition_can_spend %}
+      {% if recognition_credits and recognition_can_spend %}
       <a class="ap-recognition-action" href="{% if is_space %}{% url 'organizations:space-us-appuis-use' space.slug %}{% else %}{% url 'core:participant-appuis-use' %}{% endif %}">
         <i data-lucide="gift" aria-hidden="true"></i>
         {% if is_space %}Utiliser nos crédits{% else %}Utiliser mes crédits{% endif %}
