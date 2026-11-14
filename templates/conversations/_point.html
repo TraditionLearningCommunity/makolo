@@ -1,5 +1,6 @@
 {% load conversation_tags %}
 {% conversation_point_interactions point request.user as actions %}
+{% conversation_point_media_sections point request.user as semantic_media %}
 {% if point.kind == 'form_request' %}{% conversation_point_form_request point request.user as form_request %}{% endif %}
 <article id="point-{{ point.pk }}" class="mk-thread-point relative scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-3 py-3 sm:px-4 {% if point.published_by_id == request.user.pk %}mr-10{% else %}ml-10{% endif %}" tabindex="-1"
   data-thread-point
@@ -7,7 +8,7 @@
   data-result-at="{% if point.lifecycle == 'resolved' %}{{ point.updated_at|date:'c' }}{% endif %}"
   data-important="{% if point.importance == 'important' %}true{% else %}false{% endif %}">
   {% if point.published_by.is_active and point.published_by.profile.public_profile and point.published_by.profile.searchable %}
-    <a class="mk-point-author-avatar {% if point.published_by_id == request.user.pk %}mk-point-author-own{% endif %}" href="{% url 'public-passport' point.published_by.username %}" aria-label="Voir le Passeport public de {{ point.published_by.username }}">
+    <a class="mk-point-author-avatar {% if point.published_by_id == request.user.pk %}mk-point-author-own{% endif %}" href="{% url 'public-passport' point.published_by.username %}" data-public-profile-id="{{ point.published_by_id }}" aria-label="Voir le Passeport public de {{ point.published_by.username }}">
       {{ point.published_by.username|slice:":1"|upper }}
       <span class="mk-point-author-popover" aria-hidden="true">{{ point.published_by.username }} <small>Passeport public</small></span>
     </a>
@@ -37,7 +38,13 @@
           <form method="post" action="{% url 'conversations:point-personal-state' point.pk %}">
             {% csrf_token %}
             <button type="submit" name="action" value="revisit" class="mk-btn mk-btn-secondary w-full text-left">
-              {% if actions.revisit %}Retirer des enregistrements{% else %}Enregistrer{% endif %}
+              {% if actions.revisit %}
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" class="inline-block align-middle mr-2"><path d="M5.6 17.2a8.2 8.2 0 1 1 12.9-1.4"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><circle cx="19.2" cy="17.5" r="1.55" fill="currentColor" stroke="none"/></svg>
+                Retirer des enregistrements
+              {% else %}
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="inline-block align-middle mr-2"><path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1"/><path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4"/><circle cx="19.3" cy="17.6" r="1.45" fill="currentColor" stroke="none"/></svg>
+                Enregistrer
+              {% endif %}
             </button>
           </form>
       {% if actions.can_close_responses or actions.can_resolve %}
@@ -68,7 +75,6 @@
     </div>
   </div>
   {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm leading-6">{{ point.body }}</p>{% endif %}
-  {% conversation_point_media_sections point request.user as semantic_media %}
   {% include 'conversations/_attachment_gallery.html' with files=semantic_media.root %}
 
   {% if point.kind == 'poll' %}
