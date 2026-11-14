@@ -82,6 +82,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         _generation++;
         _denied = true;
         _snapshots.clear();
+        _errors.clear();
+        _knownFamilies.clear();
         _pendingKeys.clear();
         setState(() {});
         final store = widget.runtime.store;
