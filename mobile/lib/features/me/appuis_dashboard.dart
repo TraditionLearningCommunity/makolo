@@ -472,9 +472,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                       ' avantages disponibles',
               ].join(' · '),
               open: () => _openProgram(row)),
-          if (programs.isEmpty && obtained.isNotEmpty)
-            _card(Icons.workspace_premium_outlined,
-              'Récompenses obtenues', open: () => _openFamily(family)),
+
         ]);
       }
       // No program catalog on the Appuis landing. Open it intentionally.
@@ -712,7 +710,26 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ),
       ]);
     } else if (family == 'recognition') {
+      final summary = AppuisViewData.map(data['summary']);
+      final account = AppuisViewData.map(data['account']);
+      final balance = summary['available_credits'];
+      final pending = summary['pending_credits'];
       _open(_name(family), [
+        if (AppuisViewData.positive(balance) ||
+            AppuisViewData.positive(pending) ||
+            AppuisViewData.positive(account['lifetime_earned']))
+          _card(Icons.stars_outlined, 'Mes crédits',
+            subtitle: widget.space ? 'Crédits de cet Espace' :
+                'Crédits de reconnaissance',
+            highlight: [
+              if (AppuisViewData.positive(balance))
+                AppuisViewData.text(balance) + ' disponibles',
+              if (AppuisViewData.positive(pending))
+                AppuisViewData.text(pending) + ' en attente',
+              if (AppuisViewData.positive(account['lifetime_earned']))
+                AppuisViewData.text(account['lifetime_earned']) +
+                    ' obtenus au total',
+            ].join(' · ')),
         _details(
           family,
           'Réponses attendues',
