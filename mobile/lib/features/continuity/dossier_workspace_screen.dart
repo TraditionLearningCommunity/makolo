@@ -16,7 +16,6 @@ import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
 import 'objective_workspace_view_switcher.dart';
-import 'objective_filter_reset.dart';
 
 enum _DossierMode { overview, list, timeline, dependencies }
 
@@ -1710,19 +1709,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               ),
             ),
             const Spacer(),
-            ObjectiveFilterReset(
-              active:
-                  _search.text.trim().isNotEmpty ||
-                  _filter != 'all' ||
-                  _sort != _ListSort.recent,
-              onClear: () {
-                _search.clear();
-                setState(() {
-                  _filter = 'all';
-                  _sort = _ListSort.recent;
-                });
-              },
-            ),
+            if (_search.text.trim().isNotEmpty ||
+                _filter != 'all' || _sort != _ListSort.recent)
+              IconButton(
+                key: const ValueKey<String>('objective-filters-clear'),
+                tooltip: 'Effacer les filtres',
+                icon: const Icon(Icons.filter_alt_off_outlined),
+                onPressed: () {
+                  _search.clear();
+                  setState(() {
+                    _filter = 'all';
+                    _sort = _ListSort.recent;
+                  });
+                },
+              ),
           ],
         ),
         if (_searchExpanded) ...[
