@@ -79,8 +79,10 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
   Map<String, dynamic> get _summary => _map(_data['summary']);
 
   List<Map<String, dynamic>> get _rewards => _rows(_data['rewards'])
-      .where((reward) => reward['kind'] != 'payout' &&
-          reward['self_eligible'] == true)
+      .where(
+        (reward) =>
+            reward['kind'] != 'payout' && reward['self_eligible'] == true,
+      )
       .toList(growable: false);
 
   Map<String, dynamic> get _money {
@@ -101,11 +103,14 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
   String _action(Map<String, dynamic> reward) {
     final label = _text(_map(reward['presentation'])['action']);
     return label == 'Activer' || label == 'Débloquer' || label == 'Utiliser'
-        ? label : 'Utiliser';
+        ? label
+        : 'Utiliser';
   }
 
   bool _authorized(Map<String, dynamic> reward) =>
-      !_working && _current && widget.canSpend() &&
+      !_working &&
+      _current &&
+      widget.canSpend() &&
       widget.canUseReward(reward) &&
       _positive(_summary['available_credits']) &&
       (num.tryParse(_text(reward['points_cost'])) ?? double.infinity) <=
@@ -121,17 +126,24 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
       builder: (sheet) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
-          child: Column(mainAxisSize: MainAxisSize.min,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(_action(reward) + ' cet avantage ?',
-                style: Theme.of(sheet).textTheme.titleLarge),
+              Text(
+                _action(reward) + ' cet avantage ?',
+                style: Theme.of(sheet).textTheme.titleLarge,
+              ),
               const SizedBox(height: 8),
               Text(name),
               const SizedBox(height: 5),
-              Text('$cost crédits',
-                style: TextStyle(color: Theme.of(sheet).colorScheme.primary,
-                  fontWeight: FontWeight.w700)),
+              Text(
+                '$cost crédits',
+                style: TextStyle(
+                  color: Theme.of(sheet).colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 18),
               FilledButton(
                 onPressed: () => Navigator.pop(sheet, true),
@@ -162,10 +174,13 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
         });
       }
       final fulfilled = _text(response['status']) == 'fulfilled';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(fulfilled
-            ? 'Avantage activé.' : 'Demande enregistrée.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fulfilled ? 'Avantage activé.' : 'Demande enregistrée.',
+          ),
+        ),
+      );
     } finally {
       if (mounted && _current) setState(() => _working = false);
     }
@@ -180,99 +195,150 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(17),
-        side: BorderSide(color: colors.outlineVariant)),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(13),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: colors.primaryContainer,
-              borderRadius: BorderRadius.circular(14)),
-            child: Icon(_category(reward) == 'subscription'
-                ? Icons.workspace_premium_outlined
-                : _category(reward) == 'feature'
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                _category(reward) == 'subscription'
+                    ? Icons.workspace_premium_outlined
+                    : _category(reward) == 'feature'
                     ? Icons.lock_open_outlined
                     : Icons.card_giftcard_outlined,
-              color: colors.onPrimaryContainer)),
-          const SizedBox(width: 11),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_text(reward['name']),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700)),
-              if (_text(reward['description']).isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(_text(reward['description']),
-                  maxLines: 2, overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall),
-              ],
-              if (duration is int && duration > 0)
-                Text('$duration jours',
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 5),
-              Text('${_text(reward['points_cost'])} crédits',
-                style: TextStyle(color: colors.primary,
-                  fontWeight: FontWeight.w700)),
-            ],
-          )),
-          const SizedBox(width: 6),
-          TextButton(
-            onPressed: _authorized(reward) ? () => _use(reward) : null,
-            child: Text(_action(reward)),
-          ),
-        ]),
+                color: colors.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _text(reward['name']),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (_text(reward['description']).isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      _text(reward['description']),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (duration is int && duration > 0)
+                    Text(
+                      '$duration jours',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${_text(reward['points_cost'])} crédits',
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            TextButton(
+              onPressed: _authorized(reward) ? () => _use(reward) : null,
+              child: Text(_action(reward)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _group(String title, List<Map<String, dynamic>> items) {
     if (items.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(2, 22, 2, 9),
-        child: Text(title, style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w700))),
-      for (final reward in items) _rewardCard(reward),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 22, 2, 9),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        for (final reward in items) _rewardCard(reward),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_current) return const SizedBox.shrink();
     final rewards = _rewards;
-    final subscriptions = rewards.where(
-      (row) => _category(row) == 'subscription').toList();
-    final features = rewards.where(
-      (row) => _category(row) == 'feature').toList();
-    final others = rewards.where(
-      (row) => _category(row) != 'feature' &&
-          _category(row) != 'subscription').toList();
+    final subscriptions = rewards
+        .where((row) => _category(row) == 'subscription')
+        .toList();
+    final features = rewards
+        .where((row) => _category(row) == 'feature')
+        .toList();
+    final others = rewards
+        .where(
+          (row) =>
+              _category(row) != 'feature' && _category(row) != 'subscription',
+        )
+        .toList();
     final money = _money;
     final color = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.space
-          ? 'Utiliser nos crédits' : 'Utiliser mes crédits')),
+      appBar: AppBar(
+        title: Text(
+          widget.space ? 'Utiliser nos crédits' : 'Utiliser mes crédits',
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
         children: [
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [
-                Color(0xFF5232DB), Color(0xFF2B176E)]),
-              borderRadius: BorderRadius.circular(19)),
-            child: Row(children: [
-              const Icon(Icons.toll_outlined,
-                color: Color(0xFFF4D98A), size: 28),
-              const SizedBox(width: 12),
-              Expanded(child: Text(_balanceUnverified
-                  ? 'Crédits à confirmer'
-                  : '${_text(_summary['available_credits'])} crédits',
-                style: const TextStyle(color: Colors.white, fontSize: 22,
-                  fontWeight: FontWeight.w800))),
-            ]),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
+              ),
+              borderRadius: BorderRadius.circular(19),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.toll_outlined,
+                  color: Color(0xFFF4D98A),
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _balanceUnverified
+                        ? 'Crédits à confirmer'
+                        : '${_text(_summary['available_credits'])} crédits',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           if (money.isNotEmpty && !_balanceUnverified) ...[
             const SizedBox(height: 14),
@@ -280,22 +346,30 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
                 border: Border.all(color: color.outlineVariant),
-                borderRadius: BorderRadius.circular(17)),
-              child: Row(children: [
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Valeur en argent',
-                      style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 3),
-                    Text('${_text(money['amount'])} ${_text(money['currency'])}',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800)),
-                  ],
-                )),
-                const OutlinedButton(
-                  onPressed: null, child: Text('Retirer')),
-              ]),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Valeur en argent',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${_text(money['amount'])} ${_text(money['currency'])}',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const OutlinedButton(onPressed: null, child: Text('Retirer')),
+                ],
+              ),
             ),
           ],
           _group('Abonnements', subscriptions),
@@ -304,8 +378,10 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
           if (rewards.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 24),
-              child: Text('Aucune récompense disponible pour le moment.',
-                style: TextStyle(color: color.onSurfaceVariant)),
+              child: Text(
+                'Aucune récompense disponible pour le moment.',
+                style: TextStyle(color: color.onSurfaceVariant),
+              ),
             ),
         ],
       ),
