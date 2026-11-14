@@ -1915,137 +1915,135 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           ),
         const SizedBox(height: 8),
         Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              MakoloActionButton(
-                label: 'Zoom +',
-                onPressed: () => _graphZoom(1.2),
-                appearance: MakoloActionAppearance.secondary,
-                icon: Icons.zoom_in_rounded,
-              ),
-              MakoloActionButton(
-                label: 'Zoom −',
-                onPressed: () => _graphZoom(1 / 1.2),
-                appearance: MakoloActionAppearance.secondary,
-                icon: Icons.zoom_out_rounded,
-              ),
-              MakoloActionButton(
-                label: 'Recentrer',
-                onPressed: () => _transform.value = Matrix4.identity(),
-                appearance: MakoloActionAppearance.quiet,
-                icon: Icons.center_focus_strong_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 390,
-            clipBehavior: Clip.hardEdge,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              borderRadius: BorderRadius.circular(16),
+          spacing: 7,
+          runSpacing: 7,
+          children: [
+            MakoloActionButton(
+              label: 'Zoom +',
+              onPressed: () => _graphZoom(1.2),
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.zoom_in_rounded,
             ),
-            child: InteractiveViewer(
-              transformationController: _transform,
-              constrained: false,
-              minScale: .45,
-              maxScale: 3,
-              boundaryMargin: const EdgeInsets.all(500),
-              child: SizedBox(
-                width: model.size.width,
-                height: model.size.height,
-                child: Stack(
-                  children: [
-                    CustomPaint(
-                      size: model.size,
-                      painter: _GraphPainter(
-                        positions: model.positions,
-                        edges: deps,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+            MakoloActionButton(
+              label: 'Zoom −',
+              onPressed: () => _graphZoom(1 / 1.2),
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.zoom_out_rounded,
+            ),
+            MakoloActionButton(
+              label: 'Recentrer',
+              onPressed: () => _transform.value = Matrix4.identity(),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.center_focus_strong_outlined,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 390,
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: InteractiveViewer(
+            transformationController: _transform,
+            constrained: false,
+            minScale: .45,
+            maxScale: 3,
+            boundaryMargin: const EdgeInsets.all(500),
+            child: SizedBox(
+              width: model.size.width,
+              height: model.size.height,
+              child: Stack(
+                children: [
+                  CustomPaint(
+                    size: model.size,
+                    painter: _GraphPainter(
+                      positions: model.positions,
+                      edges: deps,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
-                    for (final dep in deps)
-                      if (model.positions.containsKey(
-                            _text(dep['required_journey_id']),
-                          ) &&
-                          model.positions.containsKey(
-                            _text(dep['dependent_journey_id']),
-                          ))
-                        _graphEdgeTap(dep, model, byId),
-                    for (final row in journeys)
-                      if (model.positions.containsKey(_text(row['id'])))
-                        Positioned(
-                          left: model.positions[_text(row['id'])]!.dx,
-                          top: model.positions[_text(row['id'])]!.dy,
-                          child: SizedBox(
-                            width: 196,
-                            height: 76,
-                            child: Card(
-                              elevation: 0,
-                              margin: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color:
-                                      row['readiness_state'] ==
-                                          'action_required'
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                            .colorScheme
-                                            .outlineVariant,
-                                ),
+                  ),
+                  for (final dep in deps)
+                    if (model.positions.containsKey(
+                          _text(dep['required_journey_id']),
+                        ) &&
+                        model.positions.containsKey(
+                          _text(dep['dependent_journey_id']),
+                        ))
+                      _graphEdgeTap(dep, model, byId),
+                  for (final row in journeys)
+                    if (model.positions.containsKey(_text(row['id'])))
+                      Positioned(
+                        left: model.positions[_text(row['id'])]!.dx,
+                        top: model.positions[_text(row['id'])]!.dy,
+                        child: SizedBox(
+                          width: 196,
+                          height: 76,
+                          child: Card(
+                            elevation: 0,
+                            margin: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color:
+                                    row['readiness_state'] == 'action_required'
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
                               ),
-                              child: InkWell(
-                                onTap: () =>
-                                    widget.onOpenJourney(_text(row['id'])),
-                                child: Semantics(
-                                  button: true,
-                                  label:
-                                      'Ouvrir la démarche ${_text(row['label'])}',
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(9),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _text(row['label']),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                            ),
+                            child: InkWell(
+                              onTap: () =>
+                                  widget.onOpenJourney(_text(row['id'])),
+                              child: Semantics(
+                                button: true,
+                                label:
+                                    'Ouvrir la démarche ${_text(row['label'])}',
+                                child: Padding(
+                                  padding: const EdgeInsets.all(9),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _text(row['label']),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                        const Spacer(),
-                                        Text(
-                                          _text(row['readiness_label'])
-                                                  .isNotEmpty
-                                              ? _text(row['readiness_label'])
-                                              : _humanState(row['state']),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall,
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        _text(row['readiness_label']).isNotEmpty
+                                            ? _text(row['readiness_label'])
+                                            : _humanState(row['state']),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                  ],
-                ),
+                      ),
+                ],
               ),
             ),
           ),
+        ),
         const SizedBox(height: 12),
         Text(
           'Prérequis',

@@ -146,9 +146,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     final slug = _spaceSlug;
     final identity = '${widget.id}:${slug ?? 'personal'}';
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Personnes et responsabilités'),
-      ),
+      appBar: AppBar(title: const Text('Personnes et responsabilités')),
       body: StreamBuilder<OwnerSourceState>(
         key: ValueKey('people-owner:$identity'),
         stream: widget.repository.watchSource(
