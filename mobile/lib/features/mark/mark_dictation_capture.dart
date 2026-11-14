@@ -70,7 +70,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         setState(() => _status = 'Écoute en cours');
         return;
       case 'processing':
-        setState(() => _status = 'Reconnaissance en cours');
+        setState(() => _status = 'Un instant…');
         return;
       case 'partial':
       case 'final':
@@ -92,14 +92,14 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         setState(() {
           _active = false;
           _busy = false;
-          _error = 'Aucune parole reconnue. Vous pouvez réessayer ou écrire.';
+          _error = 'Aucune parole reconnue. Réessayez ou écrivez.';
         });
         return;
       case 'error':
         setState(() {
           _active = false;
           _busy = false;
-          _error = 'La dictée système est indisponible ou a été interrompue.';
+          _error = 'La dictée s’est interrompue. Réessayez ou écrivez votre demande.';
         });
         return;
       default:
@@ -134,7 +134,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
           _busy = false;
           _active = false;
           _error =
-              'Impossible de démarrer la dictée. La saisie reste disponible.';
+              'Le micro n’a pas démarré. Vous pouvez réessayer ou écrire.';
         });
       }
     }
@@ -154,7 +154,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         setState(() {
           _busy = false;
           _active = false;
-          _error = 'Impossible de terminer la reconnaissance.';
+          _error = 'Impossible de terminer la dictée.';
         });
       }
     }
@@ -266,7 +266,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
               const Padding(
                 padding: EdgeInsets.only(top: 8),
                 child: Text(
-                  'Dictée indisponible. Vous pouvez écrire ou enregistrer un audio.',
+                  'Dictée indisponible ici.',
                 ),
               ),
           ],
