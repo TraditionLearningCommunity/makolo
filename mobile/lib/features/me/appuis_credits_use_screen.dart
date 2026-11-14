@@ -69,8 +69,9 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
         !_current ||
         _working ||
         epoch != _spendEpoch ||
-        fresh == null)
+        fresh == null) {
       return;
+    }
     setState(() {
       _data = fresh;
       _moneyVerified = true;
@@ -154,7 +155,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _action(reward) + ' cet avantage ?',
+                '${_action(reward)} cet avantage ?',
                 style: Theme.of(sheet).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
