@@ -18,6 +18,7 @@
   <form method="post" class="mk-mark-form" data-mk-mark-form>
     {% csrf_token %}
     <label for="mark-intent" class="sr-only">Votre demande</label>
+    <div class="mk-mark-composer">
     <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
     {% if mark_selected %}
     <div class="mk-mark-selected" data-mk-mark-selected>
@@ -33,7 +34,12 @@
     {% endif %>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
     {% include 'partials/mark_input_tools.html' with mark_scope='personal' %}
-    <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
+    <span class="mk-mark-count" data-mk-mark-count hidden aria-live="off"></span>
+    <button type="submit" class="mk-mark-send" data-mk-mark-send
+      title="Continuer" aria-label="Continuer avec votre demande">
+      <i data-lucide="arrow-up" aria-hidden="true"></i>
+    </button>
+    </div>
   </form>
 
   {% include 'partials/mark_personal_asset_form.html' %}
