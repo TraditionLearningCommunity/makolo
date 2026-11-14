@@ -372,67 +372,101 @@
       input.focus();
     });
 
-    // Web Speech is capability-gated and may use a remote browser service.
-    // No recognition or microphone access starts before a user gesture.
+    // SpeechRecognition may delegate recognition outside this browser/device.
+    // The person is asked once before microphone capture; the only Mark
+    // mutation is their explicitly accepted editable text.
     const voiceButton = $('[data-mk-mark-voice]');
     const speechPanel = $('[data-mk-mark-dictation]');
-    const transcript = $('[data-mk-mark-transcript]');
+    const status = $('[data-mk-mark-speech-status]');
     const start = $('[data-mk-mark-speech-start]');
     const stop = $('[data-mk-mark-speech-stop]');
-    if (Speech && voiceButton && speechPanel && transcript) {
-      voiceButton.hidden = false;
-      voiceButton.addEventListener('click', () => {
-        speechPanel.hidden = !speechPanel.hidden;
-        if (!speechPanel.hidden) transcript.focus();
-        else if (recognizer) recognizer.abort();
-      });
-      start?.addEventListener('click', () => {
-        if (recognizer) return;
-        transcript.value = '';
-        try {
-          const active = new Speech();
-          recognizer = active;
-          active.lang = document.documentElement.lang || 'fr';
-          active.interimResults = true;
-          active.continuous = false;
-          active.maxAlternatives = 1;
-          active.onresult = (event) => {
-            let combined = '';
-            for (let index = 0; index < event.results.length; index++) {
-              combined += event.results[index][0]?.transcript || '';
-            }
-            transcript.value = combined.slice(0, MAX_TEXT);
-          };
-          active.onerror = () => announce('La dictée du navigateur a échoué. Vous pouvez toujours écrire.');
-          active.onend = () => {
-            recognizer = null;
-            if (start) start.disabled = false;
-            if (stop) stop.disabled = true;
-          };
-          active.start();
-          start.disabled = true;
-          if (stop) stop.disabled = false;
-          announce('Dictée en cours. Elle dépend du navigateur et peut utiliser un service externe.');
-        } catch (_) {
+    const useSpeech = $('[data-mk-mark-speech-use]');
+    let dictationBase = '';
+    let spoken = '';
+    let speechConsent = false;
+
+    function closeDictation(keep = false) {
+      try { recognizer?.abort(); } catch (_) {}
+      recognizer = null;
+      if (!keep) input.value = dictationBase;
+      if (speechPanel) speechPanel.hidden = true;
+      if (start) start.disabled = false;
+      if (stop) stop.disabled = true;
+      if (useSpeech) useSpeech.disabled = true;
+      spoken = '';
+      resetConsent();
+      renderReferences();
+      updateComposer();
+      if (keep) persist();
+      input.focus();
+    }
+
+    function startDictation() {
+      if (!Speech || recognizer) return;
+      if (!speechConsent) {
+        if (!window.confirm(
+          'La dictée peut utiliser un service de reconnaissance du navigateur. Continuer ?',
+        )) return;
+        speechConsent = true;
+      }
+      dictationBase = input.value;
+      spoken = '';
+      if (speechPanel) speechPanel.hidden = false;
+      if (useSpeech) useSpeech.disabled = true;
+      if (status) status.textContent = 'J’écoute…';
+      try {
+        const active = new Speech();
+        recognizer = active;
+        active.lang = document.documentElement.lang || 'fr-FR';
+        active.interimResults = true;
+        active.continuous = false;
+        active.maxAlternatives = 1;
+        active.onresult = (event) => {
+          if (recognizer !== active) return;
+          let combined = '';
+          for (let i = 0; i < event.results.length; i++) {
+            combined += event.results[i][0]?.transcript || '';
+          }
+          spoken = combined;
+          input.value = [dictationBase.trim(), spoken.trim()].filter(Boolean).join(' ');
+          renderReferences();
+          updateComposer();
+          if (status) status.textContent = 'J’écoute…';
+        };
+        active.onerror = () => {
+          if (status) status.textContent = 'Dictée interrompue. Réessayez.';
+        };
+        active.onend = () => {
+          if (recognizer !== active) return;
           recognizer = null;
-          start.disabled = false;
+          if (start) start.disabled = false;
           if (stop) stop.disabled = true;
-          announce('Dictée indisponible dans ce navigateur.');
-        }
-      });
+          if (useSpeech) useSpeech.disabled = !spoken.trim();
+          if (status && spoken.trim()) status.textContent = 'Vous pouvez corriger le texte';
+        };
+        active.start();
+        if (start) start.disabled = true;
+        if (stop) stop.disabled = false;
+      } catch (_) {
+        recognizer = null;
+        if (status) status.textContent = 'Dictée indisponible';
+        if (start) start.disabled = false;
+        if (stop) stop.disabled = true;
+      }
+    }
+
+    if (Speech && voiceButton && speechPanel) {
+      voiceButton.hidden = false;
+      voiceButton.addEventListener('click', startDictation);
+      start?.addEventListener('click', startDictation);
       stop?.addEventListener('click', () => recognizer?.stop());
-      $('[data-mk-mark-speech-use]')?.addEventListener('click', () => {
-        if (recognizer) return;
-        const spoken = transcript.value.trim();
-        if (!spoken) return announce('Aucun texte reconnu à utiliser.');
-        input.value = [input.value.trim(), spoken].filter(Boolean).join('\n');
-        speechPanel.hidden = true;
-        transcript.value = '';
-        resetConsent();
-        persist();
-        input.focus();
-        announce('Texte ajouté à la demande. Vérifiez-le avant de continuer.');
+      useSpeech?.addEventListener('click', () => {
+        if (recognizer || !spoken.trim()) return;
+        closeDictation(true);
       });
+      $('[data-mk-mark-speech-cancel]')?.addEventListener(
+        'click', () => closeDictation(false),
+      );
     }
 
     function proceedWithText() {
@@ -486,8 +520,7 @@
       input.value = '';
       links = [];
       attachments = [];
-      const transcript = $('[data-mk-mark-transcript]');
-      if (transcript) transcript.value = '';
+      if (speechPanel && !speechPanel.hidden) closeDictation(false);
       resetConsent();
       try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
       renderReferences();
