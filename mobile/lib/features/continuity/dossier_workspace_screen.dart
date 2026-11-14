@@ -2260,11 +2260,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             appBar: AppBar(
               title: const Text('Dossier'),
               actions: [
-                MakoloIconActionButton(
-                  tooltip: 'Actualiser',
-                  icon: Icons.refresh_rounded,
-                  onPressed: _refreshing ? null : _refresh,
-                ),
                 if (!owner.invalidated && data != null) _dossierMenu(data),
               ],
             ),
