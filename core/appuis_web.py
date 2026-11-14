@@ -61,6 +61,11 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             recognition_account = (
                 account_for_space(space) if recognition_visible else None
             )
+            context["recognition_can_spend"] = bool(
+                recognition_visible and can(
+                    viewer, PermissionCode.SPACE_RECOGNITION_SPEND, space=space
+                )
+            )
             context["recognition_url"] = (
                 reverse("recognition:space-dashboard",
                         kwargs={"space_id": space.pk})
@@ -89,6 +94,7 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             context["partner_is_personal"] = False
         else:
             recognition_account = account_for_profile(viewer)
+            context["recognition_can_spend"] = True
             context["recognition_url"] = reverse("recognition:dashboard")
             context["loyalty_program"] = None
             context["loyalty_url"] = reverse("loyalty:dashboard")
@@ -271,6 +277,11 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
                 "symbol": "badge-check",
             })
         context["recognition_cards"] = recognition_cards
+        context["recognition_accomplishments"] = [
+            row for row in recognition_cards
+            if row["symbol"] != "gift"
+        ]
+
 
         recognition_credits = (
             recognition_account.points_balance
@@ -289,8 +300,8 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             and recognition_account.lifetime_earned > 0 else None
         )
         context["has_recognition_appuis"] = bool(
-            recognition_credits is not None or recognition_cards or
-            context["recognition_recent"]
+            recognition_account is not None or recognition_cards or
+            incoming_rows or context["recognition_recent"]
         )
         context["has_loyalty_appuis"] = bool(loyalty_cards)
         context["has_partner_appuis"] = bool(partner_rows)
