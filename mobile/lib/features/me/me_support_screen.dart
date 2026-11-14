@@ -27,6 +27,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   static const families = ['recognition', 'loyalty', 'partners'];
   final Map<String, Map<String, dynamic>> _snapshots = {};
   final Map<String, String> _errors = {};
+  final Set<String> _knownFamilies = {};
   final Map<String, String> _pendingKeys = {};
   late ActorContext _actor;
   int _generation = 0;
@@ -65,6 +66,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     _generation++;
     _snapshots.clear();
     _errors.clear();
+    _knownFamilies.clear();
     _pendingKeys.clear();
     _denied = false;
     setState(() => _loading = true);
@@ -109,6 +111,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       _actor =
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _snapshots.clear();
+      _errors.clear();
+      _knownFamilies.clear();
+      _pendingKeys.clear();
       _denied = false;
       unawaited(_load());
     }
@@ -175,7 +180,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           resourceKey: _scope,
         );
         if (!mounted || !_current(generation, actor)) return;
-        if (saved != null) _snapshots[family] = saved.payload;
+        if (saved != null) {
+          _snapshots[family] = saved.payload;
+          _knownFamilies.add(family);
+        }
       } on Object {
         // The other family snapshots remain available.
       }
@@ -228,6 +236,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           if (!mounted || !_current(generation, actor)) return;
           setState(() {
             _snapshots[family] = payload;
+            _knownFamilies.add(family);
             _errors.remove(family);
           });
         } on MakoloApiError catch (error) {
@@ -239,6 +248,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
             if (!mounted || !_current(generation, actor)) return;
             setState(() {
               _snapshots.remove(family);
+              _knownFamilies.remove(family);
               if (error.statusCode == 404) {
                 _errors.remove(family);
               } else {
@@ -246,16 +256,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               }
             });
           } else {
-            setState(
-              () => _errors[family] = 'Actualisation impossible. Les informations connues restent visibles.',
-            );
+            // Passive transport failure: retain acquired family data silently.
           }
         } on Object {
-          if (mounted && _current(generation, actor)) {
-            setState(
-              () => _errors[family] = 'Actualisation impossible. Les informations connues restent visibles.',
-            );
-          }
+          // A failed automatic refresh does not change the visible content.
         }
       }
     } finally {
@@ -506,14 +510,6 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
-                  if (offline)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'Données conservées sur cet appareil. '
-                        'Les droits seront revérifiés à la reconnexion.',
-                      ),
-                    ),
                   AppuisDashboard(
                     key: ValueKey('appuis:' + _scope),
                     snapshots: _snapshots,
@@ -524,23 +520,25 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                     allowed: (row, family, action) =>
                         _action(row, family, action) != null,
                   ),
-                  for (final family in families) ...[
-                    if (_errors[family] case final error?)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          error,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
+                  if (_errors.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Certains appuis ne sont plus accessibles.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
                         ),
                       ),
-                  ],
+                    ),
                   if (!hasRows && !_busy && _errors.isEmpty)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text('Aucun appui disponible pour le moment.'),
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          _knownFamilies.length == families.length
+                              ? 'Aucun appui à afficher.'
+                              : 'Appuis indisponibles.',
+                        ),
                       ),
                     ),
                 ],
