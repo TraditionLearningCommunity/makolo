@@ -133,8 +133,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         setState(() {
           _busy = false;
           _active = false;
-          _error =
-              'Le micro n’a pas démarré. Vous pouvez réessayer ou écrire.';
+          _error = 'Le micro n’a pas démarré. Vous pouvez réessayer ou écrire.';
         });
       }
     }
@@ -265,9 +264,7 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
             if (!_checking && !_available)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Dictée indisponible ici.',
-                ),
+                child: Text('Dictée indisponible ici.'),
               ),
           ],
         ),

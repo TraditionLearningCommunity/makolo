@@ -1504,7 +1504,9 @@ class _MarkScreenState extends State<MarkScreen> {
                                   padding: const EdgeInsets.only(right: 6),
                                   child: Text(
                                     '${_input.text.length}/600',
-                                    style: Theme.of(context).textTheme.labelSmall,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall,
                                   ),
                                 ),
                               IconButton.filled(
