@@ -1,4 +1,4 @@
-name: Now Presentation Goldens
+name: Now Presentation Contract
 
 on:
   pull_request:
@@ -6,8 +6,7 @@ on:
       - "mobile/lib/features/now/**"
       - "mobile/lib/presentation/contracts/now_presentation.dart"
       - "mobile/lib/dev/scenarios/now_scenarios.dart"
-      - "mobile/test/now_golden_test.dart"
-      - "mobile/test/goldens/now/**"
+      - "mobile/test/now_gallery_scenarios_test.dart"
       - ".github/workflows/now-golden-baselines.yml"
   workflow_dispatch:
 
@@ -15,11 +14,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: now-goldens-${{ github.event.pull_request.number || github.ref }}
+  group: now-presentation-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  golden-regression:
+  now-scenario-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -38,27 +37,12 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
-      # Mobile CI owns the full lib/test formatting gate. Golden tests check
-      # only their own inputs, so unrelated Flutter screens cannot block Now.
-      - name: Format check for Now golden sources
+      - name: Format check for Now scenario sources
         run: >-
           dart format --output=none --set-exit-if-changed
           lib/features/now
           lib/presentation/contracts/now_presentation.dart
           lib/dev/scenarios/now_scenarios.dart
-          test/now_golden_test.dart
-      - name: Verify approved G01 S1-S5 references
-        run: flutter test test/now_golden_test.dart
-      - name: Render review artifacts without changing the branch
-        if: always()
-        run: flutter test --update-goldens test/now_golden_test.dart
-      - name: Publish canonical renderings and differences
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: makolo-now-golden-review
-          path: |
-            mobile/test/goldens/now/*.png
-            mobile/test/failures/*.png
-          if-no-files-found: error
-          retention-days: 7
+          test/now_gallery_scenarios_test.dart
+      - name: Verify Now topologies, accessibility and handoffs
+        run: flutter test test/now_gallery_scenarios_test.dart
