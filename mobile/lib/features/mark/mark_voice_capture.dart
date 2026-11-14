@@ -275,11 +275,6 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
               'Enregistrement audio',
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Cet audio reste sur cet appareil. Il ne sera ni transcrit '
-              'ni transmis automatiquement.',
-            ),
             if (_recording) ...[
               const SizedBox(height: 8),
               Text(_paused ? 'En pause · $time' : 'En cours · $time'),
