@@ -1,5 +1,16 @@
 import 'journey_selector.dart';
 
+/// Present useful human checks only; technical engine checks keep their
+/// server-owned truth but do not become celebratory UI counters.
+bool journeyUsefulReadySummary(String value) {
+  final normalized = value.toLowerCase().trim();
+  return normalized.isNotEmpty &&
+      !normalized.startsWith("l'état de la démarche permet") &&
+      !normalized.startsWith('aucun obstacle actif') &&
+      !normalized.startsWith("l’occurrence est exploitable") &&
+      !normalized.startsWith("l'occurrence est exploitable");
+}
+
 /// The same Journey N3 page adapts to owner facts; no new business status.
 enum JourneySituation { completed, blocked, choices, action, waiting, calm }
 
@@ -34,9 +45,6 @@ class JourneyComposition {
     // useful separate card. The owner check itself is still kept intact.
     final interventions = p.actorInterventions
         .where((item) {
-          if (item.key == p.nextActionKey && p.nextActionKey != null) {
-            return false;
-          }
           final repeatsTitle =
               item.summary.trim().toLowerCase() == p.title.trim().toLowerCase();
           return !repeatsTitle || item.nextLink != null;
@@ -84,7 +92,7 @@ class JourneyComposition {
           p.forms.isNotEmpty ||
           p.requirements.isNotEmpty ||
           (!p.isTerminal &&
-              (p.ready.isNotEmpty ||
+              (p.ready.any((item) => journeyUsefulReadySummary(item.summary)) ||
                   p.waiting.isNotEmpty ||
                   p.blockers.isNotEmpty ||
                   interventions.isNotEmpty)),
