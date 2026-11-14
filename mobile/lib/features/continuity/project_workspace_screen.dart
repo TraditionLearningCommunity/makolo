@@ -17,6 +17,7 @@ import 'objective_repository.dart';
 import 'objective_workspace_view_switcher.dart';
 import 'objective_filter_reset.dart';
 import 'project_description.dart';
+import 'project_invite_sheet.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
 
@@ -837,117 +838,26 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
 
   Future<void> _grantProjectAccess(Map<String, dynamic> project) async {
+    if (!_enabled || widget.api == null) return;
     final collaboration = _map(project['collaboration']);
-    final roles = _list(collaboration['roles']);
-    final candidates = _list(collaboration['candidate_profiles']);
-    if (roles.isEmpty) return;
-    final email = TextEditingController();
-    final form = GlobalKey<FormState>();
-    String roleCode = _text(roles.first['code']);
-    String? profileId;
-    final values = await showDialog<Map<String, dynamic>>(
+    final invited = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialog) => StatefulBuilder(
-        builder: (dialog, update) => AlertDialog(
-          title: const Text('Donner accès au Projet'),
-          content: Form(
-            key: form,
-            child: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'Un rôle Projet ne donne pas automatiquement accès aux '
-                      'Dossiers ni aux démarches associées.',
-                    ),
-                    const SizedBox(height: 12),
-                    if (candidates.isNotEmpty) ...[
-                      const Text('Personnes déjà connues dans les Dossiers'),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final candidate in candidates)
-                            ChoiceChip(
-                              label: Text(_text(candidate['label'])),
-                              selected: profileId == _text(candidate['id']),
-                              onSelected: (_) => update(() {
-                                profileId = _text(candidate['id']);
-                                email.clear();
-                              }),
-                            ),
-                        ],
-                      ),
-                      if (collaboration['candidate_profiles_partial'] == true)
-                        const Text('Cette liste de personnes est partielle.'),
-                      const SizedBox(height: 12),
-                    ],
-                    TextFormField(
-                      controller: email,
-                      decoration: const InputDecoration(
-                        labelText: 'Ou adresse e-mail Makolo exacte',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      onChanged: (value) {
-                        if (value.isNotEmpty) update(() => profileId = null);
-                      },
-                      validator: (value) =>
-                          profileId == null &&
-                              (value == null || !value.contains('@'))
-                          ? 'Choisissez une personne ou indiquez son e-mail'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: roleCode,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Rôle'),
-                      items: [
-                        for (final role in roles)
-                          DropdownMenuItem<String>(
-                            value: _text(role['code']),
-                            child: Text(_text(role['label'])),
-                          ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) update(() => roleCode = value);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            MakoloActionButton(
-              label: 'Annuler',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => Navigator.pop(dialog),
-            ),
-            MakoloActionButton(
-              label: 'Accorder',
-              appearance: MakoloActionAppearance.primary,
-              onPressed: () {
-                if (!(form.currentState?.validate() ?? false)) return;
-                Navigator.pop(dialog, <String, dynamic>{
-                  'action': 'grant',
-                  'role_code': roleCode,
-                  'profile_id': ?profileId,
-                  if (profileId == null) 'email': email.text.trim(),
-                });
-              },
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (_) => ProjectInviteSheet(
+        api: widget.api!,
+        projectId: widget.id,
+        spaceSlug: _spaceSlug,
+        roles: _list(collaboration['roles']),
+        candidates: _list(collaboration['candidate_profiles']),
       ),
     );
-    email.dispose();
-    if (values != null && mounted) await _send('${_base}authority/', values);
+    if (invited == true && mounted) {
+      _notice('Invitation envoyée.');
+      // The Project is refreshed for the sender; no Mandate is synthesized.
+      unawaited(_refresh());
+    }
   }
 
   Future<void> _projectAccess(Map<String, dynamic> project) async {
@@ -1076,7 +986,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: MakoloActionButton(
-                  label: 'Donner accès',
+                  label: 'Inviter',
                   appearance: MakoloActionAppearance.primary,
                   icon: Icons.person_add_alt_1_outlined,
                   onPressed: _enabled
