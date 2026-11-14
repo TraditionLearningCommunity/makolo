@@ -665,6 +665,35 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     );
   }
 
+  String _detailDescription(
+      String family, String section, Map<String, dynamic> row) {
+    final parts = <String>[];
+    if (family == 'recognition' && section == 'Récompenses') {
+      final cost = row['points_cost'];
+      if (AppuisViewData.positive(cost)) {
+        parts.add(AppuisViewData.text(cost) + ' crédits');
+      }
+      final kind = AppuisViewData.text(row['kind_label']);
+      if (kind.isNotEmpty) parts.add(kind);
+    } else if (family == 'recognition' && section == 'Mouvements') {
+      final delta = row['credits_delta'];
+      if (delta is num && delta != 0) {
+        parts.add((delta > 0 ? '+' : '') +
+            AppuisViewData.text(delta) + ' crédits');
+      }
+    }
+    for (final field in [
+      row['status_label'], row['description'], row['status'],
+    ]) {
+      final value = AppuisViewData.text(field);
+      if (value.isNotEmpty && !parts.contains(value)) {
+        parts.add(value);
+        break;
+      }
+    }
+    return parts.join(' · ');
+  }
+
   Widget _details(
     String family,
     String title,
@@ -685,9 +714,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
           _card(
             icon,
             AppuisViewData.label(row),
-            subtitle: AppuisViewData.text(
-              row['status_label'] ?? row['status'] ?? row['description'],
-            ),
+            subtitle: _detailDescription(family, title, row),
             open:
                 actions &&
                     [
