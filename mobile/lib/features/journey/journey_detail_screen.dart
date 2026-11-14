@@ -1255,7 +1255,7 @@ class _JourneySituationPanel extends StatelessWidget {
             ],
             if (situation == JourneySituation.choices) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              if (primaryAction != null) primaryAction!,
+              ?primaryAction,
               for (final item in presentation.actorInterventions)
                 if (item.nextLink != null &&
                     item.nextLink!.isNotEmpty &&
@@ -1921,7 +1921,7 @@ class _JourneyResourceTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
-      label: 'Consulter les ressources : ' + resource.title,
+      label: 'Consulter les ressources : ${resource.title}',
       child: InkWell(
         onTap: onOpen,
         borderRadius: BorderRadius.circular(14),
