@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../platform/preferences/secure_string_preferences.dart';
+
 import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
 
@@ -36,6 +38,43 @@ class MeCollectivesScreen extends StatefulWidget {
 }
 
 class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
+  static const _preferences = SecureStringPreferences();
+  MeCollectivesLayout _layout = MeCollectivesLayout.categories;
+  String get _layoutKey =>
+      'me.collectives.layout.${widget.personal.store.profileId}';
+
+  Future<void> _restoreLayout() async {
+    final key = _layoutKey;
+    try {
+      final value = await _preferences.read(key: key);
+      if (!mounted || key != _layoutKey) return;
+      setState(() {
+        _layout = value == 'list'
+            ? MeCollectivesLayout.list
+            : MeCollectivesLayout.categories;
+      });
+    } on Object {
+      // A device preference is never required for this local-first view.
+    }
+  }
+
+  void _chooseLayout(MeCollectivesLayout layout) {
+    if (_layout == layout) return;
+    setState(() => _layout = layout);
+    final key = _layoutKey;
+    unawaited(_saveLayout(key, layout));
+  }
+
+  Future<void> _saveLayout(String key, MeCollectivesLayout layout) async {
+    try {
+      await _preferences.write(
+        key: key,
+        value: layout == MeCollectivesLayout.list ? 'list' : 'categories',
+      );
+    } on Object {
+      // Keep the chosen view available even when preferences cannot persist.
+    }
+  }
   final ScrollController _scroll = ScrollController();
   final TextEditingController _search = TextEditingController();
   bool _searching = false;
@@ -55,6 +94,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   void initState() {
     super.initState();
     _snapshots = widget.personal.watchMe();
+    unawaited(_restoreLayout());
     _bindOwner();
     _scroll.addListener(_checkEnd);
   }
@@ -76,6 +116,8 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
       _searching = false;
       _alphabetical = false;
       _descending = false;
+      _layout = MeCollectivesLayout.categories;
+      unawaited(_restoreLayout());
     }
   }
 
@@ -322,6 +364,8 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
           query: _search.text,
           alphabetical: _alphabetical,
           descending: _descending,
+          layout: _layout,
+          onLayoutChanged: _chooseLayout,
           mediaApi: widget.api,
           profileId: widget.personal.store.profileId,
           onOpen: widget.onOpenDestination,
