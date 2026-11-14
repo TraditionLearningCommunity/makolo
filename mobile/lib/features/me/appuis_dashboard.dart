@@ -487,8 +487,8 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             ? const SizedBox.shrink()
             : _card(
                 Icons.storefront_outlined,
-                AppuisViewData.text(program['name']),
-                subtitle: 'Programme de cet Espace',
+                'Notre programme de fidélité',
+                subtitle: 'Niveaux, formules et avantages',
                 open: () => _openProgram(null),
               );
       }
@@ -525,8 +525,8 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
       // No program catalog on the Appuis landing. Open it intentionally.
       return _card(
         Icons.card_giftcard_outlined,
-        'Mes programmes de fidélité',
-        subtitle: 'Adhésions et avantages de mes Espaces',
+        'Mes avantages',
+        subtitle: 'Programmes et adhésions',
         highlight: availableRewards.isEmpty
             ? ''
             : availableRewards.length.toString() + ' avantages disponibles',
@@ -810,8 +810,8 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
             AppuisViewData.positive(pending) ||
             AppuisViewData.positive(account['lifetime_earned']))
           _card(
-            Icons.stars_outlined,
-            'Mes crédits',
+            Icons.toll_outlined,
+            widget.space ? 'Nos crédits' : 'Mes crédits',
             subtitle: widget.space
                 ? 'Crédits de cet Espace'
                 : 'Crédits de reconnaissance',
