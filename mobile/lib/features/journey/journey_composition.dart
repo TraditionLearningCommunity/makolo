@@ -50,20 +50,23 @@ class JourneyComposition {
           return !repeatsTitle || item.nextLink != null;
         })
         .toList(growable: false);
-    final actionableKeys = <String>{
+    // The owner link, not a check key, identifies a distinct next move.
+    // Different readiness checks may point to the same authorized depth.
+    final actionableLinks = <String>{
       for (final item in p.actorInterventions)
-        if (item.nextLink != null && item.nextLink!.isNotEmpty)
-          item.key.isEmpty ? item.nextLink! : item.key,
-      if (p.nextActionLink != null && p.nextActionLink!.isNotEmpty)
-        p.nextActionKey ?? p.nextActionLink!,
+        if (item.nextLink != null && item.nextLink!.trim().isNotEmpty)
+          item.nextLink!.trim(),
+      if (p.nextActionLink != null &&
+          p.nextActionLink!.trim().isNotEmpty)
+        p.nextActionLink!.trim(),
     };
     final situation = p.isTerminal
         ? JourneySituation.completed
         : p.blockers.isNotEmpty || p.rejectedRequests > 0
         ? JourneySituation.blocked
-        : actionableKeys.length > 1
+        : actionableLinks.length > 1
         ? JourneySituation.choices
-        : actionableKeys.isNotEmpty ||
+        : actionableLinks.isNotEmpty ||
               p.canRespondInvitation ||
               interventions.isNotEmpty
         ? JourneySituation.action
