@@ -75,6 +75,62 @@
     return node;
   };
   const add = (parent, node) => { parent.appendChild(node); return node; };
+  // Bounded, owner-authorized identity suggestions. Prefix email
+  // enumeration is forbidden: the endpoint resolves email only exactly.
+  const inviteeInput = root.querySelector('#project-authority #id_identity');
+  const inviteSuggestions = $('[data-project-person-suggestions]');
+  let inviteLookupTimer = null;
+  let inviteLookupAbort = null;
+  if (inviteeInput && inviteSuggestions) {
+    const resetSuggestions = () => {
+      inviteSuggestions.replaceChildren();
+      inviteSuggestions.hidden = true;
+    };
+    inviteeInput.setAttribute('autocomplete', 'off');
+    inviteeInput.addEventListener('input', () => {
+      window.clearTimeout(inviteLookupTimer);
+      inviteLookupAbort?.abort();
+      resetSuggestions();
+      const query = inviteeInput.value.trim();
+      if (query.length < 2) return;
+      inviteLookupTimer = window.setTimeout(async () => {
+        inviteLookupAbort = new AbortController();
+        try {
+          const target = '/api/v1/objectives/projects/' +
+            encodeURIComponent(root.dataset.projectId) +
+            '/people/search/?q=' + encodeURIComponent(query) + scopeParam;
+          const response = await fetch(target, {
+            credentials: 'same-origin', signal: inviteLookupAbort.signal,
+            headers: {Accept: 'application/json'},
+          });
+          if (!response.ok) return;
+          const payload = await response.json();
+          if (inviteeInput.value.trim() !== query ||
+              !Array.isArray(payload.results)) return;
+          resetSuggestions();
+          for (const person of payload.results.slice(0, 8)) {
+            if (typeof person.username !== 'string') continue;
+            const option = el('button', 'mk-project__person-option');
+            option.type = 'button';
+            option.setAttribute('role', 'option');
+            add(option, el('strong', '', String(person.name || person.username)));
+            add(option, el('small', '', '@' + person.username +
+              (person.email ? ' · ' + person.email : '')));
+            option.addEventListener('click', () => {
+              inviteeInput.value = person.username;
+              resetSuggestions();
+              inviteeInput.focus();
+            });
+            add(inviteSuggestions, option);
+          }
+          inviteSuggestions.hidden = !inviteSuggestions.childElementCount;
+        } catch (_) {
+          // Automatic lookup failures remain silent while typing.
+        }
+      }, 300);
+    });
+  }
+
   const safeHref = (value) => typeof value === 'string' &&
     value.startsWith('/') && !value.startsWith('//') ? value : '#';
   const title = (row) => String(row.title || 'Dossier');
