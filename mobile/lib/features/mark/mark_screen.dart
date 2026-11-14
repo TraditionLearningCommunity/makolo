@@ -489,17 +489,13 @@ class _MarkScreenState extends State<MarkScreen> {
               ListTile(
                 leading: const Icon(Icons.mic_outlined),
                 title: const Text('Dicter une demande'),
-                subtitle: const Text(
-                  'Reconnaissance du téléphone, selon la langue et le réseau',
-                ),
+
                 onTap: () => Navigator.pop(sheetContext, 'dictation'),
               ),
             ListTile(
               leading: const Icon(Icons.graphic_eq),
               title: const Text('Enregistrer un audio'),
-              subtitle: const Text(
-                'Conserver une pièce locale, sans transcription',
-              ),
+
               onTap: () => Navigator.pop(sheetContext, 'audio'),
             ),
           ],
