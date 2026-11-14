@@ -1942,12 +1942,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       add(detail.elsewhere, readOnly: true);
     }
 
-    // An older focused Point is shown in a separate targeted panel, not
-    // falsely inserted into a recent page with intervening history missing.
+    // A deep-linked Point stays at its own publication date, including
+    // when adjacent history pages have not yet been requested.
     final focus = detail.focusedPoint;
-    if (!detail.hasTimeline && focus != null) {
-      add([focus], readOnly: false);
-    }
+    if (focus != null) add([focus], readOnly: false);
     entries.sort((a, b) {
       final left = a.point.publishedAt ?? a.point.updatedAt;
       final right = b.point.publishedAt ?? b.point.updatedAt;
@@ -2260,37 +2258,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     DateTime? previousDay;
     final children = <Widget>[];
     final olderCursor = _olderAvailableCursor(detail);
-    final focusOutsideWindow =
-        detail.hasTimeline &&
-        detail.focusedPoint != null &&
-        !entries.any((entry) => entry.point.id == detail.focusedPoint!.id);
-    if (focusOutsideWindow) {
-      children.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: MakoloSpacing.inner,
-            vertical: MakoloSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                child: Text(
-                  'Point recherché',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ),
-              _pointWidget(
-                detail.focusedPoint!,
-                readOnly: false,
-                outgoing: outgoing,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     if (olderCursor != null && olderCursor.isNotEmpty) {
       children.add(
         Padding(
