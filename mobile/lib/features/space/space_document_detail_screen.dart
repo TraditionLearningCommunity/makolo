@@ -676,6 +676,14 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
             _canManage = canManage;
             _canUseNetwork = networkAvailable;
 
+            final shares = <Map<String, dynamic>>[
+              for (final row in payload?['shares'] as List? ?? const [])
+                if (row is Map<String, dynamic>)
+                  row
+                else if (row is Map)
+                  row.map((key, value) => MapEntry(key.toString(), value)),
+            ];
+
             final versions = <Map<String, dynamic>>[
               for (final row in doc?['versions'] as List? ?? const [])
                 if (row is Map<String, dynamic>)
