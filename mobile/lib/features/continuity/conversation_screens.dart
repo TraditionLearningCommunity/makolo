@@ -3079,6 +3079,17 @@ class _PointCardState extends State<_PointCard> {
           representedSpaceId: widget.representedSpaceId,
         );
       }
+      if (const {'free_text', 'number', 'date', 'datetime'}
+          .contains(widget.point.responseMode)) {
+        // An accepted local intent already owns the answer; the draft may
+        // disappear only after that durable handoff.
+        try {
+          await _clearInlineDraft();
+        } on Object {
+          // A draft-cleanup issue cannot reverse a confirmed owner intent.
+        }
+        _inlineResponse.clear();
+      }
       _clientReference = null;
       _hasUnconfirmedResponse = false;
       _unconfirmedResponse = null;
@@ -3253,13 +3264,6 @@ class _PointCardState extends State<_PointCard> {
     } finally {
       controller.dispose();
     }
-  }
-
-  Future<void> _respond() async {
-    if (_busy) return;
-    final value = await _collectResponseValue(context, widget.point);
-    if (!mounted || identical(value, _cancelledResponse)) return;
-    await _submitResponse(value);
   }
 
   @override
@@ -3548,7 +3552,16 @@ class _PointCardState extends State<_PointCard> {
             alignment: Alignment.centerLeft,
             child: TextButton(
               key: Key('conversation-point-modify-${point.id}'),
-              onPressed: () => setState(() => _editingResponse = true),
+              onPressed: () => setState(() {
+                _editingResponse = true;
+                if (const {'free_text', 'number', 'date', 'datetime'}
+                    .contains(point.responseMode)) {
+                  _inlineResponse.text =
+                      point.responseForScope(widget.representedSpaceId)['value']
+                          ?.toString() ??
+                      '';
+                }
+              }),
               child: const Text('Modifier'),
             ),
           ),
@@ -3850,185 +3863,6 @@ class _PointCardState extends State<_PointCard> {
           : null,
       child: body,
     );
-  }
-}
-
-final Object _cancelledResponse = Object();
-
-Future<Object?> _collectResponseValue(
-  BuildContext context,
-  _ConversationPoint point,
-) async {
-  switch (point.responseMode) {
-    case 'boolean':
-      return await showDialog<Object?>(
-            context: context,
-            builder: (context) => SimpleDialog(
-              title: Text(
-                point.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              children: [
-                SimpleDialogOption(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Oui'),
-                ),
-                SimpleDialogOption(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Non'),
-                ),
-              ],
-            ),
-          ) ??
-          _cancelledResponse;
-    case 'single_choice':
-      return await showDialog<Object?>(
-            context: context,
-            builder: (context) => SimpleDialog(
-              title: Text(
-                point.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              children: [
-                for (final option in point.options)
-                  SimpleDialogOption(
-                    onPressed: () => Navigator.pop(context, option.id),
-                    child: Text(option.label),
-                  ),
-              ],
-            ),
-          ) ??
-          _cancelledResponse;
-    case 'multiple_choice':
-      final selected = <String>{};
-      return await showDialog<Object?>(
-            context: context,
-            builder: (context) => StatefulBuilder(
-              builder: (context, setDialogState) => AlertDialog(
-                title: Text(
-                  point.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final option in point.options)
-                        CheckboxListTile(
-                          value: selected.contains(option.id),
-                          title: Text(option.label),
-                          onChanged: (checked) {
-                            setDialogState(() {
-                              if (checked == true) {
-                                selected.add(option.id);
-                              } else {
-                                selected.remove(option.id);
-                              }
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  MakoloActionButton(
-                    label: 'Annuler',
-                    appearance: MakoloActionAppearance.quiet,
-                    onPressed: () => Navigator.pop(context, _cancelledResponse),
-                  ),
-                  MakoloActionButton(
-                    label: 'Continuer',
-                    appearance: MakoloActionAppearance.primary,
-                    onPressed: selected.isEmpty
-                        ? null
-                        : () => Navigator.pop(
-                            context,
-                            selected.toList(growable: false),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ) ??
-          _cancelledResponse;
-    case 'date':
-      final date = await showDatePicker(
-        context: context,
-        firstDate: DateTime(1900),
-        lastDate: DateTime(2200),
-        initialDate: DateTime.now(),
-      );
-      if (date == null) return _cancelledResponse;
-      return date.toIso8601String().split('T').first;
-    case 'datetime':
-      final date = await showDatePicker(
-        context: context,
-        firstDate: DateTime(1900),
-        lastDate: DateTime(2200),
-        initialDate: DateTime.now(),
-      );
-      if (date == null || !context.mounted) return _cancelledResponse;
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-      );
-      if (time == null) return _cancelledResponse;
-      return DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      ).toUtc().toIso8601String();
-    case 'free_text':
-    case 'number':
-      final controller = TextEditingController();
-      final result = await showDialog<Object?>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(
-            point.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            keyboardType: point.responseMode == 'number'
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : TextInputType.multiline,
-            minLines: 1,
-            maxLines: point.responseMode == 'number' ? 1 : 5,
-            decoration: InputDecoration(
-              labelText: point.responseMode == 'number'
-                  ? 'Valeur'
-                  : 'Votre réponse',
-            ),
-          ),
-          actions: [
-            MakoloActionButton(
-              label: 'Annuler',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => Navigator.pop(context, _cancelledResponse),
-            ),
-            MakoloActionButton(
-              label: 'Envoyer',
-              appearance: MakoloActionAppearance.primary,
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isNotEmpty) Navigator.pop(context, value);
-              },
-            ),
-          ],
-        ),
-      );
-      controller.dispose();
-      return result ?? _cancelledResponse;
-    default:
-      return _cancelledResponse;
   }
 }
 
