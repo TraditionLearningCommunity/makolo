@@ -129,6 +129,14 @@ def conversation_point_form_request(point, profile):
 
 
 @register.simple_tag
+def conversation_form_presentation(form_request):
+    from questionnaires.presentation import questionnaire_response_presentation
+    if form_request is None:
+        return {}
+    return questionnaire_response_presentation(form_request)
+
+
+@register.simple_tag
 def conversation_context_entry(profile, kind, context_pk):
     """Whether an existing, visible Conversation can be entered from context."""
     if not getattr(profile, "is_authenticated", False) or not context_pk:
