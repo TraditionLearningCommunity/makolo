@@ -1254,16 +1254,6 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             : ListView(
                 padding: const EdgeInsets.all(MakoloSpacing.lg),
                 children: [
-                  Text(
-                    'Mes autorisations',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  const Text(
-                    'Vos rôles actifs dans cet Espace et leurs droits. '
-                    'Chaque action est vérifiée au moment de son exécution.',
-                  ),
-                  const SizedBox(height: MakoloSpacing.lg),
                   SpaceUsAuthorityFacts(payload: _authorityFacts!),
                 ],
               ),
@@ -1299,22 +1289,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         widget.depth == 'ownership' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _map(payload['capabilities'])?['manage_ownership'] == true;
-    final intro = switch (widget.depth) {
-      'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
-      'responsibilities' => 'Les rôles présentés ici sont distincts des tâches confiées aux collaborateurs.',
-      'ownership' =>
-        'Les personnes qui détiennent actuellement la propriété de cet Espace.',
-      'trust' => 'Les faits de vérification établis dans ce contexte.',
-      _ => 'Cette rubrique dépend de vos droits dans l’Espace actif.',
-    };
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
-          Text(title, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(intro, style: Theme.of(context).textTheme.bodyMedium),
           if (widget.depth == 'team' &&
               _map(payload['handoffs'])?['relationships'] ==
                   '/space/${widget.slug}/us/relationships') ...[
@@ -1328,24 +1307,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             ),
           ],
           if (widget.depth == 'responsibilities' &&
+              !observationOnly &&
               _map(payload['handoffs'])?['authority'] ==
                   '/space/${widget.slug}/us/authority') ...[
             const SizedBox(height: MakoloSpacing.md),
             MakoloActionButton(
               label: 'Voir mes autorisations',
-              onPressed: observationOnly
-                  ? null
-                  : () => context.push('/space/${widget.slug}/us/authority'),
+              onPressed: () => context.push('/space/${widget.slug}/us/authority'),
               appearance: MakoloActionAppearance.secondary,
               icon: Icons.shield_outlined,
-            ),
-          ],
-          if (observationOnly) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            const MakoloStatus(
-              label: 'Consultation uniquement pour le moment.',
-              tone: MakoloStatusTone.info,
-              icon: Icons.cloud_off_outlined,
             ),
           ],
           const SizedBox(height: MakoloSpacing.lg),
@@ -1419,13 +1389,12 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     )
                   else
                     const MakoloEmptyState(
-                      title: 'Aucun fait public de vérification actif.',
+                      title: 'Aucun fait à afficher.',
                     )
               else
-                const MakoloEmptyState(title: 'Vérifications indisponibles.'),
-            const Text(
-              'Ces faits ne constituent pas un score global de confiance.',
-            ),
+                const MakoloEmptyState(title: 'Aucun fait à afficher.'),
+            else
+              const MakoloEmptyState(title: 'Aucun fait à afficher.'),
           ] else if (rows.isEmpty)
             const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
