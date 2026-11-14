@@ -670,6 +670,20 @@ class _MarkScreenState extends State<MarkScreen> {
     await _saveDraft();
   }
 
+  bool _isVisualAttachment(Map<String, dynamic> item) {
+    if (item['kind'] == 'photo') return true;
+    final name = (item['name'] ?? '').toString().toLowerCase();
+    return const {'.jpg', '.jpeg', '.png', '.webp'}
+        .contains(p.extension(name));
+  }
+
+  Future<String?> _localThumbnailPath(String fileId) async {
+    final coordinator = await _fileCoordinator();
+    final file = await coordinator?.store.read(fileId);
+    if (file == null || !await File(file.path).exists()) return null;
+    return file.path;
+  }
+
   Future<void> _previewAttachment(Map<String, dynamic> item) async {
     final id = item['file_id']?.toString();
     if (id == null || id.isEmpty) return;
@@ -687,7 +701,7 @@ class _MarkScreenState extends State<MarkScreen> {
       // File existence was checked asynchronously: a draft or actor may have
       // changed while awaiting the platform filesystem.
       if (!mounted || revision != _draftRevision || actor != _actor) return;
-      if (item['kind'] == 'photo') {
+      if (_isVisualAttachment(item)) {
         await showDialog<void>(
           context: context,
           builder: (dialogContext) => AlertDialog(
