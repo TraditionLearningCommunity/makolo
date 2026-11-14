@@ -564,9 +564,12 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               open: () => _openFamily(family),
             ),
           if (AppuisViewData.positive(pending))
-            _card(Icons.hourglass_top_outlined, 'Crédits en attente',
+            _card(
+              Icons.hourglass_top_outlined,
+              'Crédits en attente',
               highlight: AppuisViewData.text(pending) + ' crédits',
-              open: () => _openFamily(family)),
+              open: () => _openFamily(family),
+            ),
           if (rows.isEmpty &&
               !AppuisViewData.positive(credits) &&
               AppuisViewData.rows(data['recent_activity']).isNotEmpty)
