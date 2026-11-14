@@ -8,35 +8,27 @@ Map<String, dynamic> projection({
   Map<String, dynamic>? money,
   List<Map<String, dynamic>> rewards = const [],
 }) => {
-  'summary': {
-    'available_credits': credits,
-    'pending_credits': pending,
-  },
-  'account': {
-    'points_balance': credits,
-    'pending_points': pending,
-  },
+  'summary': {'available_credits': credits, 'pending_credits': pending},
+  'account': {'points_balance': credits, 'pending_points': pending},
   'rewards': rewards,
   if (money != null) 'monetary_equivalent': money,
 };
 
-Map<String, dynamic> featureReward({
-  String id = 'feature-1',
-  int cost = 80,
-}) => {
-  'id': id,
-  'kind': 'entitlement',
-  'name': 'Fonctionnalité utile',
-  'points_cost': cost,
-  'self_eligible': true,
-  'capabilities': ['redeem'],
-  'links': {'redeem': '/api/v1/recognition/rewards/$id/redeem/'},
-  'presentation': {
-    'category': 'feature',
-    'action': 'Débloquer',
-    'duration_days': 30,
-  },
-};
+Map<String, dynamic> featureReward({String id = 'feature-1', int cost = 80}) =>
+    {
+      'id': id,
+      'kind': 'entitlement',
+      'name': 'Fonctionnalité utile',
+      'points_cost': cost,
+      'self_eligible': true,
+      'capabilities': ['redeem'],
+      'links': {'redeem': '/api/v1/recognition/rewards/$id/redeem/'},
+      'presentation': {
+        'category': 'feature',
+        'action': 'Débloquer',
+        'duration_days': 30,
+      },
+    };
 
 Widget harness(
   Map<String, dynamic> data, {
@@ -57,17 +49,19 @@ Widget harness(
 );
 
 void main() {
-  testWidgets('the single page shows credits and configured monetary value',
-      (tester) async {
-    await tester.pumpWidget(harness(projection(
-      money: {'amount': '12.00', 'currency': 'USD'},
-    )));
+  testWidgets('the single page shows credits and configured monetary value', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(projection(money: {'amount': '12.00', 'currency': 'USD'})),
+    );
     expect(find.text('Utiliser mes crédits'), findsOneWidget);
     expect(find.text('240 crédits'), findsOneWidget);
     expect(find.text('12.00 USD'), findsOneWidget);
     expect(find.text('Retirer'), findsOneWidget);
     final button = tester.widget<OutlinedButton>(
-      find.widgetWithText(OutlinedButton, 'Retirer'));
+      find.widgetWithText(OutlinedButton, 'Retirer'),
+    );
     expect(button.onPressed, isNull);
     expect(find.text('35 crédits en attente'), findsNothing);
     expect(find.text('Abonnements'), findsNothing);
@@ -82,42 +76,47 @@ void main() {
     expect(find.text('Abonnements'), findsNothing);
   });
 
-  testWidgets('each real feature is directly actionable with one confirmation',
-      (tester) async {
-    var calls = 0;
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      onRedeem: (reward) async {
-        calls++;
-        return {'status': 'fulfilled', 'points_cost': 80};
-      },
-      onReload: () async => projection(
-        credits: 160, pending: 35, rewards: [],
-      ),
-    ));
-    expect(find.text('Fonctionnalités'), findsOneWidget);
-    expect(find.text('Fonctionnalité utile'), findsOneWidget);
-    expect(find.text('30 jours'), findsOneWidget);
-    await tester.tap(find.text('Débloquer'));
-    await tester.pumpAndSettle();
-    expect(calls, 0);
-    expect(find.text('Confirmer'), findsOneWidget);
-    await tester.tap(find.text('Confirmer'));
-    await tester.pumpAndSettle();
-    expect(calls, 1);
-    expect(find.text('160 crédits'), findsOneWidget);
-    expect(find.text('Fonctionnalité utile'), findsNothing);
-  });
+  testWidgets(
+    'each real feature is directly actionable with one confirmation',
+    (tester) async {
+      var calls = 0;
+      await tester.pumpWidget(
+        harness(
+          projection(rewards: [featureReward()]),
+          onRedeem: (reward) async {
+            calls++;
+            return {'status': 'fulfilled', 'points_cost': 80};
+          },
+          onReload: () async =>
+              projection(credits: 160, pending: 35, rewards: []),
+        ),
+      );
+      expect(find.text('Fonctionnalités'), findsOneWidget);
+      expect(find.text('Fonctionnalité utile'), findsOneWidget);
+      expect(find.text('30 jours'), findsOneWidget);
+      await tester.tap(find.text('Débloquer'));
+      await tester.pumpAndSettle();
+      expect(calls, 0);
+      expect(find.text('Confirmer'), findsOneWidget);
+      await tester.tap(find.text('Confirmer'));
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(find.text('160 crédits'), findsOneWidget);
+      expect(find.text('Fonctionnalité utile'), findsNothing);
+    },
+  );
 
   testWidgets('canceling does not invoke the owner', (tester) async {
     var calls = 0;
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      onRedeem: (_) async {
-        calls++;
-        return {'status': 'fulfilled'};
-      },
-    ));
+    await tester.pumpWidget(
+      harness(
+        projection(rewards: [featureReward()]),
+        onRedeem: (_) async {
+          calls++;
+          return {'status': 'fulfilled'};
+        },
+      ),
+    );
     await tester.tap(find.text('Débloquer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Annuler'));
@@ -126,31 +125,38 @@ void main() {
     expect(find.text('240 crédits'), findsOneWidget);
   });
 
-  testWidgets('Space without spending authority sees disabled actions',
-      (tester) async {
+  testWidgets('Space without spending authority sees disabled actions', (
+    tester,
+  ) async {
     var calls = 0;
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      space: true,
-      canSpend: false,
-      onRedeem: (_) async {
-        calls++;
-        return {'status': 'fulfilled'};
-      },
-    ));
+    await tester.pumpWidget(
+      harness(
+        projection(rewards: [featureReward()]),
+        space: true,
+        canSpend: false,
+        onRedeem: (_) async {
+          calls++;
+          return {'status': 'fulfilled'};
+        },
+      ),
+    );
     expect(find.text('Utiliser nos crédits'), findsOneWidget);
     final unlock = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'Débloquer'));
+      find.widgetWithText(TextButton, 'Débloquer'),
+    );
     expect(unlock.onPressed, isNull);
     expect(calls, 0);
   });
 
-  testWidgets('refused or uncertain action preserves the known credits',
-      (tester) async {
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      onRedeem: (_) async => null,
-    ));
+  testWidgets('refused or uncertain action preserves the known credits', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(
+        projection(rewards: [featureReward()]),
+        onRedeem: (_) async => null,
+      ),
+    );
     await tester.tap(find.text('Débloquer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirmer'));
@@ -159,17 +165,20 @@ void main() {
     expect(find.text('Avantage activé.'), findsNothing);
   });
 
-  testWidgets('no second spend against stale amount after confirmed action',
-      (tester) async {
+  testWidgets('no second spend against stale amount after confirmed action', (
+    tester,
+  ) async {
     var calls = 0;
-    await tester.pumpWidget(harness(
-      projection(rewards: [featureReward()]),
-      onRedeem: (_) async {
-        calls++;
-        return {'status': 'requested'};
-      },
-      onReload: () async => null,
-    ));
+    await tester.pumpWidget(
+      harness(
+        projection(rewards: [featureReward()]),
+        onRedeem: (_) async {
+          calls++;
+          return {'status': 'requested'};
+        },
+        onReload: () async => null,
+      ),
+    );
     await tester.tap(find.text('Débloquer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirmer'));
@@ -177,7 +186,8 @@ void main() {
     expect(calls, 1);
     expect(find.text('Crédits à confirmer'), findsOneWidget);
     final unlock = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'Débloquer'));
+      find.widgetWithText(TextButton, 'Débloquer'),
+    );
     expect(unlock.onPressed, isNull);
   });
 }
