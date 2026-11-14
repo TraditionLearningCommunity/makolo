@@ -472,27 +472,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                   if (detail.archived) 'Archivé',
                                 ].join(' · '),
                               ),
-                              if (source.reachability ==
-                                  ReachabilityState.unreachable) ...[
-                                const SizedBox(height: MakoloSpacing.sm),
-                                Semantics(
-                                  liveRegion: true,
-                                  child: const Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(Icons.cloud_off_outlined, size: 18),
-                                      SizedBox(width: MakoloSpacing.xs),
-                                      Expanded(
-                                        child: Text(
-                                          'Données enregistrées sur cet appareil. '
-                                          'Mise à jour indisponible.',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
                               if ((_downloading || _sharing) &&
                                   _downloadProgress != null) ...[
                                 const SizedBox(height: MakoloSpacing.md),
