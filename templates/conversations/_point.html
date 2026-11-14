@@ -88,7 +88,7 @@
                 <span style="color:var(--mk-muted)">{{ choice.count }}</span>
               {% endif %}
             </div>
-            {% if actions.poll_results.response_count > 0 and choice.count != None %}
+            {% if actions.poll_results and actions.poll_results.response_count > 0 and choice.count != None %}
               {% widthratio choice.count actions.poll_results.response_count 100 as percent %}
               <div class="h-1.5 overflow-hidden rounded-full" style="background:var(--mk-border)">
                 <div class="h-full rounded-full" style="width:{{ percent }}%;background:var(--mk-brand)"></div>
