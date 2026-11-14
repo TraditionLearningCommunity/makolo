@@ -61,6 +61,17 @@
 
     function render() {
       const nodes = [...root.querySelectorAll('[data-thread-entry]')];
+      // Authorized targeted Points and paginated history arrive in separate
+      // windows. Sort the known contributions by owner publication, never by
+      // fetch order, and do not claim any missing intermediate page is empty.
+      nodes.sort((left, right) => {
+        const a = Date.parse(left.dataset.timestamp || '') || 0;
+        const b = Date.parse(right.dataset.timestamp || '') || 0;
+        if (a !== b) return a - b;
+        return (left.dataset.entryId || '').localeCompare(
+          right.dataset.entryId || '',
+        );
+      });
       const segments = state.project(nodes.map((element) => ({
         id: element.dataset.entryId || '',
         keepVisible: visible(element),
