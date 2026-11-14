@@ -21,6 +21,7 @@ from activities.selectors import activities_owned_by
 from commerce.models import PaymentMode
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 from operations.occurrence_live import resolve_occurrence_live
+from operations.participant_occurrence_live import participant_occurrence_live_available
 from readiness import ReadinessStatus, resolve_journey_readiness, resolve_many
 from readiness.presentation import readiness_next_action_label, readiness_status_label
 from readiness.selectors import participant_readiness_queryset, readiness_queryset
@@ -432,6 +433,20 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         mature = journey_action_presentation(journey=journey, readiness=readiness, live=live)
         pending_request = next((request for request in journey.requests.all() if request.status == RequestStatus.PENDING), None)
         rejected_request = next((request for request in journey.requests.all() if request.status == RequestStatus.REJECTED), None)
+        # The same Operations beneficiary gate as the personal Journey API.
+        # A linked Occurrence is not, by itself, Jour J admission.
+        day_of_admitted = bool(
+            journey.occurrence_id
+            and participant_occurrence_live_available(
+                occurrence=journey.occurrence, actor=self.request.user
+            )
+        )
+        day_label = journey_day_label(journey.occurrence)
+        day_of_url = (
+            reverse("core:participant-occurrence-day-of",
+                    kwargs={"pk": journey.occurrence_id})
+            if day_of_admitted and day_label == "Jour J" else None
+        )
         order = card["order"]
         payment_url = None
         if order and journey.status == JourneyStatus.PENDING_PAYMENT and order.payment_mode in {
@@ -444,7 +459,8 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 **card,
                 "mature": mature,
                 "journey_conversation_available": conversation_available,
-                "journey_day_label": journey_day_label(journey.occurrence),
+                "journey_day_label": day_label,
+                "day_of_url": day_of_url,
                 "journey_additional_address": additional_place_details(place),
                 "journey_access_instructions": place.access_instructions if place else None,
                 "live": live,
