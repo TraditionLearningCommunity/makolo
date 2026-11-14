@@ -170,3 +170,98 @@
 @media (prefers-reduced-motion: reduce) {
   [data-mk-surface="appuis"] .ap-card { transition: none; }
 }
+
+
+/* Appuis v2: one useful Recognition card, one direct spending level. */
+[data-mk-surface="appuis"] .ap-recognition {
+  border-radius: 20px;
+  padding: clamp(17px, 3vw, 24px);
+  color: white;
+  background: linear-gradient(120deg, #5232db, #2b176e);
+}
+[data-mk-surface="appuis"] .ap-recognition-title {
+  display: flex; align-items: center; gap: 10px;
+}
+[data-mk-surface="appuis"] .ap-recognition-title svg {
+  color: #f3da91; width: 26px; height: 26px;
+}
+[data-mk-surface="appuis"] .ap-recognition-title h2 {
+  margin: 0; color: #fff; font-size: 1.08rem; font-weight: 750;
+}
+[data-mk-surface="appuis"] .ap-recognition-credits {
+  display: block; font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800; line-height: 1.25; margin-top: 18px;
+  font-variant-numeric: tabular-nums;
+}
+[data-mk-surface="appuis"] .ap-recognition-credits span {
+  font-size: .96rem; font-weight: 600;
+}
+[data-mk-surface="appuis"] .ap-recognition-pending {
+  display: block; margin-top: 7px; font-size: .84rem; color: #e5ddff;
+}
+[data-mk-surface="appuis"] .ap-recognition-action {
+  margin-top: 18px; display: flex; align-items: center; gap: 12px;
+  padding: 13px 15px; border-radius: 13px; text-decoration: none;
+  background: #fff; color: #2b176e; font-weight: 750;
+}
+[data-mk-surface="appuis"] .ap-recognition-action svg {
+  width: 20px; height: 20px; color: #5232db;
+}
+[data-mk-surface="appuis"] .ap-recognition-action svg:last-child {
+  margin-left: auto;
+}
+[data-mk-surface="appuis"] .ap-spend-balance {
+  display: flex; align-items: center; gap: 13px;
+  padding: 18px 20px; border-radius: 18px;
+  color: #fff; background: linear-gradient(120deg,#5232db,#2b176e);
+}
+[data-mk-surface="appuis"] .ap-spend-balance svg {
+  width: 28px; height: 28px; color: #f3da91;
+}
+[data-mk-surface="appuis"] .ap-spend-balance strong {
+  font-size: clamp(1.3rem, 3vw, 1.75rem); font-variant-numeric: tabular-nums;
+}
+[data-mk-surface="appuis"] .ap-money {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 16px; border: 1px solid var(--ap-border);
+  border-radius: 17px; margin-top: 16px; background: #fff;
+}
+[data-mk-surface="appuis"] .ap-money small {
+  display: block; color: var(--ap-muted);
+}
+[data-mk-surface="appuis"] .ap-money strong {
+  display: block; font-size: 1.3rem; margin-top: 4px;
+}
+[data-mk-surface="appuis"] .ap-money button {
+  padding: 10px 19px; border: 1px solid var(--ap-border);
+  border-radius: 12px; background: #f2f1f4; color: #777;
+  cursor: not-allowed; opacity: .7;
+}
+[data-mk-surface="appuis"] .ap-credit-reward {
+  min-width: 0; display: flex; gap: 11px; align-items: center;
+  border: 1px solid var(--ap-border); border-radius: 17px;
+  padding: 13px; background: #fff;
+}
+[data-mk-surface="appuis"] .ap-credit-reward .ap-card-copy {
+  min-width: 0; flex: 1; line-height: 1.35;
+}
+[data-mk-surface="appuis"] .ap-credit-reward button {
+  flex: 0 0 auto; border-radius: 11px; border: 0;
+  background: var(--ap-primary); color: #fff;
+  font: inherit; font-size: .85rem; font-weight: 700;
+  padding: 10px 12px; cursor: pointer;
+}
+[data-mk-surface="appuis"] .ap-credit-reward button:disabled {
+  background: #ddd8e7; color: #555; cursor: not-allowed;
+}
+[data-mk-surface="appuis"] .ap-feedback {
+  margin-top: 16px; color: #7f1d1d; font-weight: 650;
+}
+@media (max-width: 420px) {
+  [data-mk-surface="appuis"] .ap-credit-reward {
+    flex-wrap: wrap;
+  }
+  [data-mk-surface="appuis"] .ap-credit-reward button {
+    margin-left: 59px;
+  }
+}
