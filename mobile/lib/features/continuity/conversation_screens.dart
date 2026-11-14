@@ -17,6 +17,7 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import 'conversation_compression.dart';
 import 'conversation_repository.dart';
 import 'conversation_local_delivery.dart';
@@ -3605,53 +3606,44 @@ class _PointCardState extends State<_PointCard> {
       publishedAt: point.publishedAt ?? point.updatedAt,
       headerActions: widget.readOnly
           ? null
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: Key('conversation-point-revisit-${point.id}'),
-                  tooltip: point.revisit
-                      ? 'Ne plus revoir plus tard'
-                      : 'Revoir plus tard',
-                  onPressed: _busy ? null : _toggleRevisit,
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
-                  ),
-                  iconSize: 19,
-                  icon: Icon(
-                    point.revisit
-                        ? Icons.bookmark_added_rounded
-                        : Icons.bookmark_add_outlined,
+          : PopupMenuButton<String>(
+              key: Key('conversation-point-management-${point.id}'),
+              tooltip: 'Options',
+              enabled: !_busy,
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert_rounded, size: 20),
+              onSelected: (choice) {
+                if (choice == 'save') {
+                  _toggleRevisit();
+                } else if (choice == 'close') {
+                  _closeResponses();
+                } else if (choice == 'resolve') {
+                  _resolvePoint();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'save',
+                  child: Row(
+                    children: [
+                      DiscoveryOrbitIcon(
+                        saved: point.revisit,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(point.revisit ? 'Retirer des enregistrements' : 'Enregistrer'),
+                    ],
                   ),
                 ),
-                if (point.canCloseResponses || point.canResolve)
-                  PopupMenuButton<String>(
-                    key: Key('conversation-point-management-${point.id}'),
-                    tooltip: 'Options du Point',
-                    enabled: !_busy,
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.more_vert_rounded, size: 20),
-                    onSelected: (choice) {
-                      if (choice == 'close') {
-                        _closeResponses();
-                      } else if (choice == 'resolve') {
-                        _resolvePoint();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (point.canCloseResponses)
-                        const PopupMenuItem(
-                          value: 'close',
-                          child: Text('Clore les réponses'),
-                        ),
-                      if (point.canResolve)
-                        const PopupMenuItem(
-                          value: 'resolve',
-                          child: Text('Consigner le résultat'),
-                        ),
-                    ],
+                if (point.canCloseResponses)
+                  const PopupMenuItem(
+                    value: 'close',
+                    child: Text('Clore les réponses'),
+                  ),
+                if (point.canResolve)
+                  const PopupMenuItem(
+                    value: 'resolve',
+                    child: Text('Consigner le résultat'),
                   ),
               ],
             ),
