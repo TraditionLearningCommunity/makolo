@@ -188,7 +188,6 @@ class MyRecognitionAPIView(APIView):
                     "needs_response": bool(incoming),
                 },
                 "account": _account_payload(account),
-            "monetary_equivalent": credit_money_equivalent(account),
                 "monetary_equivalent": credit_money_equivalent(account),
                 "achievements": achievements,
                 "rewards": [_reward_payload(reward) for reward in rewards],
@@ -404,6 +403,7 @@ class SpaceRecognitionAPIView(APIView):
                 "needs_response": bool(incoming),
             },
             "account": _account_payload(account),
+            "monetary_equivalent": credit_money_equivalent(account),
             "achievements": achievements,
             "rewards": [
                 _reward_payload(
