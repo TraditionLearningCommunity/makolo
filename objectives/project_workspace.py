@@ -10,6 +10,7 @@ from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
 from authorization.services import can
+from objectives.models import ProjectInvitation, ProjectInvitationStatus
 
 from objectives.profile_presentation import profile_public_presentation as _profile_public_presentation
 from objectives.readiness import resolve_dossier_readiness
@@ -166,6 +167,17 @@ def _project_collaboration(actor, project, dossiers, *, partial):
                         "id": str(person.pk), "label": _person(person),
                     }
     return {
+        "pending_invitations": [
+            {
+                "id": str(invitation.pk),
+                "profile_id": str(invitation.invitee_id),
+                "label": _person(invitation.invitee),
+                "role": _project_role_presentation(invitation.role.code),
+            }
+            for invitation in ProjectInvitation.objects.filter(
+                project=project, status=ProjectInvitationStatus.PENDING,
+            ).select_related("invitee", "role").order_by("-created_at", "pk")[:50]
+        ] if authority else [],
         "members": members,
         "contributors": list(contributors.values()),
         "contributors_partial": bool(partial),
