@@ -1129,8 +1129,14 @@ void main() {
       expect(find.text('Afficher la suite'), findsNothing);
       expect(find.text('Vous avez tout vu'), findsNothing);
       expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
-      expect(find.byKey(const Key('me-collectives-title-count')), findsOneWidget);
-      expect(find.byKey(const Key('me-collectives-search-toggle')), findsOneWidget);
+      expect(
+        find.byKey(const Key('me-collectives-title-count')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-search-toggle')),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('me-collectives-sort')), findsOneWidget);
       await tester.tap(find.byKey(const Key('me-collectives-search-toggle')));
       await tester.pumpAndSettle();
