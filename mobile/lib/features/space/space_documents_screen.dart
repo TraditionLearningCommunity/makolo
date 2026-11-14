@@ -8,6 +8,7 @@ import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../design/makolo_theme.dart';
+import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/media/native_media_picker.dart';
 import '../../sync/owner_source_state.dart';
@@ -270,58 +271,147 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       text: chosen.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
     );
     var visibility = 'restricted';
-    final metadata = await showDialog<Map<String, String>>(
+    var kind = 'other';
+    final metadata = await showModalBottomSheet<Map<String, String>>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          title: const Text('Ajouter un document'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                maxLength: 220,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Titre'),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: visibility,
-                decoration: const InputDecoration(labelText: 'Accès'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'restricted',
-                    child: Text('Confidentiel'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'internal',
-                    child: Text('Équipe autorisée'),
-                  ),
-                ],
-                onChanged: (value) =>
-                    update(() => visibility = value ?? 'restricted'),
-              ),
-            ],
-          ),
-          actions: [
-            MakoloActionButton(
-              label: 'Annuler',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: () => Navigator.pop(dialogContext),
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, update) {
+          final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              MakoloSpacing.lg,
+              MakoloSpacing.sm,
+              MakoloSpacing.lg,
+              MakoloSpacing.lg + keyboard,
             ),
-            MakoloActionButton(
-              label: 'Déposer',
-              appearance: MakoloActionAppearance.primary,
-              onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  Navigator.pop(dialogContext, {
-                    'title': controller.text.trim(),
-                    'visibility': visibility,
-                  });
-                }
-              },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Ajouter un document',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                Container(
+                  padding: const EdgeInsets.all(MakoloSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.insert_drive_file_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          chosen.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                TextField(
+                  controller: controller,
+                  maxLength: 220,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Titre',
+                    hintText: 'Nom utile pour votre équipe',
+                  ),
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(
+                  'Type',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: MakoloSpacing.xs),
+                Wrap(
+                  spacing: MakoloSpacing.sm,
+                  runSpacing: MakoloSpacing.xs,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Document'),
+                      selected: kind == 'other',
+                      onSelected: (_) => update(() => kind = 'other'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Certificat / attestation'),
+                      selected: kind == 'certificate',
+                      onSelected: (_) => update(() => kind = 'certificate'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                Text(
+                  'Accès',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: MakoloSpacing.xs),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'restricted',
+                      label: Text('Confidentiel'),
+                      icon: Icon(Icons.lock_outline_rounded),
+                    ),
+                    ButtonSegment(
+                      value: 'internal',
+                      label: Text('Équipe'),
+                      icon: Icon(Icons.group_outlined),
+                    ),
+                  ],
+                  selected: {visibility},
+                  onSelectionChanged: (value) {
+                    if (value.isNotEmpty) {
+                      update(() => visibility = value.first);
+                    }
+                  },
+                ),
+                const SizedBox(height: MakoloSpacing.lg),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MakoloActionButton(
+                        label: 'Annuler',
+                        appearance: MakoloActionAppearance.quiet,
+                        onPressed: () => Navigator.pop(sheetContext),
+                      ),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Expanded(
+                      child: MakoloActionButton(
+                        label: 'Ajouter',
+                        appearance: MakoloActionAppearance.primary,
+                        onPressed: () {
+                          final title = controller.text.trim();
+                          if (title.isEmpty) return;
+                          Navigator.pop(sheetContext, {
+                            'title': title,
+                            'visibility': visibility,
+                            'kind': kind,
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
     controller.dispose();
@@ -335,12 +425,13 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
     try {
       await api.upload(
         _base,
-        fields: {...metadata, 'kind': 'other'},
+        fields: metadata,
         files: [
           MakoloUploadFile(
             fieldName: 'file',
             path: chosen.path!,
             filename: chosen.name,
+            contentType: _contentTypeFor(chosen.name),
           ),
         ],
       );
@@ -350,19 +441,48 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       await _refreshFirst();
       try {
         await widget.runtime.space?.refreshUs(actor.space);
+        await widget.runtime.space?.refreshResources(actor.space);
+        if (metadata['kind'] == 'certificate') {
+          await widget.runtime.space?.refreshResourceFamily(
+            actor.space,
+            'received_title',
+          );
+        }
       } on Object {
-        // The owner mutation is confirmed; hub reconciliation is best effort.
+        // The owner mutation is confirmed; other projections reconcile later.
+      }
+    } on MakoloApiError catch (error) {
+      if (mounted && _actor?.space.id == expectedId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
       }
     } on Object {
       if (mounted && _actor?.space.id == expectedId) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Dépôt impossible.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ce document n’a pas pu être ajouté. Réessayez.'),
+          ),
+        );
       }
     } finally {
       if (mounted && _actor?.space.id == expectedId) {
         setState(() => _busy = false);
       }
     }
+  }
+
+  String _contentTypeFor(String filename) {
+    final name = filename.toLowerCase();
+    if (name.endsWith('.pdf')) return 'application/pdf';
+    if (name.endsWith('.docx')) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    if (name.endsWith('.doc')) return 'application/msword';
+    if (name.endsWith('.txt')) return 'text/plain';
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+    return 'application/octet-stream';
   }
 
   @override
