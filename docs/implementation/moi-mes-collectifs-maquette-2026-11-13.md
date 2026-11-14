@@ -23,6 +23,16 @@ La capture d'essai a montré une hiérarchie trop lourde. La nouvelle version re
 - Les médias restent limités à la projection publiée par leur propriétaire et les permissions existantes. Aucun bouton Web, carte violette ni menu « Aperçu » n'est rétabli.
 - Cas couverts par les tests : axes horizontaux des trois carrousels et ordres A→Z/Z→A. Recette Android, taille de texte, horloge de sync et CI à vérifier avant merge.
 
+## Décision validée — deux vues, une même vérité
+
+**Par catégories (défaut)** : « Où on peut agir », « Mes équipes » et « Mes groupes » dans trois carrousels horizontaux indépendants. Les cartes adoptent une hiérarchie plus visuelle (média de reconnaissance strictement autorisé ou monogramme, nom, éventuel archétype et description déjà projetés, contexte et une unique action métier utile). Aucune description, archétype, image ou permission n'est fabriquée. Un simple TeamMembership ou GroupMembership ne donne pas accès à la gestion d'un Space.
+
+**Liste** : toutes les relations visibles s'affichent en lignes verticales compactes, filtrables et triables alphabétiquement (A→Z / Z→A) sur les mêmes projections. Ce mode offre une alternative rapide lorsque les collectifs sont nombreux.
+
+Le sélecteur compact **Par catégories / Liste** est commun à la page, pas un troisième filtre métier. La préférence utilise le mécanisme `SecureStringPreferences` existant, avec une clé isolée par Profile (`me.collectives.layout.<Profile>`). Elle n'est jamais traitée comme un fait serveur. La recherche, les filtres Espaces/Équipes/Groupes, les compteurs fiables, les routes, la pagination et les protections local-first sont partagés.
+
+Aucun écran e-commerce indépendant, aucune grille de tuiles purement décoratives et aucun menu `···` ne sont introduits. Les cartes utilisent une seule action principale quand une capacité réellement disponible le justifie.
+
 ## Interaction / propriété
 
 | Nature | Interaction | Contrat |
