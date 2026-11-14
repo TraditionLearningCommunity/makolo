@@ -1,59 +1,53 @@
-# Moi → Mes collectifs — maquette retenue et contrat d'implémentation
+# Moi → Mes collectifs — composition native et actions réelles
 
-**Chantier :** PR #522, branche fix/discover-a-continuation-context-20261014  
-**Référence :** maquette choisie le 13 novembre 2026.  
-**État :** implémentation Flutter dans cette branche ; formatage SDK, CI et recette Android à confirmer.  
-**Périmètre :** Moi → Mes collectifs N2, sans changement du backend propriétaire.
+**PR :** #522, branche `fix/discover-a-continuation-context-20261014`  
+**Mise à jour :** 14 novembre 2026  
+**Statut :** code poussé ; CI et recette Android à contrôler sur le HEAD final.  
+**Référence :** maquette du 13 novembre et retour d'essai réel sur émulateur du 14 novembre.
 
-## Intention de la page
+## Décision UX appliquée
 
-Permettre au Profile de reconnaître ses relations collectives et d'avancer : quels Spaces sont autorisés, quelles Teams relèvent de sa collaboration, quels Groups sont visibles, et où ouvrir le contexte adéquat. Le contrat COLLECTIVES reste le wire existant de personal.me, composé de authorized_spaces, teams, groups.
+La capture d'essai a montré une hiérarchie trop lourde. La nouvelle version retire complètement le bandeau violet, les compteurs de doublon, les sous-titres pédagogiques permanents, les boutons Web redondants et les menus `···` dont la seule action était « Aperçu ».
 
-Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un Assignment, ou une capacité générale de gestion. Flutter ne déduit aucune autorité d'un intitulé ni d'une appartenance.
+**Navigation :** `/me/collectives` est désormais une route secondaire plein écran, extérieure au shell de navigation primaire, sans header de compte ni barre Now/Découvrir/Mark/En cours/Moi répétés. L'AppBar native contient retour à Moi, « Mes collectifs », nombre total **strictement positif et fiable**, icône de recherche ouvrant un champ et icône de tri. Android Back reste naturel ; un lien direct sans historique revient à Moi.
 
-## Composition visuelle retenue
+**Filtres :** Tous, Espaces, Équipes, Groupes, chacun avec son compteur positif lorsqu'il est connu. Le total est la somme des trois familles reçues, comptant des relations et non des institutions distinctes. Pas de « 0 » affiché dans les filtres. Recherche et tri locaux sur les données déjà synchronisées, sans tri de date fictif. La position dans la liste est préservée tant que le Profile et la route restent actifs.
 
-1. Conserver l'en-tête et la navigation de Makolo ; ne pas redessiner le Mark.
-2. Afficher une phrase de contexte et un bandeau violet avec total fiable et compteurs par nature. **Ne jamais montrer de compteur zéro.**
-3. Offrir les filtres Tous, Espaces, Équipes, Groupes, une recherche locale et un tri local par nom (Nom A à Z) ou ordre propriétaire déjà reçu. **Pas de faux tri Plus récents**, aucune date fiable n'étant projetée.
-4. En Tous, rendre des sections distinctes Espaces où je peux agir (cartes horizontales adaptées aux petits écrans), Mes équipes et Mes groupes (lignes contextuelles).
-5. Chaque entrée affiche nom, type implicite par section, relation effectivement établie et contexte parent déjà visible. Pas de nombre de responsabilités fictif, de statut de membre déduit pour Group, ni de logo Space inventé.
-6. Tout voir applique le filtre de la section ; aucun écran de doublon n'est créé.
-7. Le menu contextuel propose seulement Aperçu, action locale existante. Les autres commandes attendront de vraies capabilities propriétaires.
+**Contenu :** lignes natives, accessibles, plus compactes, à grande cible tactile, visuel aligné à gauche, nom principal et contexte autorisé. Les sections sont groupées en Tous ; un filtre actif n'a pas besoin de répéter son titre. Pas de doublon « Tout voir ».
 
-## Actions réellement branchées
+## Interaction / propriété
 
-- **Space autorisé :** Agir ouvre le sélecteur d'acteur Makolo existant. Il ne bascule pas silencieusement vers une autre identité : le sélecteur n'affiche que le Space ciblé parmi les contextes réellement présents dans l'inventaire, revalide le contexte acquis et demande une sélection explicite. Si cette action n'est pas disponible, Ouvrir donne accès à la fiche Space existante, lorsque son slug est disponible.
-- **Team :** aucune route native Team N3 autorisée n'existe sur cette page. Lorsque le Space parent possède un identifiant et un slug reçus du serveur, Voir l'Espace ouvre sa fiche ; sinon, Aperçu restitue les faits locaux. Cette action ne prétend pas ouvrir l'annuaire de l'équipe.
-- **Group :** Ouvrir utilise le détail natif /groups/:id existant, validé à nouveau par le propriétaire Groups. Aucune mutation d'adhésion ou de gestion n'est inventée.
-- Toutes les actions de gestion, invitation, sortie, ownership, responsabilité et composition d'équipe restent réservées aux profondeurs et owners déjà autorisés, jusqu'à vérification de leurs capacités explicites.
+| Nature | Interaction | Contrat |
+| --- | --- | --- |
+| Space autorisé | Appui sur la ligne → fiche Space existante ; « Agir » en ligne lorsque disponible | Le picker d'acteur existant ne propose que le Space ciblé et revalide le contexte acquis. Une sélection confirmée ouvre son Now. |
+| Team | Appui sur la ligne → fiche du Space parent lorsque le slug est fourni | TeamMembership est collaboration, jamais Mandate. Pas de faux « Gérer » ou de faux N3 Team. |
+| Group | Appui sur la ligne → profondeur Groups native autorisée | Visibilité et permission sont revérifiées dans Groups ; aucune mutation n'est ajoutée. |
+| Actions secondaires | Aucun menu contextuel ornemental | N'en afficher un que si une véritable commande propriétaire existe ultérieurement. |
 
-## Local-first, données et confidentialité
+L'absence de réseau ne supprime pas les noms connus mais retire le CTA « Agir » sans afficher de bannière permanente. Révocation explicite et changement de Profile restent gérés par les sources natives existantes.
 
-- personal.me et MeSelector restent les sources reçues puis conservées par PersonalRepository et ProfileStore sous le Profile courant.
-- Les comptes viennent des familles count (ou de la longueur d'une famille complète). Ne pas remplacer un compteur inconnu par la taille d'une page partielle.
-- La recherche et le tri portent sur les données déjà acquises. Si la pagination n'est pas épuisée, la portée de la recherche est explicitée et la suite est chargée par la continuité loadMoreMe existante.
-- Au retour hors connexion, garder les relations déjà conservées ; une ancienne autorisation ne peut pas être annoncée comme un droit d'action actuel. Agir est retiré hors ligne au profit d'une simple ouverture admissible.
-- La révocation de la source personal.me préexistante prime sur la présentation ; aucune donnée privée interdite n'est conservée dans une nouvelle table.
-- Une famille vide connue n'implique pas de compter zéro dans le bandeau. Une famille incomplète n'est pas présentée comme entièrement explorée.
-- Conserver le scroll et l'état de filtre/recherche dans la session du Profile ; le contenu est recréé au changement de Profile.
+## Médias : vérité disponible, pas de faux logo
 
-## Code touché
+Le modèle canonique `Organization` présent dans le runtime n'a **pas de champ logo/avatar/photo Space**. Le sélecteur de `PresentationMediaUse` relie ses médias publiés aux **Activities/Occurrences**, pas à l'identité durable d'un Space. Ni une image d'Activity, ni l'avatar personnel d'un membre ne peuvent devenir un « logo Space » par inférence.
 
-- mobile/lib/features/me/me_collectives_content.dart : composition et interactions visuelles opt-in, sans nouveau propriétaire.
-- mobile/lib/features/me/me_collectives_screen.dart : intégration à la profondeur local-first, conservation de la pagination et du refus.
-- mobile/lib/features/me/me_hub.dart : les cartes de la racine Moi ne transmettent plus de compteur zéro.
-- mobile/lib/features/me/me_routes.dart : réemploi du picker d'acteur Makolo ciblé pour l'action Agir.
-- mobile/lib/navigation/actor_selector.dart : filtre opt-in sur l'identifiant du Space demandé ; le sélecteur général reste inchangé.
-- mobile/test/me_collectives_content_test.dart : tests de regroupement, absence de zéro, filtres, recherche partielle, Team≠autorité, offline et navigation Group.
+La présentation native accueille un `media_bindings` de reconnaissance **explicitement lié à l'objet affiché**, si le propriétaire l'expose : cible `kind/id` exacts, usage `RECOGNIZE`, ressource `presentation_media_use`, MIME image JPEG/PNG et chemin de même origine. Le rendu emploie `RetainedRecognitionImage` et son transport sécurisé ; aucune URL arbitraire ni image publique détachée de son owner n'est admise. Lorsque la projection actuelle ne fournit pas ce média, on montre un **monogramme textuel neutre**, sans créer de logo fictif.
 
-## Tests et recette avant merge
+**Écart de domaine restant :** pour qu'une vraie photo/logo durable d'Espace apparaisse, définir et livrer chez son owner un média d'identité Space publié, autorisé et projeté ; le chemin Activity ne peut pas y suppléer. Ce chantier de propriété média ne doit pas être improvisé dans les widgets Moi.
 
-1. cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check, avec Flutter/Dart canoniques 3.47.3/3.13.3 ; à défaut, workflow manuel Mobile Format sur la branche de #522.
-2. flutter analyze et flutter test test/me_collectives_content_test.dart test/me_mature_test.dart.
-3. Vérifier les autres tests mobiles dépendants de la navigation et du picker d'acteur.
-4. Vérifier sur émulateur et Samsung : formats compacts, scale de texte, swipe horizontal des Spaces, filtre/recherche, scroll/reprise, changement de Profile, données absentes, synchronisation tardive, source révoquée et mise hors ligne.
-5. Dans le picker, vérifier que Agir n'accorde jamais un contexte non acquis ou révoqué.
-6. Vérifier la CI de #522 et éviter tout merge si une gate obligatoire reste rouge.
+## Fichiers concernés
 
-**Limite connue :** Agir passe par le picker existant, filtré sur le Space de la carte, mais exige toujours une confirmation humaine et la revalidation du contexte acquis. Aucune sélection automatique et aucune autorité supplémentaire ne sont créées. Après confirmation d'un autre acteur Space, la navigation ouvre le Now de cet Espace. Une vraie profondeur Team nécessitera de prouver une destination et sa permission ; la fiche du Space parent ne s'y substitue pas.
+- `mobile/lib/features/me/me_collectives_content.dart` : sections compactes, filtres, vues et actions.
+- `mobile/lib/features/me/me_collectives_screen.dart` : AppBar, recherche, tri, états de lecture et pagination.
+- `mobile/lib/features/me/me_routes.dart` et `mobile/lib/app/router.dart` : route plein écran et handoffs existants.
+- `mobile/test/me_collectives_content_test.dart` : filtres, compteur, permissions, offline, Group, média explicitement publié.
+- `mobile/test/me_mature_test.dart` : entête N2 et recherche réelle dans le corpus local.
+- `mobile/lib/features/me/me_hub.dart` : conserve la non-présentation d'un compteur zéro au point d'entrée Moi.
+
+## Contrôles de livraison
+
+- Formatter canonique : `cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check` (Flutter 3.47.3 / Dart 3.13.3).
+- `flutter analyze`, `flutter test test/me_collectives_content_test.dart test/me_mature_test.dart`, puis Mobile CI et régression visuelle.
+- Recette émulateur + Samsung : pile de navigation, Back, retour Moi, clavier/recherche, tri, catégories à zéro, gros texte Android, listes longues, Team sans autorité, Group privé, Space révoqué, local disponible hors réseau, médias owner-backed.
+- Pas de merge #522 avec une gate rouge. Aucun runtime Web ou Django modifié par cette adaptation.
+
+La nouvelle interface doit rester une surface qui aide à avancer : reconnaissance, sélection et handoff réel — pas un tableau de bord ni un annuaire de gestion.
