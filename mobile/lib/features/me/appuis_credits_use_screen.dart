@@ -52,7 +52,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
 
   void _actorChanged() {
     if (widget.actorIsCurrent?.call() == false && mounted) {
-      Navigator.of(context).maybePop();
+      unawaited(Navigator.of(context).maybePop());
     }
   }
 
@@ -109,6 +109,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
 
   bool _authorized(Map<String, dynamic> reward) =>
       !_working &&
+      !_balanceUnverified &&
       _current &&
       widget.canSpend() &&
       widget.canUseReward(reward) &&
