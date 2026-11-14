@@ -11,7 +11,6 @@ import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
-import '../../design/surface_states.dart';
 import '../../presentation/contracts/space_presentation.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
