@@ -92,7 +92,11 @@ void main() {
             options: const [
               ObjectiveViewOption(0, Icons.dashboard_outlined, 'Synthèse'),
               ObjectiveViewOption(1, Icons.folder_outlined, 'Dossiers'),
-              ObjectiveViewOption(2, Icons.calendar_today_outlined, 'Calendrier'),
+              ObjectiveViewOption(
+                2,
+                Icons.calendar_today_outlined,
+                'Calendrier',
+              ),
             ],
             onSelected: (_) {},
           ),
@@ -109,5 +113,4 @@ void main() {
     expect(find.byTooltip('Dossiers'), findsOneWidget);
     expect(find.byTooltip('Calendrier'), findsOneWidget);
   });
-
 }

@@ -106,7 +106,10 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
-    expect(find.text('Aucune personne visible pour ce Dossier.'), findsOneWidget);
+    expect(
+      find.text('Aucune personne visible pour ce Dossier.'),
+      findsOneWidget,
+    );
     expect(find.text('Coordination'), findsNothing);
     expect(find.text('Autorisations'), findsNothing);
     expect(find.textContaining('actualisation indisponible'), findsNothing);
