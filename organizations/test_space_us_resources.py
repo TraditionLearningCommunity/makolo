@@ -127,7 +127,7 @@ class SpaceUsResourcesTests(TestCase):
 
 
     def test_n1_and_n2_compose_only_genuine_space_owners(self):
-        issued = self._snapshot(self.space)
+        self._snapshot(self.space)
         self._template(self.space)
         self._theme(self.space)
         self._asset(self.space)
@@ -144,14 +144,14 @@ class SpaceUsResourcesTests(TestCase):
         )
         self.assertEqual(root.status_code, 200, root.data)
         self.assertEqual(root.data["resources"]["visibility"], "visible")
-        self.assertEqual(root.data["resources"]["count"], 5)
+        self.assertEqual(root.data["resources"]["count"], 4)
         self.assertEqual(
             root.data["handoffs"]["resources"],
             f"/space/{self.space.slug}/us/resources",
         )
         self.assertEqual(
             {row["owner"] for row in root.data["resources"]["items"]},
-            {"sharing", "presentations", "trust"},
+            {"presentations", "trust"},
         )
         self.assertNotIn("Document personnel secret", str(root.data))
         self.assertNotIn(self.other_space.slug, str(root.data))
@@ -160,14 +160,14 @@ class SpaceUsResourcesTests(TestCase):
         docs = self.client.get(self.url)
         self.assertEqual(docs.status_code, 200, docs.data)
         self.assertEqual(docs["Cache-Control"], "private, no-store")
-        self.assertEqual(docs.data["items"][0]["id"], str(issued.pk))
+        self.assertEqual(docs.data["items"], [])
         self.assertEqual(docs.data["counts"], {
             "document": 0,
             "asset": 1,
             "template": 1,
             "theme": 1,
-            "passport": 1,
             "credential": 1,
+            "received_title": 0,
         })
         self.assertEqual(
             self.client.get(self.url + "?kind=template").data["items"][0]["title"],
@@ -214,11 +214,11 @@ class SpaceUsResourcesTests(TestCase):
         )
         self.assertEqual(root.status_code, 200, root.data)
         # A Space-view mandate may expose public-facing Presentation resources,
-        # but never confidential documents or issued Passport snapshots.
-        self.assertEqual(root.data["resources"]["counts"]["passport"], 0)
+        # but never confidential documents, media or Trust-issued titles.
         self.assertEqual(root.data["resources"]["counts"]["document"], 0)
         self.assertEqual(root.data["resources"]["counts"]["asset"], 0)
         self.assertEqual(root.data["resources"]["counts"]["credential"], 0)
+        self.assertEqual(root.data["resources"]["counts"]["received_title"], 0)
         self.assertEqual(
             self.client.get(self.url).status_code, 200,
         )
@@ -273,14 +273,14 @@ class SpaceUsResourcesTests(TestCase):
 
     def test_resource_listing_pages_and_validates_query(self):
         for _ in range(23):
-            self._snapshot(self.space)
+            self._asset(self.space)
         self.client.force_authenticate(self.owner)
-        first = self.client.get(self.url + "?kind=passport")
+        first = self.client.get(self.url + "?kind=asset")
         self.assertEqual(first.status_code, 200, first.data)
         self.assertEqual(len(first.data["items"]), 20)
         self.assertTrue(first.data["has_more"])
         self.assertEqual(first.data["next_offset"], 20)
-        second = self.client.get(self.url + "?kind=passport&offset=20")
+        second = self.client.get(self.url + "?kind=asset&offset=20")
         self.assertEqual(second.status_code, 200, second.data)
         self.assertEqual(len(second.data["items"]), 3)
         self.assertFalse(second.data["has_more"])
@@ -358,11 +358,9 @@ class SpaceUsResourcesTests(TestCase):
         self.assertContains(n2, "Médias de présentation")
         self.assertContains(n2, "Modèles de présentation")
         self.assertContains(n2, "Thèmes de présentation")
-        self.assertContains(n2, "Passeports émis")
         self.assertContains(n2, "Titres émis")
-        self.assertContains(n2, reverse(
-            "sharing:passport-space-history", kwargs={"slug": self.space.slug}
-        ))
+        self.assertContains(n2, "Titres reçus")
+        self.assertNotContains(n2, "Passeports émis")
         template_n2 = self.client.get(url + "?detail=resources&kind=template")
         self.assertContains(template_n2, "Modèle institutionnel")
         self.assertContains(template_n2, reverse(
