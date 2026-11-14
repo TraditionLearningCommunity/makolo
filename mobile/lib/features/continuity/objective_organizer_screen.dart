@@ -877,7 +877,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     ),
                   ]
                 : [
-                    if (widget.spaceSlug == null && widget.onOpenInvitations != null)
+                    if (widget.spaceSlug == null &&
+                        widget.onOpenInvitations != null)
                       MakoloIconActionButton(
                         tooltip: 'Invitations de Projet',
                         onPressed: widget.onOpenInvitations,
