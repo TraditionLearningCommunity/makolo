@@ -865,6 +865,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final collaboration = _map(project['collaboration']);
     final members = _list(collaboration['members']);
     final contributors = _list(collaboration['contributors']);
+    final pendingInvitations = _list(collaboration['pending_invitations']);
     final manage = collaboration['can_manage_authority'] == true;
     await showModalBottomSheet<void>(
       context: context,
@@ -960,6 +961,38 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       )
                     : null,
               ),
+            if (manage && pendingInvitations.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 11),
+                child: Text('Invitations en attente'),
+              ),
+              for (final invitation in pendingInvitations)
+                ListTile(
+                  leading: const Icon(Icons.mark_email_unread_outlined),
+                  title: Text(_text(invitation['label'])),
+                  subtitle: Text(_text(invitation['role'])),
+                  trailing: IconButton(
+                    tooltip: 'Annuler cette invitation',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _enabled
+                        ? () async {
+                            final confirmed = await _confirm(
+                              'Annuler l’invitation ?',
+                              'La personne ne pourra plus l’accepter.',
+                              'Annuler l’invitation',
+                            );
+                            if (!confirmed || !mounted) return;
+                            Navigator.of(sheet).pop();
+                            await _send(
+                              'api/v1/objectives/projects/invitations/'
+                              '${_text(invitation['id'])}/cancel/',
+                              {},
+                            );
+                          }
+                        : null,
+                  ),
+                ),
+            ],
             if (contributors.isNotEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
