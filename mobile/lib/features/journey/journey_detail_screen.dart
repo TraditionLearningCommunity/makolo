@@ -668,7 +668,7 @@ class _JourneyContent extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                   horizontal: _journeyContentInset,
                 ),
-                title: 'Où j’en suis',
+                title: 'Mon parcours',
                 child: _JourneyPath(
                   steps: presentation.steps,
                   hasBranches: composition.hasBranches,
@@ -956,15 +956,30 @@ class _JourneyHistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(Icons.history_rounded, color: _journeyAccent(context)),
-      title: Text(entry.label),
-      subtitle: Text(
-        '${MaterialLocalizations.of(context).formatMediumDate(entry.at.toLocal())}'
-        ' · ${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
-        '${entry.at.toLocal().minute.toString().padLeft(2, '0')}',
+    final when = MaterialLocalizations.of(context).formatMediumDate(
+      entry.at.toLocal(),
+    );
+    final time = '${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
+        '${entry.at.toLocal().minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.history_rounded, size: 20, color: _journeyAccent(context)),
+          const SizedBox(width: MakoloSpacing.sm),
+          Expanded(child: Text(entry.label)),
+          const SizedBox(width: MakoloSpacing.sm),
+          Flexible(
+            child: Text(
+              '$when · $time',
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1491,6 +1506,9 @@ class _JourneyPath extends StatelessWidget {
             ),
             const Divider(height: 16),
           ],
+          if (past.length <= 3)
+            for (final step in past)
+              _JourneyStepRow(step: step, allSteps: steps),
           for (final step in active)
             _JourneyStepRow(step: step, allSteps: steps),
           for (final step in shownFuture)
@@ -1504,7 +1522,7 @@ class _JourneyPath extends StatelessWidget {
                   _JourneyStepRow(step: step, allSteps: steps),
               ],
             ),
-          if (past.isNotEmpty)
+          if (past.length > 3)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               leading: Icon(
@@ -1665,14 +1683,6 @@ class _JourneyRequirementRow extends StatelessWidget {
   }
 }
 
-bool _usefulReadySummary(String value) {
-  final normalized = value.toLowerCase().trim();
-  return !normalized.startsWith("l'état de la démarche permet") &&
-      !normalized.startsWith('aucun obstacle actif') &&
-      !normalized.startsWith("l’occurrence est exploitable") &&
-      !normalized.startsWith("l'occurrence est exploitable");
-}
-
 class _ReadinessGroups extends StatelessWidget {
   const _ReadinessGroups({
     required this.presentation,
@@ -1689,7 +1699,12 @@ class _ReadinessGroups extends StatelessWidget {
     final situation = composition.situation;
     final interventions = situation == JourneySituation.choices
         ? <JourneyReadinessItem>[]
-        : composition.interventions;
+        : composition.interventions
+            .where(
+              (item) => item.nextLink == null ||
+                  item.nextLink != presentation.nextActionLink,
+            )
+            .toList();
     final blockers =
         situation == JourneySituation.blocked &&
             presentation.blockers.isNotEmpty
@@ -1705,7 +1720,7 @@ class _ReadinessGroups extends StatelessWidget {
       ('En attente', waiting, Icons.hourglass_empty_rounded),
     ].where((item) => item.$2.isNotEmpty).toList();
     final readableReady = presentation.ready
-        .where((item) => _usefulReadySummary(item.summary))
+        .where((item) => journeyUsefulReadySummary(item.summary))
         .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1744,35 +1759,29 @@ class _ReadinessGroups extends StatelessWidget {
             ),
           const Divider(height: 12),
         ],
-        if (presentation.ready.isNotEmpty)
-          readableReady.isEmpty
-              ? ListTile(
+        if (readableReady.isNotEmpty)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.check_circle_outline_rounded,
+              color: _journeyAccent(context),
+            ),
+            title: Text(
+              readableReady.length == 1
+                  ? '1 point vérifié'
+                  : '${readableReady.length} points vérifiés',
+            ),
+            children: [
+              for (final item in readableReady)
+                ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: _journeyAccent(context),
-                  ),
-                  title: Text('${presentation.ready.length} points vérifiés'),
-                )
-              : ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: _journeyAccent(context),
-                  ),
-                  title: Text('${presentation.ready.length} points vérifiés'),
-                  children: [
-                    for (final item in readableReady)
-                      ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.check_rounded, size: 18),
-                        title: Text(item.summary),
-                      ),
-                  ],
+                  leading: const Icon(Icons.check_rounded, size: 18),
+                  title: Text(item.summary),
                 ),
+            ],
+          ),
       ],
     );
   }
