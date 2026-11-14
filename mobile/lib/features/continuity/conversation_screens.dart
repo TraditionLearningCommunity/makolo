@@ -1623,9 +1623,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id ||
         oldWidget.repository != widget.repository ||
+        oldWidget.representedSpaceId != widget.representedSpaceId ||
         oldWidget.focusPointId != widget.focusPointId) {
       if (oldWidget.id != widget.id ||
-          oldWidget.repository != widget.repository) {
+          oldWidget.repository != widget.repository ||
+          oldWidget.representedSpaceId != widget.representedSpaceId) {
         _compressionState.clear();
         _revealedPerSegment.clear();
         _timelinePositioned = false;
@@ -2975,6 +2977,8 @@ class _PointCardState extends State<_PointCard> {
   void didUpdateWidget(covariant _PointCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.point.id != widget.point.id ||
+        oldWidget.repository != widget.repository ||
+        oldWidget.conversationId != widget.conversationId ||
         oldWidget.representedSpaceId != widget.representedSpaceId ||
         oldWidget.point.responseForScope(
               oldWidget.representedSpaceId,
@@ -2993,6 +2997,8 @@ class _PointCardState extends State<_PointCard> {
       _editingResponse = false;
       _clientReference = null;
       if (oldWidget.point.id != widget.point.id ||
+          oldWidget.repository != widget.repository ||
+          oldWidget.conversationId != widget.conversationId ||
           oldWidget.representedSpaceId != widget.representedSpaceId) {
         _inlineDraftTimer?.cancel();
         _inlineResponse.clear();
