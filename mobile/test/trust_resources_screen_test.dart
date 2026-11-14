@@ -59,6 +59,91 @@ class _RecordingShareGateway implements ShareGateway {
 }
 
 void main() {
+  testWidgets(
+    'cached proofs stay quiet on transport errors and disappear after revocation',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 1));
+      });
+      final store = ProfileStore(database, 'profile-a');
+      final repository = TrustResourceRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        sync: null,
+      );
+      final family = TrustResourceFamily.proofs;
+      final source = repository.collectionSourceFor(
+        family: family,
+        query: '',
+        offset: 0,
+      );
+      await store.putProjection(
+        kind: family.collectionProjection,
+        resourceKey: repository.collectionResourceKey(
+          family: family,
+          query: '',
+          status: 'all',
+          type: '',
+          sort: 'recent',
+          offset: 0,
+        ),
+        schemaVersion: 1,
+        payload: {
+          'query': null,
+          'status': 'all',
+          'proof_type': null,
+          'sort': 'recent',
+          'count': 1,
+          'items': [
+            {
+              'id': 'proof-known',
+              'proof_type_label': 'Formation attestée',
+              'status': 'active',
+            },
+          ],
+          'page': {'offset': 0, 'limit': 24, 'has_more': false},
+        },
+      );
+      await database.into(database.syncSources).insert(
+        SyncSourcesCompanion.insert(
+          profileId: 'profile-a',
+          sourceKey: source.sourceKey,
+          route: source.path,
+          lastSuccessAt: Value(DateTime.now().toUtc()),
+          lastErrorCode: const Value('transport_unreachable'),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TrustResourceCollectionScreen(
+            family: family,
+            repository: repository,
+            onOpenItem: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Formation attestée'), findsOneWidget);
+      expect(find.textContaining('Mise à jour indisponible'), findsNothing);
+      expect(find.textContaining('Données enregistrées'), findsNothing);
+
+      await database.update(database.syncSources).write(
+        const SyncSourcesCompanion(
+          invalidated: Value(true),
+          lastErrorCode: Value('permission_denied'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Formation attestée'), findsNothing);
+      expect(find.text('Ces preuves ne sont plus disponibles.'), findsOneWidget);
+      expect(find.text('1'), findsNothing);
+    },
+  );
+
   testWidgets('Mes preuves is a searchable local-first Trust collection', (
     tester,
   ) async {

@@ -503,14 +503,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       onTap: () => widget.onOpenDocument(item.id),
                     ),
                   ),
-              if (_loadingMore && view.hasMore)
+              if (!source.invalidated && _loadingMore && view.hasMore)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(MakoloSpacing.md),
                     child: CircularProgressIndicator.adaptive(),
                   ),
                 ),
-              if (_loadFailed && view.hasMore)
+              if (!source.invalidated && _loadFailed && view.hasMore)
                 Center(
                   child: MakoloActionButton(
                     label: 'Réessayer',
@@ -525,7 +525,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
             return ResourceCollectionScaffold(
               title: 'Mes documents',
-              count: view.total != null && view.total! > 0
+              count: !source.invalidated &&
+                      view.total != null &&
+                      view.total! > 0
                   ? view.total
                   : null,
               searching: _searching,
@@ -537,13 +539,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               onRefresh: _refreshFirst,
               refreshing: _refreshing,
               actions: [
-                MakoloIconActionButton(
+                if (!source.invalidated)
+                  MakoloIconActionButton(
                   tooltip: 'Ajouter',
                   icon: Icons.add_rounded,
                   onPressed: widget.onAddDocument,
                 ),
               ],
-              filterBar: filterBar,
+              filterBar: source.invalidated ? null : filterBar,
               scrollController: _scroll,
               storageKey: PageStorageKey<String>(
                 'documents:$_query:$_view:$_kind:$_sensitivity:$_sort',

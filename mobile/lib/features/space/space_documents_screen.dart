@@ -418,26 +418,24 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
             final completeEmpty =
                 view.hasSnapshot &&
+                view.count == 0 &&
                 !view.hasMore &&
                 source.lastSuccessAt != null &&
                 source.lastErrorCode == null &&
                 !source.invalidated;
 
             final children = <Widget>[
-              if (!view.hasSnapshot && _initializing)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-                  child: Center(child: CircularProgressIndicator.adaptive()),
-                )
-              else if (source.invalidated)
+              if (source.invalidated)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
                   child: Center(
-                    child: Text(
-                      'Documents non accessibles dans ce contexte.',
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('Documents non accessibles dans ce contexte.'),
                   ),
+                )
+              else if (!view.hasSnapshot && _initializing)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+                  child: Center(child: CircularProgressIndicator.adaptive()),
                 )
               else if (!view.hasSnapshot)
                 Padding(

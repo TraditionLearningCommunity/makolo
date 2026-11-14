@@ -474,14 +474,14 @@ class _TrustResourceCollectionScreenState
                       onTap: () => widget.onOpenItem(item.id),
                     ),
                   ),
-              if (_loadingMore && view.hasMore)
+              if (!source.invalidated && _loadingMore && view.hasMore)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(MakoloSpacing.md),
                     child: CircularProgressIndicator.adaptive(),
                   ),
                 ),
-              if (_loadFailed && view.hasMore)
+              if (!source.invalidated && _loadFailed && view.hasMore)
                 Center(
                   child: MakoloActionButton(
                     label: 'Réessayer',
@@ -496,7 +496,9 @@ class _TrustResourceCollectionScreenState
 
             return ResourceCollectionScaffold(
               title: _title,
-              count: view.total != null && view.total! > 0
+              count: !source.invalidated &&
+                      view.total != null &&
+                      view.total! > 0
                   ? view.total
                   : null,
               searching: _searching,
@@ -509,7 +511,7 @@ class _TrustResourceCollectionScreenState
               onCloseSearch: _closeSearch,
               onRefresh: _refreshFirst,
               refreshing: _refreshing,
-              filterBar: filterBar,
+              filterBar: source.invalidated ? null : filterBar,
               scrollController: _scroll,
               storageKey: PageStorageKey<String>(
                 'trust:${widget.family.name}:$_query:$_status:$_type:$_sort',

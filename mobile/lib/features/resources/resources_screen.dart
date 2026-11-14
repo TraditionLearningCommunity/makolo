@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
-import '../../sync/freshness.dart';
 import 'resource_presentation.dart';
 import 'resource_repository.dart';
 import 'trust_resource_repository.dart';
