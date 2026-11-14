@@ -1638,7 +1638,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         _olderLoaded = false;
         _loadingOlder = false;
         _olderError = null;
-        _expandedCompletedGroups.clear();
         _attentionFocusedId = null;
         if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
       }
