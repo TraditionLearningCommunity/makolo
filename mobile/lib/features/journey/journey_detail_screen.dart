@@ -323,9 +323,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de la démarche…',
                   ),
-                  empty: const MakoloEmptyState(
-                    title: 'Démarche non disponible',
-                    body: 'Aucun détail à afficher pour le moment.',
+                  empty: StreamBuilder<StoredProjection?>(
+                    stream: widget.repository.watchOngoingSummary(),
+                    builder: (context, ongoingSnapshot) {
+                      final summary = JourneyRepository.knownOngoingSummary(
+                        ongoingSnapshot.data,
+                        widget.journeyId,
+                      );
+                      return summary == null
+                          ? const MakoloEmptyState(
+                              title: 'Démarche',
+                              body: 'Les détails ne sont pas encore disponibles.',
+                            )
+                          : _JourneyPartialLocalSummary(summary: summary);
+                    },
                   ),
                   onRetry: _refresh,
                   content: StreamBuilder<StoredProjection?>(
@@ -377,6 +388,81 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
           },
         );
       },
+    );
+  }
+}
+
+/// Previously acquired Ongoing facts can identify a Journey without a
+/// detail projection. This has no controls: Ongoing capabilities never grant
+/// actions in N3, and an explicit owner denial still takes precedence.
+class _JourneyPartialLocalSummary extends StatelessWidget {
+  const _JourneyPartialLocalSummary({required this.summary});
+
+  final Map<String, dynamic> summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final timing = summary['timing'];
+    final place = summary['place'];
+    final timeMap = timing is Map ? timing : const <String, dynamic>{};
+    final placeMap = place is Map ? place : const <String, dynamic>{};
+    final date = JourneyDayPresentation.civilDate(
+      timeMap['start_date']?.toString(),
+    );
+    final clock = JourneyDayPresentation.clock(
+      timeMap['start_time']?.toString(),
+    );
+    final title = summary['title'].toString();
+    final location = JourneyDayPresentation.place(
+      name: placeMap['name']?.toString(),
+      locality: placeMap['locality']?.toString(),
+    );
+    return ListView(
+      key: const Key('journey-partial-local'),
+      padding: const EdgeInsets.all(MakoloSpacing.md),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.track_changes_rounded, color: scheme.primary, size: 27),
+            const SizedBox(width: MakoloSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MON OBJECTIF', style: Theme.of(context).textTheme.labelSmall),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (date != null || clock != null || location != null) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Wrap(
+            spacing: MakoloSpacing.md,
+            runSpacing: MakoloSpacing.sm,
+            children: [
+              if (date != null)
+                _JourneyHeroFact(
+                  icon: Icons.calendar_today_outlined,
+                  label: MaterialLocalizations.of(context).formatMediumDate(date),
+                ),
+              if (clock != null)
+                _JourneyHeroFact(icon: Icons.schedule_outlined, label: clock),
+              if (location != null)
+                _JourneyHeroFact(icon: Icons.place_outlined, label: location),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
