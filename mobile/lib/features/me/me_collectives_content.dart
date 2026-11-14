@@ -165,9 +165,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
 
   Widget _filters() {
     final section = _collectiveMap(widget.collectives);
-    final total = meCollectiveTotal(widget.collectives);
     final tabs = [
-      (_CollectiveTab.all, 'Tous', total),
+      (_CollectiveTab.all, 'Tous', null),
       (
         _CollectiveTab.spaces,
         'Espaces',
