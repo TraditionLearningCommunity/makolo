@@ -542,3 +542,26 @@
   }
   .mk-mark-page .mk-mark-attach-menu button { font-size: .76rem; }
 }
+
+/* On small-screen browsers, the active composer follows the visual viewport,
+   not the scroll position of a long page behind the software keyboard. */
+@media (max-width: 767px) {
+  .mk-mark-page.mk-mark-writing .mk-mark-form {
+    min-height: 180px;
+    padding-bottom: 130px;
+  }
+  .mk-mark-page.mk-mark-writing .mk-mark-composer {
+    position: fixed;
+    z-index: 65;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(12px + var(--mk-mark-keyboard-offset, 0px));
+    width: auto;
+    max-height: min(65dvh, 360px);
+    overflow: visible;
+    box-shadow: 0 12px 42px rgba(15, 23, 42, .12);
+  }
+  .mk-mark-page.mk-mark-writing .mk-mark-attach-menu {
+    bottom: calc(100% + 8px);
+  }
+}
