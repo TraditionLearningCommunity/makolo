@@ -122,6 +122,14 @@ typedef AppuisAllowed = bool Function(
   String family,
   String action,
 );
+typedef AppuisProgramReader = Future<Map<String, dynamic>?> Function(
+  String programId,
+);
+typedef AppuisSpaceCreator = Future<bool> Function(
+  Map<String, dynamic> owner,
+  String action,
+  Map<String, dynamic> body,
+);
 
 /// Shared Profile / Space widget. Only the actor-backed data changes.
 class AppuisDashboard extends StatefulWidget {
@@ -132,6 +140,8 @@ class AppuisDashboard extends StatefulWidget {
     required this.actorKey,
     required this.busy,
     required this.onAction,
+    required this.onReadProgram,
+    required this.onCreateSpaceItem,
     required this.allowed,
   });
 
@@ -140,6 +150,8 @@ class AppuisDashboard extends StatefulWidget {
   final String actorKey;
   final bool busy;
   final AppuisAction onAction;
+  final AppuisProgramReader onReadProgram;
+  final AppuisSpaceCreator onCreateSpaceItem;
   final AppuisAllowed allowed;
 
   @override
