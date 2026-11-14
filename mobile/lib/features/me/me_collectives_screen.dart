@@ -40,6 +40,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   final TextEditingController _search = TextEditingController();
   bool _searching = false;
   bool _alphabetical = false;
+  bool _descending = false;
   late Stream<StoredProjection?> _snapshots;
   StreamSubscription<OwnerSourceState>? _ownerSubscription;
   bool _invalidated = false;
@@ -74,6 +75,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
       _search.clear();
       _searching = false;
       _alphabetical = false;
+      _descending = false;
     }
   }
 
@@ -251,19 +253,22 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
               ),
               PopupMenuButton<bool>(
                 key: const Key('me-collectives-sort'),
-                tooltip: 'Trier les collectifs',
-                icon: const Icon(Icons.sort_rounded),
-                onSelected: (value) => setState(() => _alphabetical = value),
+                tooltip: 'Trier par ordre alphabétique',
+                icon: const Icon(Icons.sort_by_alpha_rounded),
+                onSelected: (descending) => setState(() {
+                  _alphabetical = true;
+                  _descending = descending;
+                }),
                 itemBuilder: (context) => [
                   CheckedPopupMenuItem<bool>(
                     value: false,
-                    checked: !_alphabetical,
-                    child: const Text('Ordre actuel'),
+                    checked: _alphabetical && !_descending,
+                    child: const Text('Nom A à Z'),
                   ),
                   CheckedPopupMenuItem<bool>(
                     value: true,
-                    checked: _alphabetical,
-                    child: const Text('Nom A à Z'),
+                    checked: _alphabetical && _descending,
+                    child: const Text('Nom Z à A'),
                   ),
                 ],
               ),
@@ -316,6 +321,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
           hasMore: territory.hasMore,
           query: _search.text,
           alphabetical: _alphabetical,
+          descending: _descending,
           mediaApi: widget.api,
           profileId: widget.personal.store.profileId,
           onOpen: widget.onOpenDestination,
