@@ -40,6 +40,11 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
     template_name = "core/appuis.html"
     login_url = "core:login"
 
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         viewer = self.request.user
