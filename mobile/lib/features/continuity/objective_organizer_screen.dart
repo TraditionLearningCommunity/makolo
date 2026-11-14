@@ -24,6 +24,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenItem,
     required this.onCreate,
+    this.onOpenInvitations,
     this.drafts,
     this.spaceSlug,
     this.actorContext,
@@ -32,6 +33,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
   final ObjectiveRepository repository;
   final void Function(String kind, String id) onOpenItem;
   final ValueChanged<String> onCreate;
+  final VoidCallback? onOpenInvitations;
   final DraftRepository? drafts;
   final String? spaceSlug;
   final ActorContextController? actorContext;
@@ -875,6 +877,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     ),
                   ]
                 : [
+                    if (widget.spaceSlug == null && widget.onOpenInvitations != null)
+                      MakoloIconActionButton(
+                        tooltip: 'Invitations de Projet',
+                        onPressed: widget.onOpenInvitations,
+                        icon: Icons.mail_outline_rounded,
+                      ),
                     MakoloIconActionButton(
                       tooltip: _search.text.trim().isNotEmpty
                           ? 'Recherche active'
