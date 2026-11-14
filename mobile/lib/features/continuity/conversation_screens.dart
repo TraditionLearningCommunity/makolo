@@ -2819,6 +2819,9 @@ class _PointCardState extends State<_PointCard> {
   bool _hasUnconfirmedResponse = false;
   bool _locallyQueued = false;
   bool _editingResponse = false;
+  final TextEditingController _inlineResponse = TextEditingController();
+  Timer? _inlineDraftTimer;
+  Future<void> _inlineDraftWrites = Future<void>.value();
   final Set<String> _choices = {};
   String _resolutionDraft = '';
   final Set<String> _resolutionSelections = {};
@@ -2829,6 +2832,111 @@ class _PointCardState extends State<_PointCard> {
     _choices.addAll(
       widget.point.selectedOptionsForScope(widget.representedSpaceId),
     );
+    unawaited(_restoreInlineResponse());
+  }
+
+  String get _responseDraftKind =>
+      'response:${widget.point.id}:${widget.representedSpaceId ?? 'profile'}';
+
+  Future<void> _restoreInlineResponse() async {
+    if (!const {'free_text', 'number', 'date', 'datetime'}
+        .contains(widget.point.responseMode)) {
+      return;
+    }
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final kind = _responseDraftKind;
+    final pointId = widget.point.id;
+    try {
+      final saved = await delivery.readDraft(
+        conversationId: widget.conversationId,
+        kind: kind,
+      );
+      if (!mounted || pointId != widget.point.id ||
+          _inlineResponse.text.isNotEmpty ||
+          widget.point.hasRespondedForScope(widget.representedSpaceId)) {
+        return;
+      }
+      final value = saved?['value']?.toString() ?? '';
+      if (value.isNotEmpty) {
+        setState(() => _inlineResponse.text = value);
+      }
+    } on Object {
+      // Missing draft never blocks this Point.
+    }
+  }
+
+  void _inlineChanged(String value) {
+    if (mounted) setState(() {});
+    _inlineDraftTimer?.cancel();
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final conversationId = widget.conversationId;
+    final kind = _responseDraftKind;
+    _inlineDraftTimer = Timer(const Duration(milliseconds: 400), () {
+      _inlineDraftWrites = _inlineDraftWrites
+          .catchError((Object _) {})
+          .then((_) => delivery.saveDraft(
+                conversationId: conversationId,
+                kind: kind,
+                payload: {'value': value},
+              ));
+    });
+  }
+
+  Future<void> _clearInlineDraft() async {
+    _inlineDraftTimer?.cancel();
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    await _inlineDraftWrites.catchError((Object _) {});
+    await delivery.clearDraft(
+      conversationId: widget.conversationId,
+      kind: _responseDraftKind,
+    );
+  }
+
+  Future<void> _chooseInlineDate({required bool withTime}) async {
+    final previous = DateTime.tryParse(_inlineResponse.text)?.toLocal();
+    final date = await showDatePicker(
+      context: context,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2200),
+      initialDate: previous ?? DateTime.now(),
+    );
+    if (date == null || !mounted) return;
+    String value;
+    if (withTime) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: previous == null
+            ? TimeOfDay.now()
+            : TimeOfDay.fromDateTime(previous),
+      );
+      if (time == null || !mounted) return;
+      value = DateTime(date.year, date.month, date.day, time.hour, time.minute)
+          .toUtc().toIso8601String();
+    } else {
+      value = date.toIso8601String().split('T').first;
+    }
+    _inlineResponse.text = value;
+    _inlineChanged(value);
+  }
+
+  @override
+  void dispose() {
+    _inlineDraftTimer?.cancel();
+    if (_inlineResponse.text.isNotEmpty && !_locallyQueued) {
+      final delivery = widget.repository.delivery;
+      if (delivery != null) {
+        unawaited(delivery.saveDraft(
+          conversationId: widget.conversationId,
+          kind: _responseDraftKind,
+          payload: {'value': _inlineResponse.text},
+        ).catchError((Object _) {}));
+      }
+    }
+    _inlineResponse.dispose();
+    super.dispose();
   }
 
   @override
@@ -2852,6 +2960,12 @@ class _PointCardState extends State<_PointCard> {
       _locallyQueued = false;
       _editingResponse = false;
       _clientReference = null;
+      if (oldWidget.point.id != widget.point.id ||
+          oldWidget.representedSpaceId != widget.representedSpaceId) {
+        _inlineDraftTimer?.cancel();
+        _inlineResponse.clear();
+        unawaited(_restoreInlineResponse());
+      }
     }
     if (widget.responseIntent != null) _locallyQueued = false;
   }
