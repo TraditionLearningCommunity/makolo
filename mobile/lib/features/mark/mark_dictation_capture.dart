@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../design/action_controls.dart';
 import '../../platform/permissions/permission_gateway.dart';
 
 /// Conditional Android dictation, never a guaranteed offline transcription.
@@ -36,7 +35,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
   bool _active = false;
   bool _busy = false;
   String? _error;
-  String? _status;
 
   @override
   void initState() {
@@ -70,10 +68,8 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     final next = args['text']?.toString() ?? '';
     switch (type) {
       case 'listening':
-        setState(() => _status = 'Écoute en cours');
         return;
       case 'processing':
-        setState(() => _status = 'Un instant…');
         return;
       case 'partial':
       case 'final':
@@ -88,7 +84,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
           setState(() {
             _active = false;
             _busy = false;
-            _status = 'Vous pouvez modifier le texte avant de continuer.';
           });
         }
         return;
@@ -116,7 +111,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     setState(() {
       _busy = true;
       _error = null;
-      _status = null;
     });
     try {
       final permission = await widget.permissions.requestWhenNeeded(
@@ -138,7 +132,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
       setState(() {
         _busy = false;
         _active = true;
-        _status = 'Parlez naturellement';
       });
     } on Object {
       if (mounted) {
@@ -155,7 +148,6 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     if (_busy || !_active) return;
     setState(() {
       _busy = true;
-      _status = 'Fin de la dictée…';
     });
     try {
       await widget.channel.invokeMethod<void>('stop');
