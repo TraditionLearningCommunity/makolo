@@ -45,10 +45,14 @@ class _ProjectInvitationsScreenState extends State<ProjectInvitationsScreen> {
       if (!mounted) return;
       setState(() {
         _invitations = rows is List
-            ? rows.whereType<Map>().map(
-                (row) => row.map((key, value) =>
-                    MapEntry(key.toString(), value)),
-              ).toList()
+            ? rows
+                  .whereType<Map>()
+                  .map(
+                    (row) => row.map(
+                      (key, value) => MapEntry(key.toString(), value),
+                    ),
+                  )
+                  .toList()
             : null;
       });
     } on Object {
@@ -68,8 +72,11 @@ class _ProjectInvitationsScreenState extends State<ProjectInvitationsScreen> {
         body: {'action': accept ? 'accept' : 'decline'},
       )).jsonObject();
       if (!mounted) return;
-      setState(() => _invitations?.removeWhere(
-          (invitation) => invitation['id']?.toString() == id));
+      setState(
+        () => _invitations?.removeWhere(
+          (invitation) => invitation['id']?.toString() == id,
+        ),
+      );
       if (accept) {
         final projectId = response['project_id']?.toString();
         if (projectId != null && projectId.isNotEmpty) {
@@ -78,9 +85,9 @@ class _ProjectInvitationsScreenState extends State<ProjectInvitationsScreen> {
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Réponse non confirmée. Réessayez.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Réponse non confirmée. Réessayez.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _pending.remove(id));
@@ -106,63 +113,69 @@ class _ProjectInvitationsScreenState extends State<ProjectInvitationsScreen> {
               child: _loading
                   ? const CircularProgressIndicator.adaptive()
                   : _error != null
-                      ? TextButton.icon(
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Réessayer'),
-                        )
-                      : const SizedBox.shrink(),
+                  ? TextButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Réessayer'),
+                    )
+                  : const SizedBox.shrink(),
             )
           : _invitations!.isEmpty
-              ? const Center(child: Text('Aucune invitation en attente.'))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 8, horizontal: 16),
-                    itemCount: _invitations!.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final row = _invitations![index];
-                      final id = row['id']?.toString() ?? '';
-                      final busy = _pending.contains(id);
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const Center(child: Text('Aucune invitation en attente.'))
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 16,
+                ),
+                itemCount: _invitations!.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final row = _invitations![index];
+                  final id = row['id']?.toString() ?? '';
+                  final busy = _pending.contains(id);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          row['project_title']?.toString() ?? 'Projet',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${row['invited_by'] ?? ''} · '
+                          '${row['role'] ?? ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 7),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Text(row['project_title']?.toString() ?? 'Projet',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${row['invited_by'] ?? ''} · '
-                              '${row['role'] ?? ''}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                            TextButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => _respond(row, false),
+                              child: const Text('Décliner'),
                             ),
-                            const SizedBox(height: 7),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton(
-                                  onPressed: busy ? null : () =>
-                                      _respond(row, false),
-                                  child: const Text('Décliner'),
-                                ),
-                                const SizedBox(width: 7),
-                                FilledButton(
-                                  onPressed: busy ? null : () =>
-                                      _respond(row, true),
-                                  child: const Text('Accepter'),
-                                ),
-                              ],
+                            const SizedBox(width: 7),
+                            FilledButton(
+                              onPressed: busy
+                                  ? null
+                                  : () => _respond(row, true),
+                              child: const Text('Accepter'),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
