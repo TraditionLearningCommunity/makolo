@@ -134,6 +134,31 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         ),
         onOpenAuthor: (profileId) =>
             context.push('/people/${Uri.encodeComponent(profileId)}'),
+        inlineFormBuilder:
+            runtime.questionnaires == null ||
+                runtime.drafts == null ||
+                runtime.outbox == null ||
+                runtime.questionnaireSubmit == null
+            ? null
+            : (requestId) {
+                final base = 'api/v1/questionnaires/requests/$requestId/';
+                return QuestionnaireFormScreen(
+                  key: ValueKey('conversation-inline-form-$requestId'),
+                  embedded: true,
+                  requestId: requestId,
+                  journeyId: '',
+                  links: QuestionnaireOwnerLinks(
+                    detail: base,
+                    save: '${base}save/',
+                    submit: '${base}submit/',
+                  ),
+                  repository: runtime.questionnaires!,
+                  drafts: runtime.drafts!,
+                  outbox: runtime.outbox!,
+                  submitCoordinator: runtime.questionnaireSubmit!,
+                  outboxProcessor: runtime.outboxProcessor,
+                );
+              },
         onOpenFormRequest: (requestId) async {
           await context.push(
             '/conversations/${state.pathParameters['id']}/forms/$requestId',
