@@ -23,7 +23,7 @@
           <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="mute">{% if personal_state and personal_state.muted_at %}Réactiver les signaux{% else %}Mettre en sourdine{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Retirer des enregistrements{% else %}Enregistrer{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
           <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="archive">{% if personal_state and personal_state.archived_at %}Désarchiver{% else %}Archiver{% endif %}</button>
