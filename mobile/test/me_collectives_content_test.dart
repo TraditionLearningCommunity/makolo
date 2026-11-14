@@ -387,39 +387,70 @@ void main() {
     expect(zuluFirst, lessThan(alphaLast));
   });
 
-  testWidgets('two real views share the same underlying relations and actions', (
-    tester,
-  ) async {
-    StructuredDestination? opened;
-    await _show(
-      tester,
-      collectives: _data(),
-      onOpen: (destination) {
-        opened = destination;
-        return true;
-      },
-    );
-    expect(find.byKey(const Key('me-collectives-layout-toggle')), findsOneWidget);
-    expect(find.byKey(const Key('me-collectives-carousel-space')), findsOneWidget);
-    expect(find.byKey(const Key('me-collectives-carousel-team')), findsOneWidget);
-    expect(find.byKey(const Key('me-collectives-carousel-group')), findsOneWidget);
-    expect(find.byKey(const Key('me-collectives-vertical-list')), findsNothing);
+  testWidgets(
+    'two real views share the same underlying relations and actions',
+    (tester) async {
+      StructuredDestination? opened;
+      await _show(
+        tester,
+        collectives: _data(),
+        onOpen: (destination) {
+          opened = destination;
+          return true;
+        },
+      );
+      expect(
+        find.byKey(const Key('me-collectives-layout-toggle')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-space')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-team')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-group')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-vertical-list')),
+        findsNothing,
+      );
 
-    await tester.tap(find.byTooltip('Liste'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('me-collectives-vertical-list')), findsOneWidget);
-    expect(find.byKey(const Key('me-collectives-carousel-space')), findsNothing);
-    expect(find.byKey(const Key('me-collectives-carousel-team')), findsNothing);
-    expect(find.byKey(const Key('me-collectives-carousel-group')), findsNothing);
+      await tester.tap(find.byTooltip('Liste'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('me-collectives-vertical-list')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-space')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-team')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-carousel-group')),
+        findsNothing,
+      );
 
-    await tester.tap(find.text('Équipe principale'));
-    expect(opened?.kind, 'space');
-    expect(opened?.link, 'atelier');
+      await tester.tap(find.text('Équipe principale'));
+      expect(opened?.kind, 'space');
+      expect(opened?.link, 'atelier');
 
-    await tester.tap(find.byTooltip('Par catégories'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('me-collectives-carousel-space')), findsOneWidget);
-  });
+      await tester.tap(find.byTooltip('Par catégories'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('me-collectives-carousel-space')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('categorized cards only show facts provided by the owner', (
     tester,

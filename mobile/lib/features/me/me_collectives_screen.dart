@@ -75,6 +75,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
       // Keep the chosen view available even when preferences cannot persist.
     }
   }
+
   final ScrollController _scroll = ScrollController();
   final TextEditingController _search = TextEditingController();
   bool _searching = false;

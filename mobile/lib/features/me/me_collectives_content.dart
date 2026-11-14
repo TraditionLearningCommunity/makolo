@@ -393,9 +393,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
         showSelectedIcon: false,
         style: const ButtonStyle(
           visualDensity: VisualDensity.compact,
-          padding: WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 6),
-          ),
+          padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6)),
         ),
         segments: const [
           ButtonSegment(
@@ -430,7 +428,9 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final kind = item.destination.kind;
     final destination = widget.offline ? null : _destination(item);
     final canAct = _canAct(item);
-    final archetype = kind == 'space' ? _spaceFact(item, 'archetype_label') : null;
+    final archetype = kind == 'space'
+        ? _spaceFact(item, 'archetype_label')
+        : null;
     final bio = _spaceFact(item, 'description');
     return Material(
       key: Key('me-collective-card-$kind-${item.destination.id}'),
@@ -451,9 +451,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                   archetype,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: scheme.primary,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: scheme.primary),
                 ),
                 const SizedBox(height: 5),
               ],
@@ -461,9 +460,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                 item.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 5),
               if (bio != null) ...[
@@ -471,9 +469,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                   bio,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 5),
               ],
@@ -484,9 +481,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                       : item.subtitle!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               if (canAct) ...[
                 const SizedBox(height: 10),
@@ -520,9 +516,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
           padding: const EdgeInsets.fromLTRB(2, 22, 0, 10),
           child: Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         LayoutBuilder(
@@ -557,9 +552,11 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     List<MeItemPresentation> groups,
   ) {
     final all = <MeItemPresentation>[
-      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces) ...spaces,
+      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces)
+        ...spaces,
       if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams) ...teams,
-      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups) ...groups,
+      if (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups)
+        ...groups,
     ];
     if (widget.alphabetical) {
       all.sort((a, b) {
