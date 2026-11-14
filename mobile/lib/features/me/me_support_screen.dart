@@ -419,7 +419,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     if (api == null || programId.isEmpty || _denied) return null;
     final path = actor is SpaceActorContext
         ? _path('loyalty', actor)
-        : 'api/v1/loyalty/me/programs/' + Uri.encodeComponent(programId) + '/';
+        : 'api/v1/loyalty/me/programs/${Uri.encodeComponent(programId)}/';
     try {
       final response = await api.get(path);
       if (!_current(generation, actor)) return null;
@@ -462,18 +462,18 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     setState(() => _busy = true);
     try {
       await api.post(path.substring(1), body: body);
-      if (!_current(generation, actor)) return false;
+      if (!mounted || !_current(generation, actor)) return false;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Ajout confirmé.')));
       return true;
     } on MakoloApiError catch (error) {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
       return false;
     } on Object {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -522,12 +522,12 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       _pendingKeys.remove(operation);
       return _map(decoded);
     } on MakoloApiError catch (error) {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } on Object {
-      if (_current(generation, actor)) {
+      if (mounted && _current(generation, actor)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -547,8 +547,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final api = widget.runtime.api;
     final store = widget.runtime.store;
-    if (_denied || api == null || store == null || !_current(generation, actor))
+    if (_denied || api == null || store == null || !_current(generation, actor)) {
       return null;
+    }
     try {
       final response = await api.get(_path('recognition', actor));
       if (!_current(generation, actor)) return null;
@@ -611,7 +612,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
         ),
         content: Text(
           action == 'cancel'
-              ? _label(row) + '\nLes avantages liés à cette adhésion peuvent cesser immédiatement.'
+              ? '${_label(row)}\nLes avantages liés à cette adhésion peuvent cesser immédiatement.'
               : _label(row),
         ),
         actions: [
