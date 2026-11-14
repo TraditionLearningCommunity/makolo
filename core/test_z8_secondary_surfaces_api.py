@@ -363,6 +363,42 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
         self.assertEqual(data["result"]["kind"], "journey_artifact")
         self.assertFalse(data["requirement"]["satisfied_by_reuse"])
 
+    def test_me_collectives_portrait_uses_only_authorized_space_identity(self):
+        from authorization.services import grant_space_role
+
+        allowed = Organization.objects.create(
+            name="Espace collectif Z8",
+            slug="espace-collectif-z8",
+            description="Initiatives de proximité",
+            created_by=self.other,
+        )
+        hidden = Organization.objects.create(
+            name="Espace privé Z8",
+            slug="espace-prive-z8",
+            description="Description qui ne doit pas apparaître",
+            created_by=self.other,
+        )
+        grant_space_role(
+            profile=self.user,
+            space=allowed,
+            role=SystemRoleCode.SPACE_OWNER,
+            source="z8-collectives-portrait",
+        )
+
+        response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["data"]["collectives"]["authorized_spaces"]["items"]
+        by_id = {row["id"]: row for row in rows}
+        self.assertIn(str(allowed.pk), by_id)
+        self.assertNotIn(str(hidden.pk), by_id)
+        item = by_id[str(allowed.pk)]
+        self.assertEqual(
+            item["archetype_label"], allowed.get_archetype_display()
+        )
+        self.assertEqual(item["description"], "Initiatives de proximité")
+        self.assertNotIn("logo_url", item)
+        self.assertNotIn("media_bindings", item)
+
     def test_group_membership_is_relationship_not_authority(self):
         group = create_group(actor=self.other, name="Groupe membre Z8")
         add_member(actor=self.other, group=group, profile=self.user)
