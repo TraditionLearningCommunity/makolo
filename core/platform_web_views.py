@@ -454,6 +454,12 @@ class PlatformRecognitionView(PlatformView):
             or context["can_simulate"] or context["can_publish"]
         )
         context["rewards_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
+        if context["rewards_allowed"]:
+            from recognition.models import RecognitionCreditValuation
+            value = RecognitionCreditValuation.objects.filter(pk=1).first()
+            context["credit_valuation"] = value
+            context["credit_valuation_version"] = str(value.version) if value else "0"
+
         context["achievements_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
         context["audit_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_AUDIT_VIEW)
         if context["policy_allowed"]:
@@ -473,6 +479,34 @@ class PlatformRecognitionView(PlatformView):
                 .select_related("actor").order_by("-created_at")[:50]
             )
         return context
+
+
+class PlatformRecognitionCreditValuationView(PlatformRecognitionView):
+    """Operator decision; the user-facing withdrawal remains disabled."""
+
+    def post(self, request, *args, **kwargs):
+        if not can(request.user, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE):
+            raise PermissionDenied("Gestion des crédits non autorisée.")
+        if request.POST.get("confirm") != "1" or request.POST.get("active") not in {"0", "1"}:
+            return self.render_to_response(self.get_context_data(
+                valuation_error="Confirmez l'état souhaité."
+            ), status=400)
+        from recognition.governance_services import configure_credit_valuation
+        try:
+            configure_credit_valuation(
+                actor=request.user,
+                expected_version=request.POST.get("expected_version", ""),
+                amount_per_credit=request.POST.get("amount_per_credit", ""),
+                currency=request.POST.get("currency", ""),
+                activate=request.POST["active"] == "1",
+                reason=request.POST.get("reason", ""),
+            )
+        except ValidationError as exc:
+            return self.render_to_response(self.get_context_data(
+                valuation_error="; ".join(exc.messages),
+            ), status=409)
+        messages.success(request, "Valorisation des crédits mise à jour.")
+        return redirect("platform_web:recognition")
 
 
 class PlatformRecognitionSimulationView(PlatformRecognitionView):
