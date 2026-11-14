@@ -535,6 +535,45 @@ class RewardDefinition(models.Model):
         return f"{self.name} ({self.points_cost} crédits)"
 
 
+class RecognitionCreditValuation(models.Model):
+    """Optional Platform-governed monetary indication for Recognition credits.
+
+    This is *not* a payable, exchange operation, withdrawal right or ledger.
+    Recognition remains the owner of the calculation; Payment owns money.
+    """
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    currency = models.CharField(max_length=3)
+    amount_per_credit = models.DecimalField(max_digits=18, decimal_places=8)
+    is_active = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(id=1), name="rec_value_singleton"),
+            models.CheckConstraint(
+                condition=Q(amount_per_credit__gt=0),
+                name="rec_value_positive_amount",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.pk != 1:
+            errors["id"] = "Une seule valorisation Recognition est autorisée."
+        if not self.currency or len(self.currency) != 3 or not self.currency.isalpha() or self.currency != self.currency.upper():
+            errors["currency"] = "Une devise ISO à trois lettres est requise."
+        if self.amount_per_credit is None or self.amount_per_credit <= 0:
+            errors["amount_per_credit"] = "La valeur d'un crédit doit être positive."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
 class RecognitionRedemption(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner_account = models.ForeignKey(RecognitionAccount, on_delete=models.PROTECT, related_name="redemptions")
