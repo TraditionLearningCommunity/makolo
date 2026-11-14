@@ -163,6 +163,9 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertContains(response, "mk-journey-hero")
         self.assertContains(response, self.activity.title)
         self.assertNotContains(response, "Progression de la démarche")
+        self.assertNotContains(response, "Aucun formulaire demandé")
+        self.assertNotContains(response, "Aucun document ou instruction supplémentaire")
+        self.assertLessEqual(response.content.decode().count("Mes formulaires"), 1)
 
     def test_journey_detail_is_scoped_and_preserves_waiting_blocked_and_date_only(self):
         occurrence = create_occurrence(
