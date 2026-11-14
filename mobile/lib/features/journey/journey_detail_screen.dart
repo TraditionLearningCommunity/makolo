@@ -1132,7 +1132,8 @@ class _JourneySituationPanel extends StatelessWidget {
       JourneySituation.waiting =>
         firstWaiting?.summary ?? 'Une réponse est attendue.',
       JourneySituation.action ||
-      JourneySituation.choices => presentation.nextActionLabel,
+      JourneySituation.choices =>
+        primaryAction == null ? presentation.nextActionLabel : null,
       _ => null,
     };
     final color = situation == JourneySituation.blocked
@@ -1305,6 +1306,7 @@ class _JourneyIdentity extends StatelessWidget {
     final status = MakoloHumanization.presentationLabel(
       presentation.journeyState,
     );
+    final successful = presentation.stateCode == 'fulfilled';
     final style = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
 
@@ -1370,14 +1372,18 @@ class _JourneyIdentity extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
+                      color: successful
+                          ? MakoloColors.success.withValues(alpha: 0.14)
+                          : scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(100),
                       border: Border.all(color: scheme.outlineVariant),
                     ),
                     child: Text(
                       status,
                       style: style.labelMedium?.copyWith(
-                        color: scheme.onPrimaryContainer,
+                        color: successful
+                            ? MakoloColors.success
+                            : scheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
