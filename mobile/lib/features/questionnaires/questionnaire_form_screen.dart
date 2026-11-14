@@ -272,13 +272,13 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
 
             final body = detail == null
                 ? (_refreshing
-                    ? const Center(child: CircularProgressIndicator())
-                    : Center(
-                        child: TextButton(
-                          onPressed: _refresh,
-                          child: const Text('Réessayer'),
-                        ),
-                      ))
+                      ? const Center(child: CircularProgressIndicator())
+                      : Center(
+                          child: TextButton(
+                            onPressed: _refresh,
+                            child: const Text('Réessayer'),
+                          ),
+                        ))
                 : _FormContent(
                     repository: widget.repository,
                     detail: detail,
@@ -288,9 +288,12 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                     retryScheduled: operation?.retryScheduled ?? false,
                     refreshing: _refreshing,
                     canEdit: !_submitting,
-                    canSubmit: widget.links.canSubmit &&
-                        !detail.isSubmitted && !_submitting &&
-                        !_submittedLocally && !_operationActive(operation),
+                    canSubmit:
+                        widget.links.canSubmit &&
+                        !detail.isSubmitted &&
+                        !_submitting &&
+                        !_submittedLocally &&
+                        !_operationActive(operation),
                     onChanged: _changed,
                     onSubmit: () => _submit(detail!),
                     embedded: widget.embedded,
@@ -400,116 +403,114 @@ class _FormContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = <Widget>[
-
-          if (!embedded) MakoloCard(
-            child: MakoloStatusMetadataAction(
-              title: detail.required
-                  ? 'Formulaire requis'
-                  : 'Formulaire complémentaire',
-              subtitle: detail.description,
-              status: MakoloStatus(label: _requestStateLabel(detail)),
-              metadata: [
-                MakoloMetadataItem('Version ${detail.version}'),
-                if (detail.dueAt != null)
-                  MakoloMetadataItem(
-                    'Échéance ${MaterialLocalizations.of(context).formatMediumDate(detail.dueAt!.toLocal())}',
-                    icon: Icons.event_outlined,
-                  ),
-                if (detail.submittedAt != null)
-                  MakoloMetadataItem(
-                    'Soumis ${MaterialLocalizations.of(context).formatMediumDate(detail.submittedAt!.toLocal())}',
-                    icon: Icons.check_circle_outline_rounded,
-                  ),
-              ],
-            ),
+      if (!embedded)
+        MakoloCard(
+          child: MakoloStatusMetadataAction(
+            title: detail.required
+                ? 'Formulaire requis'
+                : 'Formulaire complémentaire',
+            subtitle: detail.description,
+            status: MakoloStatus(label: _requestStateLabel(detail)),
+            metadata: [
+              MakoloMetadataItem('Version ${detail.version}'),
+              if (detail.dueAt != null)
+                MakoloMetadataItem(
+                  'Échéance ${MaterialLocalizations.of(context).formatMediumDate(detail.dueAt!.toLocal())}',
+                  icon: Icons.event_outlined,
+                ),
+              if (detail.submittedAt != null)
+                MakoloMetadataItem(
+                  'Soumis ${MaterialLocalizations.of(context).formatMediumDate(detail.submittedAt!.toLocal())}',
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+            ],
           ),
-          const SizedBox(height: MakoloSpacing.lg),
-          if (!embedded && detail.description != null) ...[
-            Text(
-              detail.description!,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-          ],
-          if (detail.media.isNotEmpty) ...[
-            ConversationMediaGroup(
-              download: repository.downloadMedia,
-              attachments: detail.media
-                  .map((item) => item.toViewerMap())
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-          ],
-          if (refreshing) ...[
-            const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
-            const SizedBox(height: MakoloSpacing.md),
-          ],
-          MakoloCommitIndicator(commit: commit),
+        ),
+      const SizedBox(height: MakoloSpacing.lg),
+      if (!embedded && detail.description != null) ...[
+        Text(detail.description!, style: Theme.of(context).textTheme.bodyLarge),
+        const SizedBox(height: MakoloSpacing.lg),
+      ],
+      if (detail.media.isNotEmpty) ...[
+        ConversationMediaGroup(
+          download: repository.downloadMedia,
+          attachments: detail.media
+              .map((item) => item.toViewerMap())
+              .toList(growable: false),
+        ),
+        const SizedBox(height: MakoloSpacing.md),
+      ],
+      if (refreshing) ...[
+        const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
+        const SizedBox(height: MakoloSpacing.md),
+      ],
+      MakoloCommitIndicator(commit: commit),
 
-          if (errors['_form'] != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            InlineMessage(message: errors['_form'].toString()),
-          ],
-          const SizedBox(height: MakoloSpacing.lg),
-          for (final question in detail.questions) ...[
-            _QuestionField(
-              repository: repository,
-              question: question,
-              value: answers[question.key],
-              error: errors[question.key]?.toString(),
-              enabled:
-                  canEdit &&
-                  !retryScheduled &&
-                  !detail.isSubmitted &&
-                  commit != MakoloCommitCue.pending &&
-                  commit != MakoloCommitCue.awaitingConfirmation,
-              onChanged: (value) => onChanged(question.key, value),
-            ),
-            if (question.media.isNotEmpty &&
-                question.type != QuestionnaireQuestionType.singleChoice &&
-                question.type != QuestionnaireQuestionType.multipleChoice)
-              ConversationMediaGroup(
-                download: repository.downloadMedia,
-                attachments: question.media
-                    .map((item) => item.toViewerMap())
-                    .toList(growable: false),
-              ),
-            const SizedBox(height: MakoloSpacing.inner),
-          ],
-          MakoloActionButton(
-            onPressed: canSubmit ? onSubmit : null,
-            icon: Icons.check_rounded,
-            label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
-                ? 'Soumis'
-                : commit == MakoloCommitCue.pending ||
-                      commit == MakoloCommitCue.awaitingConfirmation
-                ? 'En attente'
-                : 'Soumettre',
-            appearance: MakoloActionAppearance.primary,
-            phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
-                ? MakoloActionPhase.confirmed
-                : commit == MakoloCommitCue.pending ||
-                      commit == MakoloCommitCue.awaitingConfirmation
-                ? MakoloActionPhase.unavailable
-                : commit == MakoloCommitCue.failed ||
-                      commit == MakoloCommitCue.conflict ||
-                      errors['_form'] != null
-                ? MakoloActionPhase.failed
-                : canSubmit
-                ? MakoloActionPhase.available
-                : MakoloActionPhase.unavailable,
-          ),
-          if (!embedded && !canSubmit &&
+      if (errors['_form'] != null) ...[
+        const SizedBox(height: MakoloSpacing.md),
+        InlineMessage(message: errors['_form'].toString()),
+      ],
+      const SizedBox(height: MakoloSpacing.lg),
+      for (final question in detail.questions) ...[
+        _QuestionField(
+          repository: repository,
+          question: question,
+          value: answers[question.key],
+          error: errors[question.key]?.toString(),
+          enabled:
+              canEdit &&
+              !retryScheduled &&
               !detail.isSubmitted &&
-              commit == MakoloCommitCue.none) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'L’envoi de ce formulaire n’est pas disponible pour le moment.',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ];
+              commit != MakoloCommitCue.pending &&
+              commit != MakoloCommitCue.awaitingConfirmation,
+          onChanged: (value) => onChanged(question.key, value),
+        ),
+        if (question.media.isNotEmpty &&
+            question.type != QuestionnaireQuestionType.singleChoice &&
+            question.type != QuestionnaireQuestionType.multipleChoice)
+          ConversationMediaGroup(
+            download: repository.downloadMedia,
+            attachments: question.media
+                .map((item) => item.toViewerMap())
+                .toList(growable: false),
+          ),
+        const SizedBox(height: MakoloSpacing.inner),
+      ],
+      MakoloActionButton(
+        onPressed: canSubmit ? onSubmit : null,
+        icon: Icons.check_rounded,
+        label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+            ? 'Soumis'
+            : commit == MakoloCommitCue.pending ||
+                  commit == MakoloCommitCue.awaitingConfirmation
+            ? 'En attente'
+            : 'Soumettre',
+        appearance: MakoloActionAppearance.primary,
+        phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+            ? MakoloActionPhase.confirmed
+            : commit == MakoloCommitCue.pending ||
+                  commit == MakoloCommitCue.awaitingConfirmation
+            ? MakoloActionPhase.unavailable
+            : commit == MakoloCommitCue.failed ||
+                  commit == MakoloCommitCue.conflict ||
+                  errors['_form'] != null
+            ? MakoloActionPhase.failed
+            : canSubmit
+            ? MakoloActionPhase.available
+            : MakoloActionPhase.unavailable,
+      ),
+      if (!embedded &&
+          !canSubmit &&
+          !detail.isSubmitted &&
+          commit == MakoloCommitCue.none) ...[
+        const SizedBox(height: MakoloSpacing.sm),
+        Text(
+          'L’envoi de ce formulaire n’est pas disponible pour le moment.',
+          style: Theme.of(context).textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ];
     if (embedded) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

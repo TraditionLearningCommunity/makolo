@@ -3310,8 +3310,7 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         ],
-        if (point.formRequest != null &&
-            widget.inlineFormBuilder != null) ...[
+        if (point.formRequest != null && widget.inlineFormBuilder != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           ExpansionTile(
             key: PageStorageKey<String>('conversation-inline-form-${point.id}'),
