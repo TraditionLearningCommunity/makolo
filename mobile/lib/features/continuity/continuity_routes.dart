@@ -132,9 +132,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenRelatedPoint: (pointId) => context.push(
           '/conversations/${state.pathParameters['id']}?focus=${Uri.encodeQueryComponent(pointId)}',
         ),
-        onOpenAuthor: (profileId) => context.push(
-          '/people/${Uri.encodeComponent(profileId)}',
-        ),
+        onOpenAuthor: (profileId) =>
+            context.push('/people/${Uri.encodeComponent(profileId)}'),
         onOpenFormRequest: (requestId) async {
           await context.push(
             '/conversations/${state.pathParameters['id']}/forms/$requestId',

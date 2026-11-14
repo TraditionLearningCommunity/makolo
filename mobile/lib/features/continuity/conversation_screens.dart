@@ -3639,7 +3639,11 @@ class _PointCardState extends State<_PointCard> {
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
                       const SizedBox(width: 12),
-                      Text(point.revisit ? 'Retirer des enregistrements' : 'Enregistrer'),
+                      Text(
+                        point.revisit
+                            ? 'Retirer des enregistrements'
+                            : 'Enregistrer',
+                      ),
                     ],
                   ),
                 ),

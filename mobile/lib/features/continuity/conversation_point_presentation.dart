@@ -119,10 +119,7 @@ class ConversationPointShell extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (!isMine) ...[
-                  authorAvatar,
-                  const SizedBox(width: 7),
-                ],
+                if (!isMine) ...[authorAvatar, const SizedBox(width: 7)],
                 Flexible(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -157,13 +154,20 @@ class ConversationPointShell extends StatelessWidget {
                                   height: 27,
                                   alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: scheme.primary.withValues(alpha: 0.09),
+                                    color: scheme.primary.withValues(
+                                      alpha: 0.09,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: Icon(typeIcon, size: 15, color: scheme.primary),
+                                  child: Icon(
+                                    typeIcon,
+                                    size: 15,
+                                    color: scheme.primary,
+                                  ),
                                 ),
                               ),
-                              if (representedSpace && representedSpaceLabel != null)
+                              if (representedSpace &&
+                                  representedSpaceLabel != null)
                                 Flexible(
                                   child: Padding(
                                     padding: const EdgeInsets.only(left: 7),
@@ -210,10 +214,7 @@ class ConversationPointShell extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isMine) ...[
-                  const SizedBox(width: 7),
-                  authorAvatar,
-                ],
+                if (isMine) ...[const SizedBox(width: 7), authorAvatar],
               ],
             ),
           ),
