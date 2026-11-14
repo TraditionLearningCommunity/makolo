@@ -133,4 +133,61 @@ void main() {
     expect(find.text('Condition levée'), findsOneWidget);
     expect(find.text('À satisfaire'), findsNothing);
   });
+  testWidgets('Empty dependencies are quiet and timeline dates are French', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'viewer');
+    final repository = ObjectiveRepository(
+      database: db, store: store, profileId: 'viewer',
+    );
+    await store.putProjection(
+      kind: ObjectiveRepository.dossierProjectionKind,
+      resourceKey: 'dossier-dated',
+      schemaVersion: 1,
+      payload: {
+        'identity': {'kind': 'dossier', 'id': 'dossier-dated'},
+        'objective': {'title': 'Dossier daté'},
+        'owner': {'kind': 'profile', 'label': 'Personnel'},
+        'state': {'code': 'active'},
+        'readiness': {'partial': false},
+        'visible_journeys_complete': true,
+        'visible_journeys': [
+          {
+            'id': 'j1', 'label': 'Démarche datée',
+            'state': 'draft', 'created_at': '2026-11-02T16:19:00Z',
+          },
+        ],
+        'visible_dependencies': [],
+        'assignments': [],
+        'mandates': [],
+        'capabilities': [],
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DossierWorkspaceScreen(
+          id: 'dossier-dated',
+          repository: repository,
+          onOpenJourney: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+
+    await tester.tap(find.byTooltip('Dépendances'));
+    await tester.pump();
+    expect(find.text('Dossier daté'), findsNothing);
+    expect(find.text('Aucune dépendance visible.'), findsOneWidget);
+    expect(find.text('Graphe des dépendances'), findsNothing);
+    expect(find.text('Liste accessible des prérequis'), findsNothing);
+
+    await tester.tap(find.byTooltip('Chronologie'));
+    await tester.pump();
+    expect(find.text('novembre 2026'), findsOneWidget);
+    expect(find.textContaining('Ce sont des faits temporels'), findsNothing);
+  });
+
 }
