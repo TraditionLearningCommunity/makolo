@@ -630,44 +630,145 @@ class _MarkScreenState extends State<MarkScreen> {
 
   Future<void> _acquirePhoto({required bool capture}) async {
     final revision = _draftRevision;
+    final actor = _actor;
     final coordinator = await _fileCoordinator();
-    if (revision != _draftRevision || !mounted) return;
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
     if (coordinator == null) {
-      _show('Les images ne sont pas disponibles dans cette session.');
+      _show('Impossible d’ouvrir ${capture ? 'l’appareil photo' : 'les images'}.');
       return;
     }
-    final fileId = 'mark-photo-${DateTime.now().microsecondsSinceEpoch}';
-    final result = capture
-        ? await coordinator.capturePhoto(
-            fileId: fileId,
-            owner: _owner,
-            purpose: 'mark_intake',
-          )
-        : await coordinator.pickPhoto(
-            fileId: fileId,
-            owner: _owner,
-            purpose: 'mark_intake',
-          );
-    if (!mounted || revision != _draftRevision) return;
-    if (!result.acquired) {
-      if (result.status != FileAcquisitionStatus.cancelled) {
-        _show('Impossible d’ajouter cette image.');
+
+    // The system camera/gallery remains native. Mark owns the quiet,
+    // accessible review and makes the user choose before adding a photo.
+    while (mounted && revision == _draftRevision && actor == _actor) {
+      final fileId = 'mark-photo-${DateTime.now().microsecondsSinceEpoch}';
+      final result = capture
+          ? await coordinator.capturePhoto(
+              fileId: fileId,
+              owner: _owner,
+              purpose: 'mark_intake',
+            )
+          : await coordinator.pickPhoto(
+              fileId: fileId,
+              owner: _owner,
+              purpose: 'mark_intake',
+            );
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      if (!result.acquired) {
+        if (result.status != FileAcquisitionStatus.cancelled) {
+          _show('Impossible d’ajouter cette image.');
+        }
+        return;
       }
+
+      final stored = result.files.single;
+      final file = await coordinator.store.read(stored.fileId);
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      if (file == null || !await File(file.path).exists()) {
+        _show('Cette image ne peut pas être affichée.');
+        return;
+      }
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  capture ? 'Votre photo' : 'Votre image',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.55,
+                    ),
+                    child: Image.file(
+                      File(file.path),
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const SizedBox(
+                        height: 180,
+                        child: Center(
+                          child: Icon(Icons.broken_image_outlined, size: 48),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(
+                          sheetContext,
+                          capture ? 'retake' : 'replace',
+                        ),
+                        icon: Icon(
+                          capture
+                              ? Icons.camera_alt_outlined
+                              : Icons.photo_library_outlined,
+                        ),
+                        label: Text(capture ? 'Reprendre' : 'Changer'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => Navigator.pop(sheetContext, 'keep'),
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Garder'),
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(sheetContext, 'cancel'),
+                  child: const Text('Annuler'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      if (choice != 'keep') {
+        try {
+          await coordinator.store.remove(stored.fileId);
+        } on Object {
+          // A rejected image remains private and eligible for local cleanup.
+        }
+        if (choice == 'retake' || choice == 'replace') continue;
+        return;
+      }
+
+      setState(() {
+        _attachments = [
+          ..._attachments,
+          {
+            'file_id': stored.fileId,
+            'name': capture ? 'Photo' : 'Image',
+            'purpose': stored.purpose,
+            'kind': 'photo',
+          },
+        ];
+        _textOnlyConsent = false;
+      });
+      await _saveDraft();
       return;
     }
-    setState(() {
-      _attachments = [
-        ..._attachments,
-        {
-          'file_id': result.files.single.fileId,
-          'name': capture ? 'Photo' : 'Image',
-          'purpose': result.files.single.purpose,
-          'kind': 'photo',
-        },
-      ];
-    });
-    _textOnlyConsent = false;
-    await _saveDraft();
   }
 
   bool _isVisualAttachment(Map<String, dynamic> item) {
