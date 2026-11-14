@@ -368,7 +368,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('organization_identity'), findsOneWidget);
     expect(find.text('État : active'), findsOneWidget);
-    expect(find.textContaining('score global'), findsOneWidget);
+    expect(find.textContaining('score global'), findsNothing);
+    expect(
+      find.textContaining('Consultation uniquement pour le moment'),
+      findsNothing,
+    );
     await _disposeUi(tester);
   });
 
