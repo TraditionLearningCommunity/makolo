@@ -10,6 +10,7 @@ from django.views.generic import TemplateView
 
 from authorization.constants import PermissionCode
 from authorization.services import can
+from authorization.selectors import has_direct_space_permission
 from organizations.console_context import authorized_spaces
 from recognition.economy import redeem_reward
 from recognition.models import RewardKind
@@ -38,9 +39,9 @@ class AppuisCreditsWebView(LoginRequiredMixin, TemplateView):
         account = account_for_space(space) if space else account_for_profile(self.request.user)
         can_spend = bool(
             account is not None and (
-                space is None or can(
-                    self.request.user,
-                    PermissionCode.SPACE_RECOGNITION_SPEND, space=space,
+                space is None or has_direct_space_permission(
+                    self.request.user, space,
+                    PermissionCode.SPACE_RECOGNITION_SPEND,
                 )
             )
         )
