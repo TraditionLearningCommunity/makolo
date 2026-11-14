@@ -22,7 +22,7 @@ class AppuisWebSurfaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "core/appuis.html")
         self.assertContains(response, "Mes appuis")
-        self.assertContains(response, "Aucun appui établi")
+        self.assertContains(response, "Aucun appui à afficher.")
 
     def test_space_appuis_uses_same_template_with_space_actor(self):
         space = Organization.objects.create(
@@ -55,7 +55,7 @@ class AppuisWebSurfaceTests(TestCase):
         )
         response = self.client.get(reverse("core:participant-appuis"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mes programmes de fidélité")
+        self.assertContains(response, "Mes avantages")
         self.assertNotContains(response, "Avantages des participants")
         self.assertNotContains(response, "0 points")
         self.assertNotContains(response, "ap-filters")
@@ -90,9 +90,9 @@ class AppuisWebSurfaceTests(TestCase):
         )
         response = self.client.get(reverse("core:participant-appuis"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "18 crédits disponibles")
-        self.assertContains(response, "2 en attente")
-        self.assertContains(response, "Mes programmes de fidélité")
+        self.assertContains(response, "18 crédits")
+        self.assertContains(response, "2 crédits en attente")
+        self.assertContains(response, "Mes avantages")
         self.assertNotContains(response, "1 programme")
         self.assertNotContains(response, "Club de fidélité")
 
@@ -114,7 +114,6 @@ class AppuisWebSurfaceTests(TestCase):
         )
         response = self.client.get(reverse("core:participant-appuis"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'data-appuis-filter="all"')
-        self.assertContains(response, 'data-appuis-filter="loyalty"')
-        self.assertContains(response, 'data-appuis-filter="partners"')
-        self.assertNotContains(response, 'data-appuis-filter="recognition"')
+        self.assertContains(response, 'Ma fidélité')
+        self.assertContains(response, 'Mes partenariats')
+        self.assertNotContains(response, 'data-appuis-filter')
