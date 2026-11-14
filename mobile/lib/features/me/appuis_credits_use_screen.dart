@@ -38,12 +38,14 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
   late Map<String, dynamic> _data;
   bool _working = false;
   bool _balanceUnverified = false;
+  bool _moneyVerified = false;
   int _spendEpoch = 0;
 
   @override
   void initState() {
     super.initState();
     _data = widget.initial;
+    _moneyVerified = !widget.refreshOnOpen;
     widget.actorChanges?.addListener(_actorChanged);
     if (widget.refreshOnOpen) unawaited(_refreshInitial());
   }
@@ -69,7 +71,10 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
         epoch != _spendEpoch ||
         fresh == null)
       return;
-    setState(() => _data = fresh);
+    setState(() {
+      _data = fresh;
+      _moneyVerified = true;
+    });
   }
 
   static Map<String, dynamic> _map(Object? value) => value is Map
@@ -102,6 +107,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
       .toList(growable: false);
 
   Map<String, dynamic> get _money {
+    if (!_moneyVerified) return const <String, dynamic>{};
     final equivalence = _map(_data['monetary_equivalent']);
     final amount = _text(equivalence['amount']);
     final currency = _text(equivalence['currency']);
@@ -189,6 +195,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
         setState(() {
           _data = refreshed;
           _balanceUnverified = false;
+          _moneyVerified = true;
         });
       }
       final fulfilled = _text(response['status']) == 'fulfilled';
