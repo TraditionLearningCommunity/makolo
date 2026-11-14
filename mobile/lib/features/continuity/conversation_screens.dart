@@ -2879,8 +2879,9 @@ class _PointCardState extends State<_PointCard> {
           _inlineResponse.text.isNotEmpty) {
         return;
       }
-      final editingConfirmedResponse =
-          widget.point.hasRespondedForScope(widget.representedSpaceId);
+      final editingConfirmedResponse = widget.point.hasRespondedForScope(
+        widget.representedSpaceId,
+      );
       if (editingConfirmedResponse && !widget.point.canChangeResponse) return;
       final value = saved?['value']?.toString() ?? '';
       if (value.isNotEmpty) {
@@ -3607,7 +3608,9 @@ class _PointCardState extends State<_PointCard> {
                   if (_inlineResponse.text.isEmpty) {
                     _inlineResponse.text =
                         point
-                            .responseForScope(widget.representedSpaceId)['value']
+                            .responseForScope(
+                              widget.representedSpaceId,
+                            )['value']
                             ?.toString() ??
                         '';
                   }
