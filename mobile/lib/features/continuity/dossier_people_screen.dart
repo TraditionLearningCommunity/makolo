@@ -40,7 +40,6 @@ class DossierPeopleScreen extends StatefulWidget {
 
 class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
   bool _refreshing = false;
-  bool _refreshFailed = false;
   int _revision = 0;
 
   String? get _spaceSlug {
@@ -69,7 +68,6 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
         oldWidget.actorContext != widget.actorContext) {
       _revision++;
       _refreshing = false;
-      _refreshFailed = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_refresh());
       });
@@ -81,7 +79,6 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     _revision++;
     setState(() {
       _refreshing = false;
-      _refreshFailed = false;
     });
     unawaited(_refresh());
   }
@@ -98,7 +95,6 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     final slug = _spaceSlug;
     setState(() {
       _refreshing = true;
-      _refreshFailed = false;
     });
     try {
       await widget.repository.refresh(
@@ -107,10 +103,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
         spaceSlug: slug,
       );
     } on Object {
-      // A local snapshot remains readable, but is not a permission grant.
-      if (mounted && revision == _revision) {
-        setState(() => _refreshFailed = true);
-      }
+      // Retain usable local data; automatic network errors remain silent.
     } finally {
       if (mounted && revision == _revision) {
         setState(() => _refreshing = false);
@@ -155,13 +148,6 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Personnes et responsabilités'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
       ),
       body: StreamBuilder<OwnerSourceState>(
         key: ValueKey('people-owner:$identity'),
@@ -205,70 +191,60 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 36),
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-                    ListTile(
-                      leading: Icon(
-                        owner['kind'] == 'space'
-                            ? Icons.groups_outlined
-                            : Icons.person_outline_rounded,
-                      ),
-                      title: const Text('Porteur du Dossier'),
-                      subtitle: Text(
-                        owner['label']?.toString() ?? 'Non précisé',
-                      ),
-                    ),
-                    if (source.lastErrorCode != null || _refreshFailed)
-                      const Padding(
-                        padding: EdgeInsets.all(8),
+                    if (title.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
                         child: Text(
-                          'Données enregistrées : actualisation indisponible.',
+                          title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Coordination',
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    if (assignments.isEmpty)
-                      const ListTile(
-                        title: Text('Aucune responsabilité visible'),
-                      )
-                    else
+                    if ((owner['label']?.toString() ?? '').isNotEmpty)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          owner['kind'] == 'space'
+                              ? Icons.groups_outlined
+                              : Icons.person_outline_rounded,
+                        ),
+                        title: Text(owner['label']!.toString()),
+                        subtitle: const Text('Porteur du Dossier'),
+                      ),
+                    if (assignments.isEmpty && mandates.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text('Aucune personne visible pour ce Dossier.'),
+                      ),
+                    if (assignments.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Coordination',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
                       for (final item in assignments)
                         _personTile(
                           item,
                           'label',
                           'Responsabilité opérationnelle',
                         ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Autorisations',
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    if (mandates.isEmpty)
-                      const ListTile(
-                        title: Text('Aucun mandat visible dans ce contexte'),
-                      )
-                    else
+                    ],
+                    if (mandates.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Autorisations',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
                       for (final item in mandates)
                         _personTile(
                           item,
                           'profile',
                           'Mandat · ${item['role']?.toString() ?? 'Rôle non précisé'}',
                         ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Une responsabilité opérationnelle ne donne pas '
-                      'automatiquement le droit de gérer ce Dossier.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    ],
                   ],
                 ),
               );
