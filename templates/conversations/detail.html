@@ -50,7 +50,7 @@
       <a href="#conversation-latest" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
     </div>
     {% if timeline_older_query %}
-      <button type="button" data-conversation-older-button data-older-url="{% url 'conversations:timeline-older' conversation.pk %}" data-cursor="{{ timeline_older_query|cut:'section=all&amp;cursor=' }}" class="mb-4 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)">Échanges précédents</button>
+      <button type="button" data-conversation-older-button data-older-url="{% url 'conversations:timeline-older' conversation.pk %}" data-cursor="{{ timeline_older_cursor }}" class="mb-4 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)">Échanges précédents</button>
     {% endif %}
     <div class="space-y-2" data-conversation-thread>
       {% include 'conversations/_timeline_page.html' %}
