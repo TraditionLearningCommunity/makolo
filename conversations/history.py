@@ -149,7 +149,7 @@ def page_points_for_profile(profile, conversation, *, query="", section="history
         ).distinct()
 
     points = points.select_related(
-        "conversation__context", "published_by", "represented_space", "resolution",
+        "conversation__context", "published_by__profile", "represented_space", "resolution",
         "visibility_audience", "resolution_audience",
         "response_audience", "expected_action_audience",
     ).prefetch_related("options", "responses").order_by("-published_at", "-pk")
