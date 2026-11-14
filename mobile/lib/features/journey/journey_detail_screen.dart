@@ -718,7 +718,8 @@ class _JourneyContent extends StatelessWidget {
                                 final count = resourcesPreview.length > 4
                                     ? 4
                                     : resourcesPreview.length;
-                                final tileWidth = (constraints.maxWidth - 12) /
+                                final tileWidth =
+                                    (constraints.maxWidth - 12) /
                                     (constraints.maxWidth >= 700 ? 4 : 2.15);
                                 return ListView.separated(
                                   key: const Key('journey-resource-preview'),
@@ -1295,7 +1296,7 @@ class _JourneyIdentity extends StatelessWidget {
                   ),
                 ),
               ),
-             ],
+            ],
           ),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
@@ -1352,10 +1353,7 @@ class _JourneyIdentity extends StatelessWidget {
               placeDetail != null ||
               endLabel != null) ...[
             const SizedBox(height: MakoloSpacing.sm),
-            Divider(
-              height: MakoloSpacing.md,
-              color: scheme.outlineVariant,
-            ),
+            Divider(height: MakoloSpacing.md, color: scheme.outlineVariant),
             Wrap(
               spacing: MakoloSpacing.compact,
               runSpacing: MakoloSpacing.sm,
@@ -1819,10 +1817,7 @@ IconData _resourceIcon(JourneyResourcePreview resource) {
 }
 
 class _JourneyResourceTile extends StatelessWidget {
-  const _JourneyResourceTile({
-    required this.resource,
-    required this.onOpen,
-  });
+  const _JourneyResourceTile({required this.resource, required this.onOpen});
 
   final JourneyResourcePreview resource;
   final VoidCallback onOpen;
@@ -1845,19 +1840,14 @@ class _JourneyResourceTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                _resourceIcon(resource),
-                size: 24,
-                color: scheme.primary,
-              ),
+              Icon(_resourceIcon(resource), size: 24, color: scheme.primary),
               const SizedBox(height: 8),
               Text(
                 resource.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(context).textTheme.labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
