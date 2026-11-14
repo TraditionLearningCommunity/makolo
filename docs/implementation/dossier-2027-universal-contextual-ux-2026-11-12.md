@@ -230,3 +230,55 @@ Tests de contrôle local à exécuter :
 
 Ce document décrit l'implémentation, pas une exécution attestée de tests
 Flutter ou une validation du rendu sur Samsung/émulateur.
+
+## Recette Android du 14 novembre 2026 — continuité et densité
+
+Correction de la recette Dossier sur écran Android : les surfaces de détail
+restaient reléguées sous un en-tête complet et les contrôles prenaient trop
+d'espace. Les modifications suivantes sont **de présentation uniquement**
+et restent dans la PR #522 :
+
+- Vue d'ensemble : identité, porteur, état, action prioritaire et modules
+  conditionnels inchangés dans leurs autorités métier.
+- Liste/Chronologie/Dépendances : suppression de la répétition de l'en-tête
+  complet du Dossier. Les détails démarrent immédiatement sous l'AppBar
+  et défilent sur toute la hauteur disponible.
+- Sélecteur : quatre icônes sans long titre, mode compact, largeur totale
+  176 px, disposition adaptative si faible largeur ou texte agrandi.
+  La taille utile des cibles reste celle du composant partagé.
+- Liste : recherche initialement repliée derrière une icône, filtres et
+  tri rapprochés, reset local sous forme d'icône ; aucune modification
+  de projection ou mutation serveur.
+- Personnes : état vide unique ; sections Coordination et Autorisations
+  uniquement lorsqu'elles ont du contenu ; rafraîchissement automatique
+  silencieux si la lecture locale reste exploitable. Une révocation
+  confirmée continue à invalider l'accès.
+- Dépendances : si aucune relation visible, un seul état vide, distinct
+  du cas partiel. Aucun faux graphe ni en-tête « Liste accessible des
+  prérequis » sans données.
+- Chronologie : densité accrue, suppression des explications techniques
+  au milieu du parcours ; affichage français des dates/heures en 24 h.
+- Action prioritaire : lorsque la projection connaît la Journey et son
+  titre, afficher le titre concret plutôt que « Continuer la démarche ».
+- Commandes : éviter les boutons de liaison, de coordination et de
+  gestion des accès grisés lorsqu'aucune commande ne peut être soumise.
+- Progression : pour zéro démarche terminée, garder le compte exact
+  sans dessiner une barre de progression entièrement vide.
+
+Tests concernés :
+
+    cd mobile
+    flutter test test/dossier_compact_layout_test.dart
+    flutter test test/dossier_2027_overview_test.dart
+    flutter test test/dossier_2027_contextual_test.dart
+    flutter test test/dossier_people_screen_test.dart
+    flutter analyze
+
+À confirmer sur Samsung et émulateur : défilement long, écran très
+étroit, grande police, filtre et recherche, passage entre les vues,
+révocation des mandats, panne réseau répétée, reprise sur données
+acquises et retour depuis Journey. Ne pas afficher un succès ou
+supprimer une information métier privée sur la seule foi du cache.
+
+Cette note est un checkpoint d'implémentation, pas une attestation
+d'exécution des tests ou de recette sur le téléphone.
