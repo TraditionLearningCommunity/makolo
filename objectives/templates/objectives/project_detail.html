@@ -186,6 +186,15 @@
             <strong>{{ invitation.label }}</strong>
             <small>{{ invitation.role }} · En attente</small>
           </div>
+          <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="cancel-invitation">
+            <input type="hidden" name="invitation_id" value="{{ invitation.id }}">
+            <button class="mk-action-button" data-variant="ghost" type="submit"
+                    aria-label="Annuler l'invitation de {{ invitation.label }}">
+              Annuler
+            </button>
+          </form>
         </div>
       {% endfor %}
     {% endif %}
