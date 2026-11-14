@@ -187,7 +187,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
             ? null
             : meCollectiveTotal(projection.payload['collectives']);
         return Scaffold(
-          backgroundColor: scheme.surfaceContainerLowest,
+          backgroundColor: scheme.surfaceContainerLow,
           appBar: AppBar(
             backgroundColor: scheme.surface,
             surfaceTintColor: Colors.transparent,
