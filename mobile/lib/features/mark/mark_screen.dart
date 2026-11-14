@@ -1389,25 +1389,37 @@ class _MarkScreenState extends State<MarkScreen> {
           children: [
             if (actor is SpaceActorContext)
               MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
-            if (!_editing && !_dictating && !_voiceCapture) ...[
-              const SizedBox(height: 18),
-              const Center(child: MakoloMark(size: 56)),
-              const SizedBox(height: 24),
-            ],
+            Visibility(
+              visible: !_editing && !_dictating && !_voiceCapture,
+              maintainState: true,
+              child: const Column(
+                children: [
+                  SizedBox(height: 18),
+                  Center(child: MakoloMark(size: 56)),
+                  SizedBox(height: 24),
+                ],
+              ),
+            ),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!_editing && !_dictating && !_voiceCapture) ...[
-                      Text(
-                        'Qu’est-ce que vous avez en tête ?',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall,
+                    Visibility(
+                      visible: !_editing && !_dictating && !_voiceCapture,
+                      maintainState: true,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Qu’est-ce que vous avez en tête ?',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 22),
+                        ],
                       ),
-                      const SizedBox(height: 22),
-                    ],
+                    ),
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
