@@ -84,6 +84,7 @@ Future<void> _show(
   bool hasMore = false,
   String query = '',
   bool alphabetical = false,
+  bool descending = false,
   bool Function(StructuredDestination)? onOpen,
   ValueChanged<MeItemPresentation>? onAct,
 }) async {
@@ -102,6 +103,7 @@ Future<void> _show(
               hasMore: hasMore,
               query: query,
               alphabetical: alphabetical,
+              descending: descending,
               onOpen: onOpen ?? (_) => true,
               onActSpace: onAct,
             ),
@@ -199,7 +201,7 @@ void main() {
     expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
     expect(find.text('2 collectifs'), findsNothing);
     expect(find.text('0 Groupes'), findsNothing);
-    expect(find.text('Espaces où je peux agir'), findsOneWidget);
+    expect(find.text('Où on peut agir'), findsOneWidget);
     expect(find.text('Mes équipes'), findsOneWidget);
     expect(find.text('Mes groupes'), findsNothing);
     expect(find.byIcon(Icons.more_horiz), findsNothing);
@@ -277,7 +279,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('me-collectives-filter-groups')));
     await tester.pumpAndSettle();
-    expect(find.text('Espaces où je peux agir'), findsNothing);
+    expect(find.text('Où on peut agir'), findsNothing);
     expect(find.text('Groupe mobilité'), findsOneWidget);
     await _show(
       tester,
@@ -289,6 +291,92 @@ void main() {
       find.text('Aucun résultat parmi les collectifs chargés.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('each collective family has a swipeable horizontal carousel', (
+    tester,
+  ) async {
+    const secondSpace = MeItemPresentation(
+      destination: StructuredDestination(
+        kind: 'space',
+        id: 'space-2',
+        link: 'autre',
+      ),
+      title: 'Autre espace',
+      canOpen: true,
+    );
+    const secondTeam = MeItemPresentation(
+      destination: StructuredDestination(kind: 'team', id: 'team-2'),
+      title: 'Deuxième équipe',
+    );
+    const secondGroup = MeItemPresentation(
+      destination: StructuredDestination(kind: 'group', id: 'group-2'),
+      title: 'Deuxième groupe',
+      canOpen: true,
+    );
+    await _show(
+      tester,
+      collectives: _data(spaces: 2, teams: 2, groups: 2),
+      items: const [
+        _space,
+        secondSpace,
+        _team,
+        secondTeam,
+        _group,
+        secondGroup,
+      ],
+    );
+    for (final kind in ['space', 'team', 'group']) {
+      final scroller = find.byKey(Key('me-collectives-carousel-$kind'));
+      expect(scroller, findsOneWidget);
+      final widget = tester.widget<SingleChildScrollView>(scroller);
+      expect(widget.scrollDirection, Axis.horizontal);
+      final scrollable = find.descendant(
+        of: scroller,
+        matching: find.byType(Scrollable),
+      );
+      expect(scrollable, findsOneWidget);
+      final before = tester.state<ScrollableState>(scrollable).position.pixels;
+      await tester.ensureVisible(scroller);
+      await tester.drag(scroller, const Offset(-180, 0));
+      await tester.pumpAndSettle();
+      final after = tester.state<ScrollableState>(scrollable).position.pixels;
+      expect(after, greaterThan(before));
+    }
+  });
+
+  testWidgets('alphabetical ordering includes descending, not a fake recency', (
+    tester,
+  ) async {
+    const z = MeItemPresentation(
+      destination: StructuredDestination(kind: 'space', id: 'space-z', link: 'z'),
+      title: 'Zulu',
+      canOpen: true,
+    );
+    const a = MeItemPresentation(
+      destination: StructuredDestination(kind: 'space', id: 'space-a', link: 'a'),
+      title: 'Alpha',
+      canOpen: true,
+    );
+    await _show(
+      tester,
+      collectives: _data(spaces: 2, teams: 0, groups: 0),
+      items: const [z, a],
+      alphabetical: true,
+    );
+    final alphaFirst = tester.getTopLeft(find.text('Alpha')).dx;
+    final zuluSecond = tester.getTopLeft(find.text('Zulu')).dx;
+    expect(alphaFirst, lessThan(zuluSecond));
+    await _show(
+      tester,
+      collectives: _data(spaces: 2, teams: 0, groups: 0),
+      items: const [z, a],
+      alphabetical: true,
+      descending: true,
+    );
+    final alphaLast = tester.getTopLeft(find.text('Alpha')).dx;
+    final zuluFirst = tester.getTopLeft(find.text('Zulu')).dx;
+    expect(zuluFirst, lessThan(alphaLast));
   });
 
   testWidgets('empty collection has no zero counter or false result', (
