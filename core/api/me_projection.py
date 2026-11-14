@@ -10,7 +10,7 @@ from accounts.profile_activation import build_profile_activation_summary
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
-from organizations.console_context import authorized_spaces
+from organizations.console_context import authorized_spaces, has_space_authority
 from organizations.models import (
     OrganizationFollow,
     ProfileFollow,
@@ -349,7 +349,7 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offse
         _decorate_saved_recognition_media(profile, collections["bookmarks"])
     return collections
 
-def _authorized_space_item(space):
+def _authorized_space_item(space, *, profile):
     return {
         "kind": "space",
         "id": str(space.pk),
@@ -358,7 +358,12 @@ def _authorized_space_item(space):
         # Owner-backed identity facts for the personal collective portrait.
         # No inferred logo or Activity media is published here.
         "archetype_label": space.get_archetype_display(),
-        "description": space.description or "",
+        # Activity-scoped authority alone does not disclose private Space bio.
+        "description": (
+            space.description or ""
+            if space.public_profile or has_space_authority(profile, space)
+            else ""
+        ),
         "relationship": "authorized_context",
         "can_act": True,
     }
@@ -426,7 +431,7 @@ def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0
     groups = groups_for_profile(profile).order_by("name", "id")
     return _family_slice(
         {
-            "authorized_spaces": (spaces, _authorized_space_item),
+            "authorized_spaces": (spaces, lambda space: _authorized_space_item(space, profile=profile)),
             "teams": (team_memberships, _team_membership_item),
             "groups": (groups, _group_item),
         },
