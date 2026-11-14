@@ -345,7 +345,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               ),
             ],
           ),
-          if (hasAccount) ...[
+          if (hasAccount && AppuisViewData.positive(credit)) ...[
             const SizedBox(height: 14),
             Text(
               AppuisViewData.text(credit) + ' crédits',
