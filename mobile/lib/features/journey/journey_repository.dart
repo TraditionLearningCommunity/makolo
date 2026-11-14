@@ -35,6 +35,33 @@ class JourneyRepository {
 
   static const projectionKind = 'personal.journey.detail';
 
+  /// An authorized personal Ongoing row is a minimal local reading surface
+  /// before the owner detail is acquired; it grants no detail capabilities.
+  Stream<StoredProjection?> watchOngoingSummary() =>
+      store.watchProjection('personal.ongoing');
+
+  static Map<String, dynamic>? knownOngoingSummary(
+    StoredProjection? ongoing,
+    String journeyId,
+  ) {
+    final items = ongoing?.payload['items'];
+    if (items is! List) return null;
+    for (final item in items) {
+      if (item is! Map) continue;
+      final source = item['source'];
+      if (source is! Map ||
+          source['kind'] != 'journey' ||
+          source['id'] != journeyId) {
+        continue;
+      }
+      final title = item['title'];
+      if (title is! String || title.trim().isEmpty) return null;
+      return Map<String, dynamic>.from(item);
+    }
+    return null;
+  }
+
+
   static const freshnessPolicy = FreshnessPolicy(
     id: 'journey-contextual',
     refreshRecommendedAfter: Duration(hours: 1),
