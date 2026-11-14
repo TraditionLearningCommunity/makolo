@@ -1330,6 +1330,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
     final nextId = _text(next['journey_id']);
+    final nextJourney = items.where(
+      (item) => _text(item['id']) == nextId,
+    ).toList();
+    final nextTitle = nextJourney.isEmpty
+        ? ''
+        : _text(nextJourney.first['label']);
     final completed = items
         .where(
           (item) => [
@@ -1367,7 +1373,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 'À faire maintenant',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
-              subtitle: Text(_text(next['label'])),
+              subtitle: Text(
+                _text(next['label']) == 'Continuer la démarche' &&
+                        nextTitle.isNotEmpty
+                    ? nextTitle
+                    : _text(next['label']),
+              ),
               trailing: nextId.isNotEmpty
                   ? const Icon(Icons.arrow_forward_rounded)
                   : null,
@@ -1387,15 +1398,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: completed / items.length,
-                minHeight: 7,
-                backgroundColor: scheme.primaryContainer,
+            if (completed > 0) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: completed / items.length,
+                  minHeight: 5,
+                  backgroundColor: scheme.primaryContainer,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
+              const SizedBox(height: 8),
+            ],
           ] else
             const Padding(
               padding: EdgeInsets.only(bottom: 12),
