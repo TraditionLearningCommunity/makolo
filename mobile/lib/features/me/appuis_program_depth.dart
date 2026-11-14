@@ -44,7 +44,8 @@ class AppuisProgramDepth extends StatefulWidget {
 class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
   Map<String, dynamic> _owner = {};
   bool _saving = false;
-  bool get _canMutate => widget.canMutate &&
+  bool get _canMutate =>
+      widget.canMutate &&
       SyncStatusScope.maybeOf(context)?.state != SyncVisualState.offline;
 
   @override
@@ -437,16 +438,20 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
             name.isEmpty ? 'Programme de fidélité' : name,
             detail: _text(program['description']).isNotEmpty
                 ? _text(program['description'])
-                : (widget.space ? 'Fidélité des participants de cet Espace'
-                    : (organization.isNotEmpty
-                        ? organization : 'Programme de fidélité')),
+                : (widget.space
+                      ? 'Fidélité des participants de cet Espace'
+                      : (organization.isNotEmpty
+                            ? organization
+                            : 'Programme de fidélité')),
             note: [
               if (_positive(balance)) _text(balance) + ' points',
               if (tier.isNotEmpty) tier,
-              if (tiers.isNotEmpty) tiers.length.toString() +
-                  (tiers.length == 1 ? ' niveau' : ' niveaux'),
-              if (plans.isNotEmpty) plans.length.toString() +
-                  (plans.length == 1 ? ' formule' : ' formules'),
+              if (tiers.isNotEmpty)
+                tiers.length.toString() +
+                    (tiers.length == 1 ? ' niveau' : ' niveaux'),
+              if (plans.isNotEmpty)
+                plans.length.toString() +
+                    (plans.length == 1 ? ' formule' : ' formules'),
             ].join(' · '),
           ),
           if (memberships.isNotEmpty) ...[
@@ -517,30 +522,42 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                   : null,
             ),
             for (final item in rewards)
-              Builder(builder: (context) {
-                final eligible = _rows(widget.loyalty['available_rewards'])
-                    .where((entry) => _text(entry['id']) == _text(item['id']))
-                    .firstOrNull;
-                return _card(Icons.redeem_outlined, _text(item['name']),
-                  detail: [
-                    if (_positive(item['points_cost']))
-                      _text(item['points_cost']) + ' ' +
-                        _text(program['points_name']).trim(),
-                    if (_text(item['description']).isNotEmpty)
-                      _text(item['description']),
-                    if (_text(item['fulfillment_instructions']).isNotEmpty)
-                      _text(item['fulfillment_instructions']),
-                  ].join(' · '),
-                  action: !widget.space && _canMutate &&
-                          eligible != null &&
-                          widget.allowed(eligible, 'loyalty', 'redeem')
-                      ? TextButton(onPressed: () {
-                          Navigator.of(context).pop();
-                          unawaited(widget.onAction(
-                            eligible, 'loyalty', 'redeem'));
-                        }, child: const Text('Utiliser'))
-                      : null);
-              }),
+              Builder(
+                builder: (context) {
+                  final eligible = _rows(widget.loyalty['available_rewards'])
+                      .where((entry) => _text(entry['id']) == _text(item['id']))
+                      .firstOrNull;
+                  return _card(
+                    Icons.redeem_outlined,
+                    _text(item['name']),
+                    detail: [
+                      if (_positive(item['points_cost']))
+                        _text(item['points_cost']) +
+                            ' ' +
+                            _text(program['points_name']).trim(),
+                      if (_text(item['description']).isNotEmpty)
+                        _text(item['description']),
+                      if (_text(item['fulfillment_instructions']).isNotEmpty)
+                        _text(item['fulfillment_instructions']),
+                    ].join(' · '),
+                    action:
+                        !widget.space &&
+                            _canMutate &&
+                            eligible != null &&
+                            widget.allowed(eligible, 'loyalty', 'redeem')
+                        ? TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              unawaited(
+                                widget.onAction(eligible, 'loyalty', 'redeem'),
+                              );
+                            },
+                            child: const Text('Utiliser'),
+                          )
+                        : null,
+                  );
+                },
+              ),
           ],
           if (account != null) ...[finalHistory(account)],
         ],
