@@ -11,7 +11,7 @@ La capture d'essai a montré une hiérarchie trop lourde. La nouvelle version re
 
 **Navigation :** `/me/collectives` est désormais une route secondaire plein écran, extérieure au shell de navigation primaire, sans header de compte ni barre Now/Découvrir/Mark/En cours/Moi répétés. L'AppBar native contient retour à Moi, « Mes collectifs », nombre total **strictement positif et fiable**, icône de recherche ouvrant un champ et icône de tri. Android Back reste naturel ; un lien direct sans historique revient à Moi.
 
-**Filtres :** Tous, Espaces, Équipes, Groupes, chacun avec son compteur positif lorsqu'il est connu. Le total est la somme des trois familles reçues, comptant des relations et non des institutions distinctes. Pas de « 0 » affiché dans les filtres. Recherche et tri locaux sur les données déjà synchronisées, sans tri de date fictif. La position dans la liste est préservée tant que le Profile et la route restent actifs.
+**Filtres :** Tous (sans décompte redondant), Espaces, Équipes, Groupes, ces trois catégories avec leur compteur positif lorsqu'il est connu. Le total est la somme des trois familles reçues, comptant des relations et non des institutions distinctes. Pas de « 0 » affiché dans les filtres. Recherche et tri locaux sur les données déjà synchronisées, sans tri de date fictif. La position dans la liste est préservée tant que le Profile et la route restent actifs.
 
 **Contenu :** lignes natives, accessibles, plus compactes, à grande cible tactile, visuel aligné à gauche, nom principal et contexte autorisé. Les sections sont groupées en Tous ; un filtre actif n'a pas besoin de répéter son titre. Pas de doublon « Tout voir ».
 
