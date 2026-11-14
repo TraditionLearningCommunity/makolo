@@ -498,21 +498,24 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final path = _action(reward, 'recognition', 'redeem');
     final api = widget.runtime.api;
-    if (path == null || api == null || _busy || _denied ||
+    if (path == null ||
+        api == null ||
+        _busy ||
+        _denied ||
         !_current(generation, actor)) {
       return null;
     }
     final operation = 'recognition:${_text(reward['id'])}:redeem';
     final key = _pendingKeys.putIfAbsent(operation, () {
       final random = Random.secure();
-      return List<int>.generate(16,
-        (_) => random.nextInt(256))
-        .map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      return List<int>.generate(
+        16,
+        (_) => random.nextInt(256),
+      ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     });
     setState(() => _busy = true);
     try {
-      final response = await api.post(path,
-        body: {'idempotency_key': key});
+      final response = await api.post(path, body: {'idempotency_key': key});
       if (!_current(generation, actor)) return null;
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) return null;
@@ -520,14 +523,18 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
       return _map(decoded);
     } on MakoloApiError catch (error) {
       if (_current(generation, actor)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } on Object {
       if (_current(generation, actor)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-            'Résultat non confirmé. Vérifiez avant de réessayer.')));
+          const SnackBar(
+            content: Text(
+              'Résultat non confirmé. Vérifiez avant de réessayer.',
+            ),
+          ),
+        );
       }
     } finally {
       if (_current(generation, actor)) setState(() => _busy = false);
@@ -540,8 +547,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final api = widget.runtime.api;
     final store = widget.runtime.store;
-    if (_denied || api == null || store == null ||
-        !_current(generation, actor)) return null;
+    if (_denied || api == null || store == null || !_current(generation, actor))
+      return null;
     try {
       final response = await api.get(_path('recognition', actor));
       if (!_current(generation, actor)) return null;
@@ -707,14 +714,15 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                     onCreateSpaceItem: _createSpaceProgramItem,
                     canMutate: !offline && !_denied && !_busy,
                     canSpendRecognition: () =>
-                      !_denied && !_busy &&
-                      SyncStatusScope.maybeOf(context)?.state != SyncVisualState.offline &&
-                      _scope == currentScope,
+                        !_denied &&
+                        !_busy &&
+                        SyncStatusScope.maybeOf(context)?.state !=
+                            SyncVisualState.offline &&
+                        _scope == currentScope,
                     onRedeemRecognition: _redeemRecognition,
                     onReloadRecognition: _reloadRecognition,
                     actorChanges: widget.runtime.actorContext,
-                    actorIsCurrent: () =>
-                      !_denied && _scope == currentScope,
+                    actorIsCurrent: () => !_denied && _scope == currentScope,
                     allowed: (row, family, action) =>
                         _action(row, family, action) != null,
                   ),
