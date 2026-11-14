@@ -150,7 +150,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     entries: const [],
                     emptyMessage: state.lastErrorCode == null
                         ? 'Ressources en cours de chargement.'
-                        : 'Ces ressources ne peuvent pas être actualisées pour le moment.',
+                        : 'Ressources indisponibles.',
                   );
                 }
 
@@ -214,27 +214,10 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                   ),
                 ];
 
-                final notice = state.lastErrorCode != null
-                    ? Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          'Les ressources affichées proviennent de la '
-                          'dernière consultation disponible.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                        ),
-                      )
-                    : null;
-
                 return ResourceHubScaffold(
                   title: 'Nos ressources',
                   refreshing: _refreshing,
                   onRefresh: _refresh,
-                  notice: notice,
                   entries: entries,
                 );
               },
