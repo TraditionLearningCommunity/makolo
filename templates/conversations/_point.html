@@ -1,25 +1,45 @@
 {% load conversation_tags %}
 {% conversation_point_interactions point request.user as actions %}
-<article id="point-{{ point.pk }}" class="scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-5 py-4 sm:px-6" tabindex="-1">
+<article id="point-{{ point.pk }}" class="mk-thread-point relative scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-3 py-3 sm:px-4 {% if point.published_by_id == request.user.pk %}mr-10{% else %}ml-10{% endif %}" tabindex="-1"
+  data-thread-point
+  data-action-pending="{% if actions.can_resolve or actions.can_close_responses or actions.can_acknowledge or actions.can_respond and not actions.my_response %}true{% else %}false{% endif %}"
+  data-result-at="{% if point.lifecycle == 'resolved' %}{{ point.updated_at|date:'c' }}{% endif %}"
+  data-important="{% if point.importance == 'important' %}true{% else %}false{% endif %}">
+  {% if point.published_by.is_active and point.published_by.profile.public_profile and point.published_by.profile.searchable %}
+    <a class="mk-point-author-avatar {% if point.published_by_id == request.user.pk %}mk-point-author-own{% endif %}" href="{% url 'public-passport' point.published_by.username %}" aria-label="Voir le Passeport public de {{ point.published_by.username }}">
+      {{ point.published_by.username|slice:":1"|upper }}
+      <span class="mk-point-author-popover" aria-hidden="true">{{ point.published_by.username }} <small>Passeport public</small></span>
+    </a>
+  {% else %}
+    <span class="mk-point-author-avatar {% if point.published_by_id == request.user.pk %}mk-point-author-own{% endif %}" title="{{ point.published_by.username }}">{{ point.published_by.username|slice:":1"|upper }}</span>
+  {% endif %}
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div class="min-w-0">
-      <p class="text-xs font-semibold tracking-wide" style="color:var(--mk-muted)">{% if point.kind == 'exchange' %}Discussion{% else %}{{ point.get_kind_display }}{% endif %} · {{ point.get_lifecycle_display }}</p>
-      <h3 class="mt-1 text-base font-extrabold leading-snug">{% if point.title %}{{ point.title }}{% elif point.kind == 'exchange' %}Discussion{% else %}{{ point.get_kind_display }}{% endif %}</h3>
+      <span class="mk-point-type" role="img" aria-label="{{ point.get_kind_display }}">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          {% if point.kind == 'poll' %}<path d="M5 19V11M12 19V5M19 19v-8"/><path d="M3 21h18"/>
+          {% elif point.kind == 'question' %}<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1.1.9-1.7 1.3-1.7 2.7M12 17h.01"/>
+          {% elif point.kind == 'confirmation' %}<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>
+          {% elif point.kind == 'request' %}<path d="M7 4h10l3 3v13H4V4h3zM8 11h8M8 15h5"/>
+          {% elif point.kind == 'form_request' %}<path d="M7 3h10l3 3v15H4V3h3zM8 11h8M8 15h8M8 7h4"/>
+          {% elif point.kind == 'exchange' %}<path d="M21 11a8 8 0 0 1-8 8H6l-4 3V10a8 8 0 0 1 8-8h3a8 8 0 0 1 8 9Z"/>
+          {% else %}<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>{% endif %}
+        </svg>
+      </span>
+      {% if point.title %}<h3 class="mt-1 text-base font-semibold leading-snug">{{ point.title }}</h3>{% endif %}
     </div>
     <div class="ml-auto flex items-center gap-1">
       {% if point.deadline_at %}<span class="mr-2 text-xs" style="color:var(--mk-muted)">{{ point.deadline_at|date:'d/m à H:i' }}</span>{% endif %}
-      <form method="post" action="{% url 'conversations:point-personal-state' point.pk %}">
-        {% csrf_token %}
-        <button type="submit" name="action" value="revisit" class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg focus-visible:outline-2"
-          title="{% if actions.revisit %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}"
-          aria-label="{% if actions.revisit %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="{% if actions.revisit %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-        </button>
-      </form>
+      <details class="relative mk-point-options">
+        <summary class="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg text-lg font-bold focus-visible:outline-2" title="Options" aria-label="Options">⋮</summary>
+        <div class="absolute right-0 top-full z-20 w-72 max-w-[85vw] space-y-3 rounded-xl border bg-[color:var(--mk-surface)] p-3 shadow-lg" style="border-color:var(--mk-border)">
+          <form method="post" action="{% url 'conversations:point-personal-state' point.pk %}">
+            {% csrf_token %}
+            <button type="submit" name="action" value="revisit" class="mk-btn mk-btn-secondary w-full text-left">
+              {% if actions.revisit %}Retirer des enregistrements{% else %}Enregistrer{% endif %}
+            </button>
+          </form>
       {% if actions.can_close_responses or actions.can_resolve %}
-        <details class="relative">
-          <summary class="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg text-lg font-bold focus-visible:outline-2" title="Options du Point" aria-label="Options du Point">⋮</summary>
-          <div class="absolute right-0 top-full z-20 w-72 max-w-[85vw] space-y-3 rounded-xl border bg-[color:var(--mk-surface)] p-3 shadow-lg" style="border-color:var(--mk-border)">
             {% if actions.can_close_responses %}
               <form method="post" action="{% url 'conversations:point-close-responses' point.pk %}">
                 {% csrf_token %}
@@ -41,9 +61,9 @@
                 <button class="mk-btn mk-btn-primary w-full" type="submit">Consigner le résultat</button>
               </form>
             {% endif %}
-          </div>
-        </details>
       {% endif %}
+        </div>
+      </details>
     </div>
   </div>
   {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm leading-6">{{ point.body }}</p>{% endif %}
