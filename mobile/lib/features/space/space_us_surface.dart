@@ -217,11 +217,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Faits de vérification disponibles',
           icon: Icons.verified_user_outlined,
           target: trustTarget,
-          previews: [
-            _map(payload['trust'])?['verified'] == true
-                ? 'Des faits publics de vérification sont établis.'
-                : 'Aucune vérification publique active à afficher.',
-          ],
         ),
     ];
 
