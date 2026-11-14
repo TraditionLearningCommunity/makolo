@@ -1672,8 +1672,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           children: [
             IconButton(
               tooltip: _searchExpanded ? 'Fermer la recherche' : 'Rechercher',
-              icon: Icon(_searchExpanded
-                  ? Icons.search_off_rounded : Icons.search_rounded),
+              icon: Icon(
+                _searchExpanded
+                    ? Icons.search_off_rounded
+                    : Icons.search_rounded,
+              ),
               onPressed: () => setState(() {
                 _searchExpanded = !_searchExpanded;
                 if (!_searchExpanded) _search.clear();
@@ -1702,15 +1705,16 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 'expiry': 'Expiration indiquée',
               },
               (v) => setState(
-                () => _sort = _ListSort.values.firstWhere(
-                  (row) => row.name == v,
-                ),
+                () =>
+                    _sort = _ListSort.values.firstWhere((row) => row.name == v),
               ),
             ),
             const Spacer(),
             ObjectiveFilterReset(
-              active: _search.text.trim().isNotEmpty ||
-                  _filter != 'all' || _sort != _ListSort.recent,
+              active:
+                  _search.text.trim().isNotEmpty ||
+                  _filter != 'all' ||
+                  _sort != _ListSort.recent,
               onClear: () {
                 _search.clear();
                 setState(() {
