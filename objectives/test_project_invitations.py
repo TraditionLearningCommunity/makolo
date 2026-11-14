@@ -154,6 +154,45 @@ class ProjectInvitationTests(TestCase):
         self.assertEqual(len(public.data["results"]), 1)
         self.assertIsNone(public.data["results"][0]["email"])
 
+    def test_web_invitation_requires_consent_and_is_found_from_mesas_demarches(self):
+        from authorization.models import Role
+        role = Role.objects.get(
+            code=SystemRoleCode.PROJECT_VIEWER,
+            scope_type=AuthorityScope.PROJECT,
+        )
+        self.client.force_authenticate(user=None)
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("objectives:project-authority", args=[self.project.pk]),
+            {
+                "action": "invite",
+                "identity": self.guest.username,
+                "role": str(role.pk),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(can(
+            self.guest, PermissionCode.PROJECT_VIEW, project=self.project,
+        ))
+        invitation = ProjectInvitation.objects.get(
+            project=self.project, invitee=self.guest,
+            status=ProjectInvitationStatus.PENDING,
+        )
+        self.client.force_login(self.guest)
+        inbox = self.client.get(reverse("objectives:project-invitations"))
+        self.assertEqual(inbox.status_code, 200)
+        self.assertContains(inbox, self.project.title)
+        self.assertContains(inbox, "Accepter")
+        self.assertContains(inbox, "Décliner")
+        accepted = self.client.post(
+            reverse("objectives:project-invitation-respond", args=[invitation.pk]),
+            {"action": "accept"},
+        )
+        self.assertEqual(accepted.status_code, 302)
+        self.assertTrue(can(
+            self.guest, PermissionCode.PROJECT_VIEW, project=self.project,
+        ))
+
     def test_cancelled_invitation_cannot_be_accepted(self):
         invited = self.invite()
         self.assertEqual(invited.status_code, 201)
