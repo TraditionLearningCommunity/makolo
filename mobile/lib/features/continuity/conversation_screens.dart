@@ -1576,9 +1576,22 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         _lastReceivedPointId != receivedId &&
         !_nearLatest;
     _lastReceivedPointId = receivedId;
+    // On return to a busy Conversation, begin at the first useful Point
+    // rather than auto-skipping it to the last message.
+    final attentionInWindow = entries.any((entry) {
+      final point = entry.point;
+      return point.attentionReason != null &&
+              const {
+                'respond', 'acknowledge', 'form', 'resolve', 'result', 'upcoming',
+              }.contains(point.attentionReason) ||
+          (point.canRespond &&
+              !point.hasRespondedForScope(widget.representedSpaceId)) ||
+          point.canResolve ||
+          point.canAcknowledge;
+    });
     final shouldFollow =
-        !_timelinePositioned ||
-        (_lastTimelinePointId != latestId && _nearLatest);
+        (!_timelinePositioned && !attentionInWindow) ||
+        (_timelinePositioned && _lastTimelinePointId != latestId && _nearLatest);
     _timelinePositioned = true;
     _lastTimelinePointId = latestId;
     if (hasNewMessages && !_newMessagesAvailable) {
@@ -3642,9 +3655,10 @@ class _PointCardState extends State<_PointCard> {
       kind: point.kind ?? 'information',
       isMine: point.isMine,
       authorLabel: point.authorLabel,
-      onOpenAuthor: point.authorPublicProfileId == null
+      onOpenAuthor: point.authorPublicProfileId == null ||
+              widget.onOpenAuthor == null
           ? null
-          : () => widget.onOpenAuthor?.call(point.authorPublicProfileId!),
+          : () => widget.onOpenAuthor!(point.authorPublicProfileId!),
       representedSpace: point.representedSpace,
       representedSpaceLabel: point.representedSpaceLabel,
       publishedAt: point.publishedAt ?? point.updatedAt,
