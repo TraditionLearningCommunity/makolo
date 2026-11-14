@@ -691,10 +691,25 @@ class PointRespondView(LoginRequiredMixin, View):
                 client_reference=request.POST.get("client_reference") or None,
             )
         except (ValidationError, PermissionDenied) as exc:
-            messages.error(request, str(exc))
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"error": "; ".join(getattr(exc, "messages", [str(exc)]))},
+                    status=403 if isinstance(exc, PermissionDenied) else 400,
+                )
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         else:
-            messages.success(request, "Votre réponse a été enregistrée.")
-        return redirect("conversations:detail", pk=point.conversation_id)
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                from django.template.loader import render_to_string
+                point.refresh_from_db()
+                html = render_to_string(
+                    "conversations/_point.html", {"point": point},
+                    request=request,
+                )
+                return JsonResponse({"html": html})
+        return redirect(
+            reverse("conversations:detail", kwargs={"pk": point.conversation_id})
+            + f"?focus={point.pk}#point-{point.pk}"
+        )
 
 
 class PointAcknowledgeView(LoginRequiredMixin, View):
