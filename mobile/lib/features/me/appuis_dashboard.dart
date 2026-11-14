@@ -281,7 +281,7 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     );
   }
 
-  Widget _heading(String family) {
+  Widget _heading(String family, {bool seeAll = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
       child: Row(
@@ -295,11 +295,12 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
-          TextButton.icon(
-            onPressed: () => _openFamily(family),
-            label: const Text('Tout voir'),
-            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-          ),
+          if (seeAll)
+            TextButton.icon(
+              onPressed: () => _openFamily(family),
+              label: const Text('Tout voir'),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+            ),
         ],
       ),
     );
@@ -786,13 +787,6 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ),
         _details(
           family,
-          'Récompenses',
-          data['rewards'],
-          Icons.redeem_outlined,
-          actions: true,
-        ),
-        _details(
-          family,
           'Contributions reconnues',
           data['achievements'],
           Icons.workspace_premium_outlined,
@@ -851,49 +845,20 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
   Widget build(BuildContext context) {
     final available = AppuisViewData.available(widget.snapshots, widget.space);
     if (available.isEmpty) return const SizedBox.shrink();
-    final showing = _filter == 'all'
-        ? available
-        : available.where((family) => family == _filter);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          widget.space
-              ? 'Retrouvez les avantages et partenariats de cet Espace.'
-              : 'Retrouve tes reconnaissances, avantages et partenariats.',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 18),
-        _hero(available),
-        if (available.length > 1) ...[
-          const SizedBox(height: 18),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final option in ['all', ...available]) ...[
-                  ChoiceChip(
-                    label: Text(
-                      option == 'all'
-                          ? 'Tous'
-                          : switch (option) {
-                              'recognition' => 'Reconnaissance',
-                              'loyalty' => 'Fidélité',
-                              _ => 'Partenariats',
-                            },
-                    ),
-                    selected: option == _filter,
-                    onSelected: (_) => setState(() => _filter = option),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ],
-            ),
-          ),
-        ],
-        for (final family in showing) ...[_heading(family), _preview(family)],
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (available.contains('recognition')) ...[
+        _recognitionCard(),
+        _accomplishments(),
       ],
-    );
+      if (available.contains('loyalty')) ...[
+        _heading('loyalty'),
+        _preview('loyalty'),
+      ],
+      if (available.contains('partners')) ...[
+        _heading('partners',
+          seeAll: AppuisViewData.activePartners(_data('partners')).length > 3),
+        _preview('partners'),
+      ],
+    ]);
   }
 }
