@@ -705,19 +705,21 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ? AppuisViewData.text(spaceProgram['id'])
         : AppuisViewData.programId(selected);
     if (id.isEmpty) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (context) => AppuisProgramDepth(
-        programId: id,
-        initialProgram: selected,
-        loyalty: loyalty,
-        space: widget.space,
-        onReadProgram: widget.onReadProgram,
-        onAction: widget.onAction,
-        allowed: widget.allowed,
-        onCreateSpaceItem: widget.onCreateSpaceItem,
-        canMutate: widget.canMutate,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => AppuisProgramDepth(
+          programId: id,
+          initialProgram: selected,
+          loyalty: loyalty,
+          space: widget.space,
+          onReadProgram: widget.onReadProgram,
+          onAction: widget.onAction,
+          allowed: widget.allowed,
+          onCreateSpaceItem: widget.onCreateSpaceItem,
+          canMutate: widget.canMutate,
+        ),
       ),
-    ));
+    );
   }
 
   void _openPartner(Map<String, dynamic> partner) {
