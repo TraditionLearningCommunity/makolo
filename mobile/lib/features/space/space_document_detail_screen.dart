@@ -849,20 +849,6 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                                     ? 'Confidentiel'
                                     : 'Équipe autorisée',
                               ),
-                              if (sourceState.lastErrorCode != null &&
-                                  !sourceState.invalidated) ...[
-                                const SizedBox(height: MakoloSpacing.sm),
-                                Text(
-                                  'Données enregistrées sur cet appareil. '
-                                  'Mise à jour indisponible.',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                ),
-                              ],
                               const SizedBox(height: MakoloSpacing.lg),
                               if (currentVersion != null)
                                 ResourceVersionCard(
