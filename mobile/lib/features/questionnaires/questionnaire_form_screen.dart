@@ -485,35 +485,39 @@ class _FormContent extends StatelessWidget {
           (detail.isSubmitted || commit == MakoloCommitCue.confirmed))
         Row(
           children: [
-            Icon(Icons.check_circle_outline_rounded,
-                size: 17, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.check_circle_outline_rounded,
+              size: 17,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(width: MakoloSpacing.xs),
             const Text('Envoyé'),
           ],
         )
-      else MakoloActionButton(
-        onPressed: canSubmit ? onSubmit : null,
-        icon: Icons.check_rounded,
-        label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
-            ? 'Soumis'
-            : commit == MakoloCommitCue.pending ||
-                  commit == MakoloCommitCue.awaitingConfirmation
-            ? 'En attente'
-            : 'Soumettre',
-        appearance: MakoloActionAppearance.primary,
-        phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
-            ? MakoloActionPhase.confirmed
-            : commit == MakoloCommitCue.pending ||
-                  commit == MakoloCommitCue.awaitingConfirmation
-            ? MakoloActionPhase.unavailable
-            : commit == MakoloCommitCue.failed ||
-                  commit == MakoloCommitCue.conflict ||
-                  errors['_form'] != null
-            ? MakoloActionPhase.failed
-            : canSubmit
-            ? MakoloActionPhase.available
-            : MakoloActionPhase.unavailable,
-      ),
+      else
+        MakoloActionButton(
+          onPressed: canSubmit ? onSubmit : null,
+          icon: Icons.check_rounded,
+          label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+              ? 'Soumis'
+              : commit == MakoloCommitCue.pending ||
+                    commit == MakoloCommitCue.awaitingConfirmation
+              ? 'En attente'
+              : 'Soumettre',
+          appearance: MakoloActionAppearance.primary,
+          phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+              ? MakoloActionPhase.confirmed
+              : commit == MakoloCommitCue.pending ||
+                    commit == MakoloCommitCue.awaitingConfirmation
+              ? MakoloActionPhase.unavailable
+              : commit == MakoloCommitCue.failed ||
+                    commit == MakoloCommitCue.conflict ||
+                    errors['_form'] != null
+              ? MakoloActionPhase.failed
+              : canSubmit
+              ? MakoloActionPhase.available
+              : MakoloActionPhase.unavailable,
+        ),
       if (!embedded &&
           !canSubmit &&
           !detail.isSubmitted &&
