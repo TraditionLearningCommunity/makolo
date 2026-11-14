@@ -1237,17 +1237,15 @@ class _JourneyIdentity extends StatelessWidget {
       presentation.journeyState,
     );
     final style = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       key: const Key('journey-identity'),
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [MakoloColors.deep, MakoloColors.indigo],
-        ),
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(22),
           bottomRight: Radius.circular(22),
         ),
@@ -1264,7 +1262,7 @@ class _JourneyIdentity extends StatelessWidget {
             children: [
               const Icon(
                 Icons.track_changes_rounded,
-                color: Colors.white,
+                color: scheme.primary,
                 size: 24,
                 semanticLabel: 'Objectif',
               ),
@@ -1273,28 +1271,19 @@ class _JourneyIdentity extends StatelessWidget {
                 child: Text(
                   'MON OBJECTIF',
                   style: style.labelMedium?.copyWith(
-                    color: const Color(0xFFE0D9FF),
+                    color: scheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
                   ),
                 ),
               ),
-              if (facts?.startDate != null)
-                JourneyDayBadge(
-                  occurrenceDate: facts!.startDate!,
-                  timezoneName: facts.timezone,
-                  onCover: true,
-                  onOpenDayOf: presentation.dayOfLink == null
-                      ? null
-                      : () => onOpenDayOf(presentation.dayOfLink!),
-                ),
-            ],
+             ],
           ),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             presentation.title,
             style: style.headlineSmall?.copyWith(
-              color: Colors.white,
+              color: scheme.onSurface,
               fontWeight: FontWeight.w800,
               height: 1.2,
             ),
@@ -1312,29 +1301,27 @@ class _JourneyIdentity extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.28),
-                      ),
+                      border: Border.all(color: scheme.outlineVariant),
                     ),
                     child: Text(
                       status,
                       style: style.labelMedium?.copyWith(
-                        color: Colors.white,
+                        color: scheme.onPrimaryContainer,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 if (conversationEntry != null)
                   IconTheme(
-                    data: const IconThemeData(color: Colors.white, size: 23),
+                    data: IconThemeData(color: scheme.primary, size: 23),
                     child: conversationEntry!,
                   ),
                 if (presentation.liveLink != null)
                   IconButton(
                     tooltip: 'Ouvrir Makolo Live',
-                    color: Colors.white,
+                    color: scheme.primary,
                     icon: const Icon(Icons.sensors_rounded),
                     onPressed: () => onOpenLive(presentation.liveLink!),
                   ),
@@ -1349,7 +1336,7 @@ class _JourneyIdentity extends StatelessWidget {
             const SizedBox(height: MakoloSpacing.sm),
             Divider(
               height: MakoloSpacing.md,
-              color: Colors.white.withValues(alpha: 0.25),
+              color: scheme.outlineVariant,
             ),
             Wrap(
               spacing: MakoloSpacing.compact,
@@ -1368,6 +1355,14 @@ class _JourneyIdentity extends StatelessWidget {
                   ),
                 if (place != null)
                   _JourneyHeroFact(icon: Icons.place_outlined, label: place),
+                if (facts?.startDate != null)
+                  JourneyDayBadge(
+                    occurrenceDate: facts!.startDate!,
+                    timezoneName: facts.timezone,
+                    onOpenDayOf: presentation.dayOfLink == null
+                        ? null
+                        : () => onOpenDayOf(presentation.dayOfLink!),
+                  ),
               ],
             ),
             if (placeDetail != null || endLabel != null) ...[
@@ -1411,7 +1406,8 @@ class _JourneyHeroFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = secondary ? const Color(0xFFE0D9FF) : Colors.white;
+    final scheme = Theme.of(context).colorScheme;
+    final color = secondary ? scheme.onSurfaceVariant : scheme.onSurface;
     return Semantics(
       label: label,
       child: ExcludeSemantics(
@@ -1422,7 +1418,7 @@ class _JourneyHeroFact extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: color),
+              Icon(icon, size: 16, color: scheme.onSurfaceVariant),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
