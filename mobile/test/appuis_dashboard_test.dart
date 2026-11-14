@@ -105,10 +105,10 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Club A'), findsOneWidget);
-    expect(find.text('Club B'), findsOneWidget);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
+    expect(find.text('Club A'), findsNothing);
+    expect(find.text('Club B'), findsNothing);
     expect(find.textContaining('0 points'), findsNothing);
-    expect(find.textContaining('7 points'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
   });
 
@@ -148,7 +148,7 @@ void main() {
     expect(find.byType(ChoiceChip), findsNWidgets(3));
     await tester.tap(find.text('Fidélité'));
     await tester.pumpAndSettle();
-    expect(find.text('Club A'), findsOneWidget);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
     expect(find.text('Récompense A'), findsNothing);
   });
 
@@ -171,8 +171,8 @@ void main() {
     await tester.pumpWidget(
       harness(data(accounts: [account('one', 'Club A')])),
     );
-    expect(find.text('1 programme'), findsOneWidget);
-    expect(find.text('Ce qui est déjà disponible'), findsNothing);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
+    expect(find.text('1 programme'), findsNothing);
   });
 
   testWidgets('true empty has no summary, filters or fictional items', (
@@ -269,6 +269,8 @@ void main() {
         allowed: (row, family, action) => action == 'cancel',
       ),
     );
+    await tester.tap(find.text('Mes programmes de fidélité'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Club A').first);
     await tester.pumpAndSettle();
     expect(find.text('Mettre fin à cette adhésion'), findsNothing);
@@ -304,6 +306,8 @@ void main() {
         },
       ),
     );
+    await tester.tap(find.text('Mes programmes de fidélité'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Club A').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Formule gratuite'));
@@ -316,7 +320,7 @@ void main() {
   ) async {
     final local = data(accounts: [account('one', 'Club A')]);
     await tester.pumpWidget(harness(local, canMutate: false));
-    expect(find.text('Club A'), findsOneWidget);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
     expect(find.textContaining('Actualisation impossible'), findsNothing);
     await tester.pumpWidget(
       harness(
@@ -334,7 +338,36 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(ChoiceChip), findsNWidgets(3));
-    expect(find.text('Club A'), findsOneWidget);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
     expect(find.text('Récompense'), findsWidgets);
   });
+  testWidgets('Recognition credits lead Appuis, not the program count',
+      (tester) async {
+    await tester.pumpWidget(harness(data(
+      accounts: [account('one', 'Club A'), account('two', 'Club B')],
+      recognition: {
+        'summary': {'available_credits': 18, 'pending_credits': 2},
+        'account': {'lifetime_earned': 25},
+        'recent_activity': [{'description': 'Contribution reconnue'}],
+      },
+    )));
+    expect(find.text('18 crédits disponibles'), findsOneWidget);
+    expect(find.text('2 crédits en attente'), findsWidgets);
+    expect(find.textContaining('2 programmes'), findsNothing);
+    expect(find.text('Mes programmes de fidélité'), findsOneWidget);
+  });
+
+  testWidgets('Space pending Recognition remains visible with zero available',
+      (tester) async {
+    await tester.pumpWidget(harness({
+      'recognition': {
+        'summary': {'available_credits': 0, 'pending_credits': 4},
+        'account': {'lifetime_earned': 4},
+      },
+    }, space: true));
+    expect(find.text('Nos reconnaissances'), findsOneWidget);
+    expect(find.text('Crédits en attente'), findsOneWidget);
+    expect(find.textContaining('0 crédits'), findsNothing);
+  });
+
 }
