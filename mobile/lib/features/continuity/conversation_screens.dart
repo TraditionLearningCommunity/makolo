@@ -2804,6 +2804,7 @@ class _PointCardState extends State<_PointCard> {
   Object? _unconfirmedResponse;
   bool _hasUnconfirmedResponse = false;
   bool _locallyQueued = false;
+  bool _editingResponse = false;
   final Set<String> _choices = {};
   String _resolutionDraft = '';
   final Set<String> _resolutionSelections = {};
@@ -2835,6 +2836,7 @@ class _PointCardState extends State<_PointCard> {
       _unconfirmedResponse = null;
       _hasUnconfirmedResponse = false;
       _locallyQueued = false;
+      _editingResponse = false;
       _clientReference = null;
     }
     if (widget.responseIntent != null) _locallyQueued = false;
@@ -2865,15 +2867,15 @@ class _PointCardState extends State<_PointCard> {
       if (mounted) {
         setState(
           () => _feedback = widget.point.revisit
-              ? 'Repère personnel retiré.'
-              : 'Point enregistré dans « À savoir ».',
+              ? 'Retiré des enregistrements.'
+              : 'Enregistré.',
         );
       }
     } on Object {
       if (mounted) {
         setState(
           () =>
-              _feedback = 'Repère non confirmé. Réessayez après actualisation.',
+              _feedback = 'Enregistrement non confirmé.',
         );
       }
     } finally {
@@ -2939,7 +2941,12 @@ class _PointCardState extends State<_PointCard> {
       _clientReference = null;
       _hasUnconfirmedResponse = false;
       _unconfirmedResponse = null;
-      if (mounted) setState(() => _feedback = null);
+      if (mounted) {
+        setState(() {
+          _feedback = null;
+          _editingResponse = false;
+        });
+      }
     } on Object {
       // Preserve precisely the value and idempotency reference of this
       // attempt. A network timeout is not proof the owner rejected it.
@@ -3129,7 +3136,7 @@ class _PointCardState extends State<_PointCard> {
             ? point.canRespond
             : point.responseWindowOpen) &&
         (!point.hasRespondedForScope(widget.representedSpaceId) ||
-            point.canChangeResponse);
+            (point.canChangeResponse && _editingResponse));
     final theme = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
@@ -3388,6 +3395,20 @@ class _PointCardState extends State<_PointCard> {
                   style: theme.bodySmall?.copyWith(color: muted),
                 ),
               ],
+            ),
+          ),
+        if (point.hasRespondedForScope(widget.representedSpaceId) &&
+            point.canChangeResponse &&
+            !widget.readOnly &&
+            !_editingResponse &&
+            !_busy &&
+            !waitingForOwner)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: Key('conversation-point-modify-${point.id}'),
+              onPressed: () => setState(() => _editingResponse = true),
+              child: const Text('Modifier'),
             ),
           ),
         if (point.responseCount != null && point.responseCount! > 0)
