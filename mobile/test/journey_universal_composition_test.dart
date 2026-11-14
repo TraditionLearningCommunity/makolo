@@ -62,8 +62,14 @@ void main() {
     final technical = JourneyComposition.from(
       _journey(
         ready: const [
-          JourneyReadinessItem(key: 'state', summary: "L'état de la démarche permet de continuer."),
-          JourneyReadinessItem(key: 'blockers', summary: 'Aucun obstacle actif.'),
+          JourneyReadinessItem(
+            key: 'state',
+            summary: "L'état de la démarche permet de continuer.",
+          ),
+          JourneyReadinessItem(
+            key: 'blockers',
+            summary: 'Aucun obstacle actif.',
+          ),
         ],
       ),
     );
