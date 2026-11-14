@@ -24,6 +24,7 @@ void main() {
             body: MarkDictationCapture(
               channel: channel,
               onText: (text) => suppliedText = text,
+              onPreview: (_) {},
               onClose: () {},
             ),
           ),
@@ -32,10 +33,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining('La dictée n’est pas disponible ici'),
+        find.text('Dictée indisponible'),
         findsOneWidget,
       );
-      expect(find.text('Commencer'), findsOneWidget);
+      expect(find.text('Commencer'), findsNothing);
       expect(suppliedText, isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
