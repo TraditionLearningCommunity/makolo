@@ -305,176 +305,110 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
     );
   }
 
-  Widget _metric(IconData icon, int count, String singular, String plural) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0EAFE),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: const Color(0xFF5232DB), size: 22),
-            Text(
-              count.toString(),
-              style: const TextStyle(
-                color: Color(0xFF2B176E),
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              count == 1 ? singular : plural,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF2B176E), fontSize: 10),
-            ),
-          ],
-        ),
-      );
-
-  // The main Appuis indicator is the owner's confirmed Recognition balance.
-  // Loyalty program catalogs are accessible in depth, never a headline.
-  Widget _hero(List<String> available) {
-    final recognition = _data('recognition');
-    final summary = AppuisViewData.map(recognition['summary']);
+  Widget _recognitionCard() {
+    final data = _data('recognition');
+    final summary = AppuisViewData.map(data['summary']);
+    final account = AppuisViewData.map(data['account']);
     final credit = summary['available_credits'];
     final pending = summary['pending_credits'];
-    final achievements = AppuisViewData.rows(recognition['achievements'])
-        .length;
-    final partners = AppuisViewData.activePartners(_data('partners')).length;
-    final rewardCount = AppuisViewData.rows(recognition['rewards']).length;
-    final hasCredit =
-        available.contains('recognition') && AppuisViewData.positive(credit);
-    final metrics = <Widget>[
-      if (hasCredit)
-        _metric(
-          Icons.stars_outlined,
-          int.tryParse(AppuisViewData.text(credit)) ?? 0,
-          'Crédit',
-          'Crédits',
-        ),
-      if (!hasCredit && available.contains('recognition') && achievements > 0)
-        _metric(
-          Icons.workspace_premium_outlined,
-          achievements,
-          'Reconnaissance',
-          'Reconnaissances',
-        ),
-      if (!hasCredit &&
-          available.contains('recognition') &&
-          achievements == 0 &&
-          rewardCount > 0)
-        _metric(
-          Icons.redeem_outlined,
-          rewardCount,
-          'Récompense',
-          'Récompenses',
-        ),
-      if (available.contains('partners') && partners > 0)
-        _metric(
-          Icons.handshake_outlined,
-          partners,
-          'Partenariat',
-          'Partenariats',
-        ),
-    ];
-    if (metrics.isEmpty) return const SizedBox.shrink();
-    if (metrics.length == 1) {
-      final count = hasCredit
-          ? AppuisViewData.text(credit)
-          : partners > 0
-          ? partners.toString()
-          : achievements > 0
-          ? achievements.toString()
-          : rewardCount.toString();
-      final label = hasCredit
-          ? 'crédits disponibles'
-          : partners > 0
-          ? (partners == 1 ? 'partenariat' : 'partenariats')
-          : achievements > 0
-          ? (achievements == 1 ? 'reconnaissance' : 'reconnaissances')
-          : rewardCount == 1
-          ? 'récompense'
-          : 'récompenses';
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              hasCredit
-                  ? Icons.stars_outlined
-                  : partners > 0
-                  ? Icons.handshake_outlined
-                  : Icons.workspace_premium_outlined,
-              size: 24,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    count + ' ' + label,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (hasCredit && AppuisViewData.positive(pending))
-                    Text(
-                      AppuisViewData.text(pending) + ' crédits en attente',
-                      style: const TextStyle(
-                        color: Color(0xFFE5DDFF),
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    final hasAccount = account.isNotEmpty;
+    final caps = data['capabilities'];
+    final maySpend = !widget.space ||
+        (caps is List && caps.contains('spend'));
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.space ? 'Nos appuis' : 'Mes appuis',
+          colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
+        borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.toll_outlined,
+            color: Color(0xFFF3DA91), size: 27),
+          const SizedBox(width: 9),
+          Text(widget.space ? 'Notre reconnaissance' : 'Ma reconnaissance',
+            style: const TextStyle(fontSize: 17, color: Colors.white,
+              fontWeight: FontWeight.w700)),
+        ]),
+        if (hasAccount) ...[
+          const SizedBox(height: 14),
+          Text(AppuisViewData.text(credit) + ' crédits',
+            style: const TextStyle(color: Colors.white,
+              fontSize: 27, fontWeight: FontWeight.w800)),
+        ],
+        if (AppuisViewData.positive(pending)) ...[
+          const SizedBox(height: 6),
+          Text(AppuisViewData.text(pending) + ' crédits en attente',
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.w800,
+              color: Color(0xFFE5DDFF), fontSize: 13)),
+        ],
+        if (hasAccount && maySpend) ...[
+          const SizedBox(height: 16),
+          SizedBox(width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF2B176E)),
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (context) => AppuisCreditsUseScreen(
+                    initial: data,
+                    space: widget.space,
+                    canSpend: widget.canSpendRecognition,
+                    canUseReward: (reward) =>
+                      widget.allowed(reward, 'recognition', 'redeem'),
+                    onRedeem: widget.onRedeemRecognition,
+                    onReload: widget.onReloadRecognition,
+                    actorChanges: widget.actorChanges,
+                    actorIsCurrent: widget.actorIsCurrent,
+                  ),
+                ));
+              },
+              icon: const Icon(Icons.card_giftcard_outlined),
+              label: Text(widget.space
+                  ? 'Utiliser nos crédits' : 'Utiliser mes crédits'),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              for (var i = 0; i < metrics.length; i++) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(child: metrics[i]),
-              ],
-            ],
-          ),
         ],
-      ),
+      ]),
     );
+  }
+
+  Widget _accomplishments() {
+    final data = _data('recognition');
+    final rows = _recognitionRows()
+      .where((row) => row['_icon'] != 'reward')
+      .toList(growable: false);
+    final history = AppuisViewData.rows(data['recent_activity']);
+    if (rows.isEmpty && history.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(3, 22, 3, 10),
+        child: Row(children: [
+          Icon(Icons.military_tech_outlined,
+            color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 9),
+          Expanded(child: Text(
+            widget.space ? 'Nos accomplissements' : 'Mes accomplissements',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700))),
+          if (rows.length > 3 || history.isNotEmpty)
+            TextButton(onPressed: () => _openFamily('recognition'),
+              child: const Text('Tout voir')),
+        ]),
+      ),
+      if (rows.isNotEmpty)
+        for (final row in rows.take(3))
+          _card(row['_icon'] == 'incoming'
+                ? Icons.mark_email_unread_outlined
+                : Icons.workspace_premium_outlined,
+            AppuisViewData.label(row),
+            subtitle: AppuisViewData.text(row['_kind']),
+            open: () => _openFamily('recognition'))
+      else
+        _card(Icons.history_outlined, 'Historique des crédits',
+          open: () => _openFamily('recognition')),
+    ]);
   }
 
   List<Map<String, dynamic>> _recognitionRows() {
