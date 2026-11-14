@@ -981,8 +981,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                               'La personne ne pourra plus l’accepter.',
                               'Annuler l’invitation',
                             );
-                            if (!confirmed || !mounted || !sheet.mounted)
+                            if (!confirmed || !mounted || !sheet.mounted) {
                               return;
+                            }
                             Navigator.of(sheet).pop();
                             await _send(
                               'api/v1/objectives/projects/invitations/'
