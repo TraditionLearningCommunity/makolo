@@ -1773,7 +1773,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (key != previousGroup) {
         widgets.add(
           Padding(
-            padding: const EdgeInsets.fromLTRB(9, 19, 9, 9),
+            padding: const EdgeInsets.fromLTRB(7, 9, 7, 4),
             child: Text(
               caption,
               style: Theme.of(context).textTheme.titleSmall
@@ -1793,17 +1793,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Chronologie',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Ce sont des faits temporels de Journey, pas un ordre causal. '
-          'Une création ne constitue pas une date prévue.',
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         Wrap(
           spacing: 7,
           runSpacing: 7,
@@ -1824,15 +1814,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 15),
-        if (events.isEmpty)
-          _empty('Aucun jalon temporel connu.')
+        const SizedBox(height: 6),
+        if (events.isEmpty && undated.isEmpty)
+          _empty('Aucun événement daté visible.')
         else
           ...widgets,
         if (undated.isNotEmpty) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
-            'Sans autre date de parcours',
+            'Sans date connue',
             style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w800),
           ),
@@ -1844,8 +1834,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _todayMarker(DateTime today) => Container(
-    margin: const EdgeInsets.symmetric(vertical: 10),
-    padding: const EdgeInsets.all(11),
+    margin: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(10),
       color: Theme.of(context).colorScheme.primary.withValues(alpha: .08),
@@ -1863,13 +1853,16 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          width: 3,
+          width: 2,
           color: Theme.of(context).colorScheme.outlineVariant,
         ),
-        const SizedBox(width: 13),
+        const SizedBox(width: 7),
         Expanded(
           child: ListTile(
-            leading: const Icon(Icons.circle, size: 13),
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: const Icon(Icons.circle, size: 9),
             title: Text(
               moment.label,
               style: const TextStyle(fontWeight: FontWeight.w700),
@@ -1897,19 +1890,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final deps = _rows(data['visible_dependencies']);
     final model = _GraphLayout.build(journeys, deps);
     final byId = {for (final row in journeys) _text(row['id']): row};
+    if (deps.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Text(
+          data['graph_partial'] == true
+              ? 'Aucune dépendance disponible dans les données acquises.'
+              : 'Aucune dépendance visible.',
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Graphe des dépendances',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Chaque flèche va du prérequis à la démarche dépendante. '
-          'Le déplacement du dessin ne modifie aucune relation métier.',
-        ),
         if (data['graph_partial'] == true)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1919,11 +1913,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        const SizedBox(height: 14),
-        if (deps.isEmpty)
-          _empty('Aucune dépendance visible définie.')
-        else ...[
-          Wrap(
+        const SizedBox(height: 8),
+        Wrap(
             spacing: 7,
             runSpacing: 7,
             children: [
@@ -2055,14 +2046,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               ),
             ),
           ),
-        ],
-        const SizedBox(height: 23),
+        const SizedBox(height: 12),
         Text(
-          'Liste accessible des prérequis',
+          'Prérequis',
           style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 5),
         for (final dep in deps)
           if (byId.containsKey(_text(dep['required_journey_id'])) &&
               byId.containsKey(_text(dep['dependent_journey_id'])))
