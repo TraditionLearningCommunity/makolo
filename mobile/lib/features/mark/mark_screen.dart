@@ -275,7 +275,7 @@ class _MarkScreenState extends State<MarkScreen> {
   // This is a visual affordance, not fetching, analysis, or owner submission.
   List<String> get _typedLinks {
     final found = <String>{};
-    final pattern = RegExp(r'https?://\\S+', caseSensitive: false);
+    final pattern = RegExp(r'https?://\S+', caseSensitive: false);
     for (final match in pattern.allMatches(_input.text)) {
       final raw = match.group(0);
       if (raw == null) continue;
