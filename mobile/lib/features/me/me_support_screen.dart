@@ -736,7 +736,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                         ),
                       ),
                     ),
-                  if (!hasRows && !_busy && _errors.isEmpty &&
+                  if (!hasRows &&
+                      !_busy &&
+                      _errors.isEmpty &&
                       _knownFamilies.length == families.length)
                     const Center(
                       child: Padding(
