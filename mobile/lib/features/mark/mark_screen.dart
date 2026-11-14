@@ -24,6 +24,7 @@ import '../../navigation/space_context_bar.dart';
 import '../../platform/camera/system_media_picker.dart';
 import '../../platform/files/native_file_acquisition.dart';
 import '../../platform/files/system_file_picker.dart';
+import '../../platform/media/private_media_views.dart';
 import '../../platform/permissions/permission_gateway.dart';
 import '../../platform/sharing/shared_payload_coordinator.dart';
 import '../../platform/sharing/system_share_receiver.dart';
@@ -861,46 +862,24 @@ class _MarkScreenState extends State<MarkScreen> {
       // File existence was checked asynchronously: a draft or actor may have
       // changed while awaiting the platform filesystem.
       if (!mounted || revision != _draftRevision || actor != _actor) return;
-      if (_isVisualAttachment(item)) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Image enregistrée'),
-            content: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 540),
-              child: Image.file(
-                File(file.path),
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) =>
-                    const Text('Impossible de prévisualiser cette image.'),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Fermer'),
-              ),
-            ],
-          ),
-        );
-      } else if (item['kind'] == 'audio') {
+      final canConserve = actor is PersonalActorContext &&
+          widget.runtime.resources != null &&
+          item['kind'] != 'audio' &&
+          item['saved_asset_id'] == null;
+      if (item['kind'] == 'audio') {
         final player = AudioPlayer();
         try {
           await player.setFilePath(file.path);
-          if (!mounted || revision != _draftRevision || actor != _actor) {
-            return;
-          }
+          if (!mounted || revision != _draftRevision || actor != _actor) return;
           await showDialog<void>(
             context: context,
             builder: (dialogContext) => AlertDialog(
               title: const Text('Enregistrement audio'),
-              content: const Text(
-                'Écoutez votre fichier enregistré sur cet appareil.',
-              ),
               actions: [
-                TextButton(
+                TextButton.icon(
+                  icon: const Icon(Icons.play_arrow_rounded),
                   onPressed: () => unawaited(player.play()),
-                  child: const Text('Écouter'),
+                  label: const Text('Écouter'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
@@ -912,12 +891,54 @@ class _MarkScreenState extends State<MarkScreen> {
         } finally {
           await player.dispose();
         }
-      } else {
-        if (mounted) {
-          _show(
-            'Le fichier est conservé, mais son aperçu n’est pas disponible ici.',
-          );
-        }
+        return;
+      }
+
+      final filename = item['name']?.toString() ?? 'Document';
+      final isPdf = p.extension(filename).toLowerCase() == '.pdf';
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(_isVisualAttachment(item) ? 'Image' : filename),
+          content: _isVisualAttachment(item)
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 500,
+                    maxHeight: 540,
+                  ),
+                  child: Image.file(
+                    File(file.path),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) =>
+                        const Icon(Icons.broken_image_outlined),
+                  ),
+                )
+              : isPdf
+                  ? SizedBox(
+                      width: 470,
+                      height: MediaQuery.sizeOf(dialogContext).height * 0.55,
+                      child: PrivatePdfView(path: file.path),
+                    )
+                  : const Icon(Icons.description_outlined, size: 64),
+          actions: [
+            if (canConserve)
+              TextButton.icon(
+                icon: const Icon(Icons.save_alt_outlined),
+                onPressed: () => Navigator.pop(dialogContext, 'save'),
+                label: const Text('Conserver dans Mes documents'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      );
+      if (choice == 'save' &&
+          mounted &&
+          revision == _draftRevision &&
+          actor == _actor) {
+        await _saveToPersonalResources(item);
       }
     } on Object {
       if (mounted) _show('Impossible d’ouvrir cette pièce locale.');
@@ -1558,19 +1579,6 @@ class _MarkScreenState extends State<MarkScreen> {
                                             ),
                                       deleteButtonTooltipMessage:
                                           'Retirer cette pièce',
-                                    ),
-                                  if (actor is PersonalActorContext &&
-                                      widget.runtime.resources != null &&
-                                      item['kind'] != 'audio' &&
-                                      item['saved_asset_id'] == null)
-                                    MakoloIconActionButton(
-                                      icon: Icons.drive_file_move_outline,
-                                      tooltip: 'Conserver dans Mes documents',
-                                      onPressed: _busy || _restoring
-                                          ? null
-                                          : () => unawaited(
-                                              _saveToPersonalResources(item),
-                                            ),
                                     ),
                                 ],
                               ],
