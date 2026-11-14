@@ -275,11 +275,11 @@ class _MarkScreenState extends State<MarkScreen> {
   // This is a visual affordance, not fetching, analysis, or owner submission.
   List<String> get _typedLinks {
     final found = <String>{};
-    final pattern = RegExp(r'https?://[^\\s<>"\x27]+', caseSensitive: false);
+    final pattern = RegExp(r'https?://\\S+', caseSensitive: false);
     for (final match in pattern.allMatches(_input.text)) {
       final raw = match.group(0);
       if (raw == null) continue;
-      final url = raw.replaceFirst(RegExp(r'[.,;!?\\)\\]]+$'), '');
+      final url = raw.replaceFirst(RegExp(r'[.,;!?)]+$'), '');
       if (_isSafeLink(url) && !_links.contains(url)) found.add(url);
     }
     return found.take(6).toList();
@@ -1633,6 +1633,49 @@ class _MarkScreenState extends State<MarkScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarkMediaSource extends StatelessWidget {
+  const _MarkMediaSource({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: 106,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 28),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
