@@ -13,7 +13,7 @@ from authorization.services import can
 from authorization.selectors import has_direct_space_permission
 from organizations.console_context import authorized_spaces
 from recognition.economy import redeem_reward
-from recognition.models import RewardKind
+from recognition.models import RecognitionRedemption, RewardKind
 from recognition.presentation import reward_spend_presentation, reward_self_actionable
 from recognition.selectors import account_for_profile, account_for_space, active_rewards
 from recognition.valuation import credit_money_equivalent
@@ -108,6 +108,19 @@ class AppuisCreditsWebView(LoginRequiredMixin, TemplateView):
                 self.get_context_data(error_message="Choisissez une récompense disponible."),
                 status=400,
             )
+        key = "appuis-web:" + str(intent_key)
+        existing = RecognitionRedemption.objects.filter(
+            idempotency_key=key,
+        ).first()
+        if existing is not None:
+            if existing.owner_account_id != account.pk or existing.reward_id != reward_id:
+                return self.render_to_response(
+                    self.get_context_data(error_message="Cette demande n'est pas disponible."),
+                    status=409,
+                )
+            # Exact replay: the original owner decision is already recorded.
+            _, self_url = self._links(space)
+            return redirect(self_url)
         reward = next((item for item in self._rewards(account) if item.pk == reward_id), None)
         if reward is None:
             return self.render_to_response(
@@ -118,7 +131,7 @@ class AppuisCreditsWebView(LoginRequiredMixin, TemplateView):
             redemption = redeem_reward(
                 owner_account=account,
                 reward=reward,
-                idempotency_key="appuis-web:" + str(intent_key),
+                idempotency_key=key,
                 actor_profile=request.user,
                 beneficiary_space=space if space else None,
                 beneficiary_profile=None if space else request.user,
