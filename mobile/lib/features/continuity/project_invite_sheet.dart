@@ -83,7 +83,8 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
       if (!mounted || revision != _revision) return;
       setState(() => _searching = true);
       try {
-        final path = 'api/v1/objectives/projects/${widget.projectId}/people/search/'
+        final path =
+            'api/v1/objectives/projects/${widget.projectId}/people/search/'
             '?q=${Uri.encodeQueryComponent(query)}'
             '${_scope.isEmpty ? '' : '&${_scope.substring(1)}'}';
         final result = (await widget.api.get(path)).jsonObject();
@@ -91,9 +92,10 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
         if (!mounted || revision != _revision) return;
         setState(() {
           _results = rows is List
-              ? rows.whereType<Map>().map(
-                  (m) => m.map((k, v) => MapEntry(k.toString(), v)),
-                ).toList()
+              ? rows
+                    .whereType<Map>()
+                    .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+                    .toList()
               : [];
         });
       } on Object {
@@ -127,8 +129,10 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Invitation non envoyée. Vérifiez le compte choisi ou réessayez.');
+        setState(
+          () => _error =
+              'Invitation non envoyée. Vérifiez le compte choisi ou réessayez.',
+        );
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -140,30 +144,36 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
     final scheme = Theme.of(context).colorScheme;
     final roleCodes = widget.roles.map((r) => r['code']?.toString()).toSet();
     final offered = [
-      'project-viewer', 'project-manager', 'project-admin',
+      'project-viewer',
+      'project-manager',
+      'project-admin',
     ].where(roleCodes.contains).toList();
-    final local = widget.candidates.where((row) {
-      final q = _query.text.trim().toLowerCase();
-      return q.length >= 2 &&
-          (row['label']?.toString().toLowerCase().contains(q) ?? false);
-    }).take(5);
-    final suggestions = [
-      ..._results,
-      if (_results.isEmpty) ...local,
-    ];
+    final local = widget.candidates
+        .where((row) {
+          final q = _query.text.trim().toLowerCase();
+          return q.length >= 2 &&
+              (row['label']?.toString().toLowerCase().contains(q) ?? false);
+        })
+        .take(5);
+    final suggestions = [..._results, if (_results.isEmpty) ...local];
     return SafeArea(
       top: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          18, 10, 18, MediaQuery.viewInsetsOf(context).bottom + 18,
+          18,
+          10,
+          18,
+          MediaQuery.viewInsetsOf(context).bottom + 18,
         ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Inviter à collaborer',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Inviter à collaborer',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _query,
@@ -179,8 +189,11 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
                   suffixIcon: _searching
                       ? const Padding(
                           padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 18, height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         )
                       : null,
                 ),
@@ -195,20 +208,27 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
                     leading: CircleAvatar(
                       child: const Icon(Icons.person_outline_rounded),
                     ),
-                    title: Text(person['name']?.toString() ??
-                        person['label']?.toString() ?? ''),
-                    subtitle: Text([
-                      if (person['username'] != null)
-                        '@${person['username']}',
-                      if (person['email'] != null) person['email'].toString(),
-                    ].join(' · ')),
+                    title: Text(
+                      person['name']?.toString() ??
+                          person['label']?.toString() ??
+                          '',
+                    ),
+                    subtitle: Text(
+                      [
+                        if (person['username'] != null)
+                          '@${person['username']}',
+                        if (person['email'] != null) person['email'].toString(),
+                      ].join(' · '),
+                    ),
                     trailing: _selectedId == (person['id']?.toString())
                         ? Icon(Icons.check_circle, color: scheme.primary)
                         : null,
                     onTap: () => setState(() {
                       _selectedId = person['id']?.toString();
-                      _query.text = person['name']?.toString() ??
-                          person['label']?.toString() ?? '';
+                      _query.text =
+                          person['name']?.toString() ??
+                          person['label']?.toString() ??
+                          '';
                       _query.selection = TextSelection.collapsed(
                         offset: _query.text.length,
                       );
@@ -219,8 +239,10 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
                   ),
               ],
               const SizedBox(height: 12),
-              Text('Accès proposé',
-                  style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Accès proposé',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               const SizedBox(height: 7),
               for (final code in offered)
                 Padding(
@@ -235,29 +257,44 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
                       onTap: () => setState(() => _role = code),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 11,
+                          horizontal: 12,
+                          vertical: 11,
                         ),
                         child: Row(
                           children: [
-                            Icon(_icon(code), size: 21,
-                                color: code == _role
-                                    ? scheme.primary : scheme.onSurfaceVariant),
+                            Icon(
+                              _icon(code),
+                              size: 21,
+                              color: code == _role
+                                  ? scheme.primary
+                                  : scheme.onSurfaceVariant,
+                            ),
                             const SizedBox(width: 11),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_label(code),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700)),
-                                  Text(_explain(code),
-                                      style: Theme.of(context).textTheme.bodySmall),
+                                  Text(
+                                    _label(code),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    _explain(code),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
                                 ],
                               ),
                             ),
                             if (code == _role)
-                              Icon(Icons.check_circle_rounded,
-                                  color: scheme.primary, size: 20),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                color: scheme.primary,
+                                size: 20,
+                              ),
                           ],
                         ),
                       ),
@@ -267,8 +304,7 @@ class _ProjectInviteSheetState extends State<ProjectInviteSheet> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 5),
-                  child: Text(_error!,
-                      style: TextStyle(color: scheme.error)),
+                  child: Text(_error!, style: TextStyle(color: scheme.error)),
                 ),
               const SizedBox(height: 10),
               Row(
