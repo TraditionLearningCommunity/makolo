@@ -82,6 +82,8 @@ Future<void> _show(
   List<MeItemPresentation> items = const [_space, _team, _group],
   bool offline = false,
   bool hasMore = false,
+  String query = '',
+  bool alphabetical = false,
   bool Function(StructuredDestination)? onOpen,
   ValueChanged<MeItemPresentation>? onAct,
 }) async {
@@ -98,6 +100,8 @@ Future<void> _show(
               collectives: collectives,
               offline: offline,
               hasMore: hasMore,
+              query: query,
+              alphabetical: alphabetical,
               onOpen: onOpen ?? (_) => true,
               onActSpace: onAct,
             ),
@@ -110,76 +114,146 @@ Future<void> _show(
 }
 
 void main() {
-  testWidgets('positive counts only and separate relationships', (
+  test('known counts are relational; partial counts are not inferred', () {
+    expect(meCollectiveTotal(_data()), 3);
+    expect(meCollectiveTotal(_data(spaces: 0, teams: 0, groups: 0)), 0);
+    expect(meCollectiveTotal({
+      'authorized_spaces': {
+        'items': [
+          {'id': 'one'},
+        ],
+        'has_more': true,
+      },
+      'teams': {'items': [], 'has_more': false},
+      'groups': {'items': [], 'has_more': false},
+    }), isNull);
+  });
+
+  test('only the correct published owner media is eligible', () {
+    Map<String, dynamic> record(String kind, String path) => {
+      'media_bindings': [
+        {
+          'purpose': 'RECOGNIZE',
+          'target': {'kind': kind, 'id': 'space-1'},
+          'resource': {
+            'kind': 'presentation_media_use',
+            'mime_type': 'image/jpeg',
+            'url': path,
+          },
+        },
+      ],
+    };
+    expect(
+      collectiveRecognitionPath(
+        record('space', '/api/v1/presentation/media/one/image/'),
+        'space',
+        'space-1',
+      ),
+      '/api/v1/presentation/media/one/image/',
+    );
+    expect(
+      collectiveRecognitionPath(
+        record('activity', '/api/v1/presentation/media/one/image/'),
+        'space',
+        'space-1',
+      ),
+      isNull,
+    );
+    expect(
+      collectiveRecognitionPath(
+        record('space', 'https://foreign.example/image.jpg'),
+        'space',
+        'space-1',
+      ),
+      isNull,
+    );
+    expect(
+      collectiveRecognitionPath(
+        record('space', '//foreign.example/image.jpg'),
+        'space',
+        'space-1',
+      ),
+      isNull,
+    );
+    expect(
+      collectiveRecognitionPath(
+        record('space', '/api/v1/presentation/media/one/image/'),
+        'space',
+        'other-space',
+      ),
+      isNull,
+    );
+  });
+
+  testWidgets('no duplicate dashboard or ornamental action menu', (
     tester,
   ) async {
-    await _show(
-      tester,
-      collectives: _data(groups: 0),
-      items: const [_space, _team],
-    );
-    expect(find.text('2 collectifs'), findsOneWidget);
-    expect(find.text('Espaces'), findsWidgets);
-    expect(find.text('Équipes'), findsWidgets);
+    await _show(tester, collectives: _data(groups: 0),
+        items: const [_space, _team]);
+    expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
+    expect(find.text('2 collectifs'), findsNothing);
     expect(find.text('0 Groupes'), findsNothing);
     expect(find.text('Espaces où je peux agir'), findsOneWidget);
     expect(find.text('Mes équipes'), findsOneWidget);
     expect(find.text('Mes groupes'), findsNothing);
-    expect(find.text('Espace autorisé'), findsOneWidget);
-    expect(find.text('Membre'), findsOneWidget);
-    expect(find.text('Agir'), findsNothing);
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+    expect(find.text('Aperçu'), findsNothing);
   });
 
-  testWidgets('Space action uses the verified actor picker callback', (
+  testWidgets('Space action remains explicit and server-checked', (
     tester,
   ) async {
     MeItemPresentation? acted;
     await _show(tester, collectives: _data(), onAct: (item) => acted = item);
-    await tester.tap(find.text('Agir'));
+    await tester.tap(find.byKey(const Key('me-collectives-act-space-1')));
     expect(acted?.destination.id, 'space-1');
+    expect(find.text('Voir l’Espace'), findsNothing);
   });
 
-  testWidgets('offline never asserts current permission on a cached Space', (
+  testWidgets('offline keeps known relations without current action claims', (
     tester,
   ) async {
-    var acted = false;
-    await _show(
-      tester,
-      collectives: _data(),
-      offline: true,
-      onAct: (_) => acted = true,
-    );
+    await _show(tester, collectives: _data(), offline: true,
+        onAct: (_) => fail('Offline must not grant Space action'));
     expect(find.text('Agir'), findsNothing);
-    expect(find.text('Espace autorisé'), findsNothing);
-    expect(find.textContaining('Autorisations à confirmer'), findsOneWidget);
-    expect(acted, isFalse);
+    expect(find.text('Espace lié à moi'), findsOneWidget);
+    expect(find.textContaining('Autorisations à confirmer'), findsNothing);
   });
 
-  testWidgets('team affiliation opens parent Space, not Team management', (
+  testWidgets('Team opens parent Space without suggesting Team authority', (
     tester,
   ) async {
     StructuredDestination? opened;
-    await _show(
-      tester,
-      collectives: _data(),
-      onOpen: (destination) {
-        opened = destination;
-        return true;
-      },
-    );
-    await tester.ensureVisible(find.text('Voir l’Espace'));
-    await tester.tap(find.text('Voir l’Espace'));
+    await _show(tester, collectives: _data(), onOpen: (destination) {
+      opened = destination;
+      return true;
+    });
+    await tester.ensureVisible(find.text('Équipe principale'));
+    await tester.tap(find.text('Équipe principale'));
     expect(opened?.kind, 'space');
     expect(opened?.link, 'atelier');
     expect(find.text('Gérer l’équipe'), findsNothing);
   });
 
-  testWidgets('filters and search use already acquired local data', (
+  testWidgets('Group opens its owner depth with no extra menu', (
+    tester,
+  ) async {
+    StructuredDestination? opened;
+    await _show(tester, collectives: _data(), onOpen: (destination) {
+      opened = destination;
+      return true;
+    });
+    await tester.ensureVisible(find.text('Groupe mobilité'));
+    await tester.tap(find.text('Groupe mobilité'));
+    expect(opened?.kind, 'group');
+    expect(opened?.id, 'group-1');
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+  });
+
+  testWidgets('horizontal filters and partial local search are honest', (
     tester,
   ) async {
     await _show(tester, collectives: _data(partial: true), hasMore: true);
-    // The fourth filter starts outside the narrow viewport. Interact with
-    // the actual horizontal strip before tapping its target.
     await tester.drag(
       find.byKey(const Key('me-collectives-filter-scroller')),
       const Offset(-500, 0),
@@ -188,23 +262,22 @@ void main() {
     await tester.tap(find.byKey(const Key('me-collectives-filter-groups')));
     await tester.pumpAndSettle();
     expect(find.text('Espaces où je peux agir'), findsNothing);
-    expect(find.text('Mes groupes'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Rechercher un collectif'));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('me-collectives-search')),
-      'introuvable',
+    expect(find.text('Groupe mobilité'), findsOneWidget);
+    await _show(
+      tester,
+      collectives: _data(partial: true),
+      hasMore: true,
+      query: 'introuvable',
     );
-    await tester.pumpAndSettle();
     expect(
-      find.text('Aucun résultat parmi les collectifs déjà chargés.'),
+      find.text('Aucun résultat parmi les collectifs chargés.'),
       findsOneWidget,
     );
-    expect(find.textContaining('D’autres collectifs'), findsOneWidget);
   });
 
-  testWidgets('zero is not displayed as an ornamental counter', (tester) async {
+  testWidgets('empty collection has no zero counter or false result', (
+    tester,
+  ) async {
     await _show(
       tester,
       collectives: _data(spaces: 0, teams: 0, groups: 0),
@@ -215,23 +288,5 @@ void main() {
     expect(find.text('0 Équipes'), findsNothing);
     expect(find.text('0 Groupes'), findsNothing);
     expect(find.text('Aucun collectif dans cette catégorie.'), findsOneWidget);
-  });
-
-  testWidgets('Group opens its owner checked depth', (tester) async {
-    StructuredDestination? opened;
-    await _show(
-      tester,
-      collectives: _data(),
-      onOpen: (destination) {
-        opened = destination;
-        return true;
-      },
-    );
-    await tester.ensureVisible(
-      find.byKey(const Key('me-collective-group-group-1')),
-    );
-    await tester.tap(find.text('Ouvrir').last);
-    expect(opened?.kind, 'group');
-    expect(opened?.id, 'group-1');
   });
 }
