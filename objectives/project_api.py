@@ -181,6 +181,8 @@ class ProjectPeopleSearchAPIView(APIView):
             return Response({"detail": "Action non autorisée."},
                             status=status.HTTP_403_FORBIDDEN)
         query = (request.query_params.get("q") or "").strip()[:100]
+        if query.startswith("@"):
+            query = query[1:]
         if len(query) < 2:
             return Response({"results": []})
         users = get_user_model().objects.filter(is_active=True)
@@ -323,11 +325,14 @@ class ProjectInvitationCancelAPIView(APIView):
 
     def post(self, request, pk):
         invitation = get_object_or_404(
-            ProjectInvitation.objects.filter(
-                Q(invited_by=request.user) |
-                Q(project__owner_profile=request.user)
-            ), pk=pk,
+            ProjectInvitation.objects.select_related("project"), pk=pk,
         )
+        if not (
+            invitation.invited_by_id == request.user.pk or
+            can_manage_project_authority(request.user, invitation.project)
+        ):
+            return Response({"detail": "Invitation non accessible."},
+                            status=status.HTTP_404_NOT_FOUND)
         try:
             row = cancel_project_invitation(actor=request.user, invitation=invitation)
         except (PermissionDenied, ValidationError) as exc:
