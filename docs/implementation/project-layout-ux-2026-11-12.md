@@ -134,3 +134,44 @@ Ne pas merger #522 avec une CI obligatoire rouge.
   Profil/Espace.
 - Format Dart, analyse Flutter, tests Django et recette réelle sur
   émulateur/Samsung : à exécuter sur la branche et à attester avant merge.
+
+
+## Invitation Projet avec consentement — 14 novembre 2026
+
+- Même interface Projet pour Profil et Espace, avec un sélecteur à icônes
+  compact (44 px par cible) uniquement dans Projet.
+- Un porteur autorisé invite un Profile Makolo existant par identifiant exact,
+  e-mail exact ou recherche d'une identité publiquement recherchable.
+  Le champ peut proposer un nom, un @identifiant et l'e-mail **seulement**
+  si celui-ci a été saisi exactement par l'auteur ; pas d'énumération
+  d'adresses e-mail par préfixe, pas de découverte de Profils privés.
+- Les trois rôles montrés sont **Lecteur**, **Éditeur**,
+  **Administrateur**. Leurs codes et permissions canoniques demeurent
+  `project-viewer`, `project-manager`, `project-admin`.
+  Éditeur ne peut pas déléguer l'autorité Projet par simple titre.
+- L'invitation `ProjectInvitation` est **en attente** et n'est jamais
+  un `Mandate`. La personne reçoit cette proposition dans sa boîte
+  personnelle « Invitations » accessible depuis « Mes démarches ».
+  Accepter crée le mandat Projet canonique ; décliner n'en crée aucun ;
+  l'auteur autorisé peut annuler une invitation encore en attente.
+  Les mandats Dossier, les conversations et les données privées ne sont
+  pas implicitement accordés.
+- L'envoi actuel vise les **comptes Makolo existants**. Il ne prétend
+  pas envoyer un e-mail externe à des personnes non inscrites.
+  Une notification push ou un e-mail sortant devra être câblé au propriétaire
+  Notifications, sans créer de confirmation fictive.
+- La boîte « Invitations » consulte pour l'instant le serveur lorsqu'elle
+  est ouverte ; le support durable d'une collection locale synchronisée reste
+  à raccorder au Sync Kernel pour satisfaire pleinement le local-first
+  silencieux sur un appareil sans réseau.
+- Les commandes API sont séparées : `/people/search/`,
+  `/invitations/`, `/projects/invitations/`,
+  `/projects/invitations/:id/respond/` et `.../cancel/`.
+  Le service canonicalise la transition et verrouille le Projet avant de
+  créer le mandat lors de l'acceptation.
+- Tests ajoutés : aucune autorité avant acceptation, refus, autorité
+  inter-Projets, doublons d'invitation, recherche respectueuse de la
+  confidentialité, vue Web et boîtes de réception.
+
+Ne pas qualifier l'ensemble « terminé » avant les tests Django et Flutter,
+la migration additive, et une recette avec deux Profils distincts.
