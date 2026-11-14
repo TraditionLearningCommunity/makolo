@@ -49,6 +49,9 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_start());
+    });
   }
 
   @override
@@ -265,74 +268,92 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
     final time =
         '${(_seconds ~/ 60).toString().padLeft(2, '0')}:'
         '${(_seconds % 60).toString().padLeft(2, '0')}';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enregistrement audio',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            if (_recording) ...[
-              const SizedBox(height: 8),
-              Text(_paused ? 'En pause · $time' : 'En cours · $time'),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _recording && !_paused
+                    ? Icons.fiber_manual_record
+                    : Icons.graphic_eq,
+                color: _recording && !_paused
+                    ? scheme.error
+                    : scheme.primary,
+                size: 19,
               ),
-            ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (!_recording && _staged == null)
-                  MakoloActionButton(
-                    label: 'Enregistrer',
-                    icon: Icons.mic,
-                    busy: _busy,
-                    onPressed: _busy ? null : () => unawaited(_start()),
-                  ),
-                if (_recording) ...[
-                  MakoloActionButton(
-                    label: _paused ? 'Reprendre' : 'Pause',
-                    icon: _paused ? Icons.play_arrow : Icons.pause,
-                    onPressed: _busy ? null : () => unawaited(_togglePause()),
-                  ),
-                  MakoloActionButton(
-                    label: 'Terminer',
-                    icon: Icons.stop,
-                    busy: _busy,
-                    onPressed: _busy ? null : () => unawaited(_stop()),
-                  ),
-                ],
-                if (_staged != null) ...[
-                  MakoloActionButton(
-                    label: 'Écouter',
-                    icon: Icons.play_arrow,
-                    onPressed: _busy ? null : () => unawaited(_play()),
-                  ),
-                  MakoloActionButton(
-                    label: 'Ajouter au brouillon',
-                    icon: Icons.check,
-                    busy: _busy,
-                    onPressed: _busy ? null : () => unawaited(_keep()),
-                  ),
-                ],
-                MakoloActionButton(
-                  label: 'Annuler',
-                  appearance: MakoloActionAppearance.quiet,
-                  onPressed: _busy ? null : () => unawaited(_cancel()),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  _recording
+                      ? (_paused ? 'En pause · $time' : 'En cours · $time')
+                      : _staged != null
+                          ? 'Audio · $time'
+                          : _busy
+                              ? 'Microphone…'
+                              : 'Audio',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                ),
+              ),
+              if (!_recording && _staged == null && !_busy)
+                IconButton(
+                  tooltip: 'Enregistrer',
+                  onPressed: () => unawaited(_start()),
+                  icon: const Icon(Icons.mic_rounded),
+                ),
+              if (_recording) ...[
+                IconButton(
+                  tooltip: _paused ? 'Reprendre' : 'Pause',
+                  onPressed: _busy ? null : () => unawaited(_togglePause()),
+                  icon: Icon(_paused ? Icons.play_arrow : Icons.pause_rounded),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'Terminer l’enregistrement',
+                  onPressed: _busy ? null : () => unawaited(_stop()),
+                  icon: const Icon(Icons.stop_rounded),
                 ),
               ],
+              if (_staged != null) ...[
+                IconButton(
+                  tooltip: 'Écouter l’audio',
+                  onPressed: _busy ? null : () => unawaited(_play()),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'Garder l’audio',
+                  onPressed: _busy ? null : () => unawaited(_keep()),
+                  icon: const Icon(Icons.check_rounded),
+                ),
+              ],
+              IconButton(
+                tooltip: 'Annuler l’enregistrement',
+                onPressed: _busy ? null : () => unawaited(_cancel()),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 4, bottom: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _error!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.error,
+                  ),
+                ),
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
