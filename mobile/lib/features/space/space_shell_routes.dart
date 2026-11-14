@@ -1387,10 +1387,6 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         ),
                       ),
                     )
-                  else
-                    const MakoloEmptyState(
-                      title: 'Aucun fait à afficher.',
-                    )
               else
                 const MakoloEmptyState(title: 'Aucun fait à afficher.'),
             else
