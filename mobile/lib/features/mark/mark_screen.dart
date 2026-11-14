@@ -1430,7 +1430,9 @@ class _MarkScreenState extends State<MarkScreen> {
                                     child: Chip(
                                       avatar: const Icon(Icons.link, size: 18),
                                       label: ConstrainedBox(
-                                        constraints: const BoxConstraints(maxWidth: 200),
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 200,
+                                        ),
                                         child: Text(
                                           detected,
                                           overflow: TextOverflow.ellipsis,
@@ -1481,14 +1483,22 @@ class _MarkScreenState extends State<MarkScreen> {
                                     )
                                   else if (item['kind'] != 'audio')
                                     _MarkDocumentThumbnail(
-                                      key: ValueKey('mark-file:${_draftRevision}:${item['file_id']}'),
-                                      filename: item['name']?.toString() ?? 'Document',
+                                      key: ValueKey(
+                                        'mark-file:${_draftRevision}:${item['file_id']}',
+                                      ),
+                                      filename:
+                                          item['name']?.toString() ??
+                                          'Document',
                                       onOpen: _busy
                                           ? null
-                                          : () => unawaited(_previewAttachment(item)),
+                                          : () => unawaited(
+                                              _previewAttachment(item),
+                                            ),
                                       onRemove: _busy
                                           ? null
-                                          : () => unawaited(_removeAttachment(item)),
+                                          : () => unawaited(
+                                              _removeAttachment(item),
+                                            ),
                                     )
                                   else
                                     InputChip(
@@ -1771,10 +1781,7 @@ class _MarkDocumentThumbnail extends StatelessWidget {
               onPressed: onRemove,
               icon: const Icon(Icons.close_rounded, size: 16),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 36,
-                minHeight: 36,
-              ),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
         ],
