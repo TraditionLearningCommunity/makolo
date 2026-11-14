@@ -3,6 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/space/space_us_authority_facts.dart';
 
 void main() {
+  testWidgets('Missing authority data does not mean no active mandates', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SpaceUsAuthorityFacts(payload: {}),
+        ),
+      ),
+    );
+    expect(find.text('Autorisations indisponibles.'), findsOneWidget);
+    expect(find.text('Aucune autorisation active.'), findsNothing);
+  });
+
   testWidgets('N3 shows role, scope and rights without exposing codes', (
     tester,
   ) async {
