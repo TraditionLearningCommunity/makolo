@@ -130,8 +130,11 @@ void main() {
     await tester.tap(find.byTooltip('Liste'));
     await tester.pump();
     expect(find.text('Explorer le Dossier'), findsNothing);
+    // Detailed lists start under the AppBar, not below the whole Dossier.
+    expect(find.text('Dossier et démarches'), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
     expect(find.byTooltip('Vue d’ensemble'), findsOneWidget);
+    expect(tester.getSize(find.byTooltip('Liste')).width, lessThanOrEqualTo(44));
     expect(tester.takeException(), isNull);
   });
 }
