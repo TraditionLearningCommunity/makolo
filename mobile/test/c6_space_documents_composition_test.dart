@@ -320,7 +320,8 @@ void main() {
       await tester.tap(find.byTooltip('Actualiser'));
       await tester.pumpAndSettle();
       expect(find.text('Document déjà connu'), findsOneWidget);
-      expect(find.textContaining('dernière consultation'), findsOneWidget);
+      expect(find.textContaining('dernière consultation'), findsNothing);
+      expect(find.textContaining('Actualisation indisponible'), findsNothing);
       expect(
         find.byTooltip('Ajouter'),
         findsNothing,
