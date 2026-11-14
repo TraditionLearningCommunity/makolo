@@ -138,6 +138,13 @@ def _serialize_point(point, *, profile, reason=None, section=None):
                 or "Participant"
             ),
             "is_mine": point.published_by_id == profile.pk,
+            "public_profile_id": (
+                str(point.published_by_id)
+                if point.published_by.is_active
+                and getattr(getattr(point.published_by, "profile", None), "public_profile", False)
+                and getattr(getattr(point.published_by, "profile", None), "searchable", False)
+                else None
+            ),
             "represented_space": bool(point.represented_space_id),
             "space_label": (
                 point.represented_space.name
