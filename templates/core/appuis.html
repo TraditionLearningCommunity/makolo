@@ -46,23 +46,17 @@
         {% if loyalty_url %}<a class="ap-see-all" href="{{ loyalty_url }}">Tout voir <span aria-hidden="true">→</span></a>{% endif %}
       </header>
       <div class="ap-grid">
-      {% for item in loyalty_cards %}
-        <a class="ap-card" href="{{ item.url }}" {% if forloop.counter > 3 %}data-appuis-more="loyalty" hidden{% endif %}>
+        {% if loyalty_cards %}
+        <a class="ap-card" href="{{ loyalty_url }}">
           <span class="ap-card-symbol"><i data-lucide="gift" aria-hidden="true"></i></span>
           <span class="ap-card-copy">
-            <strong>{{ item.name }}</strong>
-            <small>{{ item.organization }}</small>
-            {% if item.balance or item.tier %}
-              <em>{% if item.balance %}{{ item.balance }} {{ item.unit }}{% endif %}{% if item.balance and item.tier %} · {% endif %}{% if item.tier %}{{ item.tier }}{% endif %}</em>
-            {% endif %}
+            <strong>{% if is_space %}Notre programme de fidélité{% else %}Mes programmes de fidélité{% endif %}</strong>
+            <small>{% if is_space %}Niveaux, formules et avantages{% else %}Adhésions et avantages de mes Espaces{% endif %}</small>
           </span>
           <i data-lucide="chevron-right" aria-hidden="true"></i>
         </a>
-      {% endfor %}
+        {% endif %}
       </div>
-      {% if loyalty_cards|length > 3 %}
-        <button class="ap-expand" type="button" data-appuis-expand="loyalty" aria-expanded="false">Tout voir</button>
-      {% endif %}
       {% if loyalty_rewards %}
       <details class="ap-family-detail">
         <summary>Récompenses mobilisables</summary>
@@ -109,8 +103,11 @@
         {% if recognition_url %}<a class="ap-see-all" href="{{ recognition_url }}">Tout voir <span aria-hidden="true">→</span></a>{% endif %}
       </header>
       {% if recognition_credits %}
-        <p class="ap-note">{{ recognition_credits }} crédits Recognition disponibles</p>
+        <p class="ap-note"><strong>{{ recognition_credits }} crédits disponibles</strong>{% if recognition_pending_credits %} · {{ recognition_pending_credits }} en attente{% endif %}</p>
+      {% elif recognition_pending_credits %}
+        <p class="ap-note">{{ recognition_pending_credits }} crédits en attente</p>
       {% endif %}
+      {% if recognition_lifetime_credits %}<p class="ap-note">{{ recognition_lifetime_credits }} crédits obtenus au total</p>{% endif %}
       <div class="ap-grid">
       {% for item in recognition_cards %}
         <a class="ap-card" href="{{ recognition_url }}" {% if forloop.counter > 3 %}data-appuis-more="recognition" hidden{% endif %}>
