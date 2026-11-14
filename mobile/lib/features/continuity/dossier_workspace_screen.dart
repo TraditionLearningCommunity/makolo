@@ -140,6 +140,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   _ListSort _sort = _ListSort.recent;
   _TimeScale _timeScale = _TimeScale.month;
   String _filter = 'all';
+  bool _searchExpanded = false;
   String? _spaceSlug;
   int _contextRevision = 0;
   bool _refreshing = false, _busy = false, _failed = false;
@@ -162,6 +163,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   void _resetPresentation() {
     _mode = _DossierMode.overview;
     _filter = 'all';
+    _searchExpanded = false;
     _sort = _ListSort.recent;
     _timeScale = _TimeScale.month;
     _transform.value = Matrix4.identity();
@@ -1666,26 +1668,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _search,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search_rounded),
-            hintText: 'Rechercher une démarche',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
-            suffixIcon: _search.text.isEmpty
-                ? null
-                : MakoloIconActionButton(
-                    tooltip: 'Effacer la recherche',
-                    icon: Icons.close_rounded,
-                    onPressed: _search.clear,
-                  ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
+        Row(
           children: [
+            IconButton(
+              tooltip: _searchExpanded ? 'Fermer la recherche' : 'Rechercher',
+              icon: Icon(_searchExpanded
+                  ? Icons.search_off_rounded : Icons.search_rounded),
+              onPressed: () => setState(() {
+                _searchExpanded = !_searchExpanded;
+                if (!_searchExpanded) _search.clear();
+              }),
+            ),
             _popup('Situation', _filter, const {
               'all': 'Toutes',
               'action': 'Action requise',
@@ -1709,15 +1702,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 'expiry': 'Expiration indiquée',
               },
               (v) => setState(
-                () =>
-                    _sort = _ListSort.values.firstWhere((row) => row.name == v),
+                () => _sort = _ListSort.values.firstWhere(
+                  (row) => row.name == v,
+                ),
               ),
             ),
+            const Spacer(),
             ObjectiveFilterReset(
-              active:
-                  _search.text.trim().isNotEmpty ||
-                  _filter != 'all' ||
-                  _sort != _ListSort.recent,
+              active: _search.text.trim().isNotEmpty ||
+                  _filter != 'all' || _sort != _ListSort.recent,
               onClear: () {
                 _search.clear();
                 setState(() {
@@ -1728,7 +1721,29 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        if (_searchExpanded) ...[
+          const SizedBox(height: 5),
+          TextField(
+            controller: _search,
+            autofocus: true,
+            decoration: InputDecoration(
+              isDense: true,
+              prefixIcon: const Icon(Icons.search_rounded),
+              hintText: 'Rechercher une démarche',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Effacer la recherche',
+                      onPressed: _search.clear,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
         if (items.isNotEmpty &&
             (_search.text.trim().isNotEmpty || _filter != 'all'))
           Text(
