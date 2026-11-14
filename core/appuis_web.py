@@ -278,6 +278,16 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             else None
         )
         context["recognition_credits"] = recognition_credits
+        context["recognition_pending_credits"] = (
+            recognition_account.pending_points
+            if recognition_account is not None
+            and recognition_account.pending_points > 0 else None
+        )
+        context["recognition_lifetime_credits"] = (
+            recognition_account.lifetime_earned
+            if recognition_account is not None
+            and recognition_account.lifetime_earned > 0 else None
+        )
         context["has_recognition_appuis"] = bool(
             recognition_credits is not None or recognition_cards or
             context["recognition_recent"]
@@ -286,34 +296,31 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
         context["has_partner_appuis"] = bool(partner_rows)
         context["partner_cards"] = partner_rows
 
+        # Recognition's own credits are the useful cross-context headline.
+        # Never make the number of unrelated Loyalty programs an Appuis score.
         metrics = []
-        if loyalty_cards:
-            metrics.append({
-                "icon": "gift", "value": len(loyalty_cards),
-                "label": "programme" if len(loyalty_cards) == 1 else "programmes",
-            })
-        # Never add Recognition rewards to Loyalty rewards or their balances.
-        recognition_count = len(achievement_rows) or len(recognition_reward_rows)
-        if recognition_count > 0:
-            metrics.append({
-                "icon": "award", "value": recognition_count,
-                "label": (
-                    "reconnaissance" if len(achievement_rows) == 1
-                    else "reconnaissances"
-                ) if achievement_rows else (
-                    "récompense" if recognition_count == 1 else "récompenses"
-                ),
-            })
-        elif recognition_credits is not None:
+        if recognition_credits is not None:
             metrics.append({
                 "icon": "star", "value": recognition_credits,
-                "label": "crédit Recognition" if recognition_credits == 1
-                         else "crédits Recognition",
+                "label": "crédit" if recognition_credits == 1 else "crédits",
+            })
+        elif achievement_rows:
+            metrics.append({
+                "icon": "award", "value": len(achievement_rows),
+                "label": "reconnaissance" if len(achievement_rows) == 1
+                         else "reconnaissances",
+            })
+        elif recognition_reward_rows:
+            metrics.append({
+                "icon": "gift", "value": len(recognition_reward_rows),
+                "label": "récompense" if len(recognition_reward_rows) == 1
+                         else "récompenses",
             })
         if partner_rows:
             metrics.append({
                 "icon": "handshake", "value": len(partner_rows),
-                "label": "partenariat" if len(partner_rows) == 1 else "partenariats",
+                "label": "partenariat" if len(partner_rows) == 1
+                         else "partenariats",
             })
         context["appuis_metrics"] = metrics
         context["appuis_family_count"] = sum((
