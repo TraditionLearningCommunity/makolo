@@ -1331,21 +1331,25 @@ class _MarkScreenState extends State<MarkScreen> {
           children: [
             if (actor is SpaceActorContext)
               MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
-            const SizedBox(height: 18),
-            const Center(child: MakoloMark(size: 56)),
-            const SizedBox(height: 24),
+            if (!_editing) ...[
+              const SizedBox(height: 18),
+              const Center(child: MakoloMark(size: 56)),
+              const SizedBox(height: 24),
+            ],
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Qu’est-ce que vous avez en tête ?',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 22),
+                    if (!_editing) ...[
+                      Text(
+                        'Qu’est-ce que vous avez en tête ?',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: 22),
+                    ],
                     Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
@@ -1362,12 +1366,12 @@ class _MarkScreenState extends State<MarkScreen> {
                             controller: _input,
                             focusNode: _inputFocus,
                             readOnly: _busy || _restoring,
-                            minLines: 3,
-                            maxLines: 8,
+                            minLines: 1,
+                            maxLines: 7,
                             maxLength: 600,
                             textInputAction: TextInputAction.newline,
                             decoration: const InputDecoration(
-                              hintText: 'Qu’aimeriez-vous faire ?',
+                              hintText: 'Décrivez ce que vous souhaitez faire…',
                               alignLabelWithHint: true,
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
@@ -1387,7 +1391,8 @@ class _MarkScreenState extends State<MarkScreen> {
                           ),
                           if (_selectedContext != null ||
                               _attachments.isNotEmpty ||
-                              _links.isNotEmpty) ...[
+                              _links.isNotEmpty ||
+                              _typedLinks.isNotEmpty) ...[
                             if (_selectedContext != null)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
@@ -1419,6 +1424,21 @@ class _MarkScreenState extends State<MarkScreen> {
                               spacing: 8,
                               runSpacing: 8,
                               children: [
+                                for (final detected in _typedLinks)
+                                  Tooltip(
+                                    message: 'Lien reconnu dans votre texte',
+                                    child: Chip(
+                                      avatar: const Icon(Icons.link, size: 18),
+                                      label: ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 200),
+                                        child: Text(
+                                          detected,
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 for (final link in _links)
                                   Chip(
                                     avatar: const Icon(Icons.link, size: 18),
@@ -1458,6 +1478,17 @@ class _MarkScreenState extends State<MarkScreen> {
                                           : () => unawaited(
                                               _removeAttachment(item),
                                             ),
+                                    )
+                                  else if (item['kind'] != 'audio')
+                                    _MarkDocumentThumbnail(
+                                      key: ValueKey('mark-file:${_draftRevision}:${item['file_id']}'),
+                                      filename: item['name']?.toString() ?? 'Document',
+                                      onOpen: _busy
+                                          ? null
+                                          : () => unawaited(_previewAttachment(item)),
+                                      onRemove: _busy
+                                          ? null
+                                          : () => unawaited(_removeAttachment(item)),
                                     )
                                   else
                                     InputChip(
@@ -1507,24 +1538,18 @@ class _MarkScreenState extends State<MarkScreen> {
                           Row(
                             children: [
                               MakoloIconActionButton(
-                                tooltip: 'Joindre un fichier',
-                                icon: Icons.attach_file_rounded,
-                                onPressed: _busy ? null : _pickFiles,
+                                tooltip: 'Ajouter une pièce',
+                                icon: Icons.add_rounded,
+                                onPressed: _busy || _restoring
+                                    ? null
+                                    : _openAttachmentPicker,
                               ),
                               MakoloIconActionButton(
-                                tooltip: 'Prendre une photo',
-                                icon: Icons.photo_camera_outlined,
-                                onPressed: _busy ? null : _capturePhoto,
-                              ),
-                              MakoloIconActionButton(
-                                tooltip: 'Choisir une image',
-                                icon: Icons.photo_library_outlined,
-                                onPressed: _busy ? null : _pickPhoto,
-                              ),
-                              MakoloIconActionButton(
-                                tooltip: 'Enregistrer un audio',
+                                tooltip: 'Dicter ou enregistrer',
                                 icon: Icons.mic_none_rounded,
-                                onPressed: _busy ? null : _openVoiceInput,
+                                onPressed: _busy || _restoring
+                                    ? null
+                                    : _openVoiceInput,
                               ),
                               const Spacer(),
                               if (_input.text.length >= 500)
