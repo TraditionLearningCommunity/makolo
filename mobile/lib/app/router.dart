@@ -254,6 +254,7 @@ GoRouter createMakoloRouter(
           deliveryId: state.pathParameters['id']!,
         ),
       ),
+      if (runtime.isAuthenticated) meCollectivesRoute(runtime),
       if (runtime.isAuthenticated)
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) => AppShell(
