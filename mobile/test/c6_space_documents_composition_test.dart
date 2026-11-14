@@ -340,4 +340,95 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets(
+    'An empty Space document snapshot stops claiming completeness after a failed refresh',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final actor = await ActorContextController.restore(
+        profileId: 'profile-a',
+        store: _LocalActorStore(),
+      );
+      addTearDown(actor.dispose);
+      await actor.selectSpace(
+        SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
+      );
+      var unavailable = false;
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: MockClient((request) async {
+          if (unavailable) {
+            return MockResponse('{"detail":"unavailable"}', 503);
+          }
+          return MockResponse(
+            jsonEncode({
+              'space_id': 'space-a',
+              'count': 0,
+              'items': <Object>[],
+              'can_manage': false,
+              'has_more': false,
+              'next_offset': 0,
+            }),
+            200,
+          );
+        }).dio,
+      );
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final repository = WorkspaceContextRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        actorContext: actor,
+        sync: sync,
+      );
+      final runtime = AppRuntime(
+        tokens: tokens,
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+        recovery: SessionRecoveryController(),
+        actorContext: actor,
+        api: api,
+        database: database,
+        store: store,
+        sync: sync,
+        space: repository,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SpaceDocumentsScreen(runtime: runtime, slug: 'atelier'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Aucun document pour le moment.'), findsOneWidget);
+
+      unavailable = true;
+      await tester.tap(find.byTooltip('Actualiser'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucun document pour le moment.'), findsNothing);
+      expect(find.text('Aucun document à afficher.'), findsOneWidget);
+      expect(find.textContaining('dernière consultation'), findsNothing);
+      expect(find.text('0'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
 }
