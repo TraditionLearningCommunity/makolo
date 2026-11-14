@@ -256,11 +256,15 @@
       <div class="mk-project__field">
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
+        {% if field.name == "identity" %}
+          <div class="mk-project__person-suggestions" data-project-person-suggestions
+               role="listbox" aria-label="Personnes proposées" hidden></div>
+        {% endif %}
       </div>
       {% endfor %}
       <div class="mk-project__dialog-actions">
         <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-action-button" data-variant="primary">Accorder l’accès</button>
+        <button type="submit" class="mk-action-button" data-variant="primary">Envoyer l’invitation</button>
       </div>
     </form>
   </dialog>
