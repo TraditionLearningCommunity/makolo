@@ -2,8 +2,9 @@
 
 This is a bounded read model. It is not an asset store or an authorization
 grant: SpaceDocument owns institutional documents, Presentation owns reusable
-media/templates/themes, Sharing owns issued Passport documents, and Trust owns
-issued Credentials. PersonalAsset and ActivityResource never become Space assets.
+media/templates/themes, and Trust owns issued Credentials. A received external
+certificate remains a SpaceDocument; it is not promoted into a Trust Credential.
+PersonalAsset and ActivityResource never become Space assets.
 """
 from __future__ import annotations
 
@@ -13,7 +14,6 @@ from authorization.services import can
 from presentations.asset_models import PresentationAsset
 from presentations.enums import VersionStatus
 from presentations.models import PresentationTemplateVersion, PresentationThemeVersion
-from sharing.models import PassportSnapshot
 from space_assets.models import SpaceDocument
 from space_assets.services import visible_documents, can_manage_documents
 from trust.credential_models import Credential
@@ -22,7 +22,7 @@ from trust.credential_selectors import credentials_issued_by_space
 PAGE_SIZE = 20
 PREVIEW_LIMIT = 4
 RESOURCE_KINDS = (
-    "document", "asset", "template", "theme", "passport", "credential",
+    "document", "asset", "template", "theme", "credential", "received_title",
 )
 # These are the currently established institutional owners, not a claim
 # that every kind of corporate document has a canonical Makolo owner.
@@ -32,7 +32,6 @@ RESOURCE_COVERAGE = {
         "space_assets.documents",
         "presentations.assets",
         "presentations.library",
-        "sharing.passport",
         "trust.credentials",
     ],
 }
@@ -63,12 +62,9 @@ def _families(space, profile):
             theme__owner_space=space,
             status=VersionStatus.PUBLISHED,
         ).select_related("theme").order_by("-published_at", "-pk"),
-        "passport": (
-            PassportSnapshot.objects.filter(
-                space=space, revoked_at__isnull=True,
-            ).order_by("-generated_at", "-pk")
-            if manager else PassportSnapshot.objects.none()
-        ),
+        "received_title": visible_documents(
+            actor=profile, space=space,
+        ).filter(kind="certificate").order_by("-updated_at", "-pk"),
         "credential": (
             credentials_issued_by_space(space, valid_only=True)
             if trust_manager else Credential.objects.none()
@@ -99,15 +95,15 @@ def _item(kind, row, *, slug):
             "owner": "presentations",
             "handoff": None,
         }
-    if kind == "passport":
+    if kind == "received_title":
         return {
             "kind": kind,
             "id": str(row.pk),
-            "title": "Passeport Makolo · " + row.document_id,
-            "detail": "Document institutionnel émis · " + row.variant,
-            "issued_at": row.generated_at.isoformat(),
-            "owner": "sharing",
-            "handoff": f"/space/{slug}/us/passport",
+            "title": row.title,
+            "detail": "Titre reçu · document de cet Espace",
+            "issued_at": row.updated_at.isoformat(),
+            "owner": "space_assets",
+            "handoff": f"/space/{slug}/us/documents/{row.pk}",
         }
     if kind == "credential":
         return {
@@ -149,12 +145,15 @@ def build_space_us_resources_projection(
 
     families = _families(space, profile)
     counts = {name: qs.count() for name, qs in families.items()}
-    total = sum(counts.values())
+    # received_title is a focused view of document, not a second owned asset.
+    total = sum(
+        counts[name] for name in ("document", "asset", "template", "theme", "credential")
+    )
     if preview:
-        # One preview per actual owner family prevents many Passport
-        # revisions from drowning out reusable institutional resources.
+        # One preview per actual owner family; received_title is already a
+        # document view and would otherwise duplicate the same owned file.
         items = []
-        for name in ("document", "asset", "template", "theme", "passport", "credential"):
+        for name in ("document", "asset", "template", "theme", "credential"):
             items.extend(
                 _item(name, row, slug=space.slug)
                 for row in families[name][:1]
