@@ -58,6 +58,20 @@ const _action = JourneyReadinessItem(
 );
 
 void main() {
+  test('technical checks remain owner truth but not a fake UI counter', () {
+    final technical = JourneyComposition.from(
+      _journey(
+        ready: const [
+          JourneyReadinessItem(key: 'state', summary: "L'état de la démarche permet de continuer."),
+          JourneyReadinessItem(key: 'blockers', summary: 'Aucun obstacle actif.'),
+        ],
+      ),
+    );
+    expect(technical.hasPreparation, isFalse);
+    expect(journeyUsefulReadySummary('Pièce validée'), isTrue);
+    expect(journeyUsefulReadySummary('Aucun obstacle actif.'), isFalse);
+  });
+
   test('universal empty composition shows no invented territory', () {
     final composed = JourneyComposition.from(_journey());
     expect(composed.situation, JourneySituation.calm);
