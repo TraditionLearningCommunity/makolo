@@ -472,10 +472,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
         child: Center(
           child: Text(
             initials.isEmpty ? '•' : initials,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: scheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w700),
           ),
         ),
       ),

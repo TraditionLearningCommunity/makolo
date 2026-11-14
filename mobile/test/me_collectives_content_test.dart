@@ -464,7 +464,8 @@ void main() {
     final data = _data();
     final spaceRows =
         (data['authorized_spaces']! as Map<String, dynamic>)['items'] as List;
-    (spaceRows.first as Map<String, dynamic>)['archetype_label'] = 'Association';
+    (spaceRows.first as Map<String, dynamic>)['archetype_label'] =
+        'Association';
     (spaceRows.first as Map<String, dynamic>)['description'] =
         'Actions de proximité pour les habitants.';
     await _show(tester, collectives: data);
