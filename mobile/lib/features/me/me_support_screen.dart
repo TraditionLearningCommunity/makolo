@@ -547,7 +547,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final api = widget.runtime.api;
     final store = widget.runtime.store;
-    if (_denied || api == null || store == null || !_current(generation, actor)) {
+    if (_denied ||
+        api == null ||
+        store == null ||
+        !_current(generation, actor)) {
       return null;
     }
     try {
