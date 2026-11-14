@@ -152,6 +152,24 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         return results
 
 
+class ConversationOlderTimelineView(ConversationAccessMixin, View):
+    """Authorized chronological HTML continuation for in-place Web expansion."""
+
+    def get(self, request, *args, **kwargs):
+        conversation = self.get_conversation()
+        try:
+            page = page_points_for_profile(
+                request.user, conversation, section="all", limit=40,
+                cursor=request.GET.get("cursor") or None,
+            )
+        except ValidationError:
+            return JsonResponse({"detail": "Ces échanges ont changé."}, status=400)
+        return render(request, "conversations/_timeline_older_page.html", {
+            "timeline_points": reversed(page["results"]),
+            "next_cursor": page["next_cursor"] or "",
+        })
+
+
 class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAccessMixin, TemplateView):
     template_name = "conversations/detail.html"
 
@@ -185,6 +203,7 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
                 "timeline_groups": timeline_groups,
+                "timeline_points": timeline["points"],
                 "attention": conversation_attention_sections(self.request.user, conversation),
                 "timeline_older_query": older_query,
                 "focused_point": focused_point,
