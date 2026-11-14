@@ -185,11 +185,20 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
     _spendEpoch++;
     setState(() => _working = true);
     try {
-      final response = await widget.onRedeem(reward);
-      if (!mounted || !_current || response == null) return;
-      // A committed spend invalidates the old amount until an owner GET.
+      Map<String, dynamic>? response;
+      try {
+        response = await widget.onRedeem(reward);
+      } on Object {
+        // The outcome is unknown. Do not keep spending against old credits.
+      }
+      if (!mounted || !_current) return;
       setState(() => _balanceUnverified = true);
-      final refreshed = await widget.onReload();
+      Map<String, dynamic>? refreshed;
+      try {
+        refreshed = await widget.onReload();
+      } on Object {
+        // Existing facts remain visible but cannot authorize another spend.
+      }
       if (!mounted || !_current) return;
       if (refreshed != null) {
         setState(() {
@@ -198,6 +207,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
           _moneyVerified = true;
         });
       }
+      if (response == null) return;
       final fulfilled = _text(response['status']) == 'fulfilled';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
