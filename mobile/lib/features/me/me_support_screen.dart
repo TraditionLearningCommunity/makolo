@@ -610,6 +610,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                     onAction: _execute,
                     onReadProgram: _readProgram,
                     onCreateSpaceItem: _createSpaceProgramItem,
+                    canMutate: !offline && !_denied && !_busy,
                     allowed: (row, family, action) =>
                         _action(row, family, action) != null,
                   ),
