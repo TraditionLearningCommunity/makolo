@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'appuis_program_depth.dart';
+import 'appuis_credits_use_screen.dart';
 
 /// The three owners remain authoritative: this is presentation only.
 class AppuisViewData {
@@ -146,6 +147,11 @@ class AppuisDashboard extends StatefulWidget {
     required this.onReadProgram,
     required this.onCreateSpaceItem,
     required this.canMutate,
+    required this.canSpendRecognition,
+    required this.onRedeemRecognition,
+    required this.onReloadRecognition,
+    this.actorChanges,
+    this.actorIsCurrent,
     required this.allowed,
   });
 
@@ -157,6 +163,11 @@ class AppuisDashboard extends StatefulWidget {
   final AppuisProgramReader onReadProgram;
   final AppuisSpaceCreator onCreateSpaceItem;
   final bool canMutate;
+  final bool Function() canSpendRecognition;
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic>) onRedeemRecognition;
+  final Future<Map<String, dynamic>?> Function() onReloadRecognition;
+  final Listenable? actorChanges;
+  final bool Function()? actorIsCurrent;
   final AppuisAllowed allowed;
 
   @override
@@ -164,16 +175,7 @@ class AppuisDashboard extends StatefulWidget {
 }
 
 class _AppuisDashboardState extends State<AppuisDashboard> {
-  String _filter = 'all';
   Map<String, dynamic> _data(String family) => widget.snapshots[family] ?? {};
-
-  @override
-  void didUpdateWidget(covariant AppuisDashboard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.actorKey != widget.actorKey) _filter = 'all';
-    final allowed = AppuisViewData.available(widget.snapshots, widget.space);
-    if (_filter != 'all' && !allowed.contains(_filter)) _filter = 'all';
-  }
 
   String _name(String family) => switch (family) {
     'recognition' =>
