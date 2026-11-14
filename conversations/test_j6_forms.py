@@ -173,6 +173,49 @@ class ConversationFormsTests(TestCase):
         form_request.refresh_from_db()
         self.assertNotEqual(form_request.status, FormRequestStatus.COMPLETED)
 
+    def test_primary_web_fil_has_no_attention_banner_or_separate_response_page(self):
+        conversation, point = self._form_point()
+        ensure_form_requests_for_point(
+            actor=self.owner, point=point, form_version=self.version,
+        )
+        self.client.force_login(self.member)
+        page = self.client.get(
+            reverse("conversations:detail", kwargs={"pk": conversation.pk}),
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-conversation-thread")
+        self.assertContains(page, 'data-conversation-inline-form')
+        self.assertNotContains(page, 'id="conversation-attention"')
+        self.assertNotContains(page, 'id="focused-point-heading"')
+
+    def test_older_web_window_loads_in_the_same_fil_and_keeps_profile_scope(self):
+        import re
+        conversation, source = self._form_point()
+        for i in range(45):
+            create_point(
+                actor=self.owner,
+                conversation=conversation,
+                kind=ConversationPointKind.INFORMATION,
+                response_mode=ConversationPointResponseMode.NONE,
+                title=f"Message ordinaire {i:02d}",
+                visibility_audience=source.visibility_audience,
+            )
+        self.client.force_login(self.member)
+        detail = self.client.get(
+            reverse("conversations:detail", kwargs={"pk": conversation.pk}),
+        )
+        self.assertEqual(detail.status_code, 200)
+        match = re.search(r'data-cursor="([^"]+)"', detail.content.decode())
+        self.assertIsNotNone(match)
+        url = reverse("conversations:timeline-older", kwargs={"pk": conversation.pk})
+        continuation = self.client.get(url, {"cursor": match.group(1)})
+        self.assertEqual(continuation.status_code, 200)
+        self.assertContains(continuation, "data-older-page")
+        self.assertContains(continuation, "data-thread-entry")
+        self.client.force_login(self.outsider)
+        forbidden = self.client.get(url, {"cursor": match.group(1)})
+        self.assertIn(forbidden.status_code, (403, 404))
+
     def test_form_bridge_is_idempotent_for_same_point_and_profile(self):
         _, point = self._form_point()
         first = ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
