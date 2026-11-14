@@ -376,7 +376,7 @@ class _AppuisCreditsUseScreenState extends State<AppuisCreditsUseScreen> {
           _group('Abonnements', subscriptions),
           _group('Fonctionnalités', features),
           _group('Autres avantages', others),
-          if (rewards.isEmpty)
+          if (rewards.isEmpty && _data.containsKey('rewards'))
             Padding(
               padding: const EdgeInsets.only(top: 24),
               child: Text(
