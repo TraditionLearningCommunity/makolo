@@ -168,58 +168,104 @@
       announce('Complétez le type et la confidentialité. Rien n’est encore envoyé.');
     }
 
+
+    const thumbnailUrls = new Map();
+    function imageUrl(file) {
+      if (!thumbnailUrls.has(file)) thumbnailUrls.set(file, URL.createObjectURL(file));
+      return thumbnailUrls.get(file);
+    }
+    function releaseUnusedThumbnails() {
+      for (const [file, url] of thumbnailUrls) {
+        if (!attachments.includes(file)) {
+          URL.revokeObjectURL(url);
+          thumbnailUrls.delete(file);
+        }
+      }
+    }
+    function typedLinks() {
+      const recognized = new Set();
+      const pattern = /https?:\/\/[^\s<>"']+/ig;
+      for (const match of input.value.matchAll(pattern)) {
+        const url = match[0].replace(/[.,;!?)]*$/, '');
+        if (isSafeUrl(url) && !links.includes(url)) recognized.add(url);
+      }
+      return [...recognized].slice(0, 6);
+    }
     function renderReferences() {
       const target = $('[data-mk-mark-references]');
       if (!target) return;
+      releaseUnusedThumbnails();
       target.replaceChildren();
-      [...links.map((url) => ({ label: url, type: 'link', value: url })),
-        ...attachments.map((file, index) => ({
-          label: file.name || 'Pièce locale', type: 'file', value: String(index),
-        }))].forEach((entry) => {
-        const item = document.createElement('span');
-        item.className = 'mk-mark-reference';
-        const text = document.createElement('span');
-        text.textContent = entry.label;
-        text.title = entry.label;
-        item.appendChild(text);
-        if (entry.type === 'file') {
-          const preview = document.createElement('button');
-          preview.type = 'button';
-          preview.className = 'mk-mark-reference-remove';
-          preview.textContent = '⌕';
-          preview.setAttribute('aria-label', 'Aperçu de ' + entry.label);
-          preview.addEventListener('click', () => {
-            const file = attachments[Number(entry.value)];
-            if (file) previewFile(file);
+      for (const url of [...links, ...typedLinks()]) {
+        const chip = document.createElement('span');
+        chip.className = 'mk-mark-link-chip';
+        chip.title = 'Lien présent dans votre demande';
+        const icon = document.createElement('span');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '↗';
+        const label = document.createElement('span');
+        label.textContent = url;
+        chip.append(icon, label);
+        if (links.includes(url)) {
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.setAttribute('aria-label', 'Retirer le lien ' + url);
+          remove.textContent = '×';
+          remove.addEventListener('click', () => {
+            links = links.filter((entry) => entry !== url);
+            resetConsent();
+            renderReferences();
+            persist();
           });
-          item.appendChild(preview);
-          const source = attachments[Number(entry.value)];
-          if (source && canSaveAsPersonalAsset(source) && $('[data-mk-mark-owner-panel]')) {
-            const save = document.createElement('button');
-            save.type = 'button';
-            save.className = 'mk-mark-reference-save';
-            save.textContent = 'Conserver';
-            save.setAttribute('aria-label', 'Conserver ' + entry.label + ' dans Mes documents');
-            save.addEventListener('click', () => openAssetForm(source));
-            item.appendChild(save);
-          }
+          chip.appendChild(remove);
         }
+        target.appendChild(chip);
+      }
+      attachments.forEach((file) => {
+        const item = document.createElement('div');
+        item.className = 'mk-mark-file-tile';
+        const preview = document.createElement('button');
+        preview.type = 'button';
+        preview.className = 'mk-mark-file-preview';
+        preview.setAttribute('aria-label', 'Aperçu de ' + (file.name || 'Pièce'));
+        preview.addEventListener('click', () => previewFile(file));
+        if (file.type.startsWith('image/')) {
+          const thumbnail = document.createElement('img');
+          thumbnail.alt = '';
+          thumbnail.loading = 'lazy';
+          thumbnail.src = imageUrl(file);
+          preview.appendChild(thumbnail);
+        } else {
+          const extension = (file.name.split('.').pop() || 'FILE').toUpperCase().slice(0, 5);
+          const symbol = document.createElement('span');
+          symbol.className = 'mk-mark-file-type';
+          symbol.textContent = extension;
+          preview.appendChild(symbol);
+        }
+        const name = document.createElement('span');
+        name.className = 'mk-mark-file-name';
+        name.textContent = file.name || 'Pièce';
+        item.append(preview, name);
         const remove = document.createElement('button');
         remove.type = 'button';
-        remove.className = 'mk-mark-reference-remove';
+        remove.className = 'mk-mark-file-remove';
+        remove.setAttribute('aria-label', 'Retirer ' + (file.name || 'la pièce'));
         remove.textContent = '×';
-        remove.setAttribute('aria-label', 'Retirer ' + entry.label);
         remove.addEventListener('click', () => {
-          if (entry.type === 'link') links = links.filter((url) => url !== entry.value);
-          else {
-            attachments.splice(Number(entry.value), 1);
-            closeAssetForm();
-          }
+          attachments = attachments.filter((entry) => entry !== file);
+          closeAssetForm();
           resetConsent();
           renderReferences();
-          persist();
         });
         item.appendChild(remove);
+        if (canSaveAsPersonalAsset(file) && $('[data-mk-mark-owner-panel]')) {
+          const save = document.createElement('button');
+          save.type = 'button';
+          save.className = 'mk-mark-file-save';
+          save.textContent = 'Conserver';
+          save.addEventListener('click', () => openAssetForm(file));
+          item.appendChild(save);
+        }
         target.appendChild(item);
       });
     }
