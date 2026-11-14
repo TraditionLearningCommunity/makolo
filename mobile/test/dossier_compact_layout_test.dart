@@ -62,8 +62,8 @@ void main() {
 
     expect(find.text('Explorer le Dossier'), findsNothing);
     expect(find.text('Lier une démarche'), findsNothing);
-    expect(find.text('Lier'), findsOneWidget);
-    expect(find.byTooltip('Lier une démarche'), findsOneWidget);
+    // Without a connected action owner, avoid a disabled, misleading CTA.
+    expect(find.text('Lier'), findsNothing);
     expect(find.byTooltip('Informations du Dossier'), findsOneWidget);
     final topbarMenu = find.descendant(
       of: find.byType(AppBar),
