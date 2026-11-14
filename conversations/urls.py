@@ -8,6 +8,7 @@ from .participant_views import (
 from .views import (
     ConversationDetailView,
     ConversationOlderTimelineView,
+    ConversationInlineFormRespondView,
     ConversationPointHistoryView,
     ConversationPersonalStateWebView,
     ConversationContextOpenView,
@@ -45,6 +46,7 @@ urlpatterns = [
     path("by-context/<str:kind>/<str:context_pk>/ensure/", ConversationContextEnsureView.as_view(), name="context-ensure"),
     path("invitations/<uuid:invitation_pk>/respond/", ConversationInvitationRespondView.as_view(), name="invitation-respond"),
     path("points/<uuid:point_pk>/respond/", PointRespondView.as_view(), name="point-respond"),
+    path("points/<uuid:point_pk>/form/", ConversationInlineFormRespondView.as_view(), name="point-form"),
     path("points/<uuid:point_pk>/close-responses/", PointCloseResponsesView.as_view(), name="point-close-responses"),
     path("points/<uuid:point_pk>/resolve/", PointResolveView.as_view(), name="point-resolve"),
     path("points/<uuid:point_pk>/reply-media/", ConversationPointMediaWebView.as_view(), name="point-reply-media"),
