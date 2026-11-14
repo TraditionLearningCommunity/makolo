@@ -416,19 +416,14 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                 !source.invalidated;
             _canManage = freshAuthority;
 
+            final completeEmpty =
+                view.hasSnapshot &&
+                !view.hasMore &&
+                source.lastSuccessAt != null &&
+                source.lastErrorCode == null &&
+                !source.invalidated;
+
             final children = <Widget>[
-              if (view.hasSnapshot &&
-                  source.lastErrorCode != null &&
-                  !source.invalidated) ...[
-                Text(
-                  'Actualisation indisponible. Les documents affichés '
-                  'proviennent de votre dernière consultation.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-              ],
               if (!view.hasSnapshot && _initializing)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
@@ -444,7 +439,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                     ),
                   ),
                 )
-              else if (!view.hasSnapshot && _loadFailed)
+              else if (!view.hasSnapshot)
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: MakoloSpacing.xl,
@@ -469,9 +464,13 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      _query.isEmpty
+                      _query.isNotEmpty
+                          ? completeEmpty
+                                ? 'Aucun résultat'
+                                : 'Aucun résultat parmi les documents disponibles.'
+                          : completeEmpty
                           ? 'Aucun document pour le moment.'
-                          : 'Aucun résultat',
+                          : 'Aucun document à afficher.',
                     ),
                   ),
                 )
@@ -537,7 +536,12 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
             return ResourceCollectionScaffold(
               title: 'Nos documents',
-              count: view.count,
+              count: view.hasSnapshot &&
+                      source.lastSuccessAt != null &&
+                      source.lastErrorCode == null &&
+                      !source.invalidated
+                  ? view.count
+                  : null,
               searching: _searching,
               searchController: _search,
               searchHint: 'Rechercher dans nos documents',
