@@ -258,7 +258,14 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
             if candidate is not None:
                 from .point_services import point_visible_to
                 if point_visible_to(self.request.user, candidate) and candidate.pk not in seen:
-                    focused_point = candidate
+                    chronological[candidate.pk] = candidate
+                    timeline_points = sorted(
+                        chronological.values(),
+                        key=lambda item: (
+                            item.published_at or item.updated_at, str(item.pk),
+                        ),
+                    )
+                    seen.add(candidate.pk)
         older_query = urlencode({
             "section": "all", "cursor": timeline["next_cursor"],
         }) if timeline["next_cursor"] else ""
