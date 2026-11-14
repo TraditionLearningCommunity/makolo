@@ -630,7 +630,9 @@ class _MarkScreenState extends State<MarkScreen> {
     final coordinator = await _fileCoordinator();
     if (!mounted || revision != _draftRevision || actor != _actor) return;
     if (coordinator == null) {
-      _show('Impossible d’ouvrir ${capture ? 'l’appareil photo' : 'les images'}.');
+      _show(
+        'Impossible d’ouvrir ${capture ? 'l’appareil photo' : 'les images'}.',
+      );
       return;
     }
 

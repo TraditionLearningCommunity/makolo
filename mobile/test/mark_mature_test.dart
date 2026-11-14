@@ -123,7 +123,9 @@ void main() {
       expect(find.byTooltip('Enregistrer un audio'), findsOneWidget);
       expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
       expect(
-        find.textContaining('Pièces et liens conservés dans le brouillon local'),
+        find.textContaining(
+          'Pièces et liens conservés dans le brouillon local',
+        ),
         findsNothing,
       );
       expect(find.textContaining('A1'), findsNothing);
