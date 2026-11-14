@@ -141,6 +141,29 @@ class AppuisCreditValuationTests(TestCase):
             1,
         )
 
+    def test_exact_balance_retry_keeps_one_redemption_after_zero(self):
+        reward = RewardDefinition.objects.create(
+            code="appuis-exact-balance", version=1, name="Avantage complet",
+            points_cost=240, kind=RewardKind.OTHER,
+            fulfillment={"owner_domain": "external"},
+        )
+        self.client.force_login(self.operator)
+        route = reverse("core:participant-appuis-use")
+        payload = {
+            "reward_id": str(reward.pk),
+            "intent_key": str(uuid.uuid4()),
+        }
+        self.assertEqual(self.client.post(route, payload).status_code, 302)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.points_balance, 0)
+        self.assertEqual(self.client.post(route, payload).status_code, 302)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.points_balance, 0)
+        self.assertEqual(
+            RecognitionRedemption.objects.filter(owner_account=self.account).count(),
+            1,
+        )
+
     def test_platform_operator_form_configures_only_display_and_is_private(self):
         self.client.force_login(self.operator)
         url = reverse("platform_web:recognition-credit-valuation")
