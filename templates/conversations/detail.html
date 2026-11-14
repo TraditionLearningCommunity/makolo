@@ -50,19 +50,10 @@
       <a href="#conversation-latest" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
     </div>
     {% if timeline_older_query %}
-      <a class="mb-5 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)" href="{% url 'conversations:history' conversation.pk %}?{{ timeline_older_query }}">Voir les Points précédents</a>
+      <button type="button" data-conversation-older-button data-older-url="{% url 'conversations:timeline-older' conversation.pk %}" data-cursor="{{ timeline_older_query|cut:'section=all&amp;cursor=' }}" class="mb-4 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)">Échanges précédents</button>
     {% endif %}
-    <div class="space-y-3">
-      {% for group in timeline_groups %}
-        {% ifchanged group.day %}
-          <p class="pt-3 text-center text-xs font-semibold" style="color:var(--mk-muted)">
-            {% if group.day %}{{ group.day|date:'d F Y' }}{% else %}Date inconnue{% endif %}
-          </p>
-        {% endifchanged %}
-        {% include 'conversations/_timeline_group.html' with group=group %}
-      {% empty %}
-        <p class="rounded-xl border p-4 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucun Point accessible pour le moment.</p>
-      {% endfor %}
+    <div class="space-y-2" data-conversation-thread>
+      {% include 'conversations/_timeline_page.html' %}
     </div>
     <span id="conversation-latest" tabindex="-1" class="block scroll-mt-20"></span>
   </section>
@@ -90,6 +81,8 @@
     {% endif %}
   </section>
 </main>
+<script defer src="{% static 'js/conversations-compression.js' %}"></script>
+<script defer src="{% static 'js/conversations-thread.js' %}"></script>
 <script defer src="{% static 'js/conversations-rich-composer.js' %}"></script>
 <script defer src="{% static 'js/conversations-media-gallery.js' %}"></script>
 <script defer src="{% static 'js/conversations-semantic-composer.js' %}"></script>
