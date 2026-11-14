@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../sync/sync_status.dart';
+
 /// Detail of a Loyalty owner program, shared between Profile and Space.
 ///
 /// The overview is immediately readable from its actor-scoped snapshot;
@@ -42,6 +44,8 @@ class AppuisProgramDepth extends StatefulWidget {
 class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
   Map<String, dynamic> _owner = {};
   bool _saving = false;
+  bool get _canMutate => widget.canMutate &&
+      SyncStatusScope.maybeOf(context)?.state != SyncVisualState.offline;
 
   @override
   void initState() {
@@ -169,7 +173,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
         ),
         if (create != null)
           TextButton.icon(
-            onPressed: widget.canMutate && !_saving ? create : null,
+            onPressed: _canMutate && !_saving ? create : null,
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Ajouter'),
           ),
@@ -230,7 +234,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(info),
                 ),
-              if (widget.canMutate &&
+              if (_canMutate &&
                   widget.allowed(membership, 'loyalty', 'cancel')) ...[
                 const Divider(height: 28),
                 TextButton(
@@ -250,7 +254,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
   }
 
   void _join(Map<String, dynamic> plan) {
-    if (!widget.canMutate || !widget.allowed(plan, 'loyalty', 'join')) return;
+    if (!_canMutate || !widget.allowed(plan, 'loyalty', 'join')) return;
     Navigator.pop(context);
     unawaited(widget.onAction(plan, 'loyalty', 'join'));
   }
@@ -275,7 +279,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
   }
 
   Future<void> _add(String kind) async {
-    if (!_canCreate(kind) || !widget.canMutate) return;
+    if (!_canCreate(kind) || !_canMutate) return;
     final title = TextEditingController();
     final value = TextEditingController();
     final benefits = TextEditingController();
@@ -496,7 +500,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                 action:
                     !widget.space &&
                         !activeMembership &&
-                        widget.canMutate &&
+                        _canMutate &&
                         widget.allowed(item, 'loyalty', 'join')
                     ? TextButton(
                         onPressed: () => _join(item),
@@ -527,7 +531,7 @@ class _AppuisProgramDepthState extends State<AppuisProgramDepth> {
                     if (_text(item['fulfillment_instructions']).isNotEmpty)
                       _text(item['fulfillment_instructions']),
                   ].join(' · '),
-                  action: !widget.space && widget.canMutate &&
+                  action: !widget.space && _canMutate &&
                           eligible != null &&
                           widget.allowed(eligible, 'loyalty', 'redeem')
                       ? TextButton(onPressed: () {
