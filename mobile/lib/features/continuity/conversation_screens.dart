@@ -3784,12 +3784,88 @@ class _PointCardState extends State<_PointCard> {
                 ),
               ],
             )
-          else if (point.supportsInteractiveResponse)
-            MakoloActionButton(
-              label: _busy ? 'Envoi…' : point.responseActionLabel,
-              busy: _busy,
-              appearance: MakoloActionAppearance.primary,
-              onPressed: _busy ? null : _respond,
+          else if (point.responseMode == 'free_text' ||
+              point.responseMode == 'number')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  key: Key('conversation-inline-answer-${point.id}'),
+                  controller: _inlineResponse,
+                  onChanged: _inlineChanged,
+                  keyboardType: point.responseMode == 'number'
+                      ? const TextInputType.numberWithOptions(decimal: true)
+                      : TextInputType.multiline,
+                  minLines: 1,
+                  maxLines: point.responseMode == 'number' ? 1 : 4,
+                  textInputAction: point.responseMode == 'number'
+                      ? TextInputAction.done
+                      : TextInputAction.newline,
+                  decoration: InputDecoration(
+                    hintText: point.responseMode == 'number'
+                        ? 'Valeur'
+                        : 'Votre réponse',
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: MakoloSpacing.xs),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    key: Key('conversation-inline-submit-${point.id}'),
+                    onPressed: _busy || _inlineResponse.text.trim().isEmpty
+                        ? null
+                        : () => _submitResponse(_inlineResponse.text.trim()),
+                    child: Text(_busy ? 'Envoi…' : 'Envoyer'),
+                  ),
+                ),
+              ],
+            )
+          else if (point.responseMode == 'date' ||
+              point.responseMode == 'datetime')
+            Builder(
+              builder: (context) {
+                final current = DateTime.tryParse(_inlineResponse.text)?.toLocal();
+                final label = current == null
+                    ? point.responseMode == 'datetime'
+                        ? 'Choisir une date et une heure'
+                        : 'Choisir une date'
+                    : point.responseMode == 'datetime'
+                        ? '${MaterialLocalizations.of(context).formatMediumDate(current)} '
+                            '${MaterialLocalizations.of(context).formatTimeOfDay(
+                              TimeOfDay.fromDateTime(current),
+                              alwaysUse24HourFormat: true,
+                            )}'
+                        : MaterialLocalizations.of(context)
+                            .formatMediumDate(current);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    OutlinedButton.icon(
+                      key: Key('conversation-inline-date-${point.id}'),
+                      onPressed: _busy
+                          ? null
+                          : () => _chooseInlineDate(
+                                withTime: point.responseMode == 'datetime',
+                              ),
+                      icon: const Icon(Icons.event_outlined),
+                      label: Text(label),
+                    ),
+                    if (_inlineResponse.text.isNotEmpty)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton(
+                          key: Key('conversation-inline-submit-${point.id}'),
+                          onPressed: _busy
+                              ? null
+                              : () => _submitResponse(_inlineResponse.text),
+                          child: Text(_busy ? 'Envoi…' : 'Envoyer'),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
         ],
       ],
