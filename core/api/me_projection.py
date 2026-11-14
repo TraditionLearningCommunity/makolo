@@ -355,6 +355,10 @@ def _authorized_space_item(space):
         "id": str(space.pk),
         "name": space.name,
         "slug": space.slug,
+        # Owner-backed identity facts for the personal collective portrait.
+        # No inferred logo or Activity media is published here.
+        "archetype_label": space.get_archetype_display(),
+        "description": space.description or "",
         "relationship": "authorized_context",
         "can_act": True,
     }
