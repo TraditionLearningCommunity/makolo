@@ -421,6 +421,67 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return text.isEmpty ? null : text;
   }
 
+  Widget _cardHero(MeItemPresentation item) {
+    final scheme = Theme.of(context).colorScheme;
+    final path = collectiveRecognitionPath(
+      _row(item),
+      item.destination.kind,
+      item.destination.id,
+    );
+    final placeholder = ColoredBox(
+      color: scheme.primary.withValues(alpha: 0.055),
+      child: Center(child: _visualWithoutMedia(item, size: 76)),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: SizedBox(
+        width: double.infinity,
+        height: 116,
+        child: path != null && widget.mediaApi != null
+            ? RetainedRecognitionImage(
+                api: widget.mediaApi!,
+                profileId: widget.profileId,
+                path: path,
+                alt: 'Image de ${item.title}',
+                height: 116,
+                fit: BoxFit.cover,
+                placeholder: placeholder,
+              )
+            : placeholder,
+      ),
+    );
+  }
+
+  Widget _visualWithoutMedia(MeItemPresentation item, {double size = 60}) {
+    final scheme = Theme.of(context).colorScheme;
+    final initials = item.title
+        .trim()
+        .split(RegExp(r'\\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+    return SizedBox(
+      height: size,
+      width: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Center(
+          child: Text(
+            initials.isEmpty ? '•' : initials,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Portrait card used for all three families. Any archétype / bio is
   /// rendered only when explicitly projected by that collective's owner.
   Widget _portraitCard(MeItemPresentation item) {
@@ -444,7 +505,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: _visual(item, size: 100)),
+              _cardHero(item),
               const SizedBox(height: 12),
               if (archetype != null) ...[
                 Text(
