@@ -1424,6 +1424,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   String? _olderError;
   final ConversationCompressionState _compressionState =
       ConversationCompressionState();
+  final Map<String, int> _revealedPerSegment = <String, int>{};
 
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
@@ -1626,6 +1627,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       if (oldWidget.id != widget.id ||
           oldWidget.repository != widget.repository) {
         _compressionState.clear();
+        _revealedPerSegment.clear();
         _timelinePositioned = false;
         _nearLatest = true;
         _newMessagesAvailable = false;
@@ -1974,6 +1976,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final last = entries.last.point;
     final key = '${first.id}-${last.id}';
     final expanded = segment.expanded;
+    final visibleCount = _revealedPerSegment[key] ?? 24;
     final scheme = Theme.of(context).colorScheme;
     final dates = [first.publishedAt, last.publishedAt];
     final local = MaterialLocalizations.of(context);
@@ -2060,11 +2063,24 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final entry in entries)
+                    for (final entry in entries.take(visibleCount))
                       _pointWidget(
                         entry.point,
                         readOnly: entry.readOnly,
                         outgoing: outgoing,
+                      ),
+                    if (entries.length > visibleCount)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: Key('conversation-folded-more-$key'),
+                          onPressed: () => setState(() {
+                            _revealedPerSegment[key] = visibleCount + 24;
+                          }),
+                          child: Text(
+                            'Voir la suite · ${entries.length - visibleCount}',
+                          ),
+                        ),
                       ),
                   ],
                 ),
