@@ -15,6 +15,10 @@ on:
       - "mobile/test/goldens.sha256"
       - ".github/workflows/mobile-visual-golden-generate.yml"
 
+concurrency:
+  group: mobile-visual-goldens-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

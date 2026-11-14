@@ -1,0 +1,31 @@
+{% extends "base/app.html" %}
+{% block title %}Invitations de Projet | Makolo{% endblock %}
+{% block content %}
+<main style="width:min(100%,680px);margin:0 auto;padding:16px 18px 48px">
+  <header style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+    <a href="{% url 'objectives:organizer' %}" aria-label="Retour aux démarches">←</a>
+    <h1 style="font-size:22px;margin:0">Invitations</h1>
+  </header>
+  {% for invitation in invitations %}
+  <article style="padding:13px 0;border-bottom:1px solid var(--mk-border)">
+    <h2 style="font-size:17px;margin:0 0 5px">{{ invitation.project.title }}</h2>
+    <p style="font-size:13px;color:var(--mk-muted);margin:0 0 10px">
+      {{ invitation.invited_by.get_full_name|default:invitation.invited_by.username }} ·
+      {% if invitation.role.code == 'project-viewer' %}Lecteur{% elif invitation.role.code == 'project-manager' %}Éditeur{% elif invitation.role.code == 'project-admin' %}Administrateur{% endif %}
+    </p>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <form method="post" action="{% url 'objectives:project-invitation-respond' invitation.pk %}">
+        {% csrf_token %}<input type="hidden" name="action" value="decline">
+        <button class="mk-action-button" data-variant="ghost" type="submit">Décliner</button>
+      </form>
+      <form method="post" action="{% url 'objectives:project-invitation-respond' invitation.pk %}">
+        {% csrf_token %}<input type="hidden" name="action" value="accept">
+        <button class="mk-action-button" data-variant="primary" type="submit">Accepter</button>
+      </form>
+    </div>
+  </article>
+  {% empty %}
+  <p>Aucune invitation en attente.</p>
+  {% endfor %}
+</main>
+{% endblock %}

@@ -75,7 +75,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
         return _response(
             state="unsupported",
             intent="unsupported_input",
-            message="Ce contexte Space accepte actuellement uniquement du texte.",
+            message="Saisissez votre demande par écrit.",
             result={"reason": "input_kind_not_supported"},
         )
 
@@ -89,13 +89,13 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="unknown",
                     intent="inspect_day_of",
-                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    message="Cette séance ou ce départ n’est pas accessible.",
                     result={"reason": "target_not_available"},
                 )
             return _response(
                 state="needs_clarification",
                 intent="inspect_day_of",
-                message="Makolo a besoin de l’Occurrence concernée.",
+                message="Indiquez la séance ou le départ concerné.",
                 question={"code": "which_occurrence", "options": []},
             )
         day_of = build_space_operator_day_of(
@@ -107,13 +107,13 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
             return _response(
                 state="unknown",
                 intent="inspect_day_of",
-                message="Aucune surface Jour J opérateur accessible n’est disponible pour ce contexte.",
+                message="Le suivi du Jour J n’est pas accessible pour cette séance ou ce départ.",
                 result={"reason": "day_of_not_available"},
             )
         return _response(
             state="resolved",
             intent="inspect_day_of",
-            message="Makolo a retrouvé le Jour J de cette Occurrence.",
+            message="Le suivi du Jour J est disponible.",
             result={
                 "identity": day_of["identity"],
                 "responsibility": responsibility,
@@ -133,13 +133,13 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="unknown",
                     intent="open_scanner",
-                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    message="Cette séance ou ce départ n’est pas accessible.",
                     result={"reason": "target_not_available"},
                 )
             return _response(
                 state="needs_clarification",
                 intent="open_scanner",
-                message="Makolo a besoin de l’Occurrence à contrôler.",
+                message="Indiquez la séance ou le départ à contrôler.",
                 question={"code": "which_occurrence", "options": []},
             )
         scanner = build_scanner_context(
@@ -152,19 +152,19 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="unknown",
                     intent="open_scanner",
-                    message="Cette cible n’est pas disponible dans ce contexte.",
+                    message="Cette séance ou ce départ n’est pas accessible.",
                     result={"reason": "target_not_available"},
                 )
             return _response(
                 state="forbidden",
                 intent="open_scanner",
-                message="Le contrôle n’est pas autorisé dans ce scope.",
+                message="Vous n’avez pas l’autorisation d’effectuer ce contrôle.",
                 result={"reason": "scanner_authority_required"},
             )
         return _response(
             state="resolved",
             intent="open_scanner",
-            message="Makolo a préparé le contexte de contrôle.",
+            message="Le contrôle est disponible.",
             result={
                 "identity": scanner["identity"],
                 "responsibility": responsibility,
@@ -182,7 +182,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
             return _response(
                 state="forbidden",
                 intent="add_team_member" if "ajoute" in folded else "open_team",
-                message="Cette surface exige une autorité Team réelle.",
+                message="Vous n’avez pas l’autorisation de gérer cette équipe.",
                 result={"reason": "team_manage_authority_required"},
             )
 
@@ -194,7 +194,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="needs_clarification",
                     intent="add_team_member",
-                    message="Il faut identifier précisément le Profil et le rôle d’autorité à lui attribuer.",
+                    message="Précisez l’adresse e-mail de la personne et le rôle à lui attribuer.",
                     question={"code": "team_member_identity_and_responsibility", "options": []},
                     handoff={"owner": "organizations", "surface": "team"},
                     links={"owner": team_link},
@@ -202,7 +202,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
 
             action = {
                 "code": "add_team_member",
-                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec le rôle d’autorité {role}.",
+                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec le rôle « {role} ».",
                 "target": {"email": email, "role": role},
             }
             confirmation = _mapping(context.get("confirmation"))
@@ -215,7 +215,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="needs_confirmation",
                     intent="add_team_member",
-                    message="Cette action modifiera réellement l’équipe du Space.",
+                    message="Vérifiez les informations avant de confirmer l’ajout.",
                     action=action,
                     handoff={"owner": "organizations", "surface": "team"},
                     links={"owner": team_link},
@@ -226,7 +226,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="forbidden",
                     intent="add_team_member",
-                    message="L’autorité nécessaire n’est plus disponible.",
+                    message="Vous n’avez plus l’autorisation de modifier cette équipe.",
                     result={"reason": "team_manage_authority_required"},
                 )
             try:
@@ -241,14 +241,14 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
                 return _response(
                     state="forbidden",
                     intent="add_team_member",
-                    message="L’autorité nécessaire n’est plus disponible.",
+                    message="Vous n’avez plus l’autorisation de modifier cette équipe.",
                     result={"reason": "team_manage_authority_required"},
                 )
             except DjangoValidationError:
                 return _response(
                     state="needs_clarification",
                     intent="add_team_member",
-                    message="Le domaine Organizations ne peut pas appliquer cette demande telle quelle.",
+                    message="Impossible de modifier l’équipe. Vérifiez les informations saisies.",
                     question={"code": "team_member_details_invalid", "options": []},
                     handoff={"owner": "organizations", "surface": "team"},
                     links={"owner": team_link},
@@ -256,7 +256,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
             return _response(
                 state="completed",
                 intent="add_team_member",
-                message="Le domaine Organizations a mis à jour l’équipe.",
+                message="Équipe mise à jour.",
                 result={
                     "kind": "team_membership",
                     "id": str(membership.pk),
@@ -270,7 +270,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
         return _response(
             state="resolved",
             intent="open_team",
-            message="Makolo a retrouvé la surface Équipe de ce Space.",
+            message="L’équipe est disponible.",
             result={"responsibility": responsibility},
             handoff={"owner": "organizations", "surface": "team"},
             links={"owner": team_link},
@@ -280,13 +280,13 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
         return _response(
             state="unsupported",
             intent="owner_handoff",
-            message="Le handoff owner demandé n’est pas encore stable sur cette base ZS5.",
+            message="Cette action n’est pas disponible depuis ici.",
             result={"reason": "owner_handoff_not_available_on_base"},
         )
 
     return _response(
         state="unknown",
         intent="unknown",
-        message="Makolo n’a pas assez d’éléments pour déterminer un handoff Space sûr.",
+        message="Précisez l’action que vous souhaitez effectuer.",
         result={"reason": "intent_not_resolved"},
     )

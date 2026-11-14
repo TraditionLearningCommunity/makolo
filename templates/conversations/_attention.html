@@ -1,0 +1,58 @@
+{# Attention lens only: chronological Points remain in the separate timeline. #}
+<section class="mb-6 rounded-2xl border px-4 py-4 sm:px-5" style="border-color:var(--mk-border)"
+         aria-labelledby="conversation-attention-heading" id="conversation-attention">
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <h2 id="conversation-attention-heading" class="text-lg font-bold">À présent, dans cette conversation</h2>
+    {% if attention.action_count %}
+      <span class="rounded-full px-3 py-1 text-xs font-semibold" style="background:var(--mk-soft);color:var(--mk-ink)">
+        {{ attention.action_count }} action{{ attention.action_count|pluralize }} à traiter
+      </span>
+    {% else %}
+      <span class="text-sm" style="color:var(--mk-muted)">Rien à faire maintenant</span>
+    {% endif %}
+  </div>
+  <div class="mt-4 grid gap-4 md:grid-cols-3">
+    {% if attention.for_me %}
+    <div>
+      <h3 class="mb-2 text-sm font-bold">Pour moi · {{ attention.for_me|length }}</h3>
+      {% for item in attention.for_me %}
+        <a href="{{ item.url }}" class="mb-2 block rounded-xl border p-3 text-sm hover:underline"
+           style="border-color:var(--mk-border)">
+          <span class="block text-xs font-semibold" style="color:var(--mk-brand)">{{ item.reason_label }}</span>
+          <span class="mt-1 block">{{ item.label }}</span>
+          {% if item.deadline_at %}
+            <span class="mt-1 block text-xs" style="color:var(--mk-muted)">
+              Échéance : {{ item.deadline_at|date:'d/m/Y H:i' }}
+            </span>
+          {% endif %}
+        </a>
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune réponse attendue.</p>{% endfor %}
+    </div>
+    {% endif %}
+    {% if attention.to_resolve %}
+    <div>
+      <h3 class="mb-2 text-sm font-bold">À régler · {{ attention.to_resolve|length }}</h3>
+      {% for item in attention.to_resolve %}
+        <a href="{{ item.url }}" class="mb-2 block rounded-xl border p-3 text-sm hover:underline"
+           style="border-color:var(--mk-border)">
+          <span class="block text-xs font-semibold" style="color:var(--mk-brand)">{{ item.reason_label }}</span>
+          <span class="mt-1 block">{{ item.label }}</span>
+          {% if item.deadline_at %}<span class="mt-1 block text-xs" style="color:var(--mk-muted)">Échéance : {{ item.deadline_at|date:'d/m/Y H:i' }}</span>{% endif %}
+        </a>
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune décision en attente.</p>{% endfor %}
+    </div>
+    {% endif %}
+    {% if attention.to_know %}
+    <div>
+      <h3 class="mb-2 text-sm font-bold">À savoir · {{ attention.to_know|length }}</h3>
+      {% for item in attention.to_know %}
+        <a href="{{ item.url }}" class="mb-2 block rounded-xl border p-3 text-sm hover:underline"
+           style="border-color:var(--mk-border)">
+          <span class="block text-xs font-semibold" style="color:var(--mk-muted)">{{ item.reason_label }}</span>
+          <span class="mt-1 block">{{ item.label }}</span>
+        </a>
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune nouveauté.</p>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</section>

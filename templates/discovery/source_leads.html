@@ -1,0 +1,48 @@
+{% extends 'base/app.html' %}
+{% block title %}Sources pour votre recherche | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-4xl space-y-6 p-5 sm:p-8" data-mk-surface="discover-sources">
+  <a class="mk-btn mk-btn-ghost" href="{% url 'discovery:home' %}?q={{ query_text|urlencode }}">Retour à Découvrir</a>
+  <header class="space-y-2">
+    <span class="mk-kicker">Découvrir · Sources externes</span>
+    <h1 class="mk-page-title">Pistes pour « {{ query_text }} »</h1>
+    <p class="mk-page-copy">Ces résultats proviennent de sites externes et n’ont pas été vérifiés par Makolo. Consultez la source avant toute démarche.</p>
+  </header>
+  {% if external_leads.status == 'unavailable' %}
+    <div class="mk-panel p-5" role="status">
+      {% if external_leads.reason == 'connection_unavailable' %}
+        Recherche externe indisponible. Vérifiez vos connexions.
+      {% elif external_leads.reason == 'invalid_credentials' %}
+        La clé du fournisseur a été refusée. Vérifiez votre connexion.
+      {% elif external_leads.reason == 'rate_limited' %}
+        Le fournisseur a atteint sa limite d'usage. Réessayez plus tard.
+      {% elif external_leads.reason == 'network_unavailable' %}
+        Le fournisseur est momentanément injoignable. Réessayez plus tard.
+      {% else %}
+        Le service externe est indisponible actuellement.
+      {% endif %}
+      {% if external_leads.reason == 'connection_unavailable' or external_leads.reason == 'invalid_credentials' %}
+        <a href="{% url 'core:participant-connections' %}" class="mk-btn mk-btn-secondary">Gérer mes connexions</a>
+      {% endif %}
+    </div>
+  {% elif external_leads.candidates %}
+    <div class="space-y-4">
+    {% for item in external_leads.candidates %}
+      <article class="mk-panel space-y-3 p-5">
+        <h2 class="font-semibold text-lg">{{ item.label }}</h2>
+        {% if item.summary %}<p class="text-sm">{{ item.summary }}</p>{% endif %}
+        <ul class="space-y-2">
+        {% for source in item.sources %}
+          <li><a class="underline" href="{{ source.url }}" target="_blank" rel="noopener noreferrer external">{{ source.title }}</a>
+            <small class="ml-2">{{ source.host }}</small></li>
+        {% endfor %}
+        </ul>
+      </article>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="mk-panel p-5" role="status">Aucun résultat externe vérifiable pour cette recherche.</div>
+  {% endif %}
+  <a class="mk-btn mk-btn-primary" href="{% url 'discovery:home' %}?q={{ query_text|urlencode }}">Retour aux résultats Makolo</a>
+</main>
+{% endblock %}

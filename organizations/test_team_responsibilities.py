@@ -81,7 +81,7 @@ class TeamResponsibilityTests(TestCase):
         )
         self.membership.refresh_from_db()
         self.assertEqual(self.membership.joined_at, joined_at)
-        self.assertFalse(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
         self.assertTrue(can(self.member, PermissionCode.MARKETING_MANAGE, self.space))
         self.assertTrue(Mandate.objects.filter(profile=self.member, space=self.space, role=custom, status=MandateStatus.ACTIVE).exists())
         self.assertTrue(Mandate.objects.filter(profile=self.member, space=self.other_space, role__code=SystemRoleCode.ACCESS_MANAGER, status=MandateStatus.ACTIVE).exists())
@@ -91,6 +91,27 @@ class TeamResponsibilityTests(TestCase):
         active_before = Mandate.objects.filter(profile=self.member, space=self.space, role__code=SystemRoleCode.MARKETING, status=MandateStatus.ACTIVE).count()
         update_member_space_responsibility(membership=self.membership, actor=self.owner, role_code=SystemRoleCode.MARKETING)
         self.assertEqual(Mandate.objects.filter(profile=self.member, space=self.space, role__code=SystemRoleCode.MARKETING, status=MandateStatus.ACTIVE).count(), active_before)
+
+    def test_explicit_revoke_one_space_mandate_preserves_other_permissions(self):
+        from authorization.services import revoke_mandate
+
+        marketing = update_member_space_responsibility(
+            membership=self.membership,
+            actor=self.owner,
+            role_code=SystemRoleCode.MARKETING,
+        )
+        self.assertTrue(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.member, PermissionCode.MARKETING_MANAGE, self.space))
+        revoke_mandate(mandate=marketing, actor=self.owner)
+        self.assertTrue(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertFalse(can(self.member, PermissionCode.MARKETING_MANAGE, self.space))
+        self.assertEqual(
+            Mandate.objects.filter(
+                profile=self.member, space=self.space,
+                status=MandateStatus.ACTIVE,
+            ).count(),
+            1,
+        )
 
     def test_admin_cannot_promote_downgrade_or_remove_owner(self):
         owner_membership = TeamMembership.objects.get(team__organization=self.space, user=self.owner)
@@ -102,19 +123,48 @@ class TeamResponsibilityTests(TestCase):
         with self.assertRaises(PermissionDenied):
             remove_member_from_space(membership=owner_membership, actor=self.admin)
 
-    def test_owner_can_add_coowner_and_last_owner_invariant_remains(self):
-        second_owner = User.objects.create_user(username="task19-owner-two", email="task19-owner-two@example.test", password="StrongPass2026!")
-        second_membership = add_or_update_member(organization=self.space, actor=self.owner, user=second_owner, role=SystemRoleCode.SPACE_ADMIN)
-        update_member_space_responsibility(membership=second_membership, actor=self.owner, role_code=SystemRoleCode.SPACE_OWNER)
+    def test_owner_and_admin_roles_can_coexist_without_implicit_demotion(self):
+        second_owner = User.objects.create_user(
+            username="task19-owner-two",
+            email="task19-owner-two@example.test",
+            password="StrongPass2026!",
+        )
+        second_membership = add_or_update_member(
+            organization=self.space,
+            actor=self.owner,
+            user=second_owner,
+            role=SystemRoleCode.SPACE_ADMIN,
+        )
+        update_member_space_responsibility(
+            membership=second_membership,
+            actor=self.owner,
+            role_code=SystemRoleCode.SPACE_OWNER,
+        )
+        self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertTrue(
+            Mandate.objects.filter(
+                profile=second_owner, space=self.space,
+                role__code=SystemRoleCode.SPACE_ADMIN,
+                status=MandateStatus.ACTIVE,
+            ).exists()
+        )
+
+        owner_membership = TeamMembership.objects.get(
+            team__organization=self.space, user=self.owner
+        )
+        update_member_space_responsibility(
+            membership=owner_membership,
+            actor=self.owner,
+            role_code=SystemRoleCode.SPACE_ADMIN,
+        )
+        self.assertTrue(can(self.owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
         self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
 
-        owner_membership = TeamMembership.objects.get(team__organization=self.space, user=self.owner)
-        update_member_space_responsibility(membership=owner_membership, actor=self.owner, role_code=SystemRoleCode.SPACE_ADMIN)
-        self.assertFalse(can(self.owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
-        self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
-
-        with self.assertRaises(ValidationError):
-            update_member_space_responsibility(membership=second_membership, actor=second_owner, role_code=SystemRoleCode.SPACE_ADMIN)
+        update_member_space_responsibility(
+            membership=second_membership,
+            actor=second_owner,
+            role_code=SystemRoleCode.SPACE_ADMIN,
+        )
         self.assertTrue(can(second_owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
 
     def test_transfer_ownership_grants_target_before_relinquishing_actor(self):
@@ -131,6 +181,35 @@ class TeamResponsibilityTests(TestCase):
             user=self.member,
         )
         self.assertEqual(legacy_target.role, OrganizationRole.OWNER)
+
+    def test_ownership_transfer_preserves_unrelated_active_space_roles(self):
+        marketing = update_member_space_responsibility(
+            membership=self.membership,
+            actor=self.owner,
+            role_code=SystemRoleCode.MARKETING,
+        )
+        self.assertEqual(marketing.status, MandateStatus.ACTIVE)
+        grant_space_role(
+            profile=self.owner, space=self.space,
+            role=SystemRoleCode.FINANCE, granted_by=self.owner,
+        )
+        self.assertTrue(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.member, PermissionCode.MARKETING_MANAGE, self.space))
+
+        transfer_space_ownership(
+            membership=self.membership,
+            actor=self.owner,
+            relinquish_current_owner=True,
+        )
+
+        self.assertTrue(can(self.member, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertTrue(can(self.member, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.member, PermissionCode.MARKETING_MANAGE, self.space))
+        self.assertFalse(can(self.owner, PermissionCode.SPACE_OWNERSHIP_MANAGE, self.space))
+        self.assertTrue(can(self.owner, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(self.owner, PermissionCode.SPACE_MANAGE, self.space))
+        marketing.refresh_from_db()
+        self.assertEqual(marketing.status, MandateStatus.ACTIVE)
 
     def test_non_owner_cannot_transfer_ownership(self):
         with self.assertRaises(PermissionDenied):

@@ -94,8 +94,13 @@ jobs:
       - name: Architecture guard
         run: flutter test test/architecture_guard_test.dart
       - name: Analyze
+        if: ${{ !cancelled() }}
         run: flutter analyze
+      - name: Space Subscription identity and continuation regressions
+        if: ${{ !cancelled() }}
+        run: flutter test test/space_subscription_screen_test.dart test/space_subscription_test.dart test/billing_screen_test.dart test/subscription_actions_panel_test.dart test/subscription_personal_flow_test.dart
       - name: Run impacted tests
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           set -euo pipefail

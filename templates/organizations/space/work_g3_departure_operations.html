@@ -1,0 +1,85 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-4xl space-y-6 pb-12" aria-labelledby="departure-ops-title">
+  <nav aria-label="Retour à ce départ">
+    <a href="{{ mt5_back_url }}" class="text-sm font-semibold underline underline-offset-4">Retour au départ</a>
+  </nav>
+  <header>
+    <span class="mk-kicker">Transport · Gestion du départ</span>
+    <h2 id="departure-ops-title" class="mt-2 text-3xl font-extrabold tracking-tight">Exploiter ce départ</h2>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      {{ mt5_departure.occurrence.label|default:mt5_departure.occurrence.activity.title }}
+      · {{ mt5_departure.occurrence.get_status_display }}
+      · {{ mt5_departure.occurrence.start_at|date:"d/m/Y H:i" }}
+    </p>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      L’affectation d’un véhicule ne confirme ni réservation ni paiement.
+    </p>
+  </header>
+
+  {% if mt5_actions.can_assign_vehicle %}
+  <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="mt5-vehicle-title">
+    <h3 id="mt5-vehicle-title" class="text-xl font-extrabold">Affecter un véhicule</h3>
+    <p class="text-sm" style="color:var(--mk-muted)">
+      {% if mt5_departure.vehicle %}Actuellement : {{ mt5_departure.vehicle.label }}.
+      {% else %}Aucun véhicule affecté.{% endif %}
+      Les réservations et les places disponibles seront vérifiées.
+    </p>
+    <form method="post" class="flex flex-wrap gap-3 items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="assign_vehicle">
+      <label class="flex-1 min-w-48 text-sm font-bold">Véhicule
+        <select name="vehicle" required class="mt-1 w-full rounded-xl border bg-transparent px-4 py-3">
+          <option value="">Choisir</option>
+          {% for vehicle in mt5_vehicles %}
+          <option value="{{ vehicle.pk }}"{% if mt5_departure.vehicle_id == vehicle.pk %} selected{% endif %}>{{ vehicle.label }} · {{ vehicle.passenger_capacity }} places physiques</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="mk-action-button" data-variant="primary" type="submit">Vérifier et affecter</button>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if mt5_actions.can_reschedule %}
+  <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="mt5-time-title">
+    <h3 id="mt5-time-title" class="text-xl font-extrabold">Modifier la date du départ</h3>
+    <form method="post" class="space-y-3">
+      {% csrf_token %}<input type="hidden" name="action" value="reschedule">
+      <label class="block text-sm font-bold">Départ
+        <input type="datetime-local" name="start_at" required value="{{ mt5_departure.occurrence.start_at|date:'Y-m-d\TH:i' }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
+      </label>
+      <label class="block text-sm font-bold">Arrivée estimée (facultative)
+        <input type="datetime-local" name="end_at" value="{{ mt5_departure.occurrence.end_at|date:'Y-m-d\TH:i' }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
+      </label>
+      <label class="block text-sm font-bold">Fuseau horaire
+        <input name="timezone" required maxlength="100" value="{{ mt5_departure.occurrence.timezone }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
+      </label>
+      <button class="mk-action-button" data-variant="primary" type="submit">Confirmer le nouvel horaire</button>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if mt5_actions.can_cancel %}
+  <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="mt5-cancel-title">
+    <h3 id="mt5-cancel-title" class="text-xl font-extrabold">Annuler ce départ</h3>
+    <p class="text-sm" style="color:var(--mk-muted)">
+      L’annulation peut affecter les réservations. Aucun remboursement n’est effectué automatiquement.
+    </p>
+    <form method="post" class="flex flex-wrap items-center gap-3">
+      {% csrf_token %}<input type="hidden" name="action" value="cancel">
+      <label class="text-sm"><input type="checkbox" name="confirmed" value="yes" required> Je confirme l’annulation de ce départ.</label>
+      <button type="submit" class="mk-action-button" data-variant="secondary">Annuler le départ</button>
+    </form>
+  </section>
+  {% endif %}
+
+  {% if not mt5_actions.can_assign_vehicle and not mt5_actions.can_reschedule and not mt5_actions.can_cancel %}
+    <section class="mk-panel p-5" role="status">
+      <p class="font-semibold">Ce départ est terminé ou annulé.</p>
+      <p class="mt-1 text-sm" style="color:var(--mk-muted)">Aucune nouvelle modification n'est disponible ici.</p>
+    </section>
+  {% endif %}
+  <footer><a href="{{ mt5_back_url }}" class="mk-action-button" data-variant="secondary">Retour au départ</a></footer>
+</main>
+{% endblock %}

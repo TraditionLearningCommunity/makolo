@@ -1,1 +1,73 @@
-{% extends 'base/app.html' %}{% block title %}Mes attestations | Makolo{% endblock %}{% block content %}<main class="mx-auto max-w-4xl space-y-6"><section><span class="mk-kicker">Mon historique</span><h1 class="mk-page-title mt-2">Mes preuves / attestations</h1><p class="mk-page-copy mt-3">Chaque attestation correspond à un fait établi dans Makolo.</p></section><section class="mk-panel overflow-hidden">{% for proof in proofs %}<article class="border-b p-5 last:border-0" style="border-color:var(--mk-border)"><h2 class="font-bold">{{ proof.get_proof_type_display }}</h2><p class="mt-1 text-sm">{{ proof.journey.activity.title }} · {{ proof.get_status_display }}</p>{% if proof.is_public %}<a class="mk-btn mk-btn-ghost mt-3" href="{% url 'trust:proof-verify' proof.public_id %}">Vérifier publiquement</a>{% endif %}</article>{% empty %}<p class="p-6">Aucune attestation disponible.</p>{% endfor %}</section></main>{% endblock %}
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}Mes preuves | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-4">
+  <header class="mk-panel p-4 sm:p-5">
+    <div class="flex items-center gap-2">
+      <a href="{% url 'personal_assets:list' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes ressources"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
+      <div>
+        <span class="mk-kicker">Mes ressources</span>
+        <h1 class="text-2xl font-extrabold">Mes preuves</h1>
+      </div>
+    </div>
+
+    <form method="get" role="search" class="mt-4 space-y-3">
+      <div class="flex gap-2">
+        <label for="proof-search" class="sr-only">Rechercher</label>
+        <input id="proof-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher" class="mk-interaction-field min-w-0 flex-1">
+        <button type="submit" class="mk-action-button" data-variant="secondary" aria-label="Rechercher"><i data-lucide="search" class="h-4 w-4" aria-hidden="true"></i></button>
+      </div>
+
+      <nav class="mk-interaction-tabs" aria-label="Vue des preuves">
+        <a href="?status=all{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_type %}&amp;type={{ active_type }}{% endif %}{% if active_sort != 'recent' %}&amp;sort={{ active_sort }}{% endif %}" {% if active_status == 'all' %}aria-current="page"{% endif %}>Toutes</a>
+        <a href="?status=active{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_type %}&amp;type={{ active_type }}{% endif %}{% if active_sort != 'recent' %}&amp;sort={{ active_sort }}{% endif %}" {% if active_status == 'active' %}aria-current="page"{% endif %}>Actives</a>
+        <a href="?status=revoked{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_type %}&amp;type={{ active_type }}{% endif %}{% if active_sort != 'recent' %}&amp;sort={{ active_sort }}{% endif %}" {% if active_status == 'revoked' %}aria-current="page"{% endif %}>Révoquées</a>
+      </nav>
+
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="sr-only" for="proof-type">Type</label>
+        <select id="proof-type" name="type" class="mk-interaction-field" data-submit-on-change>
+          <option value="">Tous les types</option>
+          {% for value, label in type_options %}<option value="{{ value }}" {% if active_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <label class="sr-only" for="proof-sort">Trier</label>
+        <select id="proof-sort" name="sort" class="mk-interaction-field" data-submit-on-change>
+          <option value="recent" {% if active_sort == 'recent' %}selected{% endif %}>Plus récentes</option>
+          <option value="oldest" {% if active_sort == 'oldest' %}selected{% endif %}>Plus anciennes</option>
+          <option value="title" {% if active_sort == 'title' %}selected{% endif %}>Type A–Z</option>
+        </select>
+      </div>
+      <input type="hidden" name="status" value="{{ active_status }}">
+    </form>
+  </header>
+
+  <section class="space-y-3" aria-label="Mes preuves">
+    {% for proof in proofs %}
+      <a href="{% url 'trust:proof-detail' proof.pk %}?return={{ request.get_full_path|urlencode }}" class="mk-panel block p-4 transition hover:-translate-y-0.5">
+        <div class="flex items-start gap-3">
+          <i data-lucide="circle-check" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-extrabold">{{ proof.get_proof_type_display }}</p>
+              <i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i>
+            </div>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ proof.journey.activity.title }} · {{ proof.get_status_display }} · {{ proof.issued_at|date:'d/m/Y' }}</p>
+          </div>
+        </div>
+      </a>
+    {% empty %}
+      <div class="mk-panel p-8 text-center"><p class="font-bold">{% if query %}Aucun résultat{% else %}Aucune preuve{% endif %}</p></div>
+    {% endfor %}
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="flex items-center justify-between gap-3" aria-label="Pagination">
+    {% if page.has_previous %}<a class="mk-action-button" data-variant="ghost" href="?page={{ page.previous_page_number }}&amp;status={{ active_status }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_type %}&amp;type={{ active_type }}{% endif %}" aria-label="Page précédente"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>{% else %}<span></span>{% endif %}
+    <span class="text-sm" style="color:var(--mk-muted)">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="mk-action-button" data-variant="ghost" href="?page={{ page.next_page_number }}&amp;status={{ active_status }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_type %}&amp;type={{ active_type }}{% endif %}" aria-label="Page suivante"><i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i></a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+<script src="{% static 'js/auto_submit_filters.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'organizations/space/base.html' %}
+{% block space_content %}
+<section class="mx-auto max-w-4xl space-y-7 pb-12" aria-labelledby="space-payment-obligation">
+  <header class="space-y-3">
+    <span class="mk-kicker">Finances · {{ space.name }}</span>
+    <h2 id="space-payment-obligation" class="text-3xl font-extrabold tracking-tight">Obligation financière</h2>
+    <p class="max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">
+      Cette obligation appartient au domaine Payments. La consultation ne constitue pas une autorisation de règlement.
+    </p>
+  </header>
+
+  <article class="rounded-3xl border p-6 sm:p-8 space-y-6"
+           style="background:var(--mk-surface, #fff);border-color:var(--mk-border, #e5e7eb)">
+    <div class="space-y-2">
+      <p class="mk-kicker">{{ payment_facts.activity.title }}</p>
+      <h3 class="text-2xl font-bold">{{ payment_facts.label }}</h3>
+      <p class="text-sm">État : <strong>{{ obligation.get_status_display }}</strong></p>
+    </div>
+    <div class="space-y-1">
+      <p class="text-sm font-medium" style="color:var(--mk-muted)">Montant établi par Payments</p>
+      <p class="text-2xl font-bold">{{ payment_facts.amount }} {{ payment_facts.currency }}</p>
+    </div>
+    {% if payment_facts.due_at %}
+      <p class="text-sm">Échéance : <strong>{{ obligation.due_at|date:"d/m/Y H:i" }}</strong></p>
+    {% endif %}
+    <p class="text-sm leading-6" style="color:var(--mk-muted)">
+      Vérifiez le contexte de l'obligation avant toute opération. Aucun paiement n'est lancé depuis Maintenant.
+    </p>
+    <div class="flex flex-wrap gap-3">
+      {% if selected_responsibility.key == 'all' %}
+        <a class="mk-btn mk-btn-secondary" href="{% url 'organizations:console-payments' space.slug %}">
+          Consulter les finances de cet Espace
+        </a>
+      {% endif %}
+      <a class="mk-btn mk-btn-secondary" href="{{ space_root_url }}">
+        Retour à Maintenant
+      </a>
+    </div>
+  </article>
+</section>
+{% endblock %}

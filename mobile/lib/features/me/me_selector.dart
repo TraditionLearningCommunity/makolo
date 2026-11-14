@@ -10,19 +10,34 @@ class MeItemPresentation {
     required this.title,
     this.subtitle,
     this.metadata = const [],
+    this.canOpen = false,
+    this.mediaPath,
+    this.mediaAlt,
   });
 
   final StructuredDestination destination;
   final String title;
   final String? subtitle;
   final List<String> metadata;
+  final bool canOpen;
+  final String? mediaPath;
+  final String? mediaAlt;
 }
 
 class MeTerritorySelection {
-  const MeTerritorySelection({required this.presentation, required this.items});
+  const MeTerritorySelection({
+    required this.presentation,
+    required this.items,
+    this.totalCount = 0,
+    this.hasMore = false,
+    this.savedCount = 0,
+  });
 
   final MeTerritoryPresentation presentation;
   final List<MeItemPresentation> items;
+  final int totalCount;
+  final bool hasMore;
+  final int savedCount;
 
   bool get hasContent =>
       presentation.state.availability == MakoloAvailabilityCue.content;
@@ -36,6 +51,8 @@ class MeSelection {
     required this.identityState,
     this.identitySubtitle,
     this.identityDetail,
+    this.identityAvatarUrl,
+    this.canOpenHistory = false,
   });
 
   final MePresentation presentation;
@@ -44,9 +61,15 @@ class MeSelection {
   final MakoloSurfacePresentation identityState;
   final String? identitySubtitle;
   final String? identityDetail;
+  final String? identityAvatarUrl;
+  final bool canOpenHistory;
 
-  int get contentfulTerritoryCount =>
-      territories.where((territory) => territory.hasContent).length;
+  int get contentfulTerritoryCount => territories
+      .where(
+        (territory) =>
+            territory.hasContent && territory.presentation.key != 'accesses',
+      )
+      .length;
 }
 
 class MeSelector {
@@ -106,14 +129,14 @@ class MeSelector {
     final links = _map(projection.payload['links']);
     final territories = <MeTerritorySelection>[
       _passport(projection.payload['passport'], freshness, reachability),
+      if (_string(links?['accesses']) != null)
+        _accesses(freshness, reachability),
       _considerations(
         projection.payload['considerations'],
         freshness,
         reachability,
       ),
       _collectives(projection.payload['collectives'], freshness, reachability),
-      if (_string(links?['accesses']) != null)
-        _accesses(freshness, reachability),
       _resources(
         projection.payload['resources'],
         freshness,
@@ -143,6 +166,8 @@ class MeSelector {
       identityState: identityState,
       identitySubtitle: _identitySubtitle(identityRaw),
       identityDetail: _string(identityRaw?['bio']),
+      identityAvatarUrl: _string(identityRaw?['avatar_url']),
+      canOpenHistory: _string(links?['history']) != null,
     );
   }
 
@@ -163,7 +188,7 @@ class MeSelector {
       presentation: MeTerritoryPresentation(
         key: 'passport',
         label: 'Passeport Makolo',
-        summary: 'Ce qui peut vous représenter selon le contexte.',
+        summary: 'Votre identité à partager, selon votre choix.',
         state: _sectionState(
           hasContent: available,
           malformed: malformed,
@@ -171,7 +196,15 @@ class MeSelector {
           reachability: reachability,
         ),
       ),
-      items: const [],
+      items: available
+          ? const [
+              MeItemPresentation(
+                destination: StructuredDestination(kind: 'passport', id: 'me'),
+                title: 'Mon passeport',
+                canOpen: true,
+              ),
+            ]
+          : const [],
     );
   }
 
@@ -209,11 +242,30 @@ class MeSelector {
     return _territory(
       key: 'considerations',
       label: 'Ce qui compte pour moi',
-      summary: 'Intérêts, ouvertures et veilles déjà connus.',
+      summary: 'Intérêts, veilles et envies.',
       items: items,
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      savedCount: _collectionCount(section, ['bookmarks']),
+      // Saved possibilities have their own visible counter below this heading.
+      // This count reflects personal considerations rather than double-counting
+      // the separately presented collection of saved opportunities.
+      totalCount: _collectionCount(section, [
+        'interests',
+        'open_to',
+        'watches',
+        'followed_spaces',
+        'followed_profiles',
+      ]),
+      hasMore: _collectionHasMore(section, [
+        'interests',
+        'open_to',
+        'watches',
+        'bookmarks',
+        'followed_spaces',
+        'followed_profiles',
+      ]),
     );
   }
 
@@ -237,11 +289,21 @@ class MeSelector {
     return _territory(
       key: 'collectives',
       label: 'Mes collectifs',
-      summary: 'Les collectifs auxquels votre Profil est relié.',
+      summary: 'Espaces, équipes et groupes.',
       items: items,
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      totalCount: _collectionCount(section, [
+        'authorized_spaces',
+        'teams',
+        'groups',
+      ]),
+      hasMore: _collectionHasMore(section, [
+        'authorized_spaces',
+        'teams',
+        'groups',
+      ]),
     );
   }
 
@@ -252,7 +314,7 @@ class MeSelector {
     return _territory(
       key: 'accesses',
       label: 'Mes accès',
-      summary: 'Les droits déjà accordés et leur prochain usage réel.',
+      summary: 'Vos droits et invitations.',
       items: const [
         MeItemPresentation(
           destination: StructuredDestination(
@@ -260,7 +322,8 @@ class MeSelector {
             id: 'mine',
           ),
           title: 'Voir mes droits disponibles',
-          subtitle: 'Access reste la source de vérité',
+          canOpen: true,
+          subtitle: 'Billets, invitations et droits',
         ),
       ],
       malformed: false,
@@ -277,17 +340,7 @@ class MeSelector {
   }) {
     final section = _map(raw);
     var malformed = raw != null && section == null;
-    final items = <MeItemPresentation>[
-      if (ownerAvailable)
-        const MeItemPresentation(
-          destination: StructuredDestination(
-            kind: 'resource_collection',
-            id: 'mine',
-          ),
-          title: 'Ouvrir Mes ressources',
-          subtitle: 'Bibliothèque, Proofs et Credentials',
-        ),
-    ];
+    final items = <MeItemPresentation>[];
 
     if (section != null) {
       malformed =
@@ -298,14 +351,40 @@ class MeSelector {
           malformed;
     }
 
+    // A collection link is not evidence that any resource exists.
+    if (ownerAvailable && items.isNotEmpty) {
+      items.insert(
+        0,
+        const MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'resource_collection',
+            id: 'mine',
+          ),
+          title: 'Toutes mes ressources',
+          subtitle: 'Documents, preuves et titres',
+          canOpen: true,
+        ),
+      );
+    }
+
     return _territory(
       key: 'resources',
       label: 'Mes ressources',
-      summary: 'Ce qui est déjà disponible pour faciliter la suite.',
+      summary: 'Documents, preuves et titres.',
       items: items,
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      totalCount: _collectionCount(section, [
+        'documents',
+        'proofs',
+        'credentials',
+      ]),
+      hasMore: _collectionHasMore(section, [
+        'documents',
+        'proofs',
+        'credentials',
+      ]),
     );
   }
 
@@ -327,8 +406,12 @@ class MeSelector {
       }
       items.add(
         MeItemPresentation(
-          destination: StructuredDestination(kind: 'support', id: entry.key),
+          destination: StructuredDestination(
+            kind: 'support_collection',
+            id: entry.key,
+          ),
           title: _supportLabel(entry.key),
+          canOpen: true,
           subtitle: value?['needs_response'] == true
               ? 'Une réponse peut être nécessaire.'
               : null,
@@ -343,7 +426,7 @@ class MeSelector {
     return _territory(
       key: 'support',
       label: 'Mes appuis',
-      summary: 'Des appuis déjà disponibles autour de vous.',
+      summary: 'Reconnaissances et relations.',
       items: items,
       malformed: false,
       freshness: freshness,
@@ -359,8 +442,14 @@ class MeSelector {
     required bool malformed,
     required MakoloFreshnessCue freshness,
     required MakoloReachabilityCue reachability,
+    int totalCount = 0,
+    bool hasMore = false,
+    int savedCount = 0,
   }) {
     return MeTerritorySelection(
+      totalCount: totalCount,
+      hasMore: hasMore,
+      savedCount: savedCount,
       presentation: MeTerritoryPresentation(
         key: key,
         label: label,
@@ -391,6 +480,26 @@ class MeSelector {
       reachability: reachability,
       failure: malformed ? MakoloFailureCue.blocking : MakoloFailureCue.none,
     );
+  }
+
+  int _collectionCount(Map<String, dynamic>? section, List<String> keys) {
+    if (section == null) return 0;
+    var total = 0;
+    for (final key in keys) {
+      final collection = _map(section[key]);
+      final count = collection?['count'];
+      if (count is int && count >= 0) {
+        total += count;
+      } else if (collection?['items'] is List) {
+        total += (collection!['items'] as List).length;
+      }
+    }
+    return total;
+  }
+
+  bool _collectionHasMore(Map<String, dynamic>? section, List<String> keys) {
+    if (section == null) return false;
+    return keys.any((key) => _map(section[key])?['has_more'] == true);
   }
 
   bool _appendBounded(
@@ -437,7 +546,6 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'topic', id: id),
       title: label,
-      subtitle: 'Intérêt',
     );
   }
 
@@ -450,7 +558,6 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'open_to', id: id),
       title: label,
-      subtitle: 'Ouvert à',
     );
   }
 
@@ -462,6 +569,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'watch', id: id),
+      canOpen: true,
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Veille',
     );
@@ -471,13 +579,38 @@ class MeSelector {
     final activity = _map(raw['activity']);
     final id = _string(activity?['id']);
     final title = _string(activity?['title']);
-    if (id == null || title == null) {
-      return null;
+    if (id == null || title == null) return null;
+    String? mediaPath;
+    String? mediaAlt;
+    final bindings = raw['media_bindings'];
+    if (bindings is List) {
+      for (final candidate in bindings) {
+        final binding = _map(candidate);
+        final target = _map(binding?['target']);
+        final resource = _map(binding?['resource']);
+        final path = _string(resource?['url']);
+        if (binding?['purpose'] != 'RECOGNIZE' ||
+            target?['kind'] != 'activity' ||
+            target?['id'] != id ||
+            resource?['kind'] != 'presentation_media_use' ||
+            !{'image/jpeg', 'image/png'}.contains(resource?['mime_type']) ||
+            path == null ||
+            !path.startsWith('/') ||
+            path.startsWith('//') ||
+            Uri.tryParse(path)?.hasQuery == true) {
+          continue;
+        }
+        mediaPath = path;
+        mediaAlt = _string(resource?['alt_text']);
+        break;
+      }
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'activity', id: id),
+      canOpen: true,
       title: title,
-      subtitle: 'Enregistré',
+      mediaPath: mediaPath,
+      mediaAlt: mediaAlt,
     );
   }
 
@@ -489,9 +622,13 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: id,
+        link: _string(space?['slug']),
+      ),
+      canOpen: _string(space?['slug']) != null,
       title: title,
-      subtitle: 'Espace suivi',
     );
   }
 
@@ -504,8 +641,8 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'profile', id: id),
+      canOpen: true,
       title: title,
-      subtitle: 'Profil suivi',
     );
   }
 
@@ -516,9 +653,14 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(
+        kind: 'space',
+        id: id,
+        link: _string(raw['slug']),
+      ),
+      canOpen: _string(raw['slug']) != null,
       title: title,
-      subtitle: raw['can_act'] == true ? 'Contexte autorisé' : 'Espace',
+      subtitle: raw['can_act'] == true ? 'Peut agir pour cet Espace' : 'Espace',
     );
   }
 
@@ -528,10 +670,11 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final parent = _string(_map(raw['space'])?['name']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'team', id: id),
       title: title,
-      subtitle: 'Équipe',
+      subtitle: parent == null ? 'Équipe' : 'Équipe · $parent',
     );
   }
 
@@ -541,10 +684,13 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final owner = _map(raw['owner']);
+    final parent = _string(owner?['name']) ?? _string(owner?['display_name']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'group', id: id),
+      canOpen: true,
       title: title,
-      subtitle: 'Groupe',
+      subtitle: parent == null ? 'Groupe' : 'Groupe · $parent',
     );
   }
 
@@ -556,6 +702,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'personal_asset', id: id),
+      canOpen: true,
       title: title,
       subtitle: _string(raw['asset_kind_label']) ?? 'Ressource',
       metadata: _metadata(_string(raw['sensitivity_label'])),
@@ -569,10 +716,17 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final activity = _string(_map(raw['activity'])?['title']);
+    final status = _string(raw['status_label']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'proof', id: id),
+      canOpen: true,
       title: title,
-      subtitle: _string(raw['status_label']) ?? 'Preuve',
+      subtitle: [
+        ?activity,
+        ?status,
+        if (activity == null && status == null) 'Preuve',
+      ].join(' · '),
     );
   }
 
@@ -584,8 +738,15 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'credential', id: id),
+      canOpen: true,
       title: title,
-      subtitle: _string(raw['credential_type_label']) ?? 'Titre',
+      subtitle: [
+        _string(raw['credential_type_label']) ?? 'Titre',
+        if (_string(_map(raw['issuer'])?['name']) != null)
+          _string(_map(raw['issuer'])?['name'])!,
+        if (_string(_map(raw['issuer'])?['display_name']) != null)
+          _string(_map(raw['issuer'])?['display_name'])!,
+      ].join(' · '),
       metadata: _metadata(_string(raw['status_label'])),
     );
   }

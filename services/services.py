@@ -50,6 +50,7 @@ from .requirement_services import (
     submit_requirement_evidence,
     validate_requirement_completion,
 )
+from .space_beneficiary import can_act_for_space_service_journey
 from .t33_services import validate_payment_step_completion
 
 
@@ -174,10 +175,12 @@ def create_plan_template_version(*, template, actor, name=None):
 
 
 @transaction.atomic
-def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None, opportunity=None, opportunity_revision=None):
+def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, beneficiary_space=None, objective="", template=None, expires_at=None, opportunity=None, opportunity_revision=None, start_operation_fingerprint=None):
     service = ServiceDetails.objects.select_related("activity").get(pk=service.pk)
-    if bool(beneficiary) == bool(external_beneficiary):
-        raise ValidationError("Choisissez exactement un bénéficiaire Profile ou externe.")
+    if sum(bool(holder) for holder in (
+        beneficiary, external_beneficiary, beneficiary_space,
+    )) != 1:
+        raise ValidationError("Choisissez exactement un bénéficiaire Profile, externe ou Espace.")
     if external_beneficiary is not None and not service.allows_external_beneficiary:
         raise ValidationError("Ce Service n’autorise pas de bénéficiaire externe.")
     if template is not None:
@@ -194,13 +197,14 @@ def create_service_journey(*, service, initiated_by, beneficiary=None, external_
         opportunity=opportunity,
         opportunity_revision=opportunity_revision,
     )
-    journey = create_journey_for_holder(initiated_by=initiated_by, beneficiary=beneficiary, external_beneficiary=external_beneficiary, activity=service.activity, workflow=WorkflowKind.SERVICE, occurrence=None, expires_at=expires_at)
+    journey = create_journey_for_holder(initiated_by=initiated_by, beneficiary=beneficiary, external_beneficiary=external_beneficiary, beneficiary_space=beneficiary_space, activity=service.activity, workflow=WorkflowKind.SERVICE, occurrence=None, expires_at=expires_at)
     context = ServiceJourneyContext(
         journey=journey,
         service_plan_template=template,
         opportunity=opportunity,
         opportunity_revision=opportunity_revision,
         objective=(objective or "").strip(),
+        start_operation_fingerprint=start_operation_fingerprint,
     )
     context.save()
     ensure_requirement_assessments(context=context)
@@ -226,7 +230,7 @@ def answer_intake_question(*, journey, question, value, actor):
         raise ValidationError("L’Intake Services exige une Journey SERVICE.")
     if journey.status != JourneyStatus.DRAFT:
         raise ValidationError("L’Intake ne peut être modifié qu’avant la soumission.")
-    if not is_beneficiary(actor, journey):
+    if not is_beneficiary(actor, journey) and not can_act_for_space_service_journey(actor, journey):
         ensure_case_access(actor, journey, write=True)
     answer, created = ServiceIntakeAnswer.objects.get_or_create(journey=journey, question=question, defaults={"value": value, "answered_by": actor})
     if not created:
@@ -247,7 +251,7 @@ def _validate_required_intake(context):
 @transaction.atomic
 def submit_service_journey(*, journey, actor):
     context = ServiceJourneyContext.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "service_plan_template").get(journey=journey)
-    if not is_beneficiary(actor, context.journey):
+    if not is_beneficiary(actor, context.journey) and not can_act_for_space_service_journey(actor, context.journey):
         ensure_case_access(actor, context.journey, write=True)
     _validate_required_intake(context)
     service = context.journey.activity.service_details

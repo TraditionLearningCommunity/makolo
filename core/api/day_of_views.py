@@ -59,7 +59,7 @@ class PersonalOccurrenceLiveAPIView(PersonalProjectionAPIView):
             actor=request.user,
             observed_at=observed_at,
         )
-        if payload is None or occurrence_live_phase(occurrence, now=observed_at) not in {
+        if not occurrence.live_enabled or payload is None or occurrence_live_phase(occurrence, now=observed_at) not in {
             "arrival",
             "live",
         }:

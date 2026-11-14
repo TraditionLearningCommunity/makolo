@@ -23,16 +23,16 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
         self._guard_personal_scope(request, include_body=True)
         payload = request.data
         if not isinstance(payload, dict):
-            raise ValidationError("Le corps de la requête doit être un objet.")
+            raise ValidationError("Le contenu envoyé est invalide.")
 
         mark_input = payload.get("input")
         if not isinstance(mark_input, dict):
-            raise ValidationError({"input": ["Une entrée Mark structurée est requise."]})
+            raise ValidationError({"input": ["Indiquez votre demande."]})
 
         input_kind = str(mark_input.get("kind") or "").strip()
         value = mark_input.get("value")
         if not input_kind:
-            raise ValidationError({"input": ["Le type d'entrée est requis."]})
+            raise ValidationError({"input": ["Précisez le type de contenu."]})
         if input_kind == "text":
             value = str(value or "").strip()
             if not value:
@@ -44,11 +44,11 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
 
         context = payload.get("context") or {}
         if not isinstance(context, dict):
-            raise ValidationError({"context": ["Le contexte doit être un objet."]})
+            raise ValidationError({"context": ["Le contexte transmis est invalide."]})
 
         forbidden_context = _FORBIDDEN_CONTEXT_KEYS.intersection(context)
         if forbidden_context:
-            raise PermissionDenied("Le contexte d'autorité est résolu par le serveur.")
+            raise PermissionDenied("Vous ne pouvez pas choisir vos autorisations depuis cette demande.")
 
         result = public_mark_result(
             orchestrate_mark(

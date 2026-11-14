@@ -14,6 +14,8 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
+import 'conversation_context_screen.dart';
+import 'conversation_repository.dart';
 import 'objective_repository.dart';
 
 class ObjectiveDetailScreen extends StatefulWidget {
@@ -24,8 +26,12 @@ class ObjectiveDetailScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenDossier,
     required this.onOpenJourney,
+    this.conversations,
+    this.onOpenConversation,
   });
 
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
   final ObjectiveDepth kind;
   final String id;
   final ObjectiveRepository repository;
@@ -142,16 +148,36 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement…',
                   ),
-                  blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
+                  blockingErrorMessage: 'Impossible d’afficher ce dossier.',
                   onRetry: _refresh,
                   content: widget.kind == ObjectiveDepth.dossier
                       ? _DossierContent(
                           payload: projection?.payload ?? const {},
                           onOpenJourney: widget.onOpenJourney,
+                          conversationEntry:
+                              widget.conversations != null &&
+                                  widget.onOpenConversation != null
+                              ? ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'dossier',
+                                  contextId: widget.id,
+                                  onOpen: widget.onOpenConversation!,
+                                )
+                              : null,
                         )
                       : _ProjectContent(
                           payload: projection?.payload ?? const {},
                           onOpenDossier: widget.onOpenDossier,
+                          conversationEntry:
+                              widget.conversations != null &&
+                                  widget.onOpenConversation != null
+                              ? ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'project',
+                                  contextId: widget.id,
+                                  onOpen: widget.onOpenConversation!,
+                                )
+                              : null,
                         ),
                 ),
               ),
@@ -164,10 +190,15 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
 }
 
 class _DossierContent extends StatelessWidget {
-  const _DossierContent({required this.payload, required this.onOpenJourney});
+  const _DossierContent({
+    required this.payload,
+    required this.onOpenJourney,
+    this.conversationEntry,
+  });
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenJourney;
+  final Widget? conversationEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +230,7 @@ class _DossierContent extends StatelessWidget {
               ),
           ],
         ),
+        ?conversationEntry,
         MakoloSection(
           title: 'État collectif',
           description: readiness['partial'] == true
@@ -255,7 +287,7 @@ class _DossierContent extends StatelessWidget {
                     child: MakoloStatusMetadataAction(
                       title: _string(items[index]['label']) ?? 'Démarche',
                       subtitle: items[index]['hidden_dependency'] == true
-                          ? 'Une dépendance non divulguée influence cet état.'
+                          ? 'Certaines conditions de cette démarche ne sont pas visibles ici.'
                           : null,
                       status: _humanState(items[index]['state']) == null
                           ? null
@@ -306,10 +338,15 @@ class _DossierContent extends StatelessWidget {
 }
 
 class _ProjectContent extends StatelessWidget {
-  const _ProjectContent({required this.payload, required this.onOpenDossier});
+  const _ProjectContent({
+    required this.payload,
+    required this.onOpenDossier,
+    this.conversationEntry,
+  });
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenDossier;
+  final Widget? conversationEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -338,14 +375,11 @@ class _ProjectContent extends StatelessWidget {
                 ),
           metadata: metadata,
         ),
+        ?conversationEntry,
         MakoloSection(
           title: 'Dossiers',
-          description:
-              'Seuls les dossiers que vous êtes autorisé à voir sont affichés.',
           child: dossiers.isEmpty
-              ? const MakoloCard(
-                  child: Text('Aucun dossier visible pour le moment.'),
-                )
+              ? const MakoloCard(child: Text('Aucun dossier à afficher.'))
               : Column(
                   children: [
                     for (var index = 0; index < dossiers.length; index++) ...[

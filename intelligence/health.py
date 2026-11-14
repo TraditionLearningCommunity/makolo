@@ -8,7 +8,7 @@ from django.utils import timezone
 from research_missions import ResearchFamily, ResearchMission, ResearchOrigin, ResearchOriginKind
 
 from .capabilities import IntelligenceCapability
-from .contracts import IntelligenceRequest
+from .contracts import IntelligenceRequest, IntelligenceResult
 from .credentials import get_provider_secret
 from .exceptions import IntelligenceError, ProviderUnavailable
 from .models import (
@@ -20,8 +20,23 @@ from .models import (
 from .provider_factory import build_configured_provider
 
 
+def _result_health(result) -> str:
+    """A returned unavailable result is not a successful health probe."""
+    if not isinstance(result, IntelligenceResult):
+        return ProviderHealth.UNAVAILABLE
+    if result.available:
+        return ProviderHealth.HEALTHY
+    if result.reason == "invalid_credentials":
+        return ProviderHealth.INVALID_CREDENTIALS
+    return ProviderHealth.UNAVAILABLE
+
+
 def test_provider_connection(connection: ProviderConnection) -> str:
     started = monotonic()
+    # A health probe may outlive a key rotation, disable or disconnect. Keep
+    # the exact row version observed before contacting the external provider.
+    original_updated_at = connection.updated_at
+    original_enabled = connection.enabled
     status = ProviderHealth.UNKNOWN
     try:
         if connection.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
@@ -35,13 +50,13 @@ def test_provider_connection(connection: ProviderConnection) -> str:
         if provider is None:
             status = ProviderHealth.UNAVAILABLE
         elif provider.supports(IntelligenceCapability.TEXT_GENERATE):
-            provider.execute(
+            result = provider.execute(
                 IntelligenceRequest(
                     capability=IntelligenceCapability.TEXT_GENERATE,
                     input={"messages": [{"role": "user", "content": "Reply with OK."}]},
                 )
             )
-            status = ProviderHealth.HEALTHY
+            status = _result_health(result)
         elif provider.supports(IntelligenceCapability.WEB_RESEARCH):
             mission = ResearchMission(
                 primary_family=ResearchFamily.REFERENCE,
@@ -56,7 +71,7 @@ def test_provider_connection(connection: ProviderConnection) -> str:
                 reasons=("Verify explicit Web Research provider connectivity.",),
                 limits={"max_candidates": 1, "max_queries": 1},
             )
-            provider.execute(
+            result = provider.execute(
                 IntelligenceRequest(
                     capability=IntelligenceCapability.WEB_RESEARCH,
                     input={
@@ -71,7 +86,7 @@ def test_provider_connection(connection: ProviderConnection) -> str:
                     metadata={"feature": "provider_healthcheck"},
                 )
             )
-            status = ProviderHealth.HEALTHY
+            status = _result_health(result)
         else:
             status = ProviderHealth.UNAVAILABLE
     except ProviderUnavailable as exc:
@@ -83,8 +98,26 @@ def test_provider_connection(connection: ProviderConnection) -> str:
     except (IntelligenceError, ValidationError, ValueError, ImproperlyConfigured):
         status = ProviderHealth.UNAVAILABLE
 
-    connection.health_status = status
-    connection.last_checked_at = timezone.now()
-    connection.last_latency_ms = max(0, int((monotonic() - started) * 1000))
-    connection.save(update_fields=["health_status", "last_checked_at", "last_latency_ms", "updated_at"])
-    return status
+    # Compare-and-swap: do not overwrite fresh state after rotation, disable,
+    # or removal while a billable provider probe was in flight. QuerySet.update
+    # avoids an unconditional model.save() that could revive stale evidence.
+    checked_at = timezone.now()
+    latency = max(0, int((monotonic() - started) * 1000))
+    updated = ProviderConnection.objects.filter(
+        pk=connection.pk,
+        enabled=original_enabled,
+        updated_at=original_updated_at,
+    ).update(
+        health_status=status,
+        last_checked_at=checked_at,
+        last_latency_ms=latency,
+        updated_at=checked_at,
+    )
+    if updated:
+        connection.health_status = status
+        connection.last_checked_at = checked_at
+        connection.last_latency_ms = latency
+        connection.updated_at = checked_at
+        return status
+    # The caller must not announce a result for an obsolete credential.
+    return ProviderHealth.UNKNOWN

@@ -1,0 +1,35 @@
+{% load static %}
+<form method="post" action="{% url 'conversations:point-reply-media' point.pk %}"
+      enctype="multipart/form-data" class="mt-4 space-y-3"
+      data-conversation-media-form
+      data-media-focus="{% url 'conversations:detail' point.conversation_id %}">
+  {% csrf_token %}
+  <input type="hidden" name="kind" data-media-kind value="{% if point.response_mode == 'voice' %}voice{% else %}file{% endif %}">
+  <input type="hidden" name="client_reference" value="{{ compose_refs.file }}-{{ point.pk }}" data-media-ref>
+  {% if point.response_mode == 'voice' %}
+    <div class="flex flex-wrap items-center gap-2">
+      <button class="mk-btn mk-btn-primary" type="button" data-voice-start>Enregistrer un vocal</button>
+      <button class="mk-btn mk-btn-secondary hidden" type="button" data-voice-pause>Pause</button>
+      <button class="mk-btn mk-btn-secondary hidden" type="button" data-voice-resume>Reprendre</button>
+      <button class="mk-btn mk-btn-secondary hidden" type="button" data-voice-stop>Terminer</button>
+      <button class="mk-btn mk-btn-secondary hidden" type="button" data-voice-cancel>Annuler</button>
+      <button class="mk-btn mk-btn-primary hidden" type="button" data-voice-send>Envoyer le vocal</button>
+      <label class="mk-btn mk-btn-secondary cursor-pointer">Choisir un vocal
+        <input type="file" class="sr-only" name="file" accept="audio/webm,audio/ogg,audio/mp4,audio/x-m4a,audio/wav,audio/mpeg" data-media-file="voice">
+      </label>
+    </div>
+    <audio controls class="hidden w-full" preload="metadata" data-voice-preview></audio>
+  {% else %}
+    <div class="flex flex-wrap items-center gap-2">
+      <label class="mk-btn mk-btn-primary cursor-pointer">Joindre un document
+        <input type="file" class="sr-only" name="file" accept=".pdf,.txt,.doc,.docx" data-media-file="file">
+      </label>
+      <label class="mk-btn mk-btn-secondary cursor-pointer">Joindre une photo
+        <input type="file" class="sr-only" accept="image/jpeg,image/png" data-media-file="image">
+      </label>
+    </div>
+  {% endif %}
+  <p role="status" aria-live="polite" class="text-sm" data-media-state></p>
+  <button type="button" class="mk-btn mk-btn-primary hidden" data-media-retry>Réessayer l’envoi</button>
+  <noscript><button type="submit" class="mk-btn mk-btn-primary">Envoyer</button></noscript>
+</form>

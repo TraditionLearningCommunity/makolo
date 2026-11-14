@@ -1,35 +1,108 @@
 {% extends 'base/app.html' %}
-{% load conversation_tags %}
+{% load static %}
 {% block title %}{{ context_label }} · Conversations | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-5xl space-y-6 pb-10">
-  <header><a href="{% url 'conversations:list' %}" class="text-sm font-bold" style="color:var(--mk-brand)">← Conversations</a><span class="mk-kicker mt-4 block">{{ conversation.context.get_kind_display }}</span><h1 class="mk-page-title mt-2">{% if conversation.title_override %}{{ conversation.title_override }}{% else %}{{ context_label }}{% endif %}</h1>{% if conversation.purpose %}<p class="mk-page-copy mt-2">{{ conversation.purpose }}</p>{% endif %}</header>
-
-  {% if catch_up and catch_up.resolved or catch_up.superseded or catch_up.important or catch_up.remaining %}<section class="mk-panel p-5"><h2 class="font-extrabold">Depuis votre dernière visite</h2><div class="mt-3 flex flex-wrap gap-2 text-sm">{% if catch_up.resolved %}<span class="mk-badge">✓ {{ catch_up.resolved }} Point{{ catch_up.resolved|pluralize }} résolu{{ catch_up.resolved|pluralize }}</span>{% endif %}{% if catch_up.superseded %}<span class="mk-badge">↻ {{ catch_up.superseded }} information{{ catch_up.superseded|pluralize }} remplacée{{ catch_up.superseded|pluralize }}</span>{% endif %}{% if catch_up.important %}<span class="mk-badge">{{ catch_up.important }} élément{{ catch_up.important|pluralize }} important{{ catch_up.important|pluralize }}</span>{% endif %}{% if catch_up.remaining %}<span class="mk-badge mk-badge-brand">{{ catch_up.remaining }} pour vous</span>{% endif %}</div></section>{% endif %}
-
-  <section class="mk-panel p-5 sm:p-6"><div class="flex items-center justify-between gap-4"><div><h2 class="text-lg font-extrabold">Maintenant</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Votre vue personnelle de ce qui compte ici.</p></div>{% if not now_rows %}<span class="mk-badge">✓ Tout est en ordre</span>{% endif %}</div>
-    <div class="mt-4 space-y-4">
-    {% for row in now_rows %}{% with point=row.point %}<article id="point-{{ point.pk }}" class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
-      <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{{ point.get_kind_display }} · {% if row.section == 'pour_moi' %}Pour moi{% elif row.section == 'a_regler' %}À régler{% else %}À savoir{% endif %}</p><h3 class="mt-1 font-extrabold">{{ point.title|default:point.get_kind_display }}</h3></div>{% if point.deadline_at %}<span class="mk-badge">avant {{ point.deadline_at|date:'d/m H:i' }}</span>{% endif %}</div>{% if point.body %}<p class="mt-3 text-sm leading-6">{{ point.body }}</p>{% endif %}
-      {% if point.requires_acknowledgement and row.reason == 'acknowledge' %}<form method="post" action="{% url 'conversations:point-acknowledge' point.pk %}" class="mt-4">{% csrf_token %}<button class="mk-btn mk-btn-primary">J’ai pris connaissance</button></form>{% endif %}
-      {% if row.reason == 'form' %}{% conversation_point_form_request point request.user as form_request %}{% if form_request %}<a href="{% url 'questionnaires:request-detail' form_request.pk %}" class="mk-btn mk-btn-primary mt-4">Compléter le formulaire</a>{% else %}<p class="mt-4 text-sm" style="color:var(--mk-muted)">Le formulaire n’est pas encore disponible pour votre Profil.</p>{% endif %}{% endif %}
-      {% if row.reason == 'respond' %}<form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">{% csrf_token %}
-        {% if point.response_mode == 'single_choice' %}{% for option in point.options.all %}<label class="flex items-center gap-2"><input type="radio" name="choice" value="{{ option.pk }}" required><span>{{ option.label }}</span></label>{% endfor %}
-        {% elif point.response_mode == 'multiple_choice' %}{% for option in point.options.all %}<label class="flex items-center gap-2"><input type="checkbox" name="choices" value="{{ option.pk }}"><span>{{ option.label }}</span></label>{% endfor %}
-        {% elif point.response_mode == 'boolean' %}<div class="flex gap-4"><label><input type="radio" name="value" value="true" required> Oui</label><label><input type="radio" name="value" value="false" required> Non</label></div>
-        {% elif point.response_mode == 'number' %}<input class="mk-input w-full" type="number" step="any" inputmode="decimal" name="value" required>
-        {% elif point.response_mode == 'date' %}<input class="mk-input w-full" type="date" name="value" required>
-        {% elif point.response_mode == 'datetime' %}<input class="mk-input w-full" type="datetime-local" name="value" required>
-        {% elif point.response_mode == 'free_text' %}<textarea class="mk-input min-h-[80px] w-full" name="value" required></textarea>
-        {% else %}<p class="text-sm" style="color:var(--mk-muted)">Ce type de réponse nécessite une capacité média ou formulaire explicitement disponible.</p>{% endif %}
-        {% if point.response_mode != 'file' and point.response_mode != 'voice' and point.response_mode != 'none' %}<button class="mk-btn mk-btn-primary">Répondre</button>{% endif %}</form>{% endif %}
-      {% if point.kind == 'exchange' %}<form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-4 flex gap-2">{% csrf_token %}<input class="mk-input flex-1" name="body" placeholder="Échanger dans ce contexte…" required><button class="mk-btn mk-btn-secondary">Envoyer</button></form>{% endif %}
-    </article>{% endwith %}{% empty %}<div class="py-5 text-center"><p class="font-semibold">Tout est en ordre. ✓</p></div>{% endfor %}
+<main class="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-5" id="conversation-main">
+  <header class="mb-8">
+    <p class="mk-kicker">{{ conversation.context.get_kind_display }}</p>
+    <h1 class="mk-page-title mt-2">{% if conversation.title_override %}{{ conversation.title_override }}{% else %}{{ context_label }}{% endif %}</h1>
+    {% if conversation.purpose %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ conversation.purpose }}</p>{% endif %}
+    <div class="mt-5 flex items-center gap-4 text-sm">
+      <a href="#conversation-points" style="color:var(--mk-brand)">Points</a>
+      <a href="{% url 'conversations:participants' conversation.pk %}" class="min-h-11 inline-flex items-center" style="color:var(--mk-brand)">Participants et invitations</a>
+      <a href="{% url 'conversations:history' conversation.pk %}" class="min-h-11 inline-flex items-center focus-visible:outline-2" style="color:var(--mk-brand)">Rechercher · Historique</a>
     </div>
+    <details class="mt-4 text-sm">
+      <summary class="mk-disclosure-trigger">Pour moi · Options</summary>
+      <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mon état de Conversation">
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="pin">{% if personal_state and personal_state.pinned_at %}Désépingler{% else %}Épingler{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="mute">{% if personal_state and personal_state.muted_at %}Réactiver les signaux{% else %}Mettre en sourdine{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="archive">{% if personal_state and personal_state.archived_at %}Désarchiver{% else %}Archiver{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="hide">{% if personal_state and personal_state.hidden_at %}Afficher{% else %}Masquer{% endif %}</button>
+        </form>
+      </div>
+    </details>
+  </header>
+
+  {% if catch_up and catch_up.resolved or catch_up.superseded or catch_up.important or catch_up.remaining %}
+    <section class="mb-6 rounded-2xl px-5 py-4" style="background:var(--mk-soft);color:var(--mk-ink)">
+      <h2 class="text-sm font-bold">Depuis votre dernière visite</h2>
+      <p class="mt-2 text-sm">
+        {% if catch_up.resolved %}{{ catch_up.resolved }} résultat{{ catch_up.resolved|pluralize }} · {% endif %}
+        {% if catch_up.remaining %}{{ catch_up.remaining }} à traiter{% else %}À jour{% endif %}
+      </p>
+    </section>
+  {% endif %}
+
+  {% include 'conversations/_attention.html' %}
+
+  {% if focused_point %}
+    <section class="mb-7" aria-labelledby="focused-point-heading">
+      <h2 id="focused-point-heading" class="mb-3 text-sm font-bold">Point recherché</h2>
+      {% include 'conversations/_point.html' with point=focused_point %}
+    </section>
+  {% endif %}
+
+  <section id="conversation-points" class="mb-8" aria-labelledby="conversation-timeline-heading">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="conversation-timeline-heading" class="text-lg font-extrabold">Conversation</h2>
+        
+      </div>
+      <a href="#conversation-latest" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
+    </div>
+    {% if timeline_older_query %}
+      <a class="mb-5 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)" href="{% url 'conversations:history' conversation.pk %}?{{ timeline_older_query }}">Voir les Points précédents</a>
+    {% endif %}
+    <div class="space-y-3">
+      {% for group in timeline_groups %}
+        {% ifchanged group.day %}
+          <p class="pt-3 text-center text-xs font-semibold" style="color:var(--mk-muted)">
+            {% if group.day %}{{ group.day|date:'d F Y' }}{% else %}Date inconnue{% endif %}
+          </p>
+        {% endifchanged %}
+        {% include 'conversations/_timeline_group.html' with group=group %}
+      {% empty %}
+        <p class="rounded-xl border p-4 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucun Point accessible pour le moment.</p>
+      {% endfor %}
+    </div>
+    <span id="conversation-latest" tabindex="-1" class="block scroll-mt-20"></span>
   </section>
 
-  {% if essential_points %}<section class="mk-panel p-5 sm:p-6"><h2 class="text-lg font-extrabold">Essentiel</h2><div class="mt-4 space-y-3">{% for point in essential_points %}<div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle)">{{ point.get_kind_display }}</p><p class="mt-1 font-extrabold">{{ point.title }}</p>{% if point.lifecycle == 'resolved' and point.resolution %}<p class="mt-2 text-sm">✓ {{ point.resolution.summary }}</p>{% elif point.body %}<p class="mt-2 text-sm">{{ point.body }}</p>{% endif %}</div>{% endfor %}</div></section>{% endif %}
+  {% if composer.text_mode or composer.can_create or composer.can_form or composer.media_kinds %}
+    {% include 'conversations/_composer.html' %}
+  {% endif %}
 
-  <section class="mk-panel p-5 sm:p-6"><div class="flex flex-wrap items-center justify-between gap-4"><div><h2 class="text-lg font-extrabold">Rechercher dans cette Conversation</h2><p class="mt-1 text-xs" style="color:var(--mk-muted)">Les résultats actuels passent avant l’ancien échange.</p></div><form method="get" class="flex gap-2"><input class="mk-input" name="q" value="{{ q }}" placeholder="Horaire, document, décision…"><button class="mk-btn mk-btn-secondary">Rechercher</button></form></div>{% if q %}<div class="mt-4 space-y-2">{% for point in search_results %}<a href="#point-{{ point.pk }}" class="block rounded-2xl border p-4" style="border-color:var(--mk-border)"><span class="text-xs font-bold" style="color:var(--mk-subtle)">{{ point.get_lifecycle_display }}</span><p class="mt-1 font-extrabold">{{ point.title }}</p>{% if point.lifecycle == 'resolved' %}<p class="mt-1 text-sm">✓ {{ point.resolution.summary }}</p>{% endif %}</a>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun résultat accessible.</p>{% endfor %}</div>{% endif %}</section>
-</div>
+  <section id="conversation-search" class="mt-8 border-t pt-6" style="border-color:var(--mk-border)">
+    <h2 class="mb-3 text-base font-extrabold">Rechercher dans cette conversation</h2>
+    <form method="get" action="{% url 'conversations:history' conversation.pk %}" role="search" class="flex flex-wrap gap-2">
+      <label class="sr-only" for="point-search">Rechercher un Point</label>
+      <input id="point-search" type="search" maxlength="120" class="mk-input min-w-0 flex-1" name="q" value="{{ q }}" placeholder="Un sujet, une réponse…">
+      <button class="mk-action-button" data-variant="secondary" type="submit">Rechercher</button>
+    </form>
+    {% if q %}
+      <div class="mt-4 space-y-2">
+        {% for point in search_results %}
+          <a href="?focus={{ point.pk }}#point-{{ point.pk }}" class="block rounded-xl px-4 py-3 text-sm hover:bg-black/[.03]">
+            <span class="font-bold">{{ point.title|default:point.get_kind_display }}</span>
+            {% if point.lifecycle == 'resolved' and point.resolution %}<span class="mt-1 block">✓ {{ point.resolution.summary }}</span>{% endif %}
+          </a>
+        {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun résultat accessible.</p>{% endfor %}
+      </div>
+    {% endif %}
+  </section>
+</main>
+<script defer src="{% static 'js/conversations-rich-composer.js' %}"></script>
+<script defer src="{% static 'js/conversations-media-gallery.js' %}"></script>
+<script defer src="{% static 'js/conversations-semantic-composer.js' %}"></script>
 {% endblock %}

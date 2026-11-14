@@ -99,6 +99,55 @@ class WS3SpaceWorkWebTests(TestCase):
             self.assertEqual(response.context["projection"]["primary_business_label"], label)
             self.assertContains(response, f">{label}<")
 
+    def test_generic_web_renders_real_portfolio_and_calm_question(self):
+        self.space.archetype = SpaceArchetype.GENERIC
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self._activity("Atelier hebdomadaire", ActivityStatus.PUBLISHED)
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nos activités")
+        self.assertContains(response, "Atelier hebdomadaire")
+        self.assertContains(response, "travail durable")
+        self.assertNotContains(response, 'data-work-chapter="preparation"')
+        self.assertEqual(
+            [s["key"] for s in response.context["work_sections"]],
+            ["activities"],
+        )
+
+    def test_community_web_groups_actual_action_then_initiative(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Nettoyer le quartier", ActivityStatus.PUBLISHED)
+        Occurrence.objects.create(
+            activity=activity,
+            label="Action prévue",
+            status=OccurrenceStatus.SCHEDULED,
+            start_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ce que nous faisons avancer")
+        self.assertContains(response, "Nos initiatives")
+        self.assertContains(response, "Action prévue")
+        self.assertContains(response, "Nettoyer le quartier")
+        self.assertNotContains(response, "Rien ne demande d’intervention")
+        self.assertEqual(
+            [s["key"] for s in response.context["work_sections"]],
+            ["upcoming", "activities"],
+        )
+
+    def test_web_first_group_exposes_no_fake_chapter_when_empty(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune initiative visible pour le moment.")
+        self.assertNotContains(response, "Nos initiatives")
+        self.assertNotContains(response, 'data-work-chapter=')
+
     def test_sections_are_projection_backed_and_empty_is_honest(self):
         self.client.force_login(self.owner)
         response = self.client.get(self.url)

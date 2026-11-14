@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:makolo_mobile/app/app_shell.dart';
+import 'package:makolo_mobile/app/runtime/actor_context.dart';
+import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/sync_lifecycle.dart';
@@ -122,6 +124,40 @@ Future<void> _pumpRouter(
 }
 
 void main() {
+  testWidgets('Space header uses avatar without two global context selectors', (
+    tester,
+  ) async {
+    final controller = await ActorContextController.restore(
+      profileId: 'shell-profile',
+      store: _SpaceShellActorStore(),
+    );
+    addTearDown(controller.dispose);
+    await controller.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'atelier-collectif'),
+    );
+    final recovery = SessionRecoveryController();
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: recovery,
+      actorContext: controller,
+    );
+    final router = _router(runtime);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Avatar'), findsOneWidget);
+    expect(find.text('Toutes mes responsabilités'), findsNothing);
+    expect(find.text('atelier-collectif'), findsNothing);
+    expect(find.byIcon(Icons.filter_alt_outlined), findsNothing);
+    await tester.tap(find.byTooltip('Avatar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Espace actif'), findsOneWidget);
+    expect(find.text('atelier-collectif'), findsWidgets);
+  });
+
   testWidgets('bottom navigation exposes four destinations plus Makolo Mark', (
     tester,
   ) async {
@@ -394,5 +430,22 @@ class _TestTabState extends State<_TestTab> {
         return SizedBox(height: 48, child: Text('${widget.label} $index'));
       },
     );
+  }
+}
+
+class _SpaceShellActorStore implements ActorContextStore {
+  ActorContext saved = const PersonalActorContext();
+
+  @override
+  Future<ActorContext> readActorContext(String profileId) async => saved;
+
+  @override
+  Future<void> writeActorContext(String profileId, ActorContext value) async {
+    saved = value;
+  }
+
+  @override
+  Future<void> removeActorContext(String profileId) async {
+    saved = const PersonalActorContext();
   }
 }

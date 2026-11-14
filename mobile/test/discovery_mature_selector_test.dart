@@ -168,6 +168,54 @@ void main() {
     );
   });
 
+  test('Carte reads mapped candidates beyond the first Discovery page', () {
+    final projection = StoredProjection(
+      kind: DiscoveryRepository.mapProjectionKind,
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 3),
+      payload: {
+        'count': 1,
+        'total_results': 794,
+        'results': [
+          {
+            'identity': {
+              'family': 'activity',
+              'candidate_key': 'activity:far-page',
+              'resource': {'kind': 'activity', 'id': 'far-page'},
+              'occurrence': {'kind': 'occurrence', 'id': 'occ-far-page'},
+            },
+            'representation': {'title': 'Atelier localisé'},
+            'place': {
+              'name': 'Lubumbashi',
+              'latitude': -11.66,
+              'longitude': 27.48,
+            },
+            'spatial_facts': [
+              {
+                'role': 'primary',
+                'place': {'latitude': -11.66, 'longitude': 27.48},
+              },
+            ],
+            'capabilities': ['view'],
+            'links': {'detail': '/api/v1/discovery/items/activity/far-page/'},
+          },
+        ],
+      },
+    );
+    final selected = selector.spatialSelection(projection: projection);
+    expect(selected.collection.items, hasLength(1));
+    expect(selected.collection.items.single.candidateKey, 'activity:far-page');
+    expect(
+      selected.collection.items.single.links['detail'],
+      '/api/v1/discovery/items/activity/far-page/',
+    );
+    expect(
+      selector.spatialAnchorsFromCollection(selected.collection),
+      hasLength(1),
+    );
+    expect(selected.collection.hasNext, isFalse);
+  });
+
   test('spatial points derive from the same collection field', () {
     final collection = selector.collection(
       fieldProjection(
@@ -193,6 +241,60 @@ void main() {
     expect(collection.items.last.isMappable, isFalse);
   });
 
+  test('map preserves multiple actual geographic roles of one possibility', () {
+    final raw = possibility('trip', 'Voyage', occurrenceId: 'occ-trip');
+    raw['spatial_facts'] = [
+      {
+        'role': 'departure',
+        'place': {'latitude': -11.66, 'longitude': 27.48},
+      },
+      {
+        'role': 'arrival',
+        'place': {'latitude': -10.72, 'longitude': 25.47},
+      },
+      {
+        'role': 'stopover',
+        'place': {'name': 'Unknown coordinates'},
+      },
+    ];
+    final collection = selector.collection(fieldProjection(results: [raw]));
+    final anchors = selector.spatialAnchorsFromCollection(collection);
+    expect(anchors, hasLength(2));
+    expect(
+      anchors.every((anchor) => anchor.candidateKey == 'activity:trip'),
+      isTrue,
+    );
+    expect(anchors.first.latitude, -11.66);
+    expect(anchors.last.longitude, 25.47);
+    expect(selector.mapPointsFromCollection(collection), hasLength(1));
+  });
+
+  test('map honors a typed coordinate without manufacturing a place', () {
+    const item = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'direct',
+      candidateKey: 'activity:direct',
+      title: 'Lieu connu',
+      summary: '',
+      latitude: -11.66,
+      longitude: 27.48,
+      savedState: 'unknown',
+      capabilities: <String>{},
+      links: <String, String>{},
+    );
+    const collection = DiscoveryCollectionPresentation(
+      items: [item],
+      count: 1,
+      page: 1,
+      pageSize: 24,
+      hasNext: false,
+    );
+    final anchors = selector.spatialAnchorsFromCollection(collection);
+    expect(anchors, hasLength(1));
+    expect(anchors.single.latitude, -11.66);
+    expect(anchors.single.longitude, 27.48);
+  });
+
   test(
     'media and save capabilities are represented without engagement inference',
     () {
@@ -216,6 +318,136 @@ void main() {
       expect(item.capabilities, isNot(contains('engage')));
     },
   );
+
+  test('B1 preserves structured possibility facts for Guest and Me', () {
+    final raw = possibility('item-1', 'Possibilité publique');
+    final identity = Map<String, Object?>.from(raw['identity']! as Map);
+    identity['revision'] = {'kind': 'revision', 'id': 'rev-1'};
+    raw['identity'] = identity;
+    raw['assessment'] = [
+      {'state': 'unknown', 'code': 'availability_not_resolved'},
+    ];
+    raw['variants'] = [
+      {'id': 'variant-1', 'kind': 'alternative'},
+    ];
+    raw['relations'] = [
+      {
+        'kind': 'complement',
+        'members': ['activity:item-1', 'service:item-2', 'opportunity:item-3'],
+      },
+    ];
+    raw['temporal_facts'] = [
+      {'kind': 'start', 'date': '2026-10-17'},
+      {'kind': 'deadline', 'date': '2026-10-22'},
+    ];
+    raw['spatial_facts'] = [
+      {
+        'role': 'departure',
+        'place': {'name': 'Lubumbashi'},
+      },
+      {
+        'role': 'arrival',
+        'place': {'name': 'Kolwezi'},
+      },
+    ];
+    raw['media_bindings'] = [
+      {
+        'resource': {'id': 'media-1'},
+        'target': 'card',
+        'purpose': 'illustration',
+      },
+    ];
+    raw['provenance'] = {
+      'resources': [
+        {'kind': 'activity', 'id': 'item-1'},
+      ],
+    };
+    raw['personal_relation'] = {'state': 'unknown'};
+    raw['watch'] = {'state': 'not_watching'};
+    raw['engagement'] = {
+      'presentation': {'enabled': false},
+    };
+    final payload = {
+      'results': [raw],
+      'count': 1,
+      'has_next': false,
+      'selection': {'state': 'ready', 'reason': null},
+      'terminal': {'state': 'ok', 'message': null},
+      'continuation': {'state': 'end', 'token': null},
+      'freshness': {'fact_freshness': 'not_asserted'},
+    };
+
+    final guest = selector.publicCollection(payload).items.single;
+    final me = selector
+        .collection(
+          StoredProjection(
+            kind: DiscoveryRepository.itemsProjectionKind,
+            schemaVersion: 1,
+            receivedAt: DateTime.utc(2026, 10, 17),
+            payload: payload,
+          ),
+        )
+        .items
+        .single;
+
+    expect(guest.candidateKey, 'activity:item-1');
+    expect(me.candidateKey, guest.candidateKey);
+    expect(guest.revisionId, 'rev-1');
+    expect(guest.wire['assessment'], raw['assessment']);
+    expect(guest.wire['variants'], raw['variants']);
+    expect(guest.wire['relations'], raw['relations']);
+    expect(guest.wire['temporal_facts'], raw['temporal_facts']);
+    expect(guest.wire['spatial_facts'], raw['spatial_facts']);
+    expect(guest.wire['media_bindings'], raw['media_bindings']);
+    expect(guest.wire['personal_relation'], raw['personal_relation']);
+    expect(me.wire['watch'], raw['watch']);
+    expect(me.wire['engagement'], raw['engagement']);
+  });
+
+  test('B1 terminal and selection override inferred empty page', () {
+    final payload = <String, dynamic>{
+      'results': <Object>[],
+      'items': <Object>[],
+      'count': 22,
+      'page': 99,
+      'page_size': 20,
+      'has_next': false,
+      'selection': {'state': 'ready', 'reason': null},
+      'terminal': {'state': 'end_of_field', 'message': null},
+      'continuation': {'state': 'end', 'token': null},
+    };
+    final selected = selector.select(
+      projection: StoredProjection(
+        kind: DiscoveryRepository.itemsProjectionKind,
+        schemaVersion: 1,
+        receivedAt: DateTime.utc(2026, 10, 17),
+        payload: payload,
+      ),
+      hasCriteria: true,
+    );
+
+    expect(selected.states, contains(DiscoveryFieldState.endOfField));
+    expect(selected.states, isNot(contains(DiscoveryFieldState.noMatch)));
+    expect(selected.collection.count, 22);
+    expect(selected.collection.terminal?['state'], 'end_of_field');
+  });
+
+  test('B1 items alias and opaque continuation remain intact', () {
+    const opaque = 'signed.not-a-client-cursor';
+    final collection = selector.publicCollection({
+      'items': [possibility('first', 'Premier')],
+      'count': 2,
+      'page': 1,
+      'page_size': 1,
+      'has_next': true,
+      'continuation': {'state': 'more', 'token': opaque},
+      'exploration': {'raw_text': 'formation'},
+    });
+
+    expect(collection.items.single.candidateKey, 'activity:first');
+    expect(collection.continuationToken, opaque);
+    expect(collection.exploration?['raw_text'], 'formation');
+  });
 
   test('DiscoveryQuery preserves all criteria while paging', () {
     const query = DiscoveryQuery(

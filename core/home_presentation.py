@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -42,6 +42,8 @@ from spatiotemporal.hazards import get_action_advices, get_hazards
 from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 
+from presentations.product_language import vocabulary_for
+
 from .participant_presentation import occurrence_timing
 from .participant_selectors import ACTIVE_JOURNEY_STATUSES, participant_active_accesses
 
@@ -67,7 +69,7 @@ class HomeActionMeta:
 
 @dataclass(frozen=True, slots=True)
 class HomeActionItem:
-    identity: ContextualActionIdentity
+    identity: ContextualActionIdentity = field(repr=False)
     context_label: str
     source_label: str
     action_label: str
@@ -176,7 +178,7 @@ def _journey_actions(profile, *, observed_at, metadata):
                 temporal_actions,
                 HomeActionMeta(
                     context_label=journey.activity.title,
-                    source_label="Occurrence",
+                    source_label=vocabulary_for(activity=journey.activity).occurrence_noun,
                     fallback_url=fallback_url,
                 ),
             )

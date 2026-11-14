@@ -4,8 +4,7 @@ import '../../network/api_error.dart';
 import '../../platform/network/device_connectivity.dart';
 
 const makoloServerUnavailableMessage =
-    'Nos serveurs sont momentanément inaccessibles. '
-    'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.';
+    'Service momentanément indisponible. Réessayez.';
 const deviceOfflineMessage = 'Cet appareil est hors connexion.';
 
 Future<bool> deviceIsOffline() => const DeviceConnectivity().isOffline();
@@ -33,7 +32,7 @@ String authErrorMessage(Object error, {required String fallback}) {
 
   if (error.statusCode >= 500) return makoloServerUnavailableMessage;
   if (error.code == 'throttled' || error.statusCode == 429) {
-    return 'Trop de tentatives pour le moment. Réessayez un peu plus tard.';
+    return 'Trop de tentatives. Réessayez plus tard.';
   }
   return fallback;
 }
@@ -42,7 +41,7 @@ String signupErrorMessage(Object error) {
   if (error is! MakoloApiError) {
     return authErrorMessage(
       error,
-      fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+      fallback: 'Impossible de créer le compte. Réessayez.',
     );
   }
 
@@ -102,7 +101,7 @@ Future<String> resolvedSignupErrorMessage(
   if (error is MakoloApiError) return signupErrorMessage(error);
   return resolvedAuthErrorMessage(
     error,
-    fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    fallback: 'Impossible de créer le compte. Réessayez.',
     offlineProbe: offlineProbe,
   );
 }

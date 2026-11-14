@@ -11,7 +11,10 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 
 from .audience_services import conversation_viewer_ids, profile_in_audience, resolve_audience_ids
-from .core_models import ConversationLifecycle
+from .core_models import (
+    Conversation, ConversationHistoryPolicy, ConversationLifecycle,
+    ConversationParticipation, ConversationParticipationStatus,
+)
 from .point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -41,16 +44,108 @@ POINT_POLICY_CAPABILITY = {
 }
 
 
-def point_visible_to(profile, point, *, at=None):
-    if not can_view_conversation(profile, point.conversation):
+def _audience_membership(profile, audience, *, at=None, audience_cache=None):
+    """Memoize a canonical audience decision only within a caller-owned read."""
+    if audience_cache is None:
+        return profile_in_audience(profile, audience, at=at)
+    scope = (getattr(profile, "pk", None), audience.pk, at)
+    if scope not in audience_cache:
+        audience_cache[scope] = profile_in_audience(profile, audience, at=at)
+    return audience_cache[scope]
+
+
+def point_visible_to(
+    profile, point, *, at=None,
+    visibility_cache=None, audience_cache=None, history_cache=None,
+):
+    """Canonical viewer check with optional request-local memoization.
+
+    Cache keys include the Profile and object identity. Callers never supply a
+    positive authorization flag: the service fills every cache from the live
+    policy itself. Recheck on every new request/acquisition.
+    """
+    scope = (getattr(profile, "pk", None), point.conversation_id)
+    if visibility_cache is None:
+        visible = can_view_conversation(profile, point.conversation)
+    else:
+        if scope not in visibility_cache:
+            visibility_cache[scope] = can_view_conversation(profile, point.conversation)
+        visible = visibility_cache[scope]
+    if not visible:
         return False
-    return not point.visibility_audience_id or profile_in_audience(profile, point.visibility_audience, at=at)
+
+    if point.lifecycle == ConversationPointLifecycle.DRAFT:
+        if point.published_by_id != getattr(profile, "pk", None) and not can_manage_conversation(profile, point.conversation):
+            return False
+    if (
+        point.published_at is not None
+        and point.conversation.history_policy == ConversationHistoryPolicy.FROM_JOIN
+    ):
+        if history_cache is None:
+            manager = can_manage_conversation(profile, point.conversation)
+            from .participant_services import profile_conversation_since
+            joined_at = None if manager else profile_conversation_since(
+                profile, point.conversation,
+            )
+        else:
+            if scope not in history_cache:
+                manager = can_manage_conversation(profile, point.conversation)
+                from .participant_services import profile_conversation_since
+                joined_at = None if manager else profile_conversation_since(
+                    profile, point.conversation,
+                )
+                history_cache[scope] = (manager, joined_at)
+            manager, joined_at = history_cache[scope]
+        # Only explicit or accepted collective admissions have a join time.
+        if not manager and (joined_at is None or point.published_at < joined_at):
+            return False
+
+    if not point.visibility_audience_id:
+        return True
+    # An audience targets recipients; it must not hide the author's own
+    # publication. Conversation access and FROM_JOIN were still checked above.
+    if point.published_by_id == getattr(profile, "pk", None):
+        return True
+    return _audience_membership(
+        profile, point.visibility_audience, at=at, audience_cache=audience_cache,
+    )
 
 
-def point_response_allowed(profile, point, *, at=None):
+def point_resolution_visible_to(profile, point, *, at=None):
+    """Gate resolution summaries and all derived result projections.
+
+    An ability to read the Point does not imply a right to its resolution.
+    Contextual authorities may inspect the result; other viewers require an
+    explicit resolution audience when one exists.
+    """
     if not point_visible_to(profile, point, at=at):
         return False
-    return not point.response_audience_id or profile_in_audience(profile, point.response_audience, at=at)
+    return (
+        not point.resolution_audience_id
+        or can_manage_conversation(profile, point.conversation)
+        or profile_in_audience(profile, point.resolution_audience, at=at)
+    )
+
+
+
+def point_response_allowed(
+    profile, point, *, at=None,
+    visibility_cache=None, audience_cache=None, history_cache=None,
+):
+    if not point_visible_to(
+        profile, point, at=at,
+        visibility_cache=visibility_cache,
+        audience_cache=audience_cache,
+        history_cache=history_cache,
+    ):
+        return False
+    # Publishing a Point does not remove its author's right to participate.
+    # Everyone else remains constrained by the explicit response audience.
+    if point.published_by_id == getattr(profile, "pk", None):
+        return True
+    return not point.response_audience_id or _audience_membership(
+        profile, point.response_audience, at=at, audience_cache=audience_cache,
+    )
 
 
 def point_expected_from(profile, point, *, at=None):
@@ -68,6 +163,8 @@ def _validate_represented_space(actor, represented_space):
 
 def _active_window(point, *, at=None):
     at = at or timezone.now()
+    if point.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("Cette Conversation est fermée.")
     if point.lifecycle != ConversationPointLifecycle.OPEN:
         raise ValidationError("Ce Point n’accepte pas de réponse actuellement.")
     if point.opens_at and at < point.opens_at:
@@ -156,6 +253,9 @@ def create_point(
     opens_at=None, deadline_at=None, valid_until=None, allow_response_change=False, threshold_value=None,
     represented_space=None, client_reference=None, options=(), publish=True,
 ):
+    # Serialize creation for one Conversation so retries with the same client
+    # reference do not race on the global uniqueness constraint.
+    conversation = Conversation.objects.select_for_update(of=("self",)).get(pk=conversation.pk)
     if not can_publish_in_conversation(actor, conversation):
         raise PermissionDenied("Vous ne pouvez pas publier dans cette Conversation.")
     if conversation.lifecycle != ConversationLifecycle.OPEN:
@@ -165,7 +265,20 @@ def create_point(
     if ref:
         existing = ConversationPoint.objects.filter(client_reference=ref).first()
         if existing:
-            if existing.conversation_id == conversation.pk:
+            same_request = (
+                existing.conversation_id == conversation.pk
+                and existing.published_by_id == actor.pk
+                and existing.kind == kind
+                and existing.response_mode == response_mode
+                and existing.title == (title or "").strip()
+                and existing.body == (body or "").strip()
+                and existing.visibility_audience_id == getattr(visibility_audience, "pk", None)
+                and existing.response_audience_id == getattr(response_audience, "pk", None)
+                and existing.expected_action_audience_id == getattr(expected_action_audience, "pk", None)
+                and existing.represented_space_id == getattr(represented_space, "pk", None)
+                and list(existing.options.order_by("position").values_list("label", flat=True)) == list(options)
+            )
+            if same_request:
                 return existing
             raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
     point = ConversationPoint(
@@ -209,7 +322,7 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
         "conversation", "visibility_audience", "response_audience", "expected_action_audience"
     ).get(pk=point.pk)
-    at = _active_window(locked)
+    at = timezone.now()
     if not point_response_allowed(actor, locked, at=at):
         raise PermissionDenied("Vous ne pouvez pas répondre à ce Point.")
     _validate_represented_space(actor, represented_space)
@@ -222,6 +335,9 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
             if existing.point_id == locked.pk and same_subject and existing.value == normalized:
                 return existing
             raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
+    # A confirmed response replay is valid even if the Point closed meanwhile.
+    # A new response must still pass the current owner lifecycle gate.
+    at = _active_window(locked, at=at)
     filters = {"represented_space": represented_space} if represented_space else {"actor": actor, "represented_space__isnull": True}
     previous = ConversationPointResponse.objects.select_for_update().filter(point=locked, status=ConversationPointResponseStatus.ACTIVE, **filters).first()
     if previous and not locked.allow_response_change:
@@ -241,12 +357,51 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
 
 
 @transaction.atomic
+def update_point_personal_state(*, actor, point, revisit=None, pinned=None):
+    """Viewer-owned state only; does not close, resolve or reorder the Point."""
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
+        "conversation", "conversation__context", "visibility_audience",
+    ).get(pk=point.pk)
+    if not point_visible_to(actor, locked):
+        raise PermissionDenied("Ce Point n'est plus accessible.")
+    if revisit is None and pinned is None:
+        raise ValidationError("Aucun changement personnel demandé.")
+    state, _ = ConversationPointUserState.objects.select_for_update().get_or_create(
+        point=locked, profile=actor,
+    )
+    now = timezone.now()
+    if revisit is not None:
+        if not isinstance(revisit, bool):
+            raise ValidationError({"revisit": "Valeur booléenne attendue."})
+        state.revisit_at = now if revisit else None
+    if pinned is not None:
+        if not isinstance(pinned, bool):
+            raise ValidationError({"pinned": "Valeur booléenne attendue."})
+        state.pinned_at = now if pinned else None
+    state.save(update_fields=["revisit_at", "pinned_at", "updated_at"])
+    return state
+
+
+@transaction.atomic
 def acknowledge_point(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "visibility_audience").get(pk=point.pk)
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if not locked.requires_acknowledgement:
         raise ValidationError("Ce Point ne demande pas de confirmation de lecture.")
     if not point_visible_to(actor, locked):
         raise PermissionDenied("Ce Point n’est pas accessible.")
+    if locked.expected_action_audience_id and not point_expected_from(actor, locked):
+        raise PermissionDenied("Cette confirmation de lecture ne vous est pas destinée.")
+    if locked.lifecycle not in {
+        ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
+    }:
+        raise ValidationError("Ce Point n'attend plus de confirmation de lecture.")
+    now = timezone.now()
+    if locked.opens_at and locked.opens_at > now:
+        raise ValidationError("La prise de connaissance n'est pas encore ouverte.")
+    if locked.valid_until and locked.valid_until <= now:
+        raise ValidationError("Ce Point n'est plus valide.")
     state, _ = ConversationPointUserState.objects.select_for_update().get_or_create(point=locked, profile=actor)
     now = timezone.now()
     state.seen_at = state.seen_at or now
@@ -335,7 +490,10 @@ def maybe_auto_resolve(*, point, allow_open=False):
     option_ids, payload = selection
     return _create_resolution(
         point=locked, method=ConversationPointResolutionMethod.AUTOMATIC,
-        summary="Résultat déterminé selon la règle configurée.", resolved_by=None,
+        summary=(
+            "Choix retenu : " + (locked.options.filter(pk=option_ids[0]).values_list("label", flat=True).first() or "Résultat")
+            if option_ids else "Résultat déterminé selon la règle configurée."
+        ), resolved_by=None,
         result_payload=payload, selected_option_ids=option_ids,
     )
 
@@ -343,14 +501,33 @@ def maybe_auto_resolve(*, point, allow_open=False):
 @transaction.atomic
 def resolve_point(*, actor, point, summary, selected_option_ids=(), result_payload=None, method=ConversationPointResolutionMethod.MANUAL):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "resolution_audience").get(pk=point.pk)
+    if not can_manage_conversation(actor, locked.conversation):
+        raise PermissionDenied("La résolution exige l'autorité de gestion de la Conversation.")
+    if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
+        raise PermissionDenied("Vous ne faites pas partie de l'audience de résolution.")
+    if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
+        raise ValidationError({"summary": "Résumez le résultat en 1 à 500 caractères."})
     if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
-        return locked.resolution
+        existing = locked.resolution
+        current_options = {
+            str(option_id) for option_id in existing.selected_option_links.values_list(
+                "option_id", flat=True,
+            )
+        }
+        requested_options = {str(option_id) for option_id in selected_option_ids}
+        if existing.summary != summary.strip() or current_options != requested_options:
+            raise ValidationError(
+                "Ce Point est déjà résolu avec un autre résultat. Actualisez son état."
+            )
+        return existing
+    if not isinstance(selected_option_ids, (list, tuple)) or len(selected_option_ids) > 12:
+        raise ValidationError({"selected_option_ids": "Choix retenus invalides."})
+    if selected_option_ids and locked.kind != ConversationPointKind.POLL:
+        raise ValidationError({"selected_option_ids": "Seul un sondage permet de retenir des choix."})
     if locked.lifecycle not in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
         raise ValidationError("Ce Point ne peut pas être résolu dans son état actuel.")
-    if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
-        raise PermissionDenied("Vous ne faites pas partie de l’audience de résolution.")
-    if not can_manage_conversation(actor, locked.conversation):
-        raise PermissionDenied("La résolution exige l’autorité de gestion de la Conversation.")
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     return _create_resolution(
         point=locked, method=method, summary=summary, resolved_by=actor,
         result_payload=result_payload or {}, selected_option_ids=selected_option_ids,
@@ -360,8 +537,12 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
 @transaction.atomic
 def close_point_responses(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=point.pk)
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas fermer les réponses de ce Point.")
+    if locked.response_mode == ConversationPointResponseMode.NONE or locked.kind == ConversationPointKind.FORM_REQUEST:
+        raise ValidationError("Ce Point n'a pas de réponses Conversation à clore.")
     if locked.lifecycle != ConversationPointLifecycle.OPEN:
         return locked
     locked.lifecycle = ConversationPointLifecycle.RESPONSE_CLOSED
@@ -375,6 +556,8 @@ def close_point_responses(*, actor, point):
 @transaction.atomic
 def supersede_point(*, actor, old_point, new_point):
     old = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=old_point.pk)
+    if old.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if old.conversation_id != new_point.conversation_id:
         raise ValidationError("Le Point de remplacement doit appartenir à la même Conversation.")
     if not can_publish_in_conversation(actor, old.conversation):
@@ -391,23 +574,9 @@ def supersede_point(*, actor, old_point, new_point):
     return new_point
 
 
-@transaction.atomic
-def create_exchange_entry(*, actor, point, body, reply_to=None, represented_space=None, client_reference=None):
-    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__policy", "visibility_audience", "response_audience").get(pk=point.pk)
-    _active_window(locked)
-    if locked.kind != ConversationPointKind.EXCHANGE or not locked.conversation.policy.allow_free_exchange:
-        raise ValidationError("Ce Point n’autorise pas la discussion libre.")
-    if not point_response_allowed(actor, locked):
-        raise PermissionDenied("Vous ne pouvez pas contribuer à cet échange.")
-    _validate_represented_space(actor, represented_space)
-    ref = (client_reference or "").strip() or None
-    if ref:
-        existing = PointExchangeEntry.objects.filter(client_reference=ref).first()
-        if existing:
-            if existing.point_id == locked.pk and existing.author_id == actor.pk:
-                return existing
-            raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
-    return PointExchangeEntry.objects.create(
-        point=locked, author=actor, represented_space=represented_space, body=body,
-        reply_to=reply_to, client_reference=ref,
-    )
+def create_exchange_entry(*, actor, point, body, reply_to=None, represented_space=None, client_reference=None,
+                          mention_profile_ids=(), references=()):
+    from .entry_services import send_entry
+    return send_entry(actor=actor, point=point, body=body, reply_to=reply_to,
+                      represented_space=represented_space, client_reference=client_reference,
+                      mention_profile_ids=mention_profile_ids, references=references)

@@ -3,9 +3,10 @@ from __future__ import annotations
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 
-from journeys.models import RequestStatus
+from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 from payments.models import PaymentObligationProcessingMode, PaymentObligationStatus
 from readiness import ReadinessCheckState
+from services.models import ServiceCurrentOutcome
 from services.requirement_services import derive_requirement_consequence
 from services.trusted_reuse_ui import trusted_reuse_options_for_assessment
 
@@ -107,11 +108,23 @@ def _request_payload(request):
 def _occurrence_ref(occurrence):
     if occurrence is None:
         return None
+    places = list(occurrence.place_links.all())
+    primary = next((link for link in places if link.role == "primary"), None)
+    place = (primary or places[0]).place if places else None
     return {
         "kind": "occurrence",
         "id": str(occurrence.pk),
         "label": occurrence.label or None,
         "state": occurrence.status,
+        "place": (
+            {
+                "name": place.name,
+                "address": place.address_line,
+                "locality": place.locality,
+                "instructions": place.access_instructions,
+            }
+            if place is not None else None
+        ),
         "timing": {
             "kind": occurrence.timing_kind,
             "start_date": _date(occurrence.start_date),
@@ -265,6 +278,83 @@ def _service_requirements(journey):
     return payload
 
 
+def _journey_step_summaries(journey):
+    """Only already-owned JourneySteps; no synthetic milestones or action grants."""
+    return [
+        {
+            "id": str(step.pk),
+            "title": step.title,
+            "status": step.status,
+            "kind": step.kind,
+            "position": step.position,
+            "depends_on": [
+                str(dependency.depends_on_id)
+                for dependency in step.dependencies.all()
+            ],
+        }
+        for step in journey.steps.all()
+    ]
+
+
+def _journey_history(journey):
+    """Only owner state transitions, not private reasons or actor data."""
+    rows = sorted(
+        journey.transitions.all(),
+        key=lambda row: (row.created_at, str(row.pk)),
+        reverse=True,
+    )[:10]
+    return [
+        {
+            "id": str(row.pk),
+            "state": row.to_status,
+            "label": JourneyStatus(row.to_status).label,
+            "at": _iso(row.created_at),
+        }
+        for row in rows
+    ]
+
+
+def _service_request(journey):
+    """Recipient-safe facts pinned by Services; not inferred Journey state."""
+    try:
+        context = journey.service_context
+    except (ObjectDoesNotExist, AttributeError):
+        return None
+    objective = (context.objective or "").strip()
+    revision = context.opportunity_revision if context.opportunity_revision_id else None
+    if not objective and revision is None:
+        return None
+    opportunity = None
+    if revision is not None and context.opportunity_id:
+        opportunity = {
+            "id": str(context.opportunity_id),
+            "title": revision.title,
+            "issuer": revision.issuer_name or None,
+            "publication_state": context.opportunity.publication_status,
+        }
+    return {
+        "objective": objective or None,
+        "opportunity": opportunity,
+    }
+
+
+def _service_result(journey):
+    """Disclose only the recipient's owner-established external outcome."""
+    try:
+        context = journey.service_context
+    except (ObjectDoesNotExist, AttributeError):
+        return None
+    if context.current_outcome in {
+        ServiceCurrentOutcome.NOT_SUBMITTED,
+        ServiceCurrentOutcome.UNKNOWN,
+    }:
+        return None
+    return {
+        "code": context.current_outcome,
+        "label": context.get_current_outcome_display(),
+    }
+
+
 def build_journey_detail(*, journey, readiness, profile, live=None):
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     pending = [
@@ -310,15 +400,20 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         form_links.append(
             {
                 "id": str(row.pk),
+                "title": row.form_version.title,
                 "required": bool(row.required),
                 "state": row.status,
                 "due_at": _iso(row.due_at),
+                "opens_at": _iso(row.opens_at),
                 "capabilities": row_capabilities,
                 "links": row_links,
             }
         )
     if actionable_form_ids:
         capabilities.append("complete_form")
+    if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
+        capabilities.extend(["accept_invitation", "decline_invitation"])
+        links["invitation"] = f"/api/v1/me/journeys/{journey.pk}/invitation/"
 
     return {
         "identity": {
@@ -337,6 +432,10 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
             "label": journey.get_status_display(),
         },
         "readiness": serialize_readiness(readiness),
+        "steps": _journey_step_summaries(journey),
+        "history": _journey_history(journey),
+        "service_result": _service_result(journey),
+        "service_request": _service_request(journey),
         "requests": {"pending": pending, "rejected": rejected},
         "requirements": _service_requirements(journey),
         "forms": form_links,
@@ -460,9 +559,12 @@ def build_access_detail(*, access, profile):
 
     occurrence = None
     if access.occurrence_id:
+        # Reuse Access' owner projection of planned time/place, not the
+        # volatile Day-of position or live capacity.
+        from .access_projection import _occurrence_payload
+
         occurrence = {
-            "kind": "occurrence",
-            "id": str(access.occurrence_id),
+            **(_occurrence_payload(access.occurrence) or {}),
             "link": f"/api/v1/occurrences/{access.occurrence_id}/",
         }
 

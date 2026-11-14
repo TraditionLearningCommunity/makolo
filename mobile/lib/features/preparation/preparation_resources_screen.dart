@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
-import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
@@ -42,6 +43,7 @@ class _PreparationResourcesScreenState
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  int _identityRevision = 0;
   final Set<String> _downloading = <String>{};
   final Map<String, String> _downloaded = <String, String>{};
 
@@ -54,9 +56,14 @@ class _PreparationResourcesScreenState
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readResources(widget.journeyId);
-    final source = await widget.repository.readSource(widget.journeyId);
-    if (!mounted) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    final local = await repository.readResources(id);
+    final source = await repository.readSource(id);
+    if (!_sameOwner(revision, repository, id)) return;
+    await _restoreLocalFiles(local);
+    if (!_sameOwner(revision, repository, id)) return;
     if (local == null) {
       await _refresh();
       return;
@@ -69,41 +76,121 @@ class _PreparationResourcesScreenState
     if (freshness != FreshnessState.fresh) await _refresh();
   }
 
+  bool _sameOwner(
+    int revision,
+    PreparationResourcesRepository repository,
+    String id,
+  ) =>
+      mounted &&
+      revision == _identityRevision &&
+      identical(repository, widget.repository) &&
+      id == widget.journeyId;
+
+  Future<void> _restoreLocalFiles(StoredProjection? projection) async {
+    final revision = _identityRevision;
+    final repository = widget.repository;
+    final resources = _PreparationResource.fromProjection(projection);
+    final paths = <String, String>{};
+    for (final item in resources) {
+      if (item.downloadUrl == null) continue;
+      final stored = await repository.readLocalResourceFile(
+        item.id,
+        version: item.version,
+      );
+      if (stored != null) paths[item.id] = stored.path;
+    }
+    if (!mounted ||
+        revision != _identityRevision ||
+        !identical(repository, widget.repository)) {
+      return;
+    }
+    setState(() {
+      _downloaded
+        ..clear()
+        ..addAll(paths);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant PreparationResourcesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.journeyId != widget.journeyId ||
+        oldWidget.repository != widget.repository) {
+      _identityRevision++;
+      _requestedInitialRefresh = false;
+      _refreshing = false;
+      _downloading.clear();
+      _downloaded.clear();
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refresh(
-        journeyId: widget.journeyId,
+      await repository.refresh(
+        journeyId: id,
         resourcesPath: widget.resourcesPath,
       );
+      if (!_sameOwner(revision, repository, id)) return;
+      final acquired = await repository.readResources(id);
+      if (_sameOwner(revision, repository, id)) {
+        await _restoreLocalFiles(acquired);
+      }
     } on Object {
-      // SyncSource records the failure and preserves usable local content.
+      // Owner facts already acquired remain in this Profile's database.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
   Future<void> _download(_PreparationResource resource) async {
     final downloadUrl = resource.downloadUrl;
     if (downloadUrl == null || _downloading.contains(resource.id)) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _downloading.add(resource.id));
     try {
-      final file = await widget.repository.downloadResource(
+      final file = await repository.downloadResource(
         resourceId: resource.id,
+        version: resource.version,
         downloadPath: downloadUrl,
         title: resource.title,
         mimeType: resource.mimeType,
       );
-      if (!mounted) return;
+      // Only this explicit action exports to public Downloads; opening a
+      // private copy stays inside the current Profile.
+      if (!_sameOwner(revision, repository, id)) return;
       setState(() => _downloaded[resource.id] = file.path);
-      await widget.onOpenDownloadedFile?.call(
-        file.path,
-        resource.mimeType,
-        resource.title,
+      final mime = resource.mimeType ?? 'application/octet-stream';
+      final extension = switch (mime.toLowerCase()) {
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'text/csv' => 'csv',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+          'docx',
+        _ => 'bin',
+      };
+      final saved = await const AndroidDeviceDownloads().save(
+        source: File(file.path),
+        fileName: makoloDownloadName(resource.title, extension),
+        mimeType: mime,
+      );
+      if (!_sameOwner(revision, repository, id) || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Enregistré dans Téléchargements : $saved')),
       );
     } on Object {
-      if (!mounted) return;
+      if (!_sameOwner(revision, repository, id) || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -112,34 +199,78 @@ class _PreparationResourcesScreenState
         ),
       );
     } finally {
-      if (mounted) setState(() => _downloading.remove(resource.id));
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _downloading.remove(resource.id));
+      }
     }
   }
 
   Future<void> _openFile(_PreparationResource resource) async {
-    final localPath = _downloaded[resource.id];
-    if (localPath == null) {
-      await _download(resource);
-      return;
+    if (_downloading.contains(resource.id)) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    setState(() => _downloading.add(resource.id));
+    try {
+      var local = await repository.readLocalResourceFile(
+        resource.id,
+        version: resource.version,
+      );
+      if (local == null && resource.downloadUrl != null) {
+        local = await repository.downloadResource(
+          resourceId: resource.id,
+          version: resource.version,
+          downloadPath: resource.downloadUrl!,
+          title: resource.title,
+          mimeType: resource.mimeType,
+        );
+      }
+      final localPath = local?.path;
+      if (localPath == null) return;
+      if (!_sameOwner(revision, repository, id)) return;
+      setState(() => _downloaded[resource.id] = localPath);
+      await widget.onOpenDownloadedFile?.call(
+        localPath,
+        resource.mimeType,
+        resource.title,
+      );
+    } on Object {
+      if (_sameOwner(revision, repository, id) && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Ce document ne peut pas être ouvert pour le moment.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _downloading.remove(resource.id));
+      }
     }
-    await widget.onOpenDownloadedFile?.call(
-      localPath,
-      resource.mimeType,
-      resource.title,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
+      key: ValueKey(
+        'resources:${widget.repository.profileId}:${widget.journeyId}',
+      ),
       stream: widget.repository.watchResources(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
           stream: widget.repository.watchSource(widget.journeyId),
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
-            final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            final ownerDenied =
+                source.invalidated &&
+                const {
+                  'permission_denied',
+                  'not_found',
+                }.contains(source.lastErrorCode);
+            final projection = ownerDenied ? null : projectionSnapshot.data;
             final items = _PreparationResource.fromProjection(projection);
             final freshness = projection == null
                 ? null
@@ -149,6 +280,8 @@ class _PreparationResourcesScreenState
                     invalidated: source.invalidated,
                   );
             final available = projection != null;
+            // Only an explicit owner denial withdraws this local depth.
+
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -162,19 +295,14 @@ class _PreparationResourcesScreenState
                   ? items.isEmpty
                         ? MakoloAvailabilityCue.empty
                         : MakoloAvailabilityCue.content
-                  : _refreshing
+                  : _refreshing ||
+                        projectionSnapshot.connectionState ==
+                            ConnectionState.waiting
                   ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
+                  : MakoloAvailabilityCue.empty,
               reachability: source.reachability,
-              failure:
-                  !available &&
-                      (source.invalidated ||
-                          source.reachability ==
-                              ReachabilityState.unreachable) &&
-                      !_refreshing
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: ownerDenied
+                  ? MakoloFailureCue.permissionDenied
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -194,8 +322,8 @@ class _PreparationResourcesScreenState
                 child: MakoloSurfaceStateView(
                   state: surface,
                   empty: const MakoloEmptyState(
-                    title: 'Rien à préparer ici',
-                    body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
+                    title: 'Aucun document à afficher',
+                    body: 'Les documents et instructions apparaîtront ici lorsqu’ils seront disponibles.',
                   ),
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement des ressources de préparation…',
@@ -214,6 +342,7 @@ class _PreparationResourcesScreenState
                       downloading: _downloading.contains(items[index].id),
                       downloaded: _downloaded.containsKey(items[index].id),
                       onOpenFile: () => _openFile(items[index]),
+                      onExportFile: () => _download(items[index]),
                     ),
                   ),
                 ),
@@ -233,6 +362,7 @@ class _PreparationResourceCard extends StatelessWidget {
     required this.downloading,
     required this.downloaded,
     required this.onOpenFile,
+    required this.onExportFile,
   });
 
   final _PreparationResource resource;
@@ -240,75 +370,153 @@ class _PreparationResourceCard extends StatelessWidget {
   final bool downloading;
   final bool downloaded;
   final VoidCallback onOpenFile;
+  final VoidCallback onExportFile;
 
   @override
   Widget build(BuildContext context) {
+    final icon = resource.downloadUrl != null
+        ? (resource.mimeType == 'application/pdf'
+              ? Icons.picture_as_pdf_outlined
+              : resource.mimeType?.startsWith('image/') == true
+              ? Icons.image_outlined
+              : Icons.description_outlined)
+        : resource.externalUrl != null
+        ? Icons.link_rounded
+        : Icons.notes_rounded;
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MakoloStatusMetadataAction(
-            title: resource.title,
-            subtitle: resource.description,
-            status: MakoloStatus(label: resource.kindLabel),
-            metadata: [
-              if (resource.version > 1)
-                MakoloMetadataItem('Version ${resource.version}'),
-              if (resource.occurrenceId != null)
-                const MakoloMetadataItem(
-                  'Liée à une occurrence',
-                  icon: Icons.event_outlined,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                size: 25,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              const SizedBox(width: MakoloSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      resource.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (resource.description != null &&
+                        resource.description != resource.text)
+                      Text(
+                        resource.description!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    if (resource.version > 1)
+                      Text(
+                        'Version ${resource.version}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
           if (resource.text != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text(resource.text!),
-          ],
-          if (resource.externalUrl != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final opened = await onOpenExternal(resource.externalUrl!);
-                if (!opened && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Ce lien externe n’est pas disponible pour le moment.',
-                      ),
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Ouvrir le site externe'),
+            _ExpandableResourceText(
+              key: ValueKey('resource-text:${resource.id}:${resource.version}'),
+              text: resource.text!,
             ),
           ],
+          if (resource.externalUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final opened = await onOpenExternal(resource.externalUrl!);
+                  if (!opened && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Ce lien ne peut pas être ouvert pour le moment.',
+                        ),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Ouvrir le lien'),
+              ),
+            ),
           if (resource.downloadUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            FilledButton.tonalIcon(
-              onPressed: downloading ? null : onOpenFile,
-              icon: downloading
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      downloaded
-                          ? Icons.description_outlined
-                          : Icons.download_rounded,
-                    ),
-              label: Text(
-                downloading
-                    ? 'Téléchargement…'
-                    : downloaded
-                    ? 'Ouvrir le document'
-                    : 'Télécharger le document',
-              ),
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: downloading ? null : onOpenFile,
+                  icon: downloading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.visibility_outlined),
+                  label: Text(downloading ? 'Ouverture…' : 'Consulter'),
+                ),
+                TextButton.icon(
+                  onPressed: downloading ? null : onExportFile,
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Enregistrer une copie'),
+                ),
+              ],
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ExpandableResourceText extends StatefulWidget {
+  const _ExpandableResourceText({super.key, required this.text});
+
+  final String text;
+
+  @override
+  State<_ExpandableResourceText> createState() =>
+      _ExpandableResourceTextState();
+}
+
+class _ExpandableResourceTextState extends State<_ExpandableResourceText> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _ExpandableResourceText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) _expanded = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final longContent =
+        widget.text.length > 400 || '\n'.allMatches(widget.text).length > 7;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.text,
+          maxLines: longContent && !_expanded ? 6 : null,
+          overflow: longContent && !_expanded
+              ? TextOverflow.ellipsis
+              : TextOverflow.visible,
+        ),
+        if (longContent)
+          TextButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(_expanded ? 'Réduire' : 'Lire la suite'),
+          ),
+      ],
     );
   }
 }

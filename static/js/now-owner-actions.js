@@ -52,7 +52,7 @@
       ? Array.from(neighbors.querySelectorAll('button[type="submit"]'))
       : [button];
     buttons.forEach((item) => { item.disabled = true; });
-    feedback.textContent = "Envoi de votre décision au propriétaire…";
+    feedback.textContent = "Envoi de votre décision…";
     try {
       const response = await fetch(target.toString(), {
         method: "POST",
@@ -72,11 +72,11 @@
           : String(data.id || "").toLowerCase() === ownerId.toLowerCase()
       );
       if (!confirmed) throw new Error("Owner confirmation missing");
-      feedback.textContent = "Décision confirmée par le propriétaire.";
+      feedback.textContent = "Décision confirmée.";
       window.location.reload();
     } catch (_) {
       feedback.textContent =
-        "Cette décision n’a pas été confirmée. Vérifiez son état auprès du propriétaire.";
+        "Impossible de confirmer cette décision. Actualisez son état avant de réessayer.";
       buttons.forEach((item) => { item.disabled = false; });
       form.dataset.sending = "false";
     }

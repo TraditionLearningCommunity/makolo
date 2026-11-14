@@ -8,11 +8,18 @@ from django.http import Http404
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from discovery.views import DiscoveryHomeView
+
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from intelligence.interoperability import project_provider_connection, provider_connections_for_space
+from intelligence.connection_web import connection_form_context, handle_connection_form
+from intelligence.models import ProviderScope
+
+from interoperability.catalog_presentation import connection_experience_context
 from interoperability.presentation import present_connection
 from interoperability.projections import build_interoperability_payload
+from interoperability.domain_integrations import space_domain_integrations
 
 from .api.space_attention_projection import (
     build_space_discover_projection,
@@ -21,6 +28,8 @@ from .api.space_attention_projection import (
 from .api.space_pilot_projection import build_space_pilot_projection
 from .api.space_relationships_projection import build_space_relationships_projection
 from .api.space_us_projection import build_space_us_projection
+from .api.space_us_resources_projection import build_space_us_resources_projection
+from .api.space_us_authority import build_space_us_authority
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
 
@@ -180,11 +189,12 @@ class SpaceNowView(SpaceProjectionViewMixin):
     projection_builder = staticmethod(build_space_now_projection)
 
 
-class SpaceDiscoverView(SpaceProjectionViewMixin):
-    template_name = "organizations/space/discover.html"
+class SpaceDiscoverView(SpaceWebMixin, DiscoveryHomeView):
+    """Use the existing Discovery Web field with verified Space context."""
+
+    template_name = "discovery/home.html"
     space_nav_key = "discover"
     space_page_title = "Découvrir"
-    projection_builder = staticmethod(build_space_discover_projection)
 
 
 class SpaceWorkView(SpaceWebMixin):
@@ -204,8 +214,56 @@ class SpaceUsView(SpaceWebMixin):
     space_nav_key = "us"
     space_page_title = "Nous"
 
+    def get_template_names(self):
+        if self.request.GET.get("detail") == "authority":
+            return ["organizations/space/us_authority.html"]
+        if self.request.GET.get("detail") == "resources":
+            return ["organizations/space/us_resources.html"]
+        return [self.template_name]
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get("detail") == "resources":
+            kind = self.request.GET.get("kind") or "document"
+            try:
+                offset = int(self.request.GET.get("offset", "0"))
+                resources = build_space_us_resources_projection(
+                    profile=self.request.user, space=self.space,
+                    kind=kind, offset=offset,
+                )
+            except (ValueError, TypeError) as exc:
+                raise Http404 from exc
+            if resources is None:
+                raise Http404
+            root_url = self._space_nav_url("organizations:space-us")
+            separator = "&" if "?" in root_url else "?"
+            context["resources_depth"] = resources
+            context["resources_back_url"] = root_url
+            context["resources_base_url"] = f"{root_url}{separator}detail=resources"
+            context["resources_passport_url"] = self._space_url(
+                "sharing:passport-space-history"
+            )
+            context["resources_presentation_url"] = self._space_url(
+                "presentations:space-library"
+            )
+            context["resources_documents_url"] = self._space_url(
+                "organizations:space-documents"
+            )
+            return context
+        if self.request.GET.get("detail") == "authority":
+            authority = build_space_us_authority(
+                profile=self.request.user, space=self.space
+            )
+            if authority is None:
+                raise Http404
+            requested_key = (self.request.GET.get("mandate") or "").strip()
+            mandates = authority["mandates"]
+            if requested_key:
+                mandates = [row for row in mandates if row["key"] == requested_key]
+                if not mandates:
+                    raise Http404
+            context["authority_mandates"] = mandates
+            return context
         try:
             projection = build_space_us_projection(
                 profile=self.request.user,
@@ -221,8 +279,9 @@ class SpaceUsView(SpaceWebMixin):
             context["us_owner_links"] = {}
             return context
         owner_links = {
+            "authority": f'{self._space_url("organizations:space-us")}?detail=authority',
             "relationships": context["space_relationships_url"]
-            if projection.get("authority", {}).get("scope") == "space"
+            if projection.get("handoffs", {}).get("relationships")
             else None,
         }
         capabilities = projection.get("capabilities", {})
@@ -232,8 +291,13 @@ class SpaceUsView(SpaceWebMixin):
             owner_links["ownership"] = self._space_url("organizations:console-team")
         if projection.get("links", {}).get("trust"):
             owner_links["trust"] = self._space_url("organizations:console-trust")
+        if projection.get("resources", {}).get("visibility") == "visible":
+            us_url = self._space_nav_url("organizations:space-us")
+            separator = "&" if "?" in us_url else "?"
+            owner_links["resources"] = f"{us_url}{separator}detail=resources"
         if capabilities.get("update_space"):
             owner_links["settings"] = self._space_url("organizations:console-settings")
+            owner_links["passport"] = self._space_url("sharing:passport-space")
         if any(
             module.get("key") == "analytics"
             for module in self.workspace.get("modules", ())
@@ -248,7 +312,14 @@ class SpaceUsView(SpaceWebMixin):
 
         context["projection"] = projection
         context["us_owner_links"] = owner_links
+        context["us_work_base_url"] = self._space_url("organizations:space-work")
         return context
+
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class SpaceInteroperabilityView(SpaceWebMixin):
@@ -276,9 +347,32 @@ class SpaceInteroperabilityView(SpaceWebMixin):
             ),
             actor=self.request.user,
             authority_context=self.space,
+            domain_integrations=space_domain_integrations(self.request.user, self.space),
         )
+        context["domain_integrations"] = context["interoperability"]["domain_integrations"]
+        context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
+        context.update(
+            connection_experience_context(
+                self.request,
+                offers=context["connection_offers"],
+                connections=context["connections"],
+            )
+        )
+        context["connections_context_label"] = "Nous"
+        context["connections_return_url"] = context["space_us_url"]
+        context["connections_return_label"] = "Retour à Nous"
         return context
+    def post(self, request, *args, **kwargs):
+        if not has_direct_space_permission(
+            request.user, self.space, PermissionCode.SPACE_MANAGE,
+        ):
+            raise Http404
+        return handle_connection_form(
+            request, scope=ProviderScope.SPACE, space=self.space,
+        )
+
+
 
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
@@ -317,6 +411,12 @@ class SpaceRelationshipsView(SpaceWebMixin):
         context["relationship_owner_links"] = owner_links
         context["space_page_title"] = projection.get("label") or self.space_page_title
         return context
+
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class SpacePilotView(SpaceWebMixin):

@@ -1,6 +1,17 @@
 package com.makolo
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import java.util.Locale
+import android.content.ContentValues
 import android.content.Intent
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Environment
+import android.provider.MediaStore
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,15 +25,30 @@ import java.io.File
 class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val SHARE_CHANNEL = "makolo/native_share"
+        private const val DOWNLOAD_CHANNEL = "makolo/downloads"
+        private const val DEVICE_CHANNEL = "makolo/device"
+        private const val SPEECH_CHANNEL = "makolo/native_dictation"
+        private const val ALERT_CHANNEL = "makolo_alerts"
     }
 
     private var shareChannel: MethodChannel? = null
+    private var speechChannel: MethodChannel? = null
+    private var speechRecognizer: SpeechRecognizer? = null
     private var pendingShare: Map<String, Any?>? = null
+    private var shareListenerId: String? = null
     private var launchReady = false
     private var removeNativeSplash: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            val channel = NotificationChannel(
+                ALERT_CHANNEL, "Notifications Makolo", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            channel.setShowBadge(false)
+            manager.createNotificationChannel(channel)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Flutter may draw immediately. Keep this same native view only
             // while its real local initialization is unfinished, never for a timer.
@@ -54,15 +80,67 @@ class MainActivity : FlutterFragmentActivity() {
             channel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "initialShare" -> {
-                        val payload = pendingShare ?: parseShareIntent(intent)
+                        shareListenerId = (call.arguments as? Map<*, *>)?.get("listener_id")?.toString()
+                        // The initial payload moves from native memory to the
+                        // transient Flutter inbox only after a listener exists.
+                        val payload = pendingShare
                         pendingShare = null
                         result.success(payload)
+                    }
+                    "stopShare" -> {
+                        val candidate = (call.arguments as? Map<*, *>)?.get("listener_id")?.toString()
+                        if (candidate != null && candidate == shareListenerId) {
+                            shareListenerId = null
+                        }
+                        result.success(null)
                     }
                     "copySharedUri" -> copySharedUri(call.arguments, result)
                     else -> result.notImplemented()
                 }
             }
         }
+        speechChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, SPEECH_CHANNEL
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "available" -> result.success(
+                        SpeechRecognizer.isRecognitionAvailable(this)
+                    )
+                    "start" -> startNativeDictation(result)
+                    "stop" -> {
+                        speechRecognizer?.stopListening()
+                        result.success(null)
+                    }
+                    "cancel" -> {
+                        releaseNativeDictation()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method == "name") {
+                    // Only the public manufacturer/model, never a hardware ID or user-assigned name.
+                    val maker = Build.MANUFACTURER.orEmpty().trim()
+                    val model = Build.MODEL.orEmpty().trim()
+                    val name = if (model.startsWith(maker, ignoreCase = true)) model
+                               else listOf(maker, model).filter { it.isNotBlank() }.joinToString(" ")
+                    result.success(name.take(80))
+                } else {
+                    result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DOWNLOAD_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method == "saveFile") {
+                    saveToDownloads(call.arguments, result)
+                } else {
+                    result.notImplemented()
+                }
+            }
         if (pendingShare == null) {
             pendingShare = parseShareIntent(intent)
         }
@@ -73,11 +151,108 @@ class MainActivity : FlutterFragmentActivity() {
         setIntent(intent)
         val payload = parseShareIntent(intent) ?: return
         val channel = shareChannel
-        if (channel == null) {
+        val listenerId = shareListenerId
+        if (channel == null || listenerId == null) {
             pendingShare = payload
         } else {
-            channel.invokeMethod("shareReceived", payload)
+            channel.invokeMethod("shareReceived", payload, object : MethodChannel.Result {
+                override fun success(result: Any?) {}
+                override fun error(code: String, message: String?, details: Any?) {
+                    pendingShare = payload
+                }
+                override fun notImplemented() {
+                    pendingShare = payload
+                }
+            })
         }
+    }
+
+    private fun speechEvent(type: String, value: String? = null) {
+        val payload = mutableMapOf<String, Any>("type" to type)
+        if (value != null) payload["text"] = value
+        speechChannel?.invokeMethod("speechEvent", payload)
+    }
+
+    private fun releaseNativeDictation() {
+        val active = speechRecognizer
+        speechRecognizer = null
+        try {
+            active?.cancel()
+            active?.destroy()
+        } catch (_: Exception) {
+            // The Android recognizer may have been released by the OS.
+        }
+    }
+
+    private fun startNativeDictation(result: MethodChannel.Result) {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            result.error("not_available", "No system speech recognition capability.", null)
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            result.error("permission_denied", "Microphone permission required.", null)
+            return
+        }
+        if (speechRecognizer != null) {
+            result.error("already_listening", "Recognition is already running.", null)
+            return
+        }
+        try {
+            val recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+            speechRecognizer = recognizer
+            recognizer.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    speechEvent("listening")
+                }
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() {
+                    speechEvent("processing")
+                }
+                override fun onError(error: Int) {
+                    if (speechRecognizer !== recognizer) return
+                    speechEvent("error", error.toString())
+                    releaseNativeDictation()
+                }
+                override fun onResults(results: Bundle?) {
+                    if (speechRecognizer !== recognizer) return
+                    val words = results?.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    )?.firstOrNull().orEmpty()
+                    speechEvent(if (words.isBlank()) "empty" else "final", words)
+                    releaseNativeDictation()
+                }
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val words = partialResults?.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    )?.firstOrNull()
+                    if (!words.isNullOrBlank()) speechEvent("partial", words)
+                }
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            }
+            recognizer.startListening(speechIntent)
+            result.success(null)
+        } catch (_: Exception) {
+            releaseNativeDictation()
+            result.error("start_failed", "System speech recognition could not start.", null)
+        }
+    }
+
+    override fun onDestroy() {
+        releaseNativeDictation()
+        speechChannel?.setMethodCallHandler(null)
+        speechChannel = null
+        super.onDestroy()
     }
 
     private fun parseShareIntent(intent: Intent?): Map<String, Any?>? {
@@ -167,12 +342,80 @@ class MainActivity : FlutterFragmentActivity() {
                 ?: throw IllegalStateException("Shared content is unavailable.")
             input.use { source ->
                 destination.outputStream().use { target ->
-                    source.copyTo(target)
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 25L * 1024L * 1024L) {
+                            throw IllegalStateException("Shared file is too large.")
+                        }
+                        target.write(buffer, 0, count)
+                    }
+                    if (total == 0L) throw IllegalStateException("Shared file is empty.")
                 }
             }
             result.success(null)
         } catch (error: Exception) {
+            try {
+                File(destinationPath).delete()
+            } catch (_: Exception) {
+                // Partial stage cleanup is best-effort.
+            }
             result.error("share_copy_failed", "Unable to stage shared content.", null)
         }
     }
+    private fun saveToDownloads(arguments: Any?, result: MethodChannel.Result) {
+        val args = arguments as? Map<*, *>
+        val path = args?.get("source_path") as? String
+        val name = args?.get("file_name") as? String
+        val mime = args?.get("mime_type") as? String
+        if (path.isNullOrBlank() || name.isNullOrBlank() || mime.isNullOrBlank()) {
+            result.error("invalid_arguments", "Missing download parameters.", null)
+            return
+        }
+        // Never use remote URLs or filesystem paths as exported filenames.
+        if (name != File(name).name || name == "." || name == ".." ||
+            name.contains('/') || name.contains('\\') || name.any { it.code < 32 }) {
+            result.error("invalid_filename", "Unsafe download filename.", null)
+            return
+        }
+        val source = File(path)
+        if (!source.isFile || source.length() <= 0L) {
+            result.error("missing_file", "The download is unavailable.", null)
+            return
+        }
+        // Scoped storage owns public Downloads on Android 10+. On older
+        // Android versions no share-picker or silent private-cache fallback.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.error("unsupported_android", "Downloads requires Android 10 or later.", null)
+            return
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        var destination: Uri? = null
+        try {
+            destination = contentResolver.insert(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, values,
+            ) ?: throw IllegalStateException("Cannot create download.")
+            contentResolver.openOutputStream(destination)?.use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            } ?: throw IllegalStateException("Cannot write download.")
+            val publish = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            contentResolver.update(destination, publish, null, null)
+            result.success(name)
+        } catch (error: Exception) {
+            destination?.let { contentResolver.delete(it, null, null) }
+            result.error("download_failed", "Unable to save to Downloads.", null)
+        }
+    }
+
+
 }

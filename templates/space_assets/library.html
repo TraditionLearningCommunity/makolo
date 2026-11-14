@@ -1,0 +1,62 @@
+{% extends "organizations/space/ws4_base.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/space-documents.css' %}">{% endblock %}
+{% block space_content %}
+<section class="mk-docs" aria-labelledby="docs-title">
+  <header class="mk-docs-heading">
+    <div>
+      <a class="mk-docs-back" href="{% url 'organizations:space-us' slug=space.slug %}"><i data-lucide="arrow-left" aria-hidden="true"></i> Nous</a>
+      <span class="mk-docs-kicker">Ressources · {{ space.name }}</span>
+      <h1 id="docs-title">Documents</h1>
+    </div>
+    {% if can_manage_documents %}
+    <details class="mk-docs-create">
+      <summary class="mk-docs-primary"><i data-lucide="plus" aria-hidden="true"></i> Ajouter</summary>
+      <form method="post" enctype="multipart/form-data" action="{% url 'organizations:space-document-upload' slug=space.slug %}" class="mk-docs-form">
+        {% csrf_token %}
+        <label>Titre<input name="title" maxlength="220" required placeholder="Ex. Statuts de l’association"></label>
+        <label>Document<input name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx"></label>
+        <div class="mk-docs-fields">
+          <label>Accès<select name="visibility"><option value="restricted">Confidentiel</option><option value="internal">Équipe autorisée</option></select></label>
+          <label>Catégorie<select name="kind"><option value="other">Document</option><option value="certificate">Attestation</option><option value="identity_document">Identité</option><option value="form">Formulaire</option><option value="payment_receipt">Reçu</option></select></label>
+        </div>
+        <button class="mk-docs-primary" type="submit"><i data-lucide="upload" aria-hidden="true"></i> Déposer</button>
+      </form>
+    </details>
+    {% endif %}
+  </header>
+  <form class="mk-docs-search" method="get">
+    <i data-lucide="search" aria-hidden="true"></i>
+    <input name="q" value="{{ document_query }}" placeholder="Rechercher un document" aria-label="Rechercher un document">
+    <button type="submit" aria-label="Rechercher" title="Rechercher"><i data-lucide="arrow-right" aria-hidden="true"></i></button>
+  </form>
+  {% if document_rows %}
+  <ul class="mk-docs-list">
+    {% for row in document_rows %}
+      <li>
+        <a class="mk-docs-row" href="{% url 'organizations:space-document-detail' slug=space.slug document_id=row.document.id %}">
+          <span class="mk-docs-file"><i data-lucide="file-text" aria-hidden="true"></i></span>
+          <span class="mk-docs-copy"><strong>{{ row.document.title }}</strong>
+            <small>v{{ row.latest.version|default:"1" }} · {{ row.document.get_visibility_display }} · {{ row.document.updated_at|date:"d M Y" }}</small>
+          </span>
+          <i data-lucide="chevron-right" aria-hidden="true" class="mk-docs-chevron"></i>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+  {% if document_page.has_other_pages %}
+    <nav class="mk-docs-pagination" aria-label="Pagination">
+      {% if document_page.has_previous %}<a href="?page={{ document_page.previous_page_number }}&amp;q={{ document_query|urlencode }}"><i data-lucide="chevron-left" aria-hidden="true"></i> Précédents</a>{% endif %}
+      <span>{{ document_page.number }} / {{ document_page.paginator.num_pages }}</span>
+      {% if document_page.has_next %}<a href="?page={{ document_page.next_page_number }}&amp;q={{ document_query|urlencode }}">Suivants <i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+    </nav>
+  {% endif %}
+  {% else %}
+  <div class="mk-docs-empty">
+    <i data-lucide="folder-open" aria-hidden="true"></i>
+    <strong>{% if document_query %}Aucun résultat{% else %}Aucun document pour le moment{% endif %}</strong>
+    {% if document_query %}<a href="{% url 'organizations:space-documents' slug=space.slug %}">Effacer la recherche</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

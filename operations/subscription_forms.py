@@ -7,6 +7,7 @@ from requirements.contracts import RequirementAssessmentState, RequirementMode
 from subscriptions.contracts import RequirementDisclosure, RequirementFailurePolicy, RequirementPhase
 from subscriptions.evaluators import evaluator_definitions
 from subscriptions.models import FeatureDefinition, PlanBenefit, PlanVersion, SubscriptionPlan, technical_code_validator
+from subscriptions.billing_models import PlanVersionBillingTerms
 
 
 INPUT_CLASS = "w-full rounded-xl border px-3 py-2 text-sm"
@@ -246,3 +247,25 @@ class SubscriptionReviewForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _style_fields(self)
+
+
+class CoverageBillingTermsForm(forms.ModelForm):
+    """Platform configures terms only on a draft PlanVersion."""
+
+    class Meta:
+        model = PlanVersionBillingTerms
+        fields = [
+            "amount", "currency", "billing_period_unit", "billing_period_count",
+            "payment_due_days", "grace_period_days",
+            "coverage_enabled", "coverage_pricing_mode", "coverage_max_quantity",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _style_fields(self)
+
+    def clean(self):
+        data = super().clean()
+        if data.get("coverage_enabled") and not data.get("coverage_max_quantity"):
+            self.add_error("coverage_max_quantity", "Un plafond contractuel positif est obligatoire.")
+        return data

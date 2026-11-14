@@ -1,6 +1,15 @@
 name: Mobile Format
 
 on:
+  # PR 522: format mobile Dart files as soon as feature changes arrive.
+  # A single active run catches up to the latest remote HEAD before committing.
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - "mobile/lib/**/*.dart"
+      - "mobile/test/**/*.dart"
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
@@ -9,7 +18,7 @@ on:
         type: string
 
 concurrency:
-  group: mobile-format-${{ inputs.target_ref }}
+  group: mobile-format-${{ inputs.target_ref || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -21,7 +30,7 @@ jobs:
     steps:
       - name: Validate target branch
         env:
-          TARGET_REF: ${{ inputs.target_ref }}
+          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -33,7 +42,7 @@ jobs:
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.target_ref }}
+          ref: ${{ inputs.target_ref || github.ref_name }}
           fetch-depth: 0
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -45,6 +54,10 @@ jobs:
       - name: Toolchain
         run: flutter --version
 
+      - name: Resolve Flutter formatting dependencies
+        working-directory: mobile
+        run: flutter pub get
+
       - name: Format Dart sources
         working-directory: mobile
         run: bash tool/dart_format.sh write
@@ -55,17 +68,27 @@ jobs:
 
       - name: Commit formatting when needed
         env:
-          TARGET_REF: ${{ inputs.target_ref }}
+          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- mobile/lib mobile/test; then
-            echo "No formatting changes required."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mobile/lib mobile/test
-          git commit -m "Format mobile Dart sources"
-          git push origin "HEAD:$TARGET_REF"
+          # Run format against a fresh remote head on every retry. Another
+          # contributor may commit while the formatter works. Never force push.
+          for attempt in 1 2 3 4; do
+            git fetch origin "$TARGET_REF"
+            git reset --hard "origin/$TARGET_REF"
+            (cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check)
+            if git diff --quiet -- mobile/lib mobile/test; then
+              echo "Canonical formatting is current."
+              exit 0
+            fi
+            git add mobile/lib mobile/test
+            git commit -m "Format mobile Dart sources"
+            if git push origin "HEAD:$TARGET_REF"; then
+              exit 0
+            fi
+            echo "Branch advanced during formatting; retrying from latest remote head."
+          done
+          exit 1

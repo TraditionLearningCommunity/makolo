@@ -1,0 +1,111 @@
+<section id="conversation-compose" class="mt-8 border-t pt-6" style="border-color:var(--mk-border)" aria-label="Contribuer">
+  {% if compose_error %}
+    <p role="alert" class="mb-4 rounded-xl p-3 text-sm" style="background:var(--mk-soft)">{{ compose_error }}</p>
+  {% endif %}
+
+  {% if composer.text_mode %}
+    <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="mode" value="text">
+      <input type="hidden" name="client_reference" value="{% if compose_draft.mode == 'text' %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.text }}{% endif %}">
+      {% if composer.text_mode == 'exchange_select' %}
+        <label class="block text-xs font-semibold" for="exchange-target">Échange</label>
+        <select id="exchange-target" name="point_id" class="mk-input w-full" required>
+          <option value="" selected disabled>Choisir</option>
+          {% for point in composer.exchange_targets %}
+            <option value="{{ point.id }}">{{ point.title }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+      {% if composer.audience_selection_required and composer.text_mode == 'information' %}
+        <label class="block text-xs font-semibold" for="text-audience">Destinataires</label>
+        <select class="mk-input w-full" id="text-audience" name="audience_id" required>
+          <option value="" selected disabled>Choisir</option>
+          {% for audience in composer.audiences %}<option value="{{ audience.id }}" {% if compose_draft.audience_id == audience.id|stringformat:'s' %}selected{% endif %}>{{ audience.label }}</option>{% endfor %}
+        </select>
+      {% endif %}
+      <label class="sr-only" for="conversation-message">Écrire</label>
+      <textarea id="conversation-message" name="body" maxlength="5000" required rows="2" class="mk-input w-full resize-y" placeholder="Écrire…">{% if compose_draft.mode == 'text' %}{{ compose_draft.body }}{% endif %}</textarea>
+      {% if composer.representable_space_id %}
+        <label class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)"><input type="checkbox" name="represented_space_id" value="{{ composer.representable_space_id }}"> Au nom de cet Espace</label>
+      {% endif %}
+      <div class="flex items-center justify-end gap-3">
+        <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
+      </div>
+    </form>
+  {% endif %}
+
+  {% if composer.can_form or composer.media_kinds %}
+    {% include 'conversations/_rich_composer.html' %}
+  {% endif %}
+
+  {% if composer.can_create %}
+    <div class="mt-4 flex flex-wrap gap-3" aria-label="Créer un Point">
+      {% if 'poll' in composer.allowed_kinds %}
+        <details class="min-w-[min(100%,18rem)] flex-1 rounded-xl border p-3" style="border-color:var(--mk-border)" {% if compose_draft.kind == 'poll' %}open{% endif %}>
+          <summary class="mk-disclosure-trigger">Sondage</summary>
+          <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="mt-4 space-y-3" data-semantic-media-form data-semantic-media-url="{% url 'conversations-api:semantic-media' conversation.pk %}" data-semantic-media-focus="{% url 'conversations:detail' conversation.pk %}">{% csrf_token %}
+            <input type="hidden" name="mode" value="point"><input type="hidden" name="kind" value="poll">
+            <input type="hidden" name="client_reference" value="{% if compose_draft.kind == 'poll' %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.poll }}{% endif %}">
+            <label class="sr-only" for="poll-title">Question</label>
+            <input id="poll-title" name="title" class="mk-input w-full" maxlength="220" required placeholder="Votre question" value="{% if compose_draft.kind == 'poll' %}{{ compose_draft.title }}{% endif %}">
+            <label class="block text-xs font-semibold" for="poll-choices">Choix</label>
+            <textarea id="poll-choices" name="options" class="mk-input w-full" rows="4" required placeholder="Un choix par ligne" data-semantic-options>{% if compose_draft.kind == 'poll' %}{{ compose_draft.options }}{% endif %}</textarea>
+            <label class="sr-only" for="poll-body">Précisions du sondage</label>
+            <textarea id="poll-body" name="body" class="mk-input w-full" rows="2" maxlength="5000" placeholder="Précisions (facultatif)"></textarea>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="multiple_choice" value="true"> Plusieurs choix possibles
+            </label>
+            {% include 'conversations/_semantic_media_controls.html' with point_kind='poll' %}
+            {% include 'conversations/_composer_audience.html' %}
+            <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
+          </form>
+        </details>
+      {% endif %}
+      {% if 'confirmation' in composer.allowed_kinds %}
+        <details class="min-w-[min(100%,18rem)] flex-1 rounded-xl border p-3" style="border-color:var(--mk-border)" {% if compose_draft.kind == 'confirmation' %}open{% endif %}>
+          <summary class="mk-disclosure-trigger">Confirmer</summary>
+          <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="mt-4 space-y-3" data-semantic-media-form data-semantic-media-url="{% url 'conversations-api:semantic-media' conversation.pk %}" data-semantic-media-focus="{% url 'conversations:detail' conversation.pk %}">{% csrf_token %}
+            <input type="hidden" name="mode" value="point"><input type="hidden" name="kind" value="confirmation">
+            <input type="hidden" name="client_reference" value="{% if compose_draft.kind == 'confirmation' %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.confirmation }}{% endif %}">
+            <label class="sr-only" for="confirmation-title">À confirmer</label>
+            <input id="confirmation-title" name="title" maxlength="220" required class="mk-input w-full" placeholder="À confirmer…" value="{% if compose_draft.kind == 'confirmation' %}{{ compose_draft.title }}{% endif %}">
+            <textarea name="body" maxlength="5000" rows="2" class="mk-input w-full" placeholder="Précisions (facultatif)"></textarea>
+            {% include 'conversations/_semantic_media_controls.html' with point_kind='confirmation' %}
+            {% include 'conversations/_composer_audience.html' %}
+            <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
+          </form>
+        </details>
+      {% endif %}
+    </div>
+    {% if 'question' in composer.allowed_kinds or 'request' in composer.allowed_kinds or 'exchange' in composer.allowed_kinds or 'information' in composer.allowed_kinds %}
+      <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
+        <summary class="mk-disclosure-trigger">+</summary>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          {% for item in composer.allowed_kinds %}
+            {% if item == 'question' or item == 'request' or item == 'exchange' or item == 'information' %}
+              <details class="rounded-xl border p-3" style="border-color:var(--mk-border)" {% if compose_draft.kind == item %}open{% endif %}>
+                <summary class="mk-disclosure-trigger">{% if item == 'question' %}Question{% elif item == 'request' %}Demande{% elif item == 'exchange' %}Nouvel échange{% else %}Information{% endif %}</summary>
+                <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="mt-3 space-y-3" data-semantic-media-form data-semantic-media-url="{% url 'conversations-api:semantic-media' conversation.pk %}" data-semantic-media-focus="{% url 'conversations:detail' conversation.pk %}">{% csrf_token %}
+                  <input type="hidden" name="mode" value="point"><input type="hidden" name="kind" value="{{ item }}">
+                  <input type="hidden" name="client_reference" value="{% if compose_draft.kind == item %}{{ compose_draft.client_reference }}{% elif item == 'question' %}{{ compose_refs.question }}{% elif item == 'request' %}{{ compose_refs.request }}{% elif item == 'exchange' %}{{ compose_refs.exchange }}{% else %}{{ compose_refs.information }}{% endif %}">
+                  {% if item != 'information' %}
+                    <label class="sr-only" for="other-title-{{ item }}">Titre</label>
+                    <input id="other-title-{{ item }}" name="title" maxlength="220" required class="mk-input w-full" placeholder="{% if item == 'question' %}Question{% else %}Sujet{% endif %}">
+                  {% endif %}
+                  {% if item == 'information' or item == 'request' or item == 'question' or item == 'exchange' %}
+                    <label class="sr-only" for="other-body-{{ item }}">Texte</label>
+                    <textarea id="other-body-{{ item }}" maxlength="5000" name="body" rows="2" class="mk-input w-full" placeholder="{% if item == 'information' %}Écrire…{% else %}Précisions (facultatif){% endif %}"{% if item == 'information' %} required{% endif %}></textarea>
+                  {% endif %}
+                  {% include 'conversations/_semantic_media_controls.html' with point_kind=item %}
+                  {% include 'conversations/_composer_audience.html' %}
+                  <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
+                </form>
+              </details>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </details>
+    {% endif %}
+  {% endif %}
+</section>

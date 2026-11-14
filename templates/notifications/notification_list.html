@@ -6,39 +6,54 @@
 <div class="mx-auto max-w-5xl space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Signal</p>
+            <p class="mk-kicker">Signal</p>
             <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Notifications</h1>
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">Ce que Makolo a voulu vous signaler récemment, avec un passage direct vers la vérité propriétaire lorsqu’une suite existe.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'notifications:preferences' %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Préférences</a>
+            <a href="{% url 'notifications:preferences' %}" class="mk-action-button" data-variant="secondary">Préférences</a>
             {% if unread_count %}
-            <form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button class="rounded-2xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500">Tout marquer comme lu</button></form>
+            <form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="primary">Tout marquer comme lu</button></form>
             {% endif %}
         </div>
     </div>
 
-    <div class="flex gap-2">
-        <a href="{% url 'notifications:list' %}" class="rounded-full px-4 py-2 text-sm font-bold {% if active_filter != 'unread' %}bg-zinc-900 text-white dark:bg-white dark:text-zinc-900{% else %}bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">Toutes</a>
-        <a href="{% url 'notifications:list' %}?filter=unread" class="rounded-full px-4 py-2 text-sm font-bold {% if active_filter == 'unread' %}bg-zinc-900 text-white dark:bg-white dark:text-zinc-900{% else %}bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">Non lues{% if unread_count %} · {{ unread_count }}{% endif %}</a>
-    </div>
+    <nav class="mk-interaction-tabs" aria-label="Filtrer les notifications">
+        <a href="{% url 'notifications:list' %}" {% if active_filter != 'unread' %}aria-current="page"{% endif %}>Toutes</a>
+        <a href="{% url 'notifications:list' %}?filter=unread" {% if active_filter == 'unread' %}aria-current="page"{% endif %}>Non lues{% if unread_count %} · {{ unread_count }}{% endif %}</a>
+    </nav>
 
     <div class="space-y-3">
         {% for notification in notifications %}
         <article class="relative border-b border-zinc-200 px-2 py-5 transition dark:border-zinc-800">
             {% if not notification.read_at %}<span class="absolute left-0 top-7 h-2 w-2 rounded-full bg-indigo-500" aria-hidden="true"></span><span class="sr-only">Non lue.</span>{% else %}<span class="sr-only">Lue.</span>{% endif %}
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="flex items-start gap-3 pl-4 sm:gap-4">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200" aria-hidden="true">
+                    {% if notification.visual.image_url %}
+                    <img src="{{ notification.visual.image_url }}" alt="" class="h-full w-full object-cover" loading="lazy">
+                    {% elif notification.category == 'event' %}<i data-lucide="calendar-days" class="h-6 w-6"></i>
+                    {% elif notification.category == 'ticket' %}<i data-lucide="ticket" class="h-6 w-6"></i>
+                    {% elif notification.category == 'payment' %}<i data-lucide="wallet" class="h-6 w-6"></i>
+                    {% elif notification.category == 'security' %}<i data-lucide="shield-check" class="h-6 w-6"></i>
+                    {% elif notification.category == 'service' %}<i data-lucide="wrench" class="h-6 w-6"></i>
+                    {% elif notification.category == 'opportunity' %}<i data-lucide="lightbulb" class="h-6 w-6"></i>
+                    {% elif notification.category == 'marketing' %}<i data-lucide="megaphone" class="h-6 w-6"></i>
+                    {% else %}<i data-lucide="bell" class="h-6 w-6"></i>{% endif %}
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ notification.get_category_display }}</span>
                         <span class="text-xs text-zinc-400">{{ notification.created_at|date:"d/m/Y H:i" }}</span>
+                        {% if notification.metadata.seed == 'makolo-demo' %}<span class="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Démonstration</span>{% endif %}
                     </div>
                     <h2 class="mt-3 text-xl font-black text-zinc-900 dark:text-white">{{ notification.title }}</h2>
                     <p class="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">{{ notification.message }}</p>
                 </div>
                 <div class="flex shrink-0 flex-wrap gap-2">
-                    {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">Ouvrir</a>{% endif %}
-                    {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Marquer comme lue</button></form>{% endif %}
+                    {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="mk-action-button" data-variant="primary">Ouvrir</a>{% endif %}
+                    {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="secondary">Marquer comme lue</button></form>{% endif %}
+                </div>
                 </div>
             </div>
         </article>
@@ -52,9 +67,9 @@
 
     {% if is_paginated %}
     <div class="flex items-center justify-center gap-3 text-sm font-semibold">
-        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Précédent</a>{% endif %}
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="mk-action-button" data-variant="ghost">Précédent</a>{% endif %}
         <span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Suivant</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="mk-action-button" data-variant="ghost">Suivant</a>{% endif %}
     </div>
     {% endif %}
 </div>

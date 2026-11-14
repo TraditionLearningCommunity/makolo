@@ -11,6 +11,7 @@ from conversations.audience_services import (
     resolve_audience_ids,
 )
 from conversations.core_models import ConversationInvitation, ConversationUserState
+from conversations.point_services import point_visible_to
 from conversations.point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -27,6 +28,8 @@ from .services import create_notification
 
 CONSUMER_NAME = "notifications.conversations"
 EVENT_TYPES = {
+    DomainEventType.CONVERSATION_ENTRY_CREATED,
+    DomainEventType.CONVERSATION_ENTRY_MENTIONED,
     DomainEventType.CONVERSATION_POINT_PUBLISHED,
     DomainEventType.CONVERSATION_POINT_RESPONSE_CLOSED,
     DomainEventType.CONVERSATION_POINT_RESOLVED,
@@ -47,11 +50,37 @@ def _muted_profile_ids(conversation, *, at=None):
     )
 
 
-def _notify_profiles(*, event, conversation, profile_ids, title, message, template_key):
+def _notify_profiles(*, event, conversation, profile_ids, title, message, template_key, point=None, entry=None):
+    """In-app signal stays available when muted; external delivery is silenced.
+
+    Never persist a notification pointing to an inaccessible Point.
+    Actual push dispatch checks authorization again.
+    """
+    from conversations.attention import ACTION_REASONS, point_attention_reason
+
     muted = _muted_profile_ids(conversation)
-    recipients = User.objects.filter(pk__in=set(profile_ids) - muted, is_active=True)
-    action_url = reverse("conversations:detail", kwargs={"pk": conversation.pk})
+    recipients = User.objects.filter(pk__in=set(profile_ids), is_active=True)
     for recipient in recipients:
+        if point is not None and not point_visible_to(recipient, point):
+            continue
+        if entry is not None:
+            from conversations.entry_services import entries_for
+            if recipient.pk == entry.author_id or not entries_for(recipient, point).filter(pk=entry.pk, moderation_state="visible").exists():
+                continue
+        if point is not None and not point_visible_to(recipient, point):
+            continue
+        if (
+            point is not None and template_key == "conversation.point.action_required"
+            and point_attention_reason(recipient, point) not in ACTION_REASONS
+        ):
+            continue
+        action_url = reverse("conversations:detail", kwargs={"pk": conversation.pk})
+        metadata = {"conversation_id": str(conversation.pk)}
+        if point is not None:
+            action_url += f"?focus={point.pk}#point-{point.pk}"
+            metadata["point_id"] = str(point.pk)
+        if entry is not None:
+            metadata["entry_id"] = str(entry.pk)
         create_notification(
             recipient=recipient,
             kind=NotificationKind.SYSTEM,
@@ -60,8 +89,9 @@ def _notify_profiles(*, event, conversation, profile_ids, title, message, templa
             message=message,
             action_url=action_url,
             dedup_key=f"conversation:{event.pk}:{recipient.pk}",
-            metadata={"conversation_id": str(conversation.pk)},
+            metadata=metadata,
             queue_email=False,
+            queue_push=recipient.pk not in muted,
             domain_event=event,
             template_key=template_key,
         )
@@ -139,6 +169,7 @@ def _consume_point(event):
             title="Une action vous attend",
             message="Un Point dans une Conversation Makolo attend votre réponse ou confirmation.",
             template_key="conversation.point.action_required",
+            point=point,
         )
         return
 
@@ -153,6 +184,7 @@ def _consume_point(event):
             title="Une coordination reste à régler",
             message="Des actions attendues sont restées incomplètes à la clôture d’un Point.",
             template_key="conversation.point.escalation",
+            point=point,
         )
         return
 
@@ -167,6 +199,7 @@ def _consume_point(event):
         title="Un Point a été résolu",
         message="Une décision ou un résultat est maintenant disponible dans cette Conversation.",
         template_key="conversation.point.resolved",
+        point=point,
     )
 
 
@@ -194,6 +227,9 @@ def _consume_invitation(event):
 
 
 def consume_conversation_event(event):
+    if event.event_type in {DomainEventType.CONVERSATION_ENTRY_CREATED, DomainEventType.CONVERSATION_ENTRY_MENTIONED}:
+        _consume_entry(event)
+        return
     if event.event_type in {
         DomainEventType.CONVERSATION_POINT_PUBLISHED,
         DomainEventType.CONVERSATION_POINT_RESPONSE_CLOSED,
@@ -202,6 +238,26 @@ def consume_conversation_event(event):
         _consume_point(event)
     elif event.event_type == DomainEventType.CONVERSATION_INVITATION_CREATED:
         _consume_invitation(event)
+
+
+def _consume_entry(event):
+    from conversations.point_models import PointExchangeEntry
+    entry = PointExchangeEntry.objects.select_related("point__conversation__context", "reply_to").filter(
+        pk=event.payload.get("entry_id"), moderation_state="visible",
+    ).first()
+    if entry is None:
+        return
+    point = entry.point
+    viewers = _visible_profile_ids(point) - {entry.author_id}
+    mentioned = set(entry.mentions.values_list("profile_id", flat=True)) & viewers
+    replied = {entry.reply_to.author_id} & viewers if entry.reply_to_id else set()
+    groups = [(mentioned, "Vous êtes mentionné dans une Discussion", "conversation.entry.mention")]
+    if event.event_type == DomainEventType.CONVERSATION_ENTRY_CREATED:
+        groups.extend([(replied - mentioned, "Une réponse vous attend", "conversation.entry.reply"),
+                       (viewers - mentioned - replied, "Nouveau message dans une Discussion", "conversation.entry.message")])
+    for ids, title, template in groups:
+        _notify_profiles(event=event, conversation=point.conversation, point=point, entry=entry,
+                         profile_ids=ids, title=title, message="Ouvrez la Discussion dans Makolo.", template_key=template)
 
 
 register_consumer(CONSUMER_NAME, consume_conversation_event, event_types=EVENT_TYPES)

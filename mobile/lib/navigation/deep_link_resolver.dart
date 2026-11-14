@@ -13,16 +13,72 @@ class DeepLinkResolver {
         return '/space/occurrences/${target.id}/day-of';
       case 'space_occurrence_live':
         return '/space/occurrences/${target.id}/live';
+      case 'space_request':
+        return '/space/requests/${target.id}';
+      case 'space_work_journey':
+      case 'space_work_activity':
+      case 'space_commerce_order':
+      case 'space_payment_obligation':
+        final expectedOwner = switch (target.kind.toLowerCase()) {
+          'space_work_journey' => 'journey',
+          'space_work_activity' => 'activity',
+          'space_payment_obligation' => 'payment_obligation',
+          _ => 'commerce_order',
+        };
+        final link = target.link;
+        final uri = link == null ? null : Uri.tryParse(link);
+        if (uri == null ||
+            uri.hasScheme ||
+            uri.hasAuthority ||
+            uri.hasQuery ||
+            uri.hasFragment ||
+            uri.pathSegments.length != 5 ||
+            uri.pathSegments[0] != 'space' ||
+            uri.pathSegments[1].isEmpty ||
+            uri.pathSegments[2] != 'retrieval' ||
+            uri.pathSegments[3] != expectedOwner ||
+            uri.pathSegments[4] != target.id) {
+          return null;
+        }
+        return link;
       case 'conversation':
         return '/conversations/${target.id}';
       case 'journey':
         return '/journeys/${target.id}';
+      case 'passport_verify':
+        return target.id.isEmpty
+            ? null
+            : '/passport/verify/${Uri.encodeComponent(target.id)}';
+      case 'passport_shared':
+        return target.id.isEmpty
+            ? null
+            : '/passport/shared/${Uri.encodeComponent(target.id)}';
+      case 'share_delivery':
+        return '/shares/${Uri.encodeComponent(target.id)}';
+      case 'share_link':
+        return '/s/${Uri.encodeComponent(target.id)}';
       case 'activity':
         return '/activities/${target.id}';
       case 'occurrence':
         return '/occurrences/${target.id}';
       case 'access':
         return '/accesses/${target.id}';
+      case 'resource':
+      case 'personal_asset':
+        return target.id.isEmpty
+            ? null
+            : '/me/resources/documents/${target.id}';
+      case 'proof':
+        return target.id.isEmpty ? null : '/me/resources/proofs/${target.id}';
+      case 'credential':
+        return target.id.isEmpty ? null : '/me/resources/titles/${target.id}';
+      case 'resource_collection':
+        return '/me/resources';
+      case 'proof_collection':
+        return '/me/resources/proofs';
+      case 'credential_collection':
+      case 'title_collection':
+        return '/me/resources/titles';
       case 'dossier':
         return '/dossiers/${target.id}';
       case 'project':

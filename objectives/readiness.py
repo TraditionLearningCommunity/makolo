@@ -77,7 +77,8 @@ class DossierReadinessResult:
 
     @property
     def status_label(self):
-        return _STATUS_LABELS.get(self.status, self.dossier.get_lifecycle_display())
+        # Absence of evaluable facts must not masquerade as 'Ready'.
+        return _STATUS_LABELS.get(self.status)
 
 
 def _project_next_action(journey, result, *, viewer):
@@ -105,6 +106,8 @@ def _collective_status(*, dossier, journey_results, unsatisfied_dependencies):
     if dossier.lifecycle == DossierLifecycle.COMPLETED:
         return ReadinessStatus.COMPLETE
     if dossier.lifecycle in {DossierLifecycle.CANCELLED, DossierLifecycle.ARCHIVED}:
+        return None
+    if not journey_results and not unsatisfied_dependencies:
         return None
     if unsatisfied_dependencies or any(result.status == ReadinessStatus.BLOCKED for result in journey_results.values()):
         return ReadinessStatus.BLOCKED
@@ -148,6 +151,10 @@ def _assemble_dossier_readiness(
         journey_results=journey_results,
         unsatisfied_dependencies=unsatisfied,
     )
+    # A viewer without any visible Journey must never read "Prêt" as
+    # proof that an inaccessible graph is complete.
+    if status == ReadinessStatus.READY and not visible_ids:
+        status = None
 
     hidden_dependency_for_visible = set()
     visible_dependencies = []

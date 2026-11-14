@@ -165,6 +165,8 @@ def _base_queryset(*, now):
             "activity__event_vertical",
             "activity__event_vertical__category",
             "activity__service_details",
+            "activity__funding_details",
+            "activity__obtention_details",
             "activity__transport_service",
             "activity__transport_service__route",
             "transport_departure",

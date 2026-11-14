@@ -1,9 +1,85 @@
 {% extends 'base/app.html' %}
 {% block title %}{{ watch.name }} | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-4xl space-y-6">
-  <div class="flex flex-wrap items-start justify-between gap-3"><div><span class="mk-kicker">Veille privée</span><h1 class="mk-page-title">{{ watch.name }}</h1>{% if watch.dossier %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">Dossier : {{ watch.dossier.title }}</p>{% endif %}</div><span class="mk-badge {% if watch.status == 'active' %}mk-badge-success{% endif %}">{{ watch.get_status_display }}</span></div>
-  <div class="flex flex-wrap gap-2"><a class="mk-btn mk-btn-secondary" href="{{ discover_url }}">Ouvrir dans Découvrir</a><a class="mk-btn mk-btn-secondary" href="{% url 'discovery:watch-edit' watch.id %}">Modifier</a><form method="post" action="{% url 'discovery:watch-status' watch.id %}">{% csrf_token %}<input type="hidden" name="action" value="{% if watch.status == 'active' %}pause{% else %}activate{% endif %}"><button class="mk-btn mk-btn-ghost" type="submit">{% if watch.status == 'active' %}Mettre en pause{% else %}Réactiver{% endif %}</button></form><form method="post" action="{% url 'discovery:watch-delete' watch.id %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Supprimer</button></form></div>
-  {% if search_errors %}<section class="mk-panel p-4">{% for error in search_errors %}<p>{{ error }}</p>{% endfor %}</section>{% elif result %}<section><span class="mk-kicker">Correspondances actuelles</span><h2 class="mt-2 text-2xl font-extrabold">{{ result.total }} résultat{{ result.total|pluralize }}</h2></section><div class="space-y-3">{% for item in result.service_items %}<article class="mk-panel p-5"><span class="mk-badge">Accompagnement</span><h3 class="mt-3 font-extrabold"><a href="{{ item.url }}">{{ item.title }}</a></h3></article>{% endfor %}{% for item in result.items %}<article class="mk-panel p-5"><span class="mk-badge">{{ item.vertical_label }}</span><h3 class="mt-3 font-extrabold"><a href="{{ item.url }}">{{ item.title }}</a></h3></article>{% empty %}{% if not result.service_items %}<article class="mk-panel p-5">Aucune correspondance actuelle.</article>{% endif %}{% endfor %}</div>{% endif %}
-</div>
+<main class="mx-auto max-w-4xl space-y-6" data-mk-surface="discovery-watch-detail">
+  <header class="space-y-3">
+    <nav aria-label="Retour">
+      <a href="{% url 'discovery:watch-list' %}" class="mk-action-button" data-variant="ghost" data-size="icon" aria-label="Mes veilles">
+        <i data-lucide="arrow-left" class="h-5 w-5" aria-hidden="true"></i>
+        <span class="sr-only">Mes veilles</span>
+      </a>
+    </nav>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0">
+        <span class="mk-kicker">Veille</span>
+        <h1 class="mk-page-title break-words">{{ watch.name }}</h1>
+        {% if watch.dossier %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ watch.dossier.title }}</p>{% endif %}
+      </div>
+      <span class="mk-badge {% if watch.status == 'active' %}mk-badge-success{% endif %}">{{ watch.get_status_display }}</span>
+    </div>
+  </header>
+  <section class="flex flex-wrap items-center gap-2" aria-label="Actions de la veille">
+    <a class="mk-action-button" data-variant="primary" href="{{ discover_url }}" aria-label="Explorer les résultats">
+      <i data-lucide="compass" class="h-5 w-5" aria-hidden="true"></i> Explorer
+    </a>
+    <a class="mk-action-button" data-variant="secondary" data-size="icon" href="{% url 'discovery:watch-edit' watch.id %}" aria-label="Modifier les critères" title="Modifier">
+      <i data-lucide="sliders-horizontal" class="h-5 w-5" aria-hidden="true"></i><span class="sr-only">Modifier</span>
+    </a>
+    <form method="post" action="{% url 'discovery:watch-status' watch.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{% if watch.status == 'active' %}pause{% else %}activate{% endif %}">
+      <button class="mk-action-button" data-variant="secondary" data-size="icon" type="submit" aria-label="{% if watch.status == 'active' %}Mettre en pause{% else %}Reprendre la veille{% endif %}" title="{% if watch.status == 'active' %}Mettre en pause{% else %}Reprendre{% endif %}">
+        <i data-lucide="{% if watch.status == 'active' %}pause{% else %}play{% endif %}" class="h-5 w-5" aria-hidden="true"></i>
+        <span class="sr-only">{% if watch.status == 'active' %}Mettre en pause{% else %}Reprendre{% endif %}</span>
+      </button>
+    </form>
+    <details class="group relative">
+      <summary class="mk-action-button cursor-pointer list-none" data-variant="ghost" data-size="icon" aria-label="Options de suppression" title="Supprimer">
+        <i data-lucide="trash-2" class="h-5 w-5" aria-hidden="true"></i>
+        <span class="sr-only">Options de suppression</span>
+      </summary>
+      <div class="absolute right-0 top-full z-30 mt-2 w-64 max-w-[85vw] rounded-xl border p-4 shadow-lg" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
+        <p class="mb-3 text-sm font-semibold">Supprimer cette veille ?</p>
+        <form method="post" action="{% url 'discovery:watch-delete' watch.id %}">
+          {% csrf_token %}
+          <button class="mk-action-button w-full" data-variant="danger" type="submit">
+            <i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i> Supprimer
+          </button>
+        </form>
+      </div>
+    </details>
+  </section>
+  {% if search_errors %}
+  <section class="mk-panel p-4" role="alert">
+    {% for error in search_errors %}<p>{{ error }}</p>{% endfor %}
+  </section>
+  {% elif result %}
+  <section class="space-y-3">
+    <header class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <span class="mk-kicker">Opportunités</span>
+        <h2 class="mt-1 text-xl font-bold">{{ result.total }} résultat{{ result.total|pluralize }}</h2>
+      </div>
+    </header>
+    <div class="grid gap-3 sm:grid-cols-2">
+      {% for item in result.service_items %}
+      <a href="{{ item.url }}" class="mk-panel flex min-w-0 items-start justify-between gap-3 p-5" aria-label="Découvrir {{ item.title }}">
+        <span class="min-w-0"><span class="mb-2 block text-xs" style="color:var(--mk-primary)">Accompagnement</span><span class="block break-words font-bold">{{ item.title }}</span></span>
+        <i data-lucide="arrow-up-right" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+      </a>
+      {% endfor %}
+      {% for item in result.items %}
+      <a href="{{ item.url }}" class="mk-panel flex min-w-0 items-start justify-between gap-3 p-5" aria-label="Découvrir {{ item.title }}">
+        <span class="min-w-0"><span class="mb-2 block text-xs" style="color:var(--mk-primary)">{{ item.vertical_label }}</span><span class="block break-words font-bold">{{ item.title }}</span></span>
+        <i data-lucide="arrow-up-right" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+      </a>
+      {% empty %}
+      {% if not result.service_items %}
+      <p class="mk-panel p-6 text-sm" style="color:var(--mk-muted)">Aucune correspondance pour le moment.</p>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
 {% endblock %}

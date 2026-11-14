@@ -202,6 +202,24 @@ class ShareDeliveryLandingView(LoginRequiredMixin, View):
             _, opportunity, _, revision = resolve_opportunity_share_subject(envelope); context.update({"subject_kind": "opportunity", "opportunity": opportunity, "revision": revision, "page_title": revision.title, "page_description": revision.summary, "cta_label": "Commencer" if envelope.intent == ShareIntent.START_JOURNEY else "Découvrir"})
         elif envelope.subject_type == ShareSubjectType.JOURNEY:
             subject, source_journey = resolve_journey_share_subject(envelope); context.update({"subject_kind": "journey", "source_journey": source_journey, "page_title": source_journey.activity.title, "page_description": f"{sender_name} vous permet de repartir d’un chemin déjà préparé.", "cta_label": "Utiliser ce parcours", "journey_reuse": evaluate_journey_share(subject)})
+        elif envelope.subject_type == ShareSubjectType.SPACE_DOCUMENT:
+            version = envelope.space_document_subject.version
+            context.update({
+                "subject_kind": "space_document",
+                "page_title": version.document.title,
+                "page_description": "Document partagé avec vous",
+                "cta_label": "Télécharger",
+            })
+        elif envelope.subject_type == ShareSubjectType.PASSPORT:
+            snapshot = envelope.passport_subject.snapshot
+            context.update({
+                "subject_kind": "passport",
+                "page_title": snapshot.payload.get("identity", {}).get(
+                    "name", snapshot.public_identifier,
+                ),
+                "page_description": "Passeport Makolo",
+                "cta_label": "Consulter",
+            })
         else: raise ShareUnavailable
         context["actionable"] = envelope.intent != ShareIntent.VIEW; return context
 
@@ -212,6 +230,10 @@ class ShareDeliveryGoView(LoginRequiredMixin, View):
         try:
             delivery = resolve_delivery_for_recipient(delivery_id=delivery_id, user=request.user)
             if delivery.envelope.subject_type == ShareSubjectType.JOURNEY: return redirect("sharing:delivery", delivery_id=delivery.pk)
+            if delivery.envelope.subject_type == ShareSubjectType.PASSPORT:
+                return redirect("sharing:passport-delivery", delivery_id=delivery.pk)
+            if delivery.envelope.subject_type == ShareSubjectType.SPACE_DOCUMENT:
+                return redirect("sharing:space-document-delivery", delivery_id=delivery.pk)
             return _redirect_to_subject(request, delivery.envelope)
         except PermissionDenied: return render(request, "sharing/unavailable.html", status=403)
         except ShareUnavailable: return render(request, "sharing/unavailable.html", status=404)

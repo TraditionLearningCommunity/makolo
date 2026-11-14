@@ -33,7 +33,7 @@ class LiveRepository {
     this.sync,
   });
 
-  static const projectionKind = 'personal.occurrence.live';
+  static const projectionKind = 'occurrence.experience.live';
   static const freshnessPolicy = FreshnessPolicy(
     id: 'live-volatile',
     refreshRecommendedAfter: Duration(seconds: 30),
@@ -48,11 +48,14 @@ class LiveRepository {
 
   SyncSourceDefinition sourceFor(String occurrenceId) =>
       SyncSourceDefinition.projectionEnvelope(
-        sourceKey: 'live:$occurrenceId',
+        sourceKey: 'live-experience:$occurrenceId',
         owner: 'Operations',
-        path: 'api/v1/me/occurrences/$occurrenceId/live/',
+        path: 'api/v1/operations/occurrences/$occurrenceId/experience/live/',
         projectionKind: projectionKind,
         resourceKey: occurrenceId,
+        expectedOccurrenceId: occurrenceId,
+        expectedViewerProfileId: profileId,
+        expectedSurface: 'live',
         category: SyncSourceCategory.boundedOperational,
         freshnessPolicy: freshnessPolicy,
       );

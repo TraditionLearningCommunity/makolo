@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import 'mark_screen.dart';
 
-List<RouteBase> markRoutes(AppRuntime runtime) => [
+List<RouteBase> markRoutes(
+  AppRuntime runtime, {
+  VoidCallback? onSwitchAccount,
+  VoidCallback? onLogout,
+}) => [
   GoRoute(
     path: '/mark',
     builder: (context, state) {
@@ -13,6 +18,8 @@ List<RouteBase> markRoutes(AppRuntime runtime) => [
       final family = query['selected_family'];
       return MarkScreen(
         runtime: runtime,
+        onSwitchAccount: onSwitchAccount,
+        onLogout: onLogout,
         selectedContext: kind == null || id == null
             ? null
             : {

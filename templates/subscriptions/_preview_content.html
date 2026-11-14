@@ -1,14 +1,15 @@
-<section class="space-y-5" aria-labelledby="change-preview-title">
+<section class="space-y-4" aria-labelledby="change-preview-title">
     <div>
         <span class="mk-kicker">Aperçu sans engagement</span>
         <h1 id="change-preview-title" class="mk-page-title">Ce qui changerait</h1>
-        <p class="mk-page-copy mt-3 text-[15px]">Cet aperçu ne modifie pas l’abonnement. Une demande n’est créée qu’après confirmation par un acteur autorisé.</p>
+        <p class="mk-page-copy mt-3 text-[15px]">Vérifiez les changements et leurs conditions avant de confirmer.</p>
     </div>
 
-    <div class="mk-panel p-5 sm:p-6">
-        <div class="grid gap-4 sm:grid-cols-2">
-            <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Aujourd’hui</p><p class="mt-2 text-lg font-extrabold">{% if product_preview.current_name %}{{ product_preview.current_name }}{% else %}Aucune formule correspondante{% endif %}</p></div>
-            <div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-brand-soft)"><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">{% if product_preview.kind == 'addon_remove' %}Après retrait{% else %}Formule cible{% endif %}</p><p class="mt-2 text-lg font-extrabold">{{ product_preview.target_name }}</p></div>
+
+    <div class="mk-panel p-4 sm:p-5">
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div class="p-2"><p class="text-xs font-semibold" style="color:var(--mk-subtle)">Aujourd’hui</p><p class="mt-1 text-base font-bold">{% if product_preview.current_name %}{{ product_preview.current_name }}{% else %}Aucune formule correspondante{% endif %}</p></div>
+            <div class="p-2"><p class="text-xs font-semibold" style="color:var(--mk-subtle)">{% if product_preview.kind == 'addon_remove' %}Option concernée{% else %}Formule cible{% endif %}</p><p class="mt-1 text-base font-bold">{{ product_preview.target_name }}</p>{% if product_preview.kind != 'addon_remove' and product_preview.billing_terms %}{% include 'subscriptions/_billing_terms.html' with terms=product_preview.billing_terms %}{% endif %}</div>
         </div>
     </div>
 
@@ -32,12 +33,12 @@
     {% if not can_confirm %}<p class="rounded-2xl border p-4 text-sm" role="status" style="border-color:var(--mk-border);color:var(--mk-muted)">Vous pouvez consulter cet aperçu, mais votre Mandat ne permet pas de modifier cet abonnement.</p>{% endif %}
 
     <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        {% if space_slug %}<a href="{% url back_url_name space_slug %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% else %}<a href="{% url back_url_name %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% endif %}
+        {% if space_slug %}<a href="{% url back_url_name space_slug %}{% if subscription_return_url %}?next={{ subscription_return_url|urlencode }}{% endif %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% else %}<a href="{% url back_url_name %}{% if subscription_return_url %}?next={{ subscription_return_url|urlencode }}{% endif %}" class="mk-btn mk-btn-secondary justify-center">Retour sans modifier</a>{% endif %}
         {% if can_confirm %}
             {% if confirm_item_id %}
-                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% else %}<form method="post" action="{% url confirm_url_name confirm_item_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% endif %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug confirm_item_id %}">{% csrf_token %}{% if subscription_return_url %}<input type="hidden" name="next" value="{{ subscription_return_url }}">{% endif %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% else %}<form method="post" action="{% url confirm_url_name confirm_item_id %}">{% csrf_token %}{% if subscription_return_url %}<input type="hidden" name="next" value="{{ subscription_return_url }}">{% endif %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le retrait</button></form>{% endif %}
             {% else %}
-                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% else %}<form method="post" action="{% url confirm_url_name product_preview.target_plan_version_id %}">{% csrf_token %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% endif %}
+                {% if space_slug %}<form method="post" action="{% url confirm_url_name space_slug product_preview.target_plan_version_id %}">{% csrf_token %}{% if subscription_return_url %}<input type="hidden" name="next" value="{{ subscription_return_url }}">{% endif %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% else %}<form method="post" action="{% url confirm_url_name product_preview.target_plan_version_id %}">{% csrf_token %}{% if subscription_return_url %}<input type="hidden" name="next" value="{{ subscription_return_url }}">{% endif %}<input type="hidden" name="idempotency_key" value="{{ idempotency_key }}"><button type="submit" class="mk-btn mk-btn-primary w-full justify-center sm:w-auto">Confirmer le changement</button></form>{% endif %}
             {% endif %}
         {% endif %}
     </div>

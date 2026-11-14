@@ -92,7 +92,9 @@ dist/
 # IDE
 # ============================================================
 
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 *.code-workspace
 

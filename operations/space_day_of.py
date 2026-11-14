@@ -31,7 +31,7 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
     occurrence_id = str(occurrence.pk)
     activity_id = str(occurrence.activity_id)
     space = occurrence.activity.space
-    capabilities = ["open_live"]
+    capabilities = ["open_live"] if occurrence.live_enabled else []
     scanner = live.get("scanner") or {}
     can_scan = user_can_scan_activity(actor, occurrence.activity, occurrence=occurrence)
     if can_scan:
@@ -65,7 +65,7 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
         "checkpoints": live.get("checkpoints") or [],
         "incidents": {"truth": "unavailable", "items": []},
         "live": {
-            "available": True,
+            "available": occurrence.live_enabled,
             "phase": phase,
             "spatial": live.get("spatial") or {},
             "next_action": live.get("next_action") or {},
@@ -73,7 +73,10 @@ def build_space_operator_day_of(*, occurrence, actor, observed_at=None):
         "scanner": scanner,
         "capabilities": capabilities,
         "links": {
-            "live": f"/api/v1/operations/occurrences/{occurrence_id}/live/",
+            **(
+                {"live": f"/api/v1/operations/occurrences/{occurrence_id}/live/"}
+                if occurrence.live_enabled else {}
+            ),
             "readiness": f"/api/v1/operations/occurrences/{occurrence_id}/readiness/",
             "queues": f"/api/v1/operations/occurrences/{occurrence_id}/queues/",
             "checkpoints": f"/api/v1/operations/occurrences/{occurrence_id}/checkpoints/",

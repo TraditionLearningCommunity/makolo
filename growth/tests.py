@@ -194,6 +194,27 @@ class GrowthV1Tests(TestCase):
         self.assertTrue(finance_payload["finance_visible"])
         self.assertEqual(finance_payload["revenue_by_currency"]["USD"], Decimal("80.00"))
 
+    def test_growth_copy_hides_internal_preset_triggers(self):
+        self.client.force_login(self.marketer)
+        response = self.client.get(reverse("growth:organization", kwargs={"slug": self.organization.slug}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Messages automatiques")
+        self.assertContains(response, "Recontacter après une absence")
+        self.assertContains(response, "Après une absence à l’événement")
+        self.assertNotContains(response, "Trigger :")
+        self.assertNotContains(response, "Growth V1")
+        self.assertNotContains(response, "Réactivation no-show")
+
+        dashboard = self.client.get(reverse("growth:dashboard"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertContains(dashboard, "Acquisition et fidélisation")
+        self.assertNotContains(dashboard, "followers")
+
+        link = self.client.get(reverse("growth:link-new", kwargs={"slug": self.organization.slug}))
+        self.assertEqual(link.status_code, 200)
+        self.assertContains(link, "Créer un lien de suivi")
+        self.assertNotContains(link, "first-party")
+
     def test_crm_preset_is_idempotent_and_no_show_is_marketing_guarded(self):
         workflow, created = activate_crm_preset(
             organization=self.organization,

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -20,7 +22,7 @@ class MaturePersonalExperienceTests(TestCase):
     def test_primary_personal_destinations_render(self):
         expectations = {
             "core:participant-home": "Tout est en ordre. ✓",
-            "core:participant-ongoing": "Ce qui continue",
+            "core:participant-ongoing": "<h1>En cours</h1>",
             "core:participant-me": "Passeport Makolo",
             "core:makolo-mark": "Qu’est-ce que vous avez en tête ?",
         }
@@ -138,3 +140,185 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(response, "Explorer des possibilités")
         self.assertContains(response, "Reprendre quelque chose")
         self.assertContains(response, "Retrouver ce que j’ai déjà")
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_mark_web_clarification_can_submit_selected_owner_target(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "needs_clarification",
+            "message": "Laquelle voulez-vous ouvrir ?",
+            "question": {
+                "options": [
+                    {"kind": "journey", "id": "selected-journey", "label": "Ma démarche"}
+                ]
+            },
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": "Retrouve ma démarche"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ma démarche")
+        self.assertContains(response, 'name="selected_id" value="selected-journey"')
+
+        self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Retrouve ma démarche",
+                "selected_kind": "journey",
+                "selected_id": "selected-journey",
+                "profile_id": "untrusted",
+            },
+        )
+        self.assertEqual(
+            orchestrate.call_args.kwargs["context"],
+            {"selected": {"kind": "journey", "id": "selected-journey"}},
+        )
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_mark_web_recognition_confirmation_is_owner_scoped(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "needs_confirmation",
+            "message": "Vérifiez votre récompense.",
+            "action": {
+                "code": "redeem_recognition",
+                "summary": "Utiliser cette récompense ?",
+                "target": {"kind": "recognition_reward", "id": "reward-id"},
+            },
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": "Utilise ma récompense"}
+        )
+        self.assertContains(response, "Confirmer cette utilisation")
+        self.assertContains(response, 'name="idempotency_key"')
+
+        self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Utilise ma récompense",
+                "selected_kind": "recognition_reward",
+                "selected_id": "reward-id",
+                "confirm_code": "redeem_recognition",
+                "confirm_target_id": "reward-id",
+                "idempotency_key": "a" * 32,
+            },
+        )
+        self.assertEqual(
+            orchestrate.call_args.kwargs["context"],
+            {
+                "selected": {"kind": "recognition_reward", "id": "reward-id"},
+                "confirmation": {
+                    "code": "redeem_recognition",
+                    "target_id": "reward-id",
+                },
+                "idempotency_key": "a" * 32,
+            },
+        )
+
+    def test_mark_web_does_not_silently_truncate_a_long_intention(self):
+        original = "Je cherche " + "une activité " * 70
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": original}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response, "au maximum 600 caractères", status_code=400
+        )
+        self.assertContains(response, original, status_code=400)
+
+    def test_mark_web_exposes_local_intake_and_desktop_without_faking_upload(self):
+        response = self.client.get(reverse("core:makolo-mark"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-root')
+        self.assertContains(response, 'data-mk-mark-float')
+        self.assertContains(response, 'data-mk-mark-minimize')
+        self.assertContains(response, 'data-mk-mark-restore')
+        self.assertContains(response, 'data-mk-mark-files')
+        self.assertContains(response, 'data-mk-mark-photo')
+        self.assertContains(response, 'data-mk-mark-voice')
+        self.assertContains(response, 'data-mk-mark-attach-open')
+        self.assertContains(response, 'data-mk-mark-gallery')
+        self.assertContains(response, 'data-mk-mark-send')
+        self.assertContains(response, 'mk-mark-composer')
+        self.assertNotContains(response, 'data-mk-mark-link-input')
+        self.assertNotContains(response, '>Continuer</button>')
+        self.assertContains(response, 'data-mk-mark-text-consent')
+        self.assertContains(response, 'mark-intake.js')
+        self.assertContains(response, 'mark-intake.css')
+        # Browser file pickers deliberately have no multipart upload name;
+        # the Mark owner contract stays text-only.
+        self.assertNotContains(response, 'name="attachments"')
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_mark_web_does_not_imply_uploaded_file_from_untrusted_form_field(self):
+        with patch("core.mature_experience_views.orchestrate_mark") as route:
+            route.return_value = {
+                "state": "unsupported",
+                "message": "Cette entrée n'est pas encore prise en charge.",
+            }
+            response = self.client.post(
+                reverse("core:makolo-mark"),
+                {
+                    "intent": "Prépare cette demande",
+                    "input_kind": "document",
+                    "media_uploaded": "true",
+                    "attachment_ids": "fake-asset-id",
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(route.call_args.kwargs["input_kind"], "text")
+            self.assertEqual(route.call_args.kwargs["context"], {})
+
+    def test_mark_web_preserves_selected_context_without_client_authority(self):
+        response = self.client.get(
+            reverse("core:makolo-mark"),
+            {"selected_kind": "journey", "selected_id": "owned-journey-id",
+             "permission": "space.manage", "is_admin": "true"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-clear-selection')
+        self.assertContains(response, 'name="selected_kind" value="journey"')
+        self.assertContains(response, 'name="selected_id" value="owned-journey-id"')
+        self.assertNotContains(response, 'name="permission"')
+        self.assertNotContains(response, 'name="is_admin"')
+
+    def test_mark_web_rejects_incomplete_untrusted_selected_context(self):
+        response = self.client.get(
+            reverse("core:makolo-mark"),
+            {"selected_kind": "discovery_item", "selected_id": "some-id"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-mk-mark-clear-selection')
+
+    def test_mark_web_reuses_canonical_personal_asset_form_for_explicit_upload(self):
+        response = self.client.get(reverse("core:makolo-mark"))
+        self.assertEqual(response.status_code, 200)
+        form = response.context["mark_asset_form"]
+        self.assertEqual(
+            set(form.fields),
+            {"title", "kind", "sensitivity", "issued_at", "expires_at", "file"},
+        )
+        self.assertContains(response, 'data-mk-mark-owner-panel')
+        self.assertContains(response, 'data-mk-mark-owner-form')
+        self.assertContains(response, 'enctype="multipart/form-data"')
+        self.assertContains(response, reverse("personal_assets:add"))
+        self.assertContains(response, 'name="sensitivity"')
+        self.assertContains(response, 'name="kind"')
+        self.assertContains(response, 'name="file"')
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_untrusted_mark_file_metadata_never_becomes_owner_upload(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "unsupported",
+            "message": "Traitement de document indisponible depuis Mark.",
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Conserver ce document",
+                "kind": "identity_document",
+                "sensitivity": "normal",
+                "file_id": "fake-mark-local-file",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(orchestrate.call_args.kwargs["context"], {})
+        self.assertEqual(orchestrate.call_args.kwargs["input_kind"], "text")

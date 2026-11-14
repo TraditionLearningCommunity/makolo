@@ -22,6 +22,21 @@ def _get_or_404(queryset, **lookup):
         raise Http404 from exc
 
 
+def _space_ids_for_subscription(actor, *, manage=False):
+    ids = space_ids_with_permission(
+        actor,
+        PermissionCode.SPACE_SUBSCRIPTION_MANAGE if manage else PermissionCode.SPACE_SUBSCRIPTION_VIEW,
+    )
+    if not manage:
+        management_ids = space_ids_with_permission(
+            actor, PermissionCode.SPACE_SUBSCRIPTION_MANAGE,
+        )
+        if ids is None or management_ids is None:
+            return None
+        ids = set(ids) | set(management_ids)
+    return ids
+
+
 def subscriptions_visible_to_actor(actor, *, manage=False):
     """Return only Subscriptions the actor is authorized to see or mutate.
 
@@ -30,12 +45,13 @@ def subscriptions_visible_to_actor(actor, *, manage=False):
     """
     _require_authenticated(actor)
     platform_code = PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE if manage else PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW
-    if can(actor, platform_code):
+    if can(actor, platform_code) or (
+        not manage and can(actor, PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE)
+    ):
         return Subscription.objects.all()
 
     queryset = Subscription.objects.filter(profile=actor)
-    space_code = PermissionCode.SPACE_SUBSCRIPTION_MANAGE if manage else PermissionCode.SPACE_SUBSCRIPTION_VIEW
-    space_ids = space_ids_with_permission(actor, space_code)
+    space_ids = _space_ids_for_subscription(actor, manage=manage)
     if space_ids is None:
         # Canonical authorization treats None as unbounded platform authority.
         return Subscription.objects.all()
@@ -50,7 +66,9 @@ def get_profile_subscription_for_actor(actor, subscription_id, *, manage=False):
     _require_authenticated(actor)
     platform_code = PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE if manage else PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW
     queryset = Subscription.objects.filter(profile=actor)
-    if can(actor, platform_code):
+    if can(actor, platform_code) or (
+        not manage and can(actor, PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE)
+    ):
         queryset = Subscription.objects.filter(profile__isnull=False)
     return _get_or_404(queryset, pk=subscription_id)
 
@@ -59,9 +77,10 @@ def get_space_subscription_for_actor(actor, subscription_id, *, manage=False):
     _require_authenticated(actor)
     platform_code = PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE if manage else PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW
     queryset = Subscription.objects.filter(space__isnull=False)
-    if not can(actor, platform_code):
-        space_code = PermissionCode.SPACE_SUBSCRIPTION_MANAGE if manage else PermissionCode.SPACE_SUBSCRIPTION_VIEW
-        space_ids = space_ids_with_permission(actor, space_code)
+    if not can(actor, platform_code) and not (
+        not manage and can(actor, PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE)
+    ):
+        space_ids = _space_ids_for_subscription(actor, manage=manage)
         if space_ids is not None:
             queryset = queryset.filter(space_id__in=space_ids)
     return _get_or_404(queryset, pk=subscription_id)

@@ -4,6 +4,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -122,6 +123,48 @@ final class SpaceSyncKeys {
 
   static const inventoryProjectionKind = 'space.inventory';
   static const inventorySourceKey = 'space.inventory';
+  static const documentsProjectionKind = 'space.documents';
+  static const resourcesProjectionKind = 'space.resources';
+  static const resourceFamilyProjectionKind = 'space.resource.family';
+
+  static String resourceFamilyResourceKey(String spaceId, String kind) =>
+      '${Uri.encodeComponent(spaceId)}|${Uri.encodeComponent(kind)}';
+
+  static String resourceFamilySourceKey(String spaceId, String kind) =>
+      'space:${Uri.encodeComponent(spaceId)}:resources:'
+      '${Uri.encodeComponent(kind)}';
+
+  static String resourcesResourceKey(String spaceId) =>
+      Uri.encodeComponent(spaceId);
+
+  static String resourcesSourceKey(String spaceId) =>
+      'space:${Uri.encodeComponent(spaceId)}:resources';
+
+  static const documentDetailProjectionKind = 'space.document.detail';
+
+  static String documentDetailResourceKey(String spaceId, String documentId) =>
+      '${Uri.encodeComponent(spaceId)}|'
+      '${Uri.encodeComponent(documentId)}';
+
+  static String documentDetailSourceKey(String spaceId, String documentId) =>
+      'space:${Uri.encodeComponent(spaceId)}:document:'
+      '${Uri.encodeComponent(documentId)}';
+
+  static String documentsResourceKey(
+    String spaceId, {
+    required String query,
+    required int offset,
+  }) =>
+      '${Uri.encodeComponent(spaceId)}|'
+      '${Uri.encodeComponent(query.trim())}|$offset';
+
+  static String documentsSourceKey(
+    String spaceId, {
+    required String query,
+    required int offset,
+  }) =>
+      'space:${Uri.encodeComponent(spaceId)}:documents:'
+      '${Uri.encodeComponent(query.trim())}:$offset';
 
   static String perspectiveKey(ActorPerspective perspective) =>
       perspective.isAll ? 'all' : perspective.id!;
@@ -256,6 +299,134 @@ final class WorkspaceContextRepository {
     );
   }
 
+  SyncSourceDefinition resourcesSource(SpaceActorIdentity space) {
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.resourcesSourceKey(space.id),
+      owner: 'SpaceResources',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: _spaceSegmentPath(
+        space.slug,
+        'us/resources',
+        queryParameters: const {'kind': 'document', 'offset': '0'},
+      ),
+      projectionKind: SpaceSyncKeys.resourcesProjectionKind,
+      resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      category: SyncSourceCategory.keyedDetail,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseResources(
+        response,
+        expectedSpaceId: space.id,
+        expectedKind: 'document',
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
+  SyncSourceDefinition resourceFamilySource(
+    SpaceActorIdentity space,
+    String kind,
+  ) {
+    const allowed = {
+      'asset',
+      'template',
+      'theme',
+      'credential',
+      'received_title',
+    };
+    if (!allowed.contains(kind)) {
+      throw ArgumentError.value(kind, 'kind', 'unsupported resource family');
+    }
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.resourceFamilySourceKey(space.id, kind),
+      owner: 'SpaceResources',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: _spaceSegmentPath(
+        space.slug,
+        'us/resources',
+        queryParameters: {'kind': kind, 'offset': '0'},
+      ),
+      projectionKind: SpaceSyncKeys.resourceFamilyProjectionKind,
+      resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseResources(
+        response,
+        expectedSpaceId: space.id,
+        expectedKind: kind,
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
+  SyncSourceDefinition documentDetailSource(
+    SpaceActorIdentity space,
+    String documentId,
+  ) {
+    final normalizedId = documentId.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError.value(documentId, 'documentId', 'must not be empty');
+    }
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.documentDetailSourceKey(space.id, normalizedId),
+      owner: 'SpaceDocument',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path:
+          '${_spaceSegmentPath(space.slug, 'documents')}'
+          '${Uri.encodeComponent(normalizedId)}/',
+      projectionKind: SpaceSyncKeys.documentDetailProjectionKind,
+      resourceKey: SpaceSyncKeys.documentDetailResourceKey(
+        space.id,
+        normalizedId,
+      ),
+      category: SyncSourceCategory.keyedDetail,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) =>
+          _parseDocumentDetail(response, expectedDocumentId: normalizedId),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
+  SyncSourceDefinition documentsSource(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) {
+    final normalizedQuery = query.trim();
+    final path = _spaceSegmentPath(
+      space.slug,
+      'documents',
+      queryParameters: {
+        if (normalizedQuery.isNotEmpty) 'q': normalizedQuery,
+        'offset': '$offset',
+      },
+    );
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.documentsSourceKey(
+        space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      owner: 'SpaceDocument',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: path,
+      projectionKind: SpaceSyncKeys.documentsProjectionKind,
+      resourceKey: SpaceSyncKeys.documentsResourceKey(
+        space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseDocuments(
+        response,
+        expectedSpaceId: space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
   SyncSourceDefinition relationshipsSource(SpaceActorIdentity space) {
     return _spaceSource(
       space: space,
@@ -328,21 +499,208 @@ final class WorkspaceContextRepository {
   Stream<StoredProjection?> watchUs(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.us, space);
 
+  Stream<StoredProjection?> watchResources(SpaceActorIdentity space) =>
+      store.watchProjection(
+        SpaceSyncKeys.resourcesProjectionKind,
+        resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      );
+
+  Future<StoredProjection?> readResources(SpaceActorIdentity space) =>
+      store.readProjection(
+        SpaceSyncKeys.resourcesProjectionKind,
+        resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      );
+
+  Stream<StoredProjection?> watchResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) => store.watchProjection(
+    SpaceSyncKeys.resourceFamilyProjectionKind,
+    resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+  );
+
+  Future<StoredProjection?> readResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) => store.readProjection(
+    SpaceSyncKeys.resourceFamilyProjectionKind,
+    resourceKey: SpaceSyncKeys.resourceFamilyResourceKey(space.id, kind),
+  );
+
+  Stream<StoredProjection?> watchDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) => store.watchProjection(
+    SpaceSyncKeys.documentDetailProjectionKind,
+    resourceKey: SpaceSyncKeys.documentDetailResourceKey(space.id, documentId),
+  );
+
+  Future<StoredProjection?> readDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) => store.readProjection(
+    SpaceSyncKeys.documentDetailProjectionKind,
+    resourceKey: SpaceSyncKeys.documentDetailResourceKey(space.id, documentId),
+  );
+
+  Stream<List<StoredProjection>> watchDocumentPages(
+    SpaceActorIdentity space, {
+    String query = '',
+  }) {
+    final normalizedQuery = query.trim();
+    return store.watchProjections(SpaceSyncKeys.documentsProjectionKind).map((
+      pages,
+    ) {
+      final selected =
+          pages.where((page) {
+            final payload = page.payload;
+            return payload['space_id']?.toString() == space.id &&
+                (payload['_query']?.toString() ?? '') == normalizedQuery;
+          }).toList()..sort((a, b) {
+            final left = a.payload['_offset'];
+            final right = b.payload['_offset'];
+            final leftOffset = left is num ? left.toInt() : 0;
+            final rightOffset = right is num ? right.toInt() : 0;
+            return leftOffset.compareTo(rightOffset);
+          });
+      return selected;
+    });
+  }
+
+  Future<StoredProjection?> readDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) => store.readProjection(
+    SpaceSyncKeys.documentsProjectionKind,
+    resourceKey: SpaceSyncKeys.documentsResourceKey(
+      space.id,
+      query: query.trim(),
+      offset: offset,
+    ),
+  );
+
   Stream<StoredProjection?> watchRelationships(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.relationships, space);
 
   Stream<StoredProjection?> watchPilot(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.pilot, space);
 
+  /// A Space listed in an authorized local inventory can be selected as a
+  /// *presentation context* even before its first workspace snapshot.
+  /// This never grants permissions or certifies an owner action. This does not grant any
+  /// authority: each owner still validates permissions for its own actions.
+  ///
+  /// A source explicitly invalidated by its owner, a denied/missing Space,
+  /// an unrecognized Profile, or a mismatched cached identity is never used.
+  Future<bool> hasAcquiredSpaceContext(SpaceActorIdentity space) async {
+    final inventoryState = await readSource(inventorySource());
+    if (!_usableForLocalContext(inventoryState)) return false;
+    final known = (await readInventory()).any((item) => item.identity == space);
+    if (!known) return false;
+
+    final workspaceState = await readSource(workspaceSource(space));
+    if (workspaceState.invalidated) return false;
+    if (workspaceState.lastSuccessAt == null) {
+      // An authorized inventory is enough to choose a reading perspective
+      // before the first workspace download. It grants no owner action.
+      // A previous explicit denial still forbids that transition.
+      return workspaceState.lastErrorCode == null ||
+          const {
+            'timeout',
+            'makolo_unreachable',
+            'secure_connection_failed',
+            'transport_error',
+            'server_unavailable',
+          }.contains(workspaceState.lastErrorCode);
+    }
+    if (!_usableForLocalContext(workspaceState)) return false;
+    try {
+      final workspace = await readWorkspace(space);
+      return workspace != null && workspace.identity == space;
+    } on FormatException {
+      return false;
+    }
+  }
+
+  static bool _usableForLocalContext(OwnerSourceState source) {
+    if (source.invalidated || source.lastSuccessAt == null) return false;
+    // Only known transport failures preserve a previously acquired view.
+    // Unknown errors are not evidence of retained authority.
+    return source.lastErrorCode == null ||
+        const {
+          'timeout',
+          'makolo_unreachable',
+          'secure_connection_failed',
+          'transport_error',
+          'server_unavailable',
+        }.contains(source.lastErrorCode);
+  }
+
   Future<void> refreshInventory() async {
     final engine = _requireSync();
-    await engine.pullSource(inventorySource());
+    final previous = await readInventory();
+    try {
+      await engine.pullSource(inventorySource());
+    } on MakoloApiError catch (error) {
+      if (engine.isActive &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
+        // A denied inventory cannot validate the selected Space actor.
+        // Transport outages do not reset a valid local preference.
+        await actorContext.selectPersonal();
+      }
+      rethrow;
+    }
+    if (!engine.isActive) return; // Superseded Profile runtime.
+    final state = await readSource(inventorySource());
+    if (state.invalidated || state.lastErrorCode != null) return;
+    final current = await readInventory();
+    final ids = current.map((item) => item.identity.id).toSet();
+    // An inventory removal is an owner-confirmed withdrawal for that Space,
+    // not a reason to erase other Spaces or device-owned drafts.
+    for (final former in previous) {
+      if (!ids.contains(former.identity.id)) {
+        await engine.revoke(
+          workspaceSource(former.identity),
+          code: 'not_found',
+        );
+      }
+    }
     await _reconcileActorContextFromInventory();
+  }
+
+  /// Creation belongs to Organizations; this does not grant actor authority.
+  Future<SpaceActorIdentity> createSpace({
+    required String name,
+    required bool publicProfile,
+  }) async {
+    final engine = _requireSync();
+    final response = await engine.api.post(
+      'api/v1/organizations/workspaces/',
+      body: {'name': name.trim(), 'public_profile': publicProfile},
+    );
+    final space = _requiredMap(response.jsonObject(), 'space');
+    return SpaceActorIdentity(
+      id: _requiredString(space, 'id'),
+      slug: _requiredString(space, 'slug'),
+    );
   }
 
   Future<void> refreshWorkspace(SpaceActorIdentity space) async {
     final engine = _requireSync();
-    await engine.pullSource(workspaceSource(space));
+    try {
+      await engine.pullSource(workspaceSource(space));
+    } on MakoloApiError catch (error) {
+      if (engine.isActive &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
+        final selected = actorContext.value;
+        if (selected is SpaceActorContext && selected.space.id == space.id) {
+          await actorContext.selectPersonal();
+        }
+      }
+      rethrow;
+    }
+    if (!engine.isActive) return;
     await _reconcilePerspective(space);
   }
 
@@ -360,6 +718,211 @@ final class WorkspaceContextRepository {
   ) => _refresh(workSource(space, perspective));
 
   Future<void> refreshUs(SpaceActorIdentity space) => _refresh(usSource(space));
+
+  Future<bool> shouldRefreshResources(
+    SpaceActorIdentity space, {
+    DateTime? now,
+  }) async {
+    final source = resourcesSource(space);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readResources(space);
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureResources(SpaceActorIdentity space) async {
+    if (await shouldRefreshResources(space)) {
+      await refreshResources(space);
+    }
+  }
+
+  Future<void> refreshResources(SpaceActorIdentity space) =>
+      _refresh(resourcesSource(space));
+
+  Future<void> ensureResourceFamily(
+    SpaceActorIdentity space,
+    String kind,
+  ) async {
+    final source = resourceFamilySource(space, kind);
+    final state = await readSource(source);
+    final projection = await readResourceFamily(space, kind);
+    final shouldRefresh =
+        projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated ||
+        surfaceFreshness.evaluate(projection, now: DateTime.now().toUtc()) !=
+            FreshnessState.fresh;
+    if (shouldRefresh) {
+      await refreshResourceFamily(space, kind);
+    }
+  }
+
+  Future<void> refreshResourceFamily(SpaceActorIdentity space, String kind) =>
+      _refresh(resourceFamilySource(space, kind));
+
+  Future<bool> shouldRefreshDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId, {
+    DateTime? now,
+  }) async {
+    final source = documentDetailSource(space, documentId);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readDocumentDetail(space, documentId);
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) async {
+    if (await shouldRefreshDocumentDetail(space, documentId)) {
+      await refreshDocumentDetail(space, documentId);
+    }
+  }
+
+  Future<void> refreshDocumentDetail(
+    SpaceActorIdentity space,
+    String documentId,
+  ) => _refresh(documentDetailSource(space, documentId));
+
+  Future<bool> shouldRefreshDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+    DateTime? now,
+  }) async {
+    final source = documentsSource(space, query: query, offset: offset);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readDocumentPage(
+      space,
+      query: query,
+      offset: offset,
+    );
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) async {
+    if (!await shouldRefreshDocumentPage(space, query: query, offset: offset)) {
+      return;
+    }
+    await refreshDocumentPage(space, query: query, offset: offset);
+  }
+
+  Future<void> refreshDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) async {
+    final normalizedQuery = query.trim();
+    final source = documentsSource(
+      space,
+      query: normalizedQuery,
+      offset: offset,
+    );
+    await _refresh(source);
+    if (offset != 0) return;
+
+    final state = await readSource(source);
+    final denied =
+        state.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode);
+    if (denied) {
+      await _deleteDocumentPages(
+        space,
+        query: normalizedQuery,
+        keepOffset: null,
+      );
+      return;
+    }
+    if (state.lastErrorCode != null) return;
+
+    final first = await readDocumentPage(
+      space,
+      query: normalizedQuery,
+      offset: 0,
+    );
+    if (first == null) return;
+    await _deleteDocumentPages(space, query: normalizedQuery, keepOffset: 0);
+  }
+
+  Future<void> _deleteDocumentPages(
+    SpaceActorIdentity space, {
+    required String query,
+    required int? keepOffset,
+  }) async {
+    final pages = await store.readProjections(
+      SpaceSyncKeys.documentsProjectionKind,
+    );
+    for (final page in pages) {
+      final payload = page.payload;
+      if (payload['space_id']?.toString() != space.id ||
+          (payload['_query']?.toString() ?? '') != query) {
+        continue;
+      }
+      final rawOffset = payload['_offset'];
+      final pageOffset = rawOffset is num ? rawOffset.toInt() : 0;
+      if (keepOffset != null && pageOffset == keepOffset) continue;
+      await store.deleteProjection(
+        SpaceSyncKeys.documentsProjectionKind,
+        resourceKey: page.resourceKey,
+      );
+    }
+  }
 
   Future<void> refreshRelationships(SpaceActorIdentity space) =>
       _refresh(relationshipsSource(space));
@@ -646,6 +1209,76 @@ final class WorkspaceContextRepository {
       _requiredBool(section, 'has_more');
     }
     return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseResources(
+    ApiResponse response, {
+    required String expectedSpaceId,
+    required String expectedKind,
+  }) {
+    final payload = response.jsonObject();
+    if (payload['space_id']?.toString() != expectedSpaceId) {
+      throw const FormatException(
+        'Space resources response does not match Space id.',
+      );
+    }
+    if (payload['visibility'] != 'visible' ||
+        payload['counts'] is! Map ||
+        payload['items'] is! List ||
+        payload['total_count'] is! num ||
+        payload['count'] is! num ||
+        payload['has_more'] is! bool ||
+        payload['next_offset'] is! num ||
+        payload['kind'] != expectedKind) {
+      throw const FormatException('Space resources response is incomplete.');
+    }
+    return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseDocumentDetail(
+    ApiResponse response, {
+    required String expectedDocumentId,
+  }) {
+    final payload = response.jsonObject();
+    final document = _requiredMap(payload, 'document');
+    if (_requiredString(document, 'id') != expectedDocumentId) {
+      throw const FormatException(
+        'Space document detail does not match document id.',
+      );
+    }
+    if (document['versions'] is! List ||
+        payload['can_manage'] is! bool ||
+        payload['shares'] is! List) {
+      throw const FormatException(
+        'Space document detail response is incomplete.',
+      );
+    }
+    return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseDocuments(
+    ApiResponse response, {
+    required String expectedSpaceId,
+    required String query,
+    required int offset,
+  }) {
+    final payload = response.jsonObject();
+    if (payload['space_id']?.toString() != expectedSpaceId) {
+      throw const FormatException(
+        'Space documents response does not match Space id.',
+      );
+    }
+    if (payload['items'] is! List ||
+        payload['has_more'] is! bool ||
+        payload['can_manage'] is! bool ||
+        payload['count'] is! num ||
+        payload['next_offset'] is! num) {
+      throw const FormatException('Space documents response is incomplete.');
+    }
+    return AcquiredProjection(
+      schemaVersion: 1,
+      payload: {...payload, '_query': query, '_offset': offset},
+    );
   }
 
   static AcquiredProjection _parseUs(

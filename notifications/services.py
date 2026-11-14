@@ -29,7 +29,7 @@ def _preferences_for(user):
 
 def _category_allowed(preferences, category: str, *, channel: str) -> bool:
     if not preferences:
-        return True
+        return category != NotificationCategory.MARKETING
     if channel == DeliveryChannel.EMAIL and not preferences.email_notifications:
         return False
     if channel == DeliveryChannel.PUSH and not preferences.push_notifications:
@@ -45,6 +45,33 @@ def _category_allowed(preferences, category: str, *, channel: str) -> bool:
     if category == NotificationCategory.OPPORTUNITY:
         return preferences.opportunity_notifications
     return True
+
+
+_EXTERNAL_TEMPLATE_KEYS = frozenset({
+    "conversation.entry.message", "conversation.entry.mention", "conversation.entry.reply",
+    "journey.payment.required", "journey.request.rejected",
+    "access.issued", "access.revoked",
+    "occurrence.cancelled", "occurrence.rescheduled",
+    "conversation.point.action_required", "conversation.point.escalation",
+    "form.requested", "form.reopened",
+})
+
+
+def _external_attention_warranted(*, kind: str, category: str, template_key: str) -> bool:
+    # Only significant consequences or opted-in communication warrant an
+    # external interruption. Other signals remain in Notifications.
+    if category in {
+        NotificationCategory.SECURITY, NotificationCategory.PAYMENT,
+        NotificationCategory.TICKET, NotificationCategory.MARKETING,
+    }:
+        return True
+    if kind in {
+        NotificationKind.EVENT_REMINDER, NotificationKind.TICKETS_ISSUED,
+        NotificationKind.PAYMENT_FAILED, NotificationKind.PAYMENT_SUCCEEDED,
+        NotificationKind.PAYMENT_REFUNDED,
+    }:
+        return True
+    return template_key in _EXTERNAL_TEMPLATE_KEYS
 
 
 def _quiet_hours_release(preferences, now=None):
@@ -135,10 +162,13 @@ def create_notification(
     else:
         notification = Notification.objects.create(**defaults)
 
+    external = _external_attention_warranted(
+        kind=kind, category=category, template_key=template_key,
+    )
     if queue_email:
         email = (getattr(recipient, "email", "") or "").strip().lower()
         preferences = _preferences_for(recipient)
-        allowed = bool(email) and _category_allowed(
+        allowed = external and bool(email) and _category_allowed(
             preferences,
             category,
             channel=DeliveryChannel.EMAIL,
@@ -148,6 +178,8 @@ def create_notification(
         reason = ""
         if not email:
             reason = "Le destinataire ne possède pas d’adresse e-mail."
+        elif not external:
+            reason = "Information disponible dans Notifications sans interruption."
         elif not allowed:
             reason = "Les préférences utilisateur désactivent cet envoi e-mail."
 
@@ -162,7 +194,7 @@ def create_notification(
 
     if queue_push:
         preferences = _preferences_for(recipient)
-        allowed = _category_allowed(
+        allowed = external and _category_allowed(
             preferences,
             category,
             channel=DeliveryChannel.PUSH,
@@ -176,9 +208,11 @@ def create_notification(
                 status=DeliveryStatus.QUEUED if allowed else DeliveryStatus.SKIPPED,
                 scheduled_for=scheduled_for,
                 skipped_reason=(
-                    ""
-                    if allowed
-                    else "Les préférences utilisateur désactivent cet envoi push."
+                    "" if allowed
+                    else (
+                        "Les préférences utilisateur désactivent cet envoi push."
+                        if external else "Information disponible dans Notifications sans interruption."
+                    )
                 ),
             )
 
@@ -203,12 +237,92 @@ def _claim_delivery(delivery_id):
         return delivery
 
 
+def _conversation_delivery_allowed(notification):
+    """Live permission and mute recheck for queued external Conversation delivery.
+
+    A previously queued push can outlive membership, an audience, a response
+    or a mute setting. The historical in-app notification is not deleted.
+    """
+    metadata = notification.metadata or {}
+    conversation_id = metadata.get("conversation_id")
+    if not conversation_id:
+        return True
+    from uuid import UUID
+    try:
+        conversation_id = UUID(str(conversation_id))
+        point_id = UUID(str(metadata["point_id"])) if metadata.get("point_id") else None
+    except (ValueError, TypeError, AttributeError):
+        return False
+    from django.db.models import Q
+    from conversations.core_models import Conversation, ConversationUserState
+    from conversations.point_models import ConversationPoint
+    from conversations.services import can_view_conversation
+    from conversations.point_services import point_visible_to, point_resolution_visible_to
+    from conversations.attention import ACTION_REASONS, point_attention_reason
+
+    conversation = Conversation.objects.select_related("context").filter(
+        pk=conversation_id,
+    ).first()
+    recipient = notification.recipient
+    if conversation is None or not can_view_conversation(recipient, conversation):
+        return False
+    if ConversationUserState.objects.filter(
+        conversation=conversation,
+        profile=recipient,
+        muted_at__isnull=False,
+    ).filter(Q(muted_until__isnull=True) | Q(muted_until__gt=timezone.now())).exists():
+        return False
+    if not point_id:
+        return True
+    point = ConversationPoint.objects.select_related(
+        "conversation", "conversation__context",
+        "visibility_audience", "response_audience",
+        "expected_action_audience", "resolution_audience",
+    ).filter(pk=point_id, conversation=conversation).first()
+    if point is None or not point_visible_to(recipient, point):
+        return False
+    if metadata.get("entry_id"):
+        from conversations.entry_services import entries_for
+        try:
+            entry_id = UUID(str(metadata["entry_id"]))
+        except (ValueError, TypeError, AttributeError):
+            return False
+        return entries_for(recipient, point).filter(pk=entry_id, moderation_state="visible").exclude(author=recipient).exists()
+    if notification.template_key == "conversation.point.resolved":
+        return point.lifecycle == "resolved" and point_resolution_visible_to(recipient, point)
+    if notification.template_key == "conversation.point.action_required":
+        return point_attention_reason(recipient, point) in ACTION_REASONS
+    if notification.template_key == "conversation.point.escalation":
+        return point_attention_reason(recipient, point) == "resolve"
+    return True
+
+
 def dispatch_delivery(delivery_id) -> str:
     delivery = _claim_delivery(delivery_id)
     if not delivery:
         return "ignored"
 
     notification = delivery.notification
+    # Recheck at dispatch: a preference disabled after queueing still wins.
+    if (
+        not _conversation_delivery_allowed(notification)
+        or not _external_attention_warranted(
+            kind=notification.kind,
+            category=notification.category,
+            template_key=notification.template_key,
+        )
+        or not _category_allowed(
+            _preferences_for(notification.recipient),
+            notification.category,
+            channel=delivery.channel,
+        )
+    ):
+        NotificationDelivery.objects.filter(pk=delivery.pk).update(
+            status=DeliveryStatus.SKIPPED,
+            skipped_reason="Livraison externe désactivée pour cette information.",
+            updated_at=timezone.now(),
+        )
+        return "skipped"
 
     if delivery.channel == DeliveryChannel.PUSH:
         from .models import PushEndpoint

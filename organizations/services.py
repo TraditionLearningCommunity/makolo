@@ -12,7 +12,7 @@ from authorization.constants import (
 from authorization.services import (
     can,
     grant_space_role,
-    replace_standard_space_role,
+    grant_standard_space_role,
     revoke_all_space_mandates,
 )
 
@@ -26,6 +26,7 @@ from .models import (
     SpaceLifecycle,
 )
 from .permissions import user_can_manage_organization_team
+from .team_entitlement import require_team_member_capacity
 
 
 User = get_user_model()
@@ -165,7 +166,13 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
     membership = OrganizationMembership.objects.select_related(
         "organization", "user", "invited_by"
     ).get(pk=membership.pk)
-    team = ensure_default_team(membership.organization)
+    # All team admissions serialize against the same Space row, not each Team.
+    organization = Organization.objects.select_for_update().order_by().get(
+        pk=membership.organization_id
+    )
+    if membership.is_active:
+        require_team_member_capacity(organization, membership.user)
+    team = ensure_default_team(organization)
     team_membership, _ = TeamMembership.objects.update_or_create(
         team=team,
         user=membership.user,
@@ -188,7 +195,7 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
         return team_membership
 
     role_code = _canonical_role_code(membership.role)
-    replace_standard_space_role(
+    grant_standard_space_role(
         profile=membership.user,
         space=membership.organization,
         role_code=role_code,
@@ -268,6 +275,10 @@ def ensure_personal_organization(user) -> Organization:
 
 @transaction.atomic
 def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembership:
+    # Serialize admissions to distinct teams through the owning Space.
+    organization = Organization.objects.select_for_update().order_by().get(
+        pk=organization.pk
+    )
     if not user_can_manage_organization_team(actor, organization):
         raise PermissionDenied("Vous ne pouvez pas gérer l'équipe de cet Espace.")
 
@@ -276,6 +287,23 @@ def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembers
         actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, organization
     ):
         raise PermissionDenied("Seul un propriétaire peut accorder la propriété de cet Espace.")
+
+    require_team_member_capacity(organization, user)
+    # Serialize admissions for this Space, not merely updates to one Team row.
+    organization = Organization.objects.select_for_update().get(pk=organization.pk)
+    already_active = TeamMembership.objects.filter(
+        team__organization=organization,
+        team__is_active=True,
+        status=TeamMembershipStatus.ACTIVE,
+        user=user,
+    ).exists()
+    if not already_active:
+        from subscriptions.entitlements import resolve_entitlement
+
+        entitlement = resolve_entitlement(organization, "team.members")
+        # An unconfigured quota is not a zero-member quota.
+        if entitlement.effective_value is not None and not entitlement.allowed:
+            raise ValidationError({"subscription": "La limite de collaborateurs actifs de cet Espace est atteinte."})
 
     team = ensure_default_team(organization)
     membership, _ = TeamMembership.objects.update_or_create(
@@ -290,7 +318,7 @@ def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembers
     membership.full_clean()
     membership.save()
 
-    replace_standard_space_role(
+    grant_standard_space_role(
         profile=user,
         space=organization,
         role_code=canonical_role,
@@ -394,8 +422,11 @@ def archive_team(*, team, actor) -> Team:
 @transaction.atomic
 def add_existing_collaborator_to_team(*, team, actor, user) -> TeamMembership:
     """Add an existing Space collaborator to a secondary Team without touching Mandates."""
-    team = _locked_team(team=team)
-    _require_team_management(actor=actor, organization=team.organization)
+    organization = Organization.objects.select_for_update().order_by().get(
+        pk=team.organization_id
+    )
+    team = _locked_team(team=team, organization=organization)
+    _require_team_management(actor=actor, organization=organization)
     if not team.is_active:
         raise ValidationError("Cette équipe est archivée.")
     if team.is_default:
@@ -413,6 +444,8 @@ def add_existing_collaborator_to_team(*, team, actor, user) -> TeamMembership:
         raise ValidationError(
             "Cette personne doit d'abord être ajoutée comme collaborateur de l'Espace."
         )
+    # Already counted collaborators do not consume a second slot.
+    require_team_member_capacity(organization, user)
     membership, created = TeamMembership.objects.select_for_update().get_or_create(
         team=team,
         user=user,

@@ -107,9 +107,7 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
       ),
       body: !_actorValid
           ? const Center(
-              child: Text(
-                'Revenez à votre contexte personnel pour cette commande.',
-              ),
+              child: Text('Revenez à votre profil pour consulter cet élément.'),
             )
           : FutureBuilder<Map<String, dynamic>>(
               future: _detail,

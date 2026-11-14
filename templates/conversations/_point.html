@@ -1,0 +1,190 @@
+{% load conversation_tags %}
+{% conversation_point_interactions point request.user as actions %}
+<article id="point-{{ point.pk }}" class="scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-5 py-4 sm:px-6" tabindex="-1">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p class="text-xs font-semibold tracking-wide" style="color:var(--mk-muted)">{% if point.kind == 'exchange' %}Discussion{% else %}{{ point.get_kind_display }}{% endif %} · {{ point.get_lifecycle_display }}</p>
+      <h3 class="mt-1 text-base font-extrabold leading-snug">{% if point.title %}{{ point.title }}{% elif point.kind == 'exchange' %}Discussion{% else %}{{ point.get_kind_display }}{% endif %}</h3>
+    </div>
+    <div class="ml-auto flex items-center gap-1">
+      {% if point.deadline_at %}<span class="mr-2 text-xs" style="color:var(--mk-muted)">{{ point.deadline_at|date:'d/m à H:i' }}</span>{% endif %}
+      <form method="post" action="{% url 'conversations:point-personal-state' point.pk %}">
+        {% csrf_token %}
+        <button type="submit" name="action" value="revisit" class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg focus-visible:outline-2"
+          title="{% if actions.revisit %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}"
+          aria-label="{% if actions.revisit %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="{% if actions.revisit %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      </form>
+      {% if actions.can_close_responses or actions.can_resolve %}
+        <details class="relative">
+          <summary class="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg text-lg font-bold focus-visible:outline-2" title="Options du Point" aria-label="Options du Point">⋮</summary>
+          <div class="absolute right-0 top-full z-20 w-72 max-w-[85vw] space-y-3 rounded-xl border bg-[color:var(--mk-surface)] p-3 shadow-lg" style="border-color:var(--mk-border)">
+            {% if actions.can_close_responses %}
+              <form method="post" action="{% url 'conversations:point-close-responses' point.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="mk-btn mk-btn-secondary w-full">Clore les réponses</button>
+              </form>
+            {% endif %}
+            {% if actions.can_resolve %}
+              <form method="post" action="{% url 'conversations:point-resolve' point.pk %}" class="space-y-2">
+                {% csrf_token %}
+                <label class="block text-sm font-semibold" for="resolution-{{ point.pk }}">Conclusion retenue</label>
+                <textarea class="mk-input w-full" id="resolution-{{ point.pk }}" name="summary" maxlength="500" required rows="2"></textarea>
+                {% if point.kind == 'poll' %}
+                  <fieldset class="space-y-2"><legend class="text-sm font-semibold">Choix retenus</legend>
+                    {% for choice in semantic_media.choices %}
+                      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="selected_option_ids" value="{{ choice.id }}"> {{ choice.label }}</label>
+                    {% endfor %}
+                  </fieldset>
+                {% endif %}
+                <button class="mk-btn mk-btn-primary w-full" type="submit">Consigner le résultat</button>
+              </form>
+            {% endif %}
+          </div>
+        </details>
+      {% endif %}
+    </div>
+  </div>
+  {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm leading-6">{{ point.body }}</p>{% endif %}
+  {% conversation_point_media_sections point request.user as semantic_media %}
+  {% include 'conversations/_attachment_gallery.html' with files=semantic_media.root %}
+
+  {% if point.kind == 'poll' %}
+    {% if actions.can_respond %}
+      <form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">
+        {% csrf_token %}
+        {% conversation_response_reference as response_reference %}
+        <input type="hidden" name="client_reference" value="{{ response_reference }}">
+        <fieldset class="space-y-2">
+          <legend class="sr-only">Choix du sondage</legend>
+          {% for choice in semantic_media.choices %}
+            <div class="rounded-xl border p-2" style="border-color:var(--mk-border)">
+              <label class="flex min-h-11 w-full cursor-pointer items-center gap-3 px-1 text-sm font-semibold">
+                {% if point.response_mode == 'multiple_choice' %}
+                  <input type="checkbox" name="choices" value="{{ choice.id }}" {% if choice.selected %}checked{% endif %}>
+                {% else %}
+                  <input type="radio" name="choice" value="{{ choice.id }}" {% if choice.selected %}checked{% endif %} required>
+                {% endif %}
+                <span>{{ choice.label }}</span>
+              </label>
+              {% include 'conversations/_attachment_gallery.html' with files=choice.files %}
+              {% if choice.count != None and choice.count > 0 %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ choice.count }} sélection{{ choice.count|pluralize }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </fieldset>
+        <button class="mk-btn mk-btn-primary" type="submit">{% if actions.my_response %}Modifier mon vote{% else %}Enregistrer mon vote{% endif %}</button>
+      </form>
+    {% else %}
+      <div class="mt-3 space-y-3" role="list" aria-label="Choix du sondage">
+        {% for choice in semantic_media.choices %}
+          <div class="rounded-xl border p-3" style="border-color:var(--mk-border)" role="listitem">
+            <p class="text-sm font-semibold">{{ choice.label }}{% if choice.selected %} · Votre choix{% endif %}</p>
+            {% include 'conversations/_attachment_gallery.html' with files=choice.files %}
+            {% if choice.count != None and choice.count > 0 %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ choice.count }} sélection{{ choice.count|pluralize }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% if actions.poll_results %}
+      <p class="mt-2 text-xs" style="color:var(--mk-muted)">{{ actions.poll_results.response_count }} participation{{ actions.poll_results.response_count|pluralize }}</p>
+    {% endif %}
+  {% endif %}
+
+  {% conversation_point_exchange_preview point request.user as exchange_preview %}
+  {% if exchange_preview %}
+    <div class="mt-3 space-y-2 border-l-2 pl-4 text-sm" style="border-color:var(--mk-border)">
+      {% for entry in exchange_preview %}
+        <p class="whitespace-pre-wrap">{{ entry.body }}</p>
+        {% conversation_exchange_attachments entry request.user as exchange_files %}
+        {% include 'conversations/_attachment_gallery.html' with files=exchange_files %}
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% for response in semantic_media.responses %}
+    <div class="mt-3">
+      <p class="text-xs font-semibold" style="color:var(--mk-muted)">Réponse accessible</p>
+      {% if response.label %}<p class="mt-1 whitespace-pre-wrap text-sm">{{ response.label }}</p>{% endif %}
+      {% include 'conversations/_attachment_gallery.html' with files=response.files %}
+    </div>
+  {% endfor %}
+  {% if point.kind == 'exchange' %}
+    <a class="mt-3 inline-block text-sm font-semibold" href="{% url 'conversations:exchange-detail' point.pk %}" style="color:var(--mk-brand)">Ouvrir la discussion</a>
+  {% endif %}
+
+  {% if actions.my_response %}
+    <p class="mt-3 text-sm" style="color:var(--mk-muted)">✓ Votre réponse a été enregistrée{% if actions.my_answer_label %} : {{ actions.my_answer_label }}{% endif %}.</p>
+  {% endif %}
+  {% if actions.acknowledged %}
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">✓ Prise de connaissance enregistrée.</p>
+  {% endif %}
+  {% if actions.response_hint and not actions.can_respond and not actions.my_response %}
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ actions.response_hint }}</p>
+  {% endif %}
+  {% if actions.can_acknowledge %}
+    <form method="post" action="{% url 'conversations:point-acknowledge' point.pk %}" class="mt-4">
+      {% csrf_token %}
+      <button class="mk-btn mk-btn-primary" type="submit">J’ai pris connaissance</button>
+    </form>
+  {% endif %}
+  {% if point.kind == 'form_request' %}
+    {% conversation_point_form_request point request.user as form_request %}
+    {% if form_request %}
+      <a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">
+        {% if form_request.status == 'completed' %}Voir le formulaire{% else %}Remplir le formulaire{% endif %}
+      </a>
+    {% endif %}
+  {% endif %}
+  {% if actions.can_respond and point.kind != 'poll' and point.kind != 'exchange' %}
+    {% if point.response_mode == 'file' or point.response_mode == 'voice' %}
+      {% include 'conversations/_media_response.html' %}
+    {% else %}
+      <form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">
+        {% csrf_token %}
+        {% conversation_response_reference as response_reference %}
+        <input type="hidden" name="client_reference" value="{{ response_reference }}">
+        {% if point.response_mode == 'boolean' %}
+          <fieldset class="flex flex-wrap gap-3">
+            <legend class="mb-2 text-sm font-bold">{% if point.kind == 'request' %}Pouvez-vous prendre en charge cette demande ?{% else %}Votre confirmation{% endif %}</legend>
+            <label class="flex items-center gap-2"><input type="radio" name="value" value="true" required {% if actions.my_response.value == True %}checked{% endif %}> {% if point.kind == 'request' %}Je m’en charge{% else %}Oui, je confirme{% endif %}</label>
+            <label class="flex items-center gap-2"><input type="radio" name="value" value="false" required {% if actions.my_response.value == False %}checked{% endif %}> {% if point.kind == 'request' %}Je ne peux pas{% else %}Non, je ne confirme pas{% endif %}</label>
+          </fieldset>
+        {% elif point.response_mode == 'number' %}
+          <label class="text-sm font-bold" for="point-value-{{ point.pk }}">Votre valeur</label>
+          <input class="mk-input w-full" id="point-value-{{ point.pk }}" type="number" step="any" inputmode="decimal" name="value" value="{{ actions.my_response.value|default_if_none:'' }}" required>
+        {% elif point.response_mode == 'date' %}
+          <label class="text-sm font-bold" for="point-value-{{ point.pk }}">Votre date</label>
+          <input class="mk-input w-full" id="point-value-{{ point.pk }}" type="date" name="value" value="{{ actions.my_response.value|default_if_none:'' }}" required>
+        {% elif point.response_mode == 'datetime' %}
+          <label class="text-sm font-bold" for="point-value-{{ point.pk }}">Votre date et heure</label>
+          <input class="mk-input w-full" id="point-value-{{ point.pk }}" type="datetime-local" name="value" required>
+        {% elif point.response_mode == 'free_text' %}
+          <label class="text-sm font-bold" for="point-value-{{ point.pk }}">Votre réponse</label>
+          <textarea class="mk-input w-full" id="point-value-{{ point.pk }}" rows="3" name="value" required>{{ actions.my_response.value|default_if_none:'' }}</textarea>
+        {% endif %}
+        <button class="mk-btn mk-btn-primary" type="submit">{% if actions.my_response %}Modifier ma réponse{% elif point.kind == 'request' %}Transmettre ma décision{% else %}Enregistrer ma réponse{% endif %}</button>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  {% if point.lifecycle == 'superseded' %}
+    {% conversation_visible_successor point request.user as current_point %}
+    {% if current_point %}
+      <a class="mt-3 inline-flex min-h-11 items-center text-sm font-semibold focus-visible:outline-2"
+        href="{% url 'conversations:detail' point.conversation_id %}?focus={{ current_point.pk }}#point-{{ current_point.pk }}" style="color:var(--mk-brand)">Voir le Point actuel</a>
+    {% endif %}
+  {% endif %}
+  {% conversation_visible_resolution point request.user as resolution_summary %}
+  {% if resolution_summary %}
+    <div class="mt-3 border-l-2 pl-3 text-sm font-semibold" style="border-color:var(--mk-brand)">✓ Résultat : {{ resolution_summary }}</div>
+  {% endif %}
+
+  <footer class="mt-3 flex justify-end gap-2 text-xs" style="color:var(--mk-muted)">
+    {% if point.published_by_id == request.user.pk and point.published_at %}
+      <span title="Publication confirmée par Makolo" aria-label="Publication confirmée">✓</span>
+    {% endif %}
+    {% if point.published_at %}
+      <time datetime="{{ point.published_at|date:'c' }}" title="{{ point.published_at|date:'d/m/Y à H:i' }}">{{ point.published_at|date:'H:i' }}</time>
+    {% endif %}
+  </footer>
+</article>

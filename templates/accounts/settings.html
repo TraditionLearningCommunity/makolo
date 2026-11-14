@@ -5,7 +5,6 @@
   <section>
     <span class="mk-kicker">Paramètres</span>
     <h1 class="mk-page-title">Paramètres</h1>
-    <p class="mk-page-copy mt-4 text-[15px]">Configurez le comportement de Makolo sans mélanger ces préférences avec votre Profil ou un Space.</p>
   </section>
   {% if profile_error %}<div role="alert" class="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_error }}</div>{% endif %}
   <form id="appearance" method="post" class="mk-panel p-5 sm:p-6">
@@ -22,13 +21,13 @@
     </div>
     {% endwith %}
     {% for error in appearance_form.appearance.errors %}<p role="alert" class="mt-2 text-sm font-semibold text-red-600">{{ error }}</p>{% endfor %}
-    <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Appliquer l’apparence</button></div>
+    <div class="mt-5 flex justify-end"><button type="submit" class="mk-action-button" data-variant="primary">Appliquer l’apparence</button></div>
   </form>
   <form id="regional" method="post" class="mk-panel p-5 sm:p-6">
     {% csrf_token %}<input type="hidden" name="section" value="preferences">
     <h2 class="text-lg font-extrabold">Langue et fuseau horaire</h2>
     <div class="mt-4 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.preferences %}</div>
-    <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer</button></div>
+    <div class="mt-5 flex justify-end"><button type="submit" class="mk-action-button" data-variant="primary">Enregistrer</button></div>
   </form>
   <form id="notifications" method="post" class="mk-panel p-5 sm:p-6">
     {% csrf_token %}<input type="hidden" name="section" value="notifications">
@@ -45,7 +44,7 @@
       </div>
       {% endfor %}
     </div>
-    <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer les notifications</button></div>
+    <div class="mt-5 flex justify-end"><button type="submit" class="mk-action-button" data-variant="primary">Enregistrer les notifications</button></div>
   </form>
 </div>
 {% endblock %}

@@ -350,3 +350,16 @@ class PaymentWebTests(TestCase):
             response,
             f"Payer {localize(self.order.total_amount)} {self.order.currency}",
         )
+
+    def test_initiated_payment_is_not_announced_as_confirmed(self):
+        self.client.force_login(self.buyer)
+        response = self.client.post(
+            reverse("payments:start", args=[self.order.pk]),
+            {"provider": "sandbox", "method": "card", "idempotency_key": "copy-payment-web-1"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "Demande de paiement créée. La confirmation est en attente."
+        )
+        self.assertNotContains(response, "Paiement confirmé.")

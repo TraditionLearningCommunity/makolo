@@ -142,7 +142,10 @@ class F2SubscriptionBillingTests(TestCase):
         obligation.refresh_from_db()
         transition.refresh_from_db()
         self.assertEqual(obligation.status, PaymentObligationStatus.SATISFIED)
-        self.assertEqual(transition.status, SubscriptionTransitionStatus.READY)
+        self.assertEqual(transition.status, SubscriptionTransitionStatus.COMPLETED)
+        self.assertTrue(transition.subscription.items.filter(
+            created_via_transition=transition, status="active",
+        ).exists())
 
     def test_published_billing_terms_are_historical_and_immutable(self):
         _, terms = self.plan_with_terms(

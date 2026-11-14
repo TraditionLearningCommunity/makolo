@@ -37,6 +37,99 @@ void main() {
     await database.close();
   });
 
+  test('the same Discovery search survives route -> map -> search', () {
+    const original = DiscoveryQuery(
+      text: 'concert',
+      place: 'Lubumbashi',
+      when: 'week',
+      period: 'upcoming',
+      vertical: 'activity',
+      price: 'paid',
+      dateFrom: '2026-11-01',
+      dateTo: '2026-11-30',
+      latitude: -11.66,
+      longitude: 27.48,
+      radiusKm: 25,
+      page: 3,
+      pageSize: 12,
+      continuation: 'signed+opaque/==',
+    );
+    final location = original.routeLocation(
+      '/discover/map',
+      selectedCandidateKey: 'activity:concert-1',
+    );
+    final uri = Uri.parse(location);
+    expect(uri.path, '/discover/map');
+    expect(uri.queryParameters['selected'], 'activity:concert-1');
+    final restored = DiscoveryQuery.fromRouteParameters(uri.queryParameters);
+    expect(restored.parameters['q'], original.parameters['q']);
+    expect(restored.parameters['place'], original.parameters['place']);
+    expect(restored.parameters['when'], original.parameters['when']);
+    expect(restored.parameters['period'], original.parameters['period']);
+    expect(restored.parameters['vertical'], original.parameters['vertical']);
+    expect(restored.parameters['price'], original.parameters['price']);
+    expect(restored.parameters['lat'], original.parameters['lat']);
+    expect(restored.parameters['lon'], original.parameters['lon']);
+    expect(restored.parameters['radius_km'], original.parameters['radius_km']);
+    expect(restored.parameters['date_from'], original.parameters['date_from']);
+    expect(restored.parameters['date_to'], original.parameters['date_to']);
+    expect(restored.page, 3);
+    expect(restored.pageSize, 12);
+    expect(restored.continuation, 'signed+opaque/==');
+    expect(restored.mapFingerprint, original.mapFingerprint);
+    final returnToSearch = restored.routeLocation(
+      '/discover/search',
+      selectedCandidateKey: uri.queryParameters['selected'],
+    );
+    expect(
+      Uri.parse(returnToSearch).queryParameters['selected'],
+      'activity:concert-1',
+    );
+    expect(
+      DiscoveryQuery.fromRouteParameters(
+        Uri.parse(returnToSearch).queryParameters,
+      ).fingerprint,
+      original.fingerprint,
+    );
+  });
+
+  test('invalid geographic route filters are rejected, never relaxed', () {
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'q': 'formation',
+        'lat': '999',
+        'lon': '27.5',
+        'radius_km': '25',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'q': 'formation',
+        'lat': '-11.66',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'lat': '-11.66',
+        'lon': '27.48',
+        'radius_km': 'invalid',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({'q': 'formation', 'page': '5'}),
+      throwsFormatException,
+    );
+    final valid = DiscoveryQuery.fromRouteParameters({
+      'q': 'formation',
+      'page_size': '10000',
+    });
+    expect(valid.text, 'formation');
+    expect(valid.pageSize, 24);
+  });
+
   test(
     'Discovery source fingerprints query and keeps server pages separate',
     () {
@@ -83,6 +176,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-b',
                 'resource': {'kind': 'activity', 'id': 'activity-b'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-b'},
               },
@@ -99,6 +193,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-a',
                 'resource': {'kind': 'activity', 'id': 'activity-a'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-a'},
               },
@@ -127,6 +222,48 @@ void main() {
     },
   );
 
+  test('Watch replay consumes its own projection without losing Discovery identity', () {
+    final projection = StoredProjection(
+      kind: DiscoveryRepository.watchResultsProjectionKind,
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 5),
+      payload: const {
+        'watch': {'id': 'watch-1', 'name': 'Logistique'},
+        'supported_families': ['activity', 'service_activity'],
+        'count': 1,
+        'page': 1,
+        'page_size': 24,
+        'has_next': false,
+        'results': [
+          {
+            'identity': {
+              'family': 'activity',
+              'candidate_key': 'occurrence:occurrence-watch',
+              'resource': {'kind': 'activity', 'id': 'activity-watch'},
+              'occurrence': {'kind': 'occurrence', 'id': 'occurrence-watch'},
+            },
+            'representation': {'title': 'Atelier logistique', 'summary': ''},
+            'watch': {'state': 'covered', 'watch_id': 'watch-1'},
+            'saved': {'state': 'not_saved'},
+            'capabilities': ['view'],
+            'links': {
+              'detail': '/api/v1/discovery/items/activity/activity-watch/',
+            },
+          },
+        ],
+      },
+    );
+    final selected = const DiscoverySelector().watchCollection(projection);
+    expect(selected.items.single.id, 'activity-watch');
+    expect(selected.items.single.family, 'activity');
+    expect(selected.items.single.watch?['watch_id'], 'watch-1');
+    expect(selected.hasNext, isFalse);
+    expect(
+      () => const DiscoverySelector().collection(projection),
+      throwsFormatException,
+    );
+  });
+
   test(
     'known Discovery items seed Activity and Occurrence read previews',
     () async {
@@ -136,6 +273,7 @@ void main() {
         resourceKey: query.fingerprint,
         schemaVersion: 1,
         payload: const {
+          'viewer': {'type': 'profile', 'id': 'profile-a'},
           'count': 1,
           'page': 1,
           'page_size': 24,
@@ -144,6 +282,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-known',
                 'resource': {'kind': 'activity', 'id': 'activity-known'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-known'},
               },

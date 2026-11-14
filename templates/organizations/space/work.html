@@ -2,55 +2,137 @@
 {% block workspace_layout %}focus{% endblock %}
 {% block space_content %}
 <section class="space-y-6" aria-labelledby="space-work-heading" data-ws3-work>
+  {% if work_is_collection %}
+  <nav aria-label="Retour à Métier" class="text-sm">
+    <a class="font-semibold underline underline-offset-4" href="{{ work_root_url }}">Retour à Métier</a>
+  </nav>
+  {% endif %}
   <header class="space-y-3">
     <span class="mk-kicker">Métier</span>
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div class="min-w-0">
-        <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{{ projection.primary_business_label }}</h2>
-        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?</p>
+        <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{% if work_is_collection %}{{ work_collection_title }}{% else %}{{ projection.primary_business_label }}{% endif %}</h2>
+        {% if work_is_collection %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Page {{ work_collection_page }} · Éléments liés aux activités auxquelles vous avez accès.</p>{% endif %}
+        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ projection.presentation.question|default:"Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?" }}</p>
       </div>
-      {% if projection.authority.limited_to_activities %}
-      <span class="mk-badge">Vue limitée à vos activités autorisées</span>
-      {% endif %}
+      <div class="flex flex-wrap items-center gap-2">
+        {% if projection.authority.limited_to_activities %}
+        <span class="mk-badge">Vue limitée à vos activités autorisées</span>
+        {% endif %}
+        {% if work_create_url %}
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_create_url }}">{{ work_create_label }}</a>
+        {% endif %}
+        {% if work_g2_create_url %}
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_g2_create_url }}">{{ work_g2_create_label }}</a>
+        {% endif %}
+        {% if work_g3_transport_url %}
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_g3_transport_url }}">Planifier un départ, une route ou un véhicule</a>
+        {% endif %}
+        {% if work_search_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_search_url }}">Rechercher</a>{% endif %}
+        {% if work_history_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_history_url }}">Historique</a>{% endif %}
+      </div>
     </div>
   </header>
 
-  {% if work_sections %}
+  {% if not work_is_collection and projection.presentation.today_departures %}
+  <section class="mk-panel p-4 sm:p-5" aria-label="Départs aujourd'hui">
+    <h3 class="text-base font-extrabold">Aujourd’hui · Départs réels</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for departure in projection.presentation.today_departures %}
+      <a class="mk-action-button" data-variant="secondary" href="#work-{{ departure.section }}">
+        {{ departure.title }}
+        {% if departure.start_time %}· {{ departure.start_time|time:"H:i" }}{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if work_sections and not work_is_collection %}
   <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
     {% for section in work_sections %}
-    <a class="mk-btn mk-btn-secondary shrink-0" href="#work-{{ section.key }}">{{ section.label }} · {{ section.items|length }}</a>
+    <a class="mk-action-button shrink-0" data-variant="secondary" href="#work-{{ section.key }}">{{ section.label }} · {{ section.items|length }}</a>
     {% endfor %}
   </nav>
   {% endif %}
 
   {% if not work_has_items %}
   <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
-    <h3 id="work-empty-title" class="text-xl font-extrabold">{{ projection.presentation.empty_message }}</h3>
-    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue reste vide tant que les propriétaires métier ne projettent aucun travail accessible. Makolo n’invente pas d’activité pour remplir l’écran.</p>
+    <h3 id="work-empty-title" class="text-xl font-extrabold">{% if work_is_collection %}{{ work_collection_empty }}{% elif projection.coverage_state == "partial" %}Aucun élément à afficher dans cette sélection.{% else %}{{ projection.presentation.empty_message }}{% endif %}</h3>
+    {% if projection.coverage_state == "partial" %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">Cette sélection ne décrit pas l’ensemble du travail de l’Espace.</p>{% endif %}
   </section>
+  {% endif %}
+
+  {% if projection.presentation.calm_message and work_has_items %}
+  <p role="status" class="text-sm" style="color:var(--mk-muted)">{{ projection.presentation.calm_message }}</p>
   {% endif %}
 
   <div class="grid gap-5">
     {% for section in work_sections %}
+    {% if section.chapter_title %}
+    <h3 class="text-lg font-extrabold tracking-tight" data-work-chapter="{{ section.key }}">{{ section.chapter_title }}</h3>
+    {% endif %}
     <section id="work-{{ section.key }}" class="mk-panel p-5 sm:p-6" aria-labelledby="work-{{ section.key }}-title">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <span class="mk-kicker">{% if section.role == "structure" %}Structure{% else %}{{ projection.primary_business_label }}{% endif %}</span>
           <h3 id="work-{{ section.key }}-title" class="mt-1 text-xl font-extrabold">{{ section.label }}</h3>
         </div>
-        {% if section.has_more %}<span class="mk-badge">Aperçu borné</span>{% endif %}
+        {% if section.has_more %}<span class="mk-badge">Une partie des éléments</span>{% endif %}
       </div>
 
+      {% if not section.items and section.has_more %}
+      <p class="mt-3 text-sm" style="color:var(--mk-muted)">D’autres éléments sont accessibles dans cette collection.</p>
+      {% endif %}
       {% if section.items %}
       <ul class="mt-4 divide-y" style="border-color:var(--mk-border)">
         {% for item in section.items %}
         <li class="py-4" data-work-item="{{ item.key }}">
           <article class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            {% if item.media_bindings %}
+            {% with media=item.media_bindings.0 %}
+            <figure class="shrink-0 overflow-hidden rounded-xl" style="width:112px;height:112px;background:var(--mk-surface,transparent)" data-work-recognition="{{ item.key }}">
+              <img src="{{ media.url }}" alt="{{ media.label }}" width="112" height="112" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">
+            </figure>
+            {% endwith %}
+            {% endif %}
             <div class="min-w-0">
               <h4 class="font-extrabold">{{ item.title }}</h4>
+              {% if item.context.work_label %}<p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.work_label }}</p>{% endif %}
+              {% if item.context.owner_state_label %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ item.context.owner_state_label }}</p>{% endif %}
+              {% if item.context.transport %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Route : {{ item.context.transport.route.name }}
+                {% if item.context.transport.vehicle %}· Véhicule : {{ item.context.transport.vehicle.label }}{% else %}· Véhicule non affecté{% endif %}
+              </p>
+              {% endif %}
+              {% if item.context.capacity %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {% if not item.context.capacity.pool_active %}Capacité désactivée
+                {% elif item.context.capacity.unlimited %}Capacité sans limite définie
+                {% else %}Disponibilité : {{ item.context.capacity.available }} sur {{ item.context.capacity.total }}
+                {% endif %}
+              </p>
+              {% endif %}
               {% if item.summary %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
               {% if item.context.activity.title and item.context.activity.title != item.title %}
               <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
+              {% endif %}
+              {% if item.context.next_occurrence %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {{ projection.presentation.next_occurrence_label }} :
+                {{ item.context.next_occurrence.label }}
+                {% if item.context.next_occurrence.start_date %}· {{ item.context.next_occurrence.start_date|date:"d/m/Y" }}{% endif %}
+                {% if item.context.next_occurrence.start_time %}· {{ item.context.next_occurrence.start_time|time:"H:i" }}{% endif %}
+              </p>
+              {% endif %}
+              {% if item.context.conditions %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Conditions évaluées : {{ item.context.conditions.satisfied }} / {{ item.context.conditions.total }} satisfaites
+                {% if item.context.conditions.awaiting %}· {{ item.context.conditions.awaiting }} à évaluer{% endif %}
+                {% if item.context.conditions.unsatisfied %}· {{ item.context.conditions.unsatisfied }} non satisfaites{% endif %}
+                {% if item.context.conditions.not_applicable %}· {{ item.context.conditions.not_applicable }} sans objet{% endif %}
+              </p>
               {% endif %}
               <div class="mt-2 flex flex-wrap gap-2">
                 {% if item.timing.start_date %}<span class="mk-badge">{{ item.timing.start_date|date:"d/m/Y" }}</span>{% endif %}
@@ -58,29 +140,52 @@
                 {% if item.timing.available_until %}<span class="mk-badge">Jusqu’au {{ item.timing.available_until|date:"d/m/Y" }}</span>{% endif %}
               </div>
             </div>
-            {% if item.owner_url %}
-            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">Ouvrir</a>
-            {% endif %}
+            <div class="flex shrink-0 flex-col gap-2">
+              {% if item.owner_url %}
+              <a class="mk-action-button" data-variant="secondary" href="{{ item.owner_url }}">{{ item.owner_label }}</a>
+              {% endif %}
+              {% for handoff in item.web_handoffs %}
+              {% if handoff.url != item.owner_url %}
+              <a class="mk-action-button" data-variant="secondary" href="{{ handoff.url }}">{{ handoff.label }}</a>
+              {% endif %}
+              {% endfor %}
+            </div>
           </article>
         </li>
         {% endfor %}
       </ul>
       {% endif %}
 
-      {% if section.has_more %}
-      <p class="mt-4 text-xs" style="color:var(--mk-subtle)">La projection serveur limite cet aperçu. Continuez dans les outils propriétaires pour la profondeur complète.</p>
+      {% if section.continuation_url and not work_is_collection %}
+      <a class="mk-action-button mt-4" data-variant="secondary" href="{{ section.continuation_url }}">Afficher la suite de {{ section.label|lower }}</a>
+      {% elif section.has_more and work_is_collection and not work_next_url %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">
+        La navigation paginée atteint sa limite. Utilisez
+        <a class="underline" href="{{ work_search_url }}">la recherche de l’Espace</a>
+        pour retrouver un élément précis.
+      </p>
       {% endif %}
     </section>
     {% endfor %}
   </div>
 
+  {% if work_is_collection %}
+  <nav aria-label="Pages de cette collection" class="flex flex-wrap items-center justify-between gap-3">
+    <span class="text-sm" style="color:var(--mk-muted)">Page {{ work_collection_page }}</span>
+    <div class="flex flex-wrap gap-2">
+      {% if work_previous_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_previous_url }}">Précédents</a>{% endif %}
+      {% if work_next_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_next_url }}">Voir les suivants</a>{% endif %}
+    </div>
+  </nav>
+  {% endif %}
+
   <footer class="mk-panel p-5 sm:p-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p class="font-bold">Besoin d’une opération plus profonde ?</p>
-        <p class="mt-1 text-sm" style="color:var(--mk-muted)">La Console reste une profondeur owner-backed ; Métier ne remplace ni Transport, ni Commerce, ni Services, ni les autres domaines propriétaires.</p>
+        <p class="font-bold">Autres actions</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">Retrouvez les opérations détaillées dans les outils de votre espace.</p>
       </div>
-      <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary shrink-0">Ouvrir les outils de l’Espace</a>
+      <a href="{{ space_console_url }}" class="mk-action-button shrink-0" data-variant="secondary">Ouvrir les outils de l’Espace</a>
     </div>
   </footer>
 </section>

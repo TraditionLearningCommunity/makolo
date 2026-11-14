@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from activities.models import Activity
-from organizations.models import Organization, SpaceLifecycle
+from organizations.models import Organization, SpaceArchetype, SpaceLifecycle
 
 
 class PublicSpaceApiTests(TestCase):
@@ -63,6 +63,51 @@ class PublicSpaceApiTests(TestCase):
             {"page": "0"},
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_public_category_and_city_filters_are_server_side(self):
+        self.visible.archetype = SpaceArchetype.COMMUNITY
+        self.visible.save(update_fields=["archetype"])
+        second = Organization.objects.create(
+            name="Creative Public Space",
+            archetype=SpaceArchetype.CREATIVE,
+            city="Kinshasa",
+            country="RDC",
+            created_by=self.owner,
+        )
+        endpoint = "/api/v1/organizations/public-spaces/"
+        response = self.client.get(endpoint, {
+            "category": SpaceArchetype.COMMUNITY,
+            "city": "lubumbashi",
+            "country": "rdc",
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["results"][0]["slug"], self.visible.slug)
+        self.assertIn(
+            {"value": SpaceArchetype.COMMUNITY, "label": SpaceArchetype.COMMUNITY.label},
+            data["categories"],
+        )
+        response = self.client.get(endpoint, {"category": SpaceArchetype.CREATIVE})
+        self.assertEqual(response.json()["data"]["results"][0]["slug"], second.slug)
+        for partial in ("L", "Lu", "Lub", "Lubu", "Lubumbashi"):
+            with self.subTest(partial=partial):
+                response = self.client.get(endpoint, {"city": partial})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["data"]["count"], 1)
+                self.assertEqual(
+                    response.json()["data"]["results"][0]["slug"],
+                    self.visible.slug,
+                )
+        response = self.client.get(endpoint, {"city": "shas"})
+        self.assertEqual(response.json()["data"]["count"], 1)
+        response = self.client.get(endpoint, {"city": "Kolwezi"})
+        self.assertEqual(response.json()["data"]["count"], 0)
+        response = self.client.get(endpoint, {"category": "not-a-category"})
+        self.assertEqual(response.status_code, 400)
+        response = self.client.get(endpoint, {"category": SpaceArchetype.COMMUNITY, "page": "2", "page_size": "1"})
+        self.assertEqual(response.json()["data"]["count"], 1)
+        self.assertEqual(response.json()["data"]["results"], [])
 
     def test_hidden_inactive_or_not_searchable_spaces_have_no_public_detail(self):
         for space in (self.private, self.hidden, self.inactive):

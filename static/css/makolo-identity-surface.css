@@ -1,0 +1,24 @@
+/* Identity surfaces: visual grammar only; actors and grants are owner-scoped. */
+.mk-identity-passport-gateway{display:flex;align-items:center;gap:12px;min-width:0;width:100%}
+.mk-identity-passport-symbol{display:grid;place-items:center;flex:none;width:42px;height:42px;color:#FAF7F5}
+.mk-identity-passport-symbol svg{height:30px;width:30px}
+.mk-identity-passport-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.mk-identity-passport-copy strong,.mk-identity-passport-copy h3{font-size:1rem;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.mk-identity-passport-copy>span:not(.mk-identity-passport-eyebrow){font-size:.78rem;line-height:1.45;color:rgb(250 247 245 / 90%)}
+.mk-identity-passport-eyebrow{font-size:.7rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:rgb(250 247 245 / 88%)}
+.mk-identity-passport-action{display:grid;place-items:center;flex:none;width:44px;height:44px;color:#FAF7F5!important;border-radius:12px}
+.mk-identity-passport-action svg{width:22px;height:22px}
+.mk-identity-passport-action:hover{background:rgb(255 255 255 / 12%)}
+.mk-identity-passport-action:focus-visible{outline:3px solid #FF704D;outline-offset:2px}
+.mk-identity-portrait h1,.mk-identity-portrait h3{overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){.mk-identity-passport-action{transition:none}}
+.mk-identity-primary-shortcut{display:flex;align-items:center;gap:14px;min-height:94px;padding:16px;border:1px solid var(--mk-border);border-radius:18px;background:var(--mk-surface-solid);color:var(--mk-text);text-decoration:none}
+.mk-identity-primary-shortcut:hover{border-color:#5232DB}
+.mk-identity-primary-shortcut:focus-visible{outline:3px solid #5232DB;outline-offset:2px}
+.mk-identity-primary-icon{display:grid;width:52px;height:52px;flex:none;place-items:center;border-radius:13px;background:var(--mk-brand-soft);color:var(--mk-brand)}
+.mk-identity-primary-icon svg{width:27px;height:27px}
+.mk-identity-primary-copy{display:grid;gap:5px;min-width:0;flex:1}
+.mk-identity-primary-copy strong{font-size:17px;font-weight:800;letter-spacing:-.02em}
+.mk-identity-primary-copy small{font-size:13px;color:var(--mk-muted);line-height:1.4}
+.mk-identity-primary-arrow{color:var(--mk-brand)}
+.mk-identity-primary-arrow svg{width:21px;height:21px}

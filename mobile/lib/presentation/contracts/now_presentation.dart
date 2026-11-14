@@ -135,6 +135,9 @@ class NowSituationPresentation {
     this.whyNow,
     this.whyNowReason,
     this.serverState,
+    this.subject,
+    this.delta,
+    this.exitCondition,
     this.consequence,
     this.consequenceState,
     this.turn,
@@ -161,6 +164,9 @@ class NowSituationPresentation {
   final String? whyNow;
   final String? whyNowReason;
   final String? serverState;
+  final String? subject;
+  final String? delta;
+  final String? exitCondition;
   final String? consequence;
   final String? consequenceState;
   final String? turn;
@@ -187,12 +193,8 @@ class NowSituationPresentation {
 enum NowTopology { meaning, media, action, waiting, composition }
 
 NowTopology topologyFor(NowSituationPresentation situation) {
-  if (situation.mediaBindings.any((media) => media.canDominate)) {
-    return NowTopology.media;
-  }
-  if (situation.businessActions.any((action) => action.canDominate)) {
-    return NowTopology.action;
-  }
+  // A genuinely composed relation must not be hidden by an optional
+  // owner action or a supporting media attachment.
   // A relation alone is not a composed Now situation: require a present
   // consequence and an explicit explanation from the owning projection.
   final memberIds = situation.relationMembers.map((item) => item.id).toSet();
@@ -206,6 +208,12 @@ NowTopology topologyFor(NowSituationPresentation situation) {
       situation.consequence?.trim().isNotEmpty == true &&
       situation.responseType?.trim().isNotEmpty == true) {
     return NowTopology.composition;
+  }
+  if (situation.mediaBindings.any((media) => media.canDominate)) {
+    return NowTopology.media;
+  }
+  if (situation.businessActions.any((action) => action.canDominate)) {
+    return NowTopology.action;
   }
   // Waiting is a response owned by the projection, not an inferred status.
   final response = situation.responseType?.toLowerCase();

@@ -2,15 +2,12 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
-from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Role
-from authorization.services import space_ids_with_permission
 from journeys.models import Journey
-from organizations.models import Organization
 
 from .models import DossierJourneyLink, DossierLifecycle, Project, ProjectLifecycle
-from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile
-from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES
+from .selectors import collaboration_candidates_for_dossier, coordination_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
+from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_project
 
 
 User = get_user_model()
@@ -21,51 +18,179 @@ def _profile_label(profile): return profile.get_full_name().strip() or profile.u
 
 class DossierCreateForm(forms.Form):
     title = forms.CharField(label="Objectif", max_length=220)
-    description = forms.CharField(label="Contexte", required=False, widget=forms.Textarea(attrs={"rows": 4}))
-    owning_space = forms.ModelChoiceField(label="Espace porteur", queryset=Organization.objects.none(), required=False, help_text="Laissez vide pour un Dossier personnel.")
-    deadline = forms.DateField(label="Échéance", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
-    def __init__(self, *args, actor, **kwargs):
-        super().__init__(*args, **kwargs); allowed = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Organization.objects.order_by("name")
-        if allowed is not None: queryset = queryset.filter(pk__in=allowed)
-        self.fields["owning_space"].queryset = queryset
+    def __init__(self, *args, actor=None, **kwargs):
+        # The actor is retained for call-site compatibility. Ownership is
+        # resolved by the web route, never by form POST fields.
+        super().__init__(*args, **kwargs)
 
 
 class ProjectCreateForm(forms.Form):
     title = forms.CharField(label="Titre", max_length=220)
-    description = forms.CharField(label="Contexte", required=False, widget=forms.Textarea(attrs={"rows": 4}))
-    owning_space = forms.ModelChoiceField(label="Espace porteur", queryset=Organization.objects.none(), required=False, help_text="Laissez vide pour un Projet personnel.")
-    starts_on = forms.DateField(label="Début", required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    ends_on = forms.DateField(label="Fin", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    starts_on = forms.DateField(
+        label="Début", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    ends_on = forms.DateField(
+        label="Fin", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
-    def __init__(self, *args, actor, **kwargs):
-        super().__init__(*args, **kwargs); allowed = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Organization.objects.order_by("name")
-        if allowed is not None: queryset = queryset.filter(pk__in=allowed)
-        self.fields["owning_space"].queryset = queryset
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def clean(self):
-        cleaned = super().clean(); starts_on = cleaned.get("starts_on"); ends_on = cleaned.get("ends_on")
-        if starts_on and ends_on and starts_on > ends_on: self.add_error("ends_on", "La fin du Projet ne peut pas précéder son début.")
+        cleaned = super().clean()
+        start, end = cleaned.get("starts_on"), cleaned.get("ends_on")
+        if start and end and start > end:
+            self.add_error("ends_on", "La fin ne peut pas précéder le début.")
         return cleaned
+
+
+class ProjectAuthorityGrantForm(forms.Form):
+    identity = forms.CharField(
+        label="Nom d’utilisateur ou e-mail Makolo",
+        max_length=254,
+    )
+    role = forms.ModelChoiceField(
+        label="Accès proposé",
+        widget=forms.RadioSelect(attrs={"class": "mk-project__role-radio"}),
+        queryset=Role.objects.filter(
+            scope_type=AuthorityScope.PROJECT,
+            is_system=True, is_active=True,
+        ).order_by("name"),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        labels = {
+            "project-viewer": "Lecteur — consulter",
+            "project-manager": "Éditeur — modifier",
+            "project-admin": "Administrateur — gérer les accès",
+        }
+        self.fields["role"].label_from_instance = (
+            lambda role: labels.get(role.code, "Accès Projet")
+        )
+
+    def clean_identity(self):
+        identity = self.cleaned_data["identity"].strip().lstrip("@")
+        users = User.objects.filter(is_active=True)
+        if "@" in identity:
+            users = users.filter(email__iexact=identity)
+        else:
+            users = users.filter(username__iexact=identity)
+        matches = list(users.order_by("pk")[:2])
+        if len(matches) != 1:
+            raise forms.ValidationError("Le compte Makolo est introuvable ou ambigu.")
+        self.profile = matches[0]
+        return identity
+
+
+class ProjectEditForm(forms.Form):
+    title = forms.CharField(label="Nom du Projet", max_length=220)
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+    starts_on = forms.DateField(
+        label="Début de l’horizon", required=False,
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+    )
+    ends_on = forms.DateField(
+        label="Fin de l’horizon", required=False,
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+    )
+
+    def __init__(self, *args, project, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key in ("title", "description", "starts_on", "ends_on"):
+            self.fields[key].initial = getattr(project, key)
+
+    def clean(self):
+        cleaned = super().clean()
+        if (cleaned.get("starts_on") and cleaned.get("ends_on") and
+                cleaned["starts_on"] > cleaned["ends_on"]):
+            self.add_error("ends_on", "La fin ne peut pas précéder le début.")
+        return cleaned
+
+
+class ProjectChildDossierForm(forms.Form):
+    title = forms.CharField(label="Objectif du Dossier", max_length=220)
+    description = forms.CharField(
+        label="Contexte", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
 
 class ProjectDossierLinkForm(forms.Form):
     dossier = forms.ModelChoiceField(label="Dossier", queryset=User.objects.none())
 
-    def __init__(self, *args, actor, **kwargs):
+    def __init__(self, *args, actor, actor_context=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["dossier"].queryset = manageable_dossiers_for_profile(actor).exclude(project_links__is_active=True).order_by("title")
+        dossiers = manageable_dossiers_for_profile(actor)
+        if actor_context is not None:
+            dossiers = actor_context.filter(dossiers)
+        self.fields["dossier"].queryset = dossiers.exclude(
+            project_links__is_active=True,
+        ).order_by("title")
         self.fields["dossier"].label_from_instance = lambda dossier: dossier.title
 
 
-class DossierProjectForm(forms.Form):
-    project = forms.ModelChoiceField(label="Projet", queryset=Project.objects.none(), required=False, help_text="Laissez vide pour retirer le Dossier de son Projet.")
+class DossierEditForm(forms.Form):
+    title = forms.CharField(label="Objectif du Dossier", max_length=220)
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+    )
 
-    def __init__(self, *args, actor, current_project=None, **kwargs):
-        super().__init__(*args, **kwargs); manage_spaces = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Project.objects.filter(lifecycle__in=PROJECT_LINKABLE_LIFECYCLES)
-        if manage_spaces is not None: queryset = queryset.filter(Q(owner_profile=actor) | Q(owning_space_id__in=manage_spaces))
-        if current_project is not None: queryset = Project.objects.filter(Q(pk=current_project.pk) | Q(pk__in=queryset.values("pk")))
-        self.fields["project"].queryset = queryset.order_by("title").distinct(); self.fields["project"].initial = current_project
+    def __init__(self, *args, dossier, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("title", "description", "deadline"):
+            self.fields[name].initial = getattr(dossier, name)
+
+
+class DossierProjectForm(forms.Form):
+    project = forms.ModelChoiceField(
+        label="Projet", queryset=Project.objects.none(), required=False,
+        help_text="Laissez vide pour retirer le Dossier de son Projet.",
+    )
+
+    def __init__(self, *args, actor, current_project=None,
+                 actor_context=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        eligible = projects_for_profile(actor)
+        if actor_context is not None:
+            eligible = actor_context.filter(eligible)
+        eligible = eligible.filter(
+            lifecycle__in=PROJECT_LINKABLE_LIFECYCLES,
+        ).select_related("owning_space")
+        ids = [row.pk for row in eligible if can_manage_project(actor, row)]
+        if current_project is not None:
+            ids.append(current_project.pk)
+        self.fields["project"].queryset = Project.objects.filter(
+            pk__in=ids,
+        ).order_by("title").distinct()
+        self.fields["project"].initial = current_project
 
 
 class DossierJourneyLinkForm(forms.Form):
@@ -98,9 +223,23 @@ class ProjectLifecycleForm(forms.Form):
 
 
 class DossierAssignmentForm(forms.Form):
-    assignee = forms.ModelChoiceField(label="Responsable", queryset=User.objects.none())
+    assignee = forms.ModelChoiceField(
+        label="Responsable de la coordination",
+        queryset=User.objects.none(),
+        help_text=(
+            "La personne doit déjà être autorisée à gérer ce Dossier. "
+            "La désignation ne lui accorde aucun nouveau droit."
+        ),
+    )
+
     def __init__(self, *args, dossier, **kwargs):
-        super().__init__(*args, **kwargs); self.fields["assignee"].queryset = collaboration_candidates_for_dossier(dossier); self.fields["assignee"].label_from_instance = _profile_label
+        super().__init__(*args, **kwargs)
+        # Match the owner-backed candidate selection used by Flutter.
+        # The service rechecks effective authority when the form is posted.
+        self.fields["assignee"].queryset = (
+            coordination_candidates_for_dossier(dossier)
+        )
+        self.fields["assignee"].label_from_instance = _profile_label
 
 
 class DossierAuthorityGrantForm(forms.Form):

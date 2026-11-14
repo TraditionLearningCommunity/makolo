@@ -20,12 +20,12 @@ class SpaceWorkPresentationGrammar:
     def empty_message_for(self, key: str, label: str) -> str:
         return self.empty_messages.get(
             key,
-            f"Aucun élément visible dans {label.lower()} pour le moment.",
+            f"Aucun élément à afficher dans {label.lower()}.",
         )
 
 
 _GENERIC_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune activité visible pour le moment.",
+    surface_empty_message="Aucune activité à afficher.",
     section_order=(
         "preparation",
         "upcoming",
@@ -51,21 +51,21 @@ _GENERIC_GRAMMAR = SpaceWorkPresentationGrammar(
         "requests": "Demandes",
     },
     empty_messages={
-        "preparation": "Rien à préparer pour le moment.",
-        "upcoming": "Rien à venir pour le moment.",
-        "active": "Rien en cours pour le moment.",
-        "blocked": "Aucun blocage projeté pour le moment.",
-        "activities": "Aucune activité visible pour le moment.",
-        "completed": "Rien de terminé dans cette vue pour le moment.",
-        "offers": "Aucune offre visible pour le moment.",
-        "routes": "Aucune route visible pour le moment.",
-        "vehicles": "Aucun véhicule visible pour le moment.",
-        "requests": "Aucune demande visible pour le moment.",
+        "preparation": "Rien à préparer.",
+        "upcoming": "Rien à venir.",
+        "active": "Rien en cours.",
+        "blocked": "Aucun blocage à afficher.",
+        "activities": "Aucune activité à afficher.",
+        "completed": "Aucun élément terminé à afficher.",
+        "offers": "Aucune offre à afficher.",
+        "routes": "Aucune route à afficher.",
+        "vehicles": "Aucun véhicule à afficher.",
+        "requests": "Aucune demande à afficher.",
     },
 )
 
 _COMMUNITY_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune initiative visible pour le moment.",
+    surface_empty_message="Aucune initiative à afficher.",
     section_order=(
         "preparation",
         "active",
@@ -93,7 +93,7 @@ _COMMUNITY_GRAMMAR = SpaceWorkPresentationGrammar(
 )
 
 _CREATIVE_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune création visible pour le moment.",
+    surface_empty_message="Aucune création à afficher.",
     section_order=(
         "preparation",
         "active",
@@ -121,7 +121,7 @@ _CREATIVE_GRAMMAR = SpaceWorkPresentationGrammar(
 )
 
 _MEDIA_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune production visible pour le moment.",
+    surface_empty_message="Aucune production à afficher.",
     section_order=(
         "preparation",
         "active",
@@ -149,7 +149,7 @@ _MEDIA_GRAMMAR = SpaceWorkPresentationGrammar(
 )
 
 _COMMERCE_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune offre ou commande visible pour le moment.",
+    surface_empty_message="Aucune offre ni commande à afficher.",
     section_order=(
         "preparation",
         "active",
@@ -180,7 +180,7 @@ _COMMERCE_GRAMMAR = SpaceWorkPresentationGrammar(
 )
 
 _SERVICES_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucune prestation ou demande visible pour le moment.",
+    surface_empty_message="Aucune prestation ni demande à afficher.",
     section_order=(
         "requests",
         "preparation",
@@ -211,7 +211,7 @@ _SERVICES_GRAMMAR = SpaceWorkPresentationGrammar(
 )
 
 _PROGRAMMES_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucun programme ou session visible pour le moment.",
+    surface_empty_message="Aucun programme ni session à afficher.",
     section_order=(
         "preparation",
         "requests",
@@ -235,14 +235,14 @@ _PROGRAMMES_GRAMMAR = SpaceWorkPresentationGrammar(
         "requests": "Aucune inscription à traiter.",
         "active": "Aucune session en cours.",
         "upcoming": "Aucune prochaine session.",
-        "blocked": "Aucun blocage projeté.",
+        "blocked": "Aucun blocage à afficher.",
         "activities": "Aucun programme visible.",
         "completed": "Aucun élément terminé dans cette vue.",
     },
 )
 
 _TRANSPORT_GRAMMAR = SpaceWorkPresentationGrammar(
-    surface_empty_message="Aucun service, départ, route ou véhicule visible pour le moment.",
+    surface_empty_message="Aucun service, départ, itinéraire ou véhicule à afficher.",
     section_order=(
         "preparation",
         "active",

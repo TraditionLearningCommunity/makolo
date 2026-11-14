@@ -48,6 +48,12 @@ class PlanVersionBillingTerms(models.Model):
     billing_period_count = models.PositiveIntegerField(default=1)
     payment_due_days = models.PositiveIntegerField(default=0)
     grace_period_days = models.PositiveIntegerField(default=0)
+    coverage_enabled = models.BooleanField(default=False)
+    coverage_pricing_mode = models.CharField(
+        max_length=12, choices=[("flat", "Forfait"), ("per_seat", "Par bénéficiaire")],
+        default="flat",
+    )
+    coverage_max_quantity = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -61,6 +67,9 @@ class PlanVersionBillingTerms(models.Model):
         "billing_period_count",
         "payment_due_days",
         "grace_period_days",
+        "coverage_enabled",
+        "coverage_pricing_mode",
+        "coverage_max_quantity",
     )
 
     class Meta:
@@ -84,6 +93,8 @@ class PlanVersionBillingTerms(models.Model):
             errors["amount"] = "Le montant des Billing Terms ne peut pas être négatif."
         if self.billing_period_count is None or self.billing_period_count < 1:
             errors["billing_period_count"] = "La cadence de billing doit être strictement positive."
+        if self.coverage_max_quantity is None or self.coverage_max_quantity < 1:
+            errors["coverage_max_quantity"] = "Le plafond de bénéficiaires doit être positif."
         if errors:
             raise ValidationError(errors)
 
@@ -109,7 +120,14 @@ class PlanVersionBillingTerms(models.Model):
 
 class SubscriptionBillingObligation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    subscription = models.ForeignKey(Subscription, on_delete=models.PROTECT, related_name="billing_obligation_links")
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.PROTECT, related_name="billing_obligation_links",
+        null=True, blank=True,
+    )
+    coverage = models.ForeignKey(
+        "subscriptions.SubscriptionCoverage", on_delete=models.PROTECT,
+        related_name="billing_obligation_links", null=True, blank=True,
+    )
     transition = models.ForeignKey(
         SubscriptionTransition,
         on_delete=models.PROTECT,
@@ -137,10 +155,23 @@ class SubscriptionBillingObligation(models.Model):
                 fields=["subscription", "billing_terms", "billing_key"],
                 name="subs_billing_obligation_source_unique",
             ),
+            models.UniqueConstraint(
+                fields=["coverage", "billing_terms", "billing_key"],
+                condition=Q(coverage__isnull=False),
+                name="subs_billing_coverage_source_unique",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(subscription__isnull=False, coverage__isnull=True)
+                    | Q(subscription__isnull=True, coverage__isnull=False)
+                ),
+                name="subs_billing_source_xor",
+            ),
         ]
         indexes = [
             models.Index(fields=["subscription", "created_at"], name="subs_billing_sub_idx"),
             models.Index(fields=["transition"], name="subs_billing_transition_idx"),
+            models.Index(fields=["coverage", "created_at"], name="subs_billing_cov_idx"),
         ]
 
     def clean(self):
@@ -149,8 +180,17 @@ class SubscriptionBillingObligation(models.Model):
         self.billing_key = (self.billing_key or "").strip()
         if not self.billing_key:
             errors["billing_key"] = "Une obligation Subscription exige une provenance de billing."
-        if self.transition_id and self.transition.subscription_id != self.subscription_id:
-            errors["transition"] = "La Transition de billing doit appartenir à la même Subscription."
+        if bool(self.subscription_id) == bool(self.coverage_id):
+            errors["subscription"] = "Facturation ordinaire XOR couverture financée."
+        if self.transition_id and (
+            self.subscription_id is None or self.transition.subscription_id != self.subscription_id
+        ):
+            errors["transition"] = "La Transition doit appartenir à la Subscription ordinaire."
+        if self.coverage_id:
+            if self.transition_id:
+                errors["transition"] = "Une couverture n'emprunte pas une Transition personnelle."
+            if self.billing_terms_id and self.billing_terms_id != self.coverage.billing_terms_id:
+                errors["billing_terms"] = "Utiliser les termes figés de la couverture."
         if self.obligation_id:
             obligation = self.obligation
             if obligation.reason != PaymentObligationReason.SUBSCRIPTION:
@@ -159,17 +199,27 @@ class SubscriptionBillingObligation(models.Model):
                 errors["obligation"] = "Le billing Subscription ne doit pas créer de contexte Journey/Commerce."
             if not obligation.payee_platform:
                 errors["obligation"] = "Makolo doit être le bénéficiaire de l’obligation Subscription."
-            if self.subscription.profile_id:
-                if obligation.payer_profile_id != self.subscription.profile_id or obligation.payer_space_id:
-                    errors["obligation"] = "Le payer de l’obligation doit être le Profile souscripteur."
-            elif self.subscription.space_id:
-                if obligation.payer_space_id != self.subscription.space_id or obligation.payer_profile_id:
-                    errors["obligation"] = "Le payer de l’obligation doit être le Space souscripteur."
-            if self.billing_terms_id:
-                if obligation.amount != self.billing_terms.amount:
+            if self.coverage_id:
+                source = self.coverage
+                if obligation.payer_profile_id != source.payer_profile_id or obligation.payer_space_id != source.payer_space_id:
+                    errors["obligation"] = "Le payeur doit être le financeur de la couverture."
+                if self.billing_terms_id:
+                    amount = self.billing_terms.amount
+                    if self.billing_terms.coverage_pricing_mode == "per_seat":
+                        amount *= source.purchased_quantity
+                    if obligation.amount != amount:
+                        errors["obligation"] = "Le montant doit respecter le tarif de couverture figé."
+            elif self.subscription_id:
+                if self.subscription.profile_id:
+                    if obligation.payer_profile_id != self.subscription.profile_id or obligation.payer_space_id:
+                        errors["obligation"] = "Le payer doit être le Profil souscripteur."
+                elif self.subscription.space_id:
+                    if obligation.payer_space_id != self.subscription.space_id or obligation.payer_profile_id:
+                        errors["obligation"] = "Le payer doit être l'Espace souscripteur."
+                if self.billing_terms_id and obligation.amount != self.billing_terms.amount:
                     errors["obligation"] = "Le montant doit rester celui des Billing Terms pinnés."
-                if obligation.currency != self.billing_terms.currency:
-                    errors["obligation"] = "La devise doit rester celle des Billing Terms pinnés."
+            if self.billing_terms_id and obligation.currency != self.billing_terms.currency:
+                errors["obligation"] = "La devise doit rester celle des Billing Terms pinnés."
         if errors:
             raise ValidationError(errors)
 

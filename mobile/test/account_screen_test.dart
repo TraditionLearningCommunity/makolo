@@ -41,20 +41,18 @@ void main() {
           runtime: runtime,
           onChangePassword: () {},
           onRememberedAccounts: () {},
-          onConnections: () {},
-          onBilling: () {},
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Compte'), findsOneWidget);
+    expect(find.text('Sécurité et appareils'), findsOneWidget);
     expect(find.text('@amina'), findsOneWidget);
     expect(find.text('amina@example.com'), findsOneWidget);
     expect(find.text('Changer le mot de passe'), findsOneWidget);
     expect(find.text('Comptes mémorisés'), findsOneWidget);
-    expect(find.text('Connexions'), findsOneWidget);
-    expect(find.text('Abonnement & facturation'), findsOneWidget);
+    expect(find.text('Connexions'), findsNothing);
+    expect(find.text('Abonnement & facturation'), findsNothing);
     expect(find.text('Passkey'), findsNothing);
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Supprimer le compte'), findsNothing);

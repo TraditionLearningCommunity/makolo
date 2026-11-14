@@ -1,0 +1,100 @@
+<section class="space-y-5" aria-labelledby="live-heading">
+  {% include 'occurrence/continuity_guard.html' %}
+  <header class="mk-panel p-5 sm:p-7">
+    <p class="mk-kicker">Makolo Live · Lecture du réel</p>
+    <h2 id="live-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ activity.title }} · Mis à jour le {{ generated_at|date:"d/m/Y à H:i" }} · Cette heure désigne la lecture, pas l'heure des événements.</p>
+    <a class="mk-action-button mt-4" data-variant="secondary" href="{{ day_of_url }}">Retour au Jour J</a>
+  </header>
+
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="live-coverage">
+    <p class="mk-kicker">Qualité de la lecture</p>
+    <h3 id="live-coverage" class="mt-1 text-xl font-bold">
+      {% if projection.knowledge.coverage.state == "PARTIAL" %}Couverture partielle{% elif projection.knowledge.coverage.state == "ESTABLISHED" %}Couverture établie{% else %}Lecture indisponible{% endif %}
+    </h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      {% if projection.knowledge.coverage.state == "PARTIAL" %}Certaines données sont connues ; elles ne décrivent pas nécessairement tout ce qui se passe.{% else %}Aucun fait observé consultable n'a été établi par les sources disponibles.{% endif %}
+      Un horaire prévu ne prouve pas qu'une activité a commencé.
+    </p>
+  </section>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <section class="mk-panel p-5" aria-labelledby="live-timing">
+      <h3 id="live-timing" class="text-lg font-bold">Temps · Prévu</h3>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Le calendrier de l'Occurrence est une prévision, non une observation.</p>
+      <dl class="mt-3 space-y-3 text-sm">
+        <div><dt style="color:var(--mk-muted)">Début prévu</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.start_at|default:projection.knowledge.planned_timing.start_date|default:"À préciser" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Fin prévue</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.end_at|default:projection.knowledge.planned_timing.end_date|default:"À préciser" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Début réellement observé</dt><dd class="font-semibold">{% if projection.knowledge.temporal_observation.truth == "unknown" %}Inconnu{% else %}{{ projection.knowledge.temporal_observation.truth }}{% endif %}</dd></div>
+      </dl>
+    </section>
+    <section class="mk-panel p-5" aria-labelledby="live-spatial">
+      <h3 id="live-spatial" class="text-lg font-bold">Lieux · Source et certitude</h3>
+      {% if projection.knowledge.spatial.participant %}
+        {% with spatial=projection.knowledge.spatial.participant %}
+        <p class="mt-3 text-sm">Ma destination prévue : {{ spatial.destination.name|default:"Non renseignée" }}</p>
+        <p class="mt-1 text-xs" style="color:var(--mk-muted)">Position actuelle : {{ spatial.current_position.truth }} · Aucune géolocalisation supposée.</p>
+        {% endwith %}
+      {% endif %}
+      {% if projection.knowledge.spatial.organizer %}
+        {% with spatial=projection.knowledge.spatial.organizer %}
+        <p class="mt-3 text-sm">Zone opérationnelle prévue : {{ spatial.zone.name|default:"Non renseignée" }}</p>
+        <p class="mt-1 text-xs" style="color:var(--mk-muted)">Position actuelle : {{ spatial.current_position.truth }}</p>
+        {% endwith %}
+      {% endif %}
+      {% if not projection.knowledge.spatial.participant and not projection.knowledge.spatial.organizer %}
+      <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucune position ou destination autorisée n'est disponible.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="live-facts">
+    <h3 id="live-facts" class="text-xl font-bold">Faits accessibles</h3>
+    {% if projection.knowledge.facts %}
+    <div class="mt-4 grid gap-3 lg:grid-cols-2">
+      {% for fact in projection.knowledge.facts %}
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--mk-muted)">
+          {% if fact.domain == "participant" %}Ma situation{% elif fact.domain == "organizer" %}Opérations{% elif fact.domain == "institutional" %}Démarche de l'Espace{% else %}Fait autorisé{% endif %}
+          · {{ fact.truth }}
+        </p>
+        <h4 class="mt-2 font-bold">{{ fact.label }}</h4>
+        <p class="mt-2 text-sm">{{ fact.value }}</p>
+        <p class="mt-2 text-xs" style="color:var(--mk-muted)">Provenance : {{ fact.source }}{% if fact.occurred_at %} · Observé : {{ fact.occurred_at }}{% else %} · Heure de fait non établie{% endif %}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucun fait observé consultable pour l'instant. Ce n'est pas la preuve qu'aucune opération n'a lieu.</p>
+    {% endif %}
+  </section>
+
+  {% if projection.knowledge.transitions.state == "unavailable" %}
+  <section class="mk-panel p-5 sm:p-6">
+    <h3 class="font-bold">Changements</h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">L'historique des changements n'est pas disponible auprès des propriétaires. Aucun fil d'événements n'est reconstruit artificiellement.</p>
+  </section>
+  {% endif %}
+
+  {% if projection.depths %}
+  <section class="mk-panel p-5 sm:p-6">
+    <h3 class="text-xl font-bold">Examiner auprès du propriétaire</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for depth in projection.depths %}
+        {% if depth.kind != "scanner" %}
+          {% if projection.context.actor_space_id %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-occurrence-depth' space.slug occurrence.pk depth.kind %}">{{ depth.label }}</a>
+          {% else %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-occurrence-depth' occurrence.pk depth.kind %}">{{ depth.label }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="flex flex-wrap gap-2">
+    <a class="mk-action-button" data-variant="secondary" href="{{ day_of_url }}">Retour à mes actions Jour J</a>
+    {% if space_work_url %}<a class="mk-action-button" data-variant="secondary" href="{{ space_work_url }}">Retour au métier</a>{% endif %}
+  </div>
+</section>

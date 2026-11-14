@@ -18,7 +18,11 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 from core.platform_presentation import platform_modules_for
 from interoperability.presentation import present_connection
+from intelligence.connection_web import connection_form_context, handle_connection_form
+from intelligence.models import ProviderScope
+
 from interoperability.projections import build_interoperability_payload
+from interoperability.domain_integrations import platform_domain_integrations
 from operations.product_overview import build_product_operations_overview
 from operations.selectors import (
     get_operations_audit_logs, get_operations_incidents,
@@ -213,6 +217,8 @@ class PlatformInteroperabilityView(PlatformView):
     heading = "Interopérabilité"
 
     def get_context_data(self, **kwargs):
+        if not can(self.request.user, PermissionCode.PLATFORM_MANAGE):
+            raise PermissionDenied("Autorité Platform requise.")
         context = super().get_context_data(**kwargs)
         from intelligence.interoperability import (
             platform_provider_connections,
@@ -229,9 +235,20 @@ class PlatformInteroperabilityView(PlatformView):
             self_link="/api/v1/platform/interoperability/",
             actor=self.request.user,
             authority_context="platform",
+            domain_integrations=platform_domain_integrations(self.request.user),
         )
+        context["domain_integrations"] = context["interoperability"]["domain_integrations"]
+        context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
         return context
+    def post(self, request, *args, **kwargs):
+        if not can(request.user, PermissionCode.PLATFORM_MANAGE):
+            raise PermissionDenied("Autorité Platform requise.")
+        return handle_connection_form(
+            request, scope=ProviderScope.PLATFORM,
+        )
+
+
 
 
 

@@ -36,7 +36,8 @@ class FundingDiscoveryTests(TestCase):
         response = self.client.get(reverse("discovery:home"), {"vertical": "funding"})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Financer une bibliothèque mobile")
-        self.assertContains(response, "Contribuer")
+        self.assertContains(response, "Je contribue")
+        self.assertContains(response, reverse("funding:detail", kwargs={"pk": self.funding.pk}))
         self.assertContains(response, "Reste : 500.00 USD")
 
     def test_funding_does_not_claim_place_filter_it_cannot_prove(self):

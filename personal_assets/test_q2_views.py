@@ -31,11 +31,11 @@ class Q2LibraryViewTests(TestCase):
 
     def test_list_and_detail_are_controller_scoped(self):
         self.client.force_login(self.owner)
-        response = self.client.get(reverse("personal_assets:list"))
+        response = self.client.get(reverse("personal_assets:documents"))
         self.assertContains(response, "Mon CV")
         self.assertEqual(self.client.get(reverse("personal_assets:detail", args=[self.asset.pk])).status_code, 200)
         self.client.force_login(self.other)
-        self.assertNotContains(self.client.get(reverse("personal_assets:list")), "Mon CV")
+        self.assertNotContains(self.client.get(reverse("personal_assets:documents")), "Mon CV")
         self.assertEqual(self.client.get(reverse("personal_assets:detail", args=[self.asset.pk])).status_code, 404)
 
     def test_upload_and_new_version_endpoints_preserve_history(self):
@@ -69,6 +69,20 @@ class Q2LibraryViewTests(TestCase):
         self.assertEqual(self.journey.artifacts.count(), 1)
         self.assertEqual(self.journey.artifacts.get().content_hash, self.version.content_hash)
 
+    def test_reuse_confirmation_does_not_claim_requirement_satisfaction(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal_assets:reuse", args=[self.asset.pk]),
+            {"journey_id": str(self.journey.pk)},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Cet ajout ne confirme pas que ses conditions sont remplies.",
+        )
+        self.assertNotContains(response, "son owner")
+
     def test_save_artifact_endpoint_creates_library_version_with_provenance(self):
         artifact = create_artifact(
             journey=self.journey,
@@ -97,4 +111,4 @@ class Q2LibraryViewTests(TestCase):
         self.asset.refresh_from_db()
         self.assertIsNotNone(self.asset.archived_at)
         self.assertTrue(self.asset.versions.filter(pk=self.version.pk).exists())
-        self.assertNotContains(self.client.get(reverse("personal_assets:list")), "Mon CV")
+        self.assertNotContains(self.client.get(reverse("personal_assets:documents")), "Mon CV")

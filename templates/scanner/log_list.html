@@ -21,7 +21,7 @@
             <option value="">Tous les résultats</option>
             {% for value,label in result_choices %}<option value="{{ value }}" {% if request.GET.result == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
-        <button class="rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white">Filtrer</button>
+        <button class="mk-action-button" data-variant="primary">Filtrer</button>
     </form>
 
     <div class="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">

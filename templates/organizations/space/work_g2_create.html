@@ -1,0 +1,38 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-3xl space-y-6 pb-12" aria-labelledby="g2-create-title">
+  <nav aria-label="Navigation"><a href="{{ back_url }}" class="text-sm font-semibold underline underline-offset-4">Retour à Métier</a></nav>
+  <header>
+    <span class="mk-kicker">Métier · {{ space.name }}</span>
+    <h2 id="g2-create-title" class="mt-2 text-3xl font-extrabold tracking-tight">{{ create_label }}</h2>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      {% if is_service %}La prestation sera créée comme activité et service réel, ou rien ne sera créé.{% else %}Le programme sera créé comme une activité durable.{% endif %}
+      Une vérification d’autorité et d’abonnement est faite lors de l’enregistrement.
+    </p>
+  </header>
+  <form method="post" class="mk-panel p-5 sm:p-7 space-y-5">
+    {% csrf_token %}
+    {% if create_form.non_field_errors %}
+      <div class="rounded-xl border border-rose-500/30 p-3 text-sm" role="alert">{{ create_form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in create_form %}
+      {% if field.is_hidden %}
+        {{ field }}
+        {% for error in field.errors %}<p class="text-sm text-rose-600" role="alert">{{ error }}</p>{% endfor %}
+      {% else %}
+        <div class="space-y-2">
+          <label for="{{ field.id_for_label }}" class="block text-sm font-bold">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="text-xs" style="color:var(--mk-muted)">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="text-sm text-rose-600" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="flex flex-wrap gap-2">
+      <button class="mk-action-button" data-variant="primary" type="submit">Créer en brouillon</button>
+      <a class="mk-action-button" data-variant="secondary" href="{{ back_url }}">Annuler</a>
+    </div>
+  </form>
+</main>
+{% endblock %}

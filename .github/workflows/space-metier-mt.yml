@@ -1,0 +1,125 @@
+name: Space Metier MT1-MT8
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "organizations/api/space_work*.py"
+      - "organizations/space_work*.py"
+      - "organizations/test_space_work*.py"
+      - "organizations/test_ws3_space_work_web.py"
+      - "organizations/test_zs3_space_work_api.py"
+      - "organizations/urls.py"
+      - "templates/organizations/space/work*.html"
+      - "mobile/lib/features/space/space_work*.dart"
+      - "mobile/lib/features/continuity/space_retrieval_owner_screen.dart"
+      - "mobile/lib/presentation/contracts/space_presentation.dart"
+      - "mobile/test/space_work*.dart"
+      - "docs/implementation/space-metier-*.md"
+      - ".github/workflows/space-metier-mt.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: space-metier-mt-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  server-owner-contracts:
+    name: MT1-MT8 Django/PostgreSQL owners
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: makolo_space_mt_ci
+          POSTGRES_USER: makolo
+          POSTGRES_PASSWORD: makolo-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U makolo -d makolo_space_mt_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_ENV: test
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-space-metier-not-a-production-secret
+      DJANGO_ALLOWED_HOSTS: 127.0.0.1,localhost,testserver
+      DJANGO_DATABASE_ENGINE: postgresql
+      DJANGO_DATABASE_NAME: makolo_space_mt_ci
+      DJANGO_DATABASE_USER: makolo
+      DJANGO_DATABASE_PASSWORD: makolo-ci-password
+      DJANGO_DATABASE_HOST: 127.0.0.1
+      DJANGO_DATABASE_PORT: "5432"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install locked Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+      - name: Check Django and schema invariants
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+      - name: Validate MT2-MT8 and existing Space Work contracts
+        run: >-
+          python manage.py test
+          organizations.test_space_work_mt2
+          organizations.test_space_work_mt3
+          organizations.test_space_work_mt3_native_create
+          organizations.test_space_work_mt4
+          organizations.test_space_work_mt5
+          organizations.test_space_work_mt5_operations
+          organizations.test_space_work_mt6
+          organizations.test_space_work_mt7
+          organizations.test_space_work_group2
+          organizations.test_space_work_group3
+          organizations.test_space_work_group4
+          organizations.test_ws3_space_work_web
+          organizations.test_zs3_space_work_api
+
+  mobile-owner-contracts:
+    name: MT1-MT8 Flutter owner depths
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: |
+          flutter pub get
+          git diff --exit-code -- pubspec.lock
+      - name: Generate owner and Drift sources
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Verify generated-code policy
+        run: git diff --exit-code -- lib test
+      - name: Check canonical Dart format
+        run: bash tool/dart_format.sh check
+      - name: Analyze Flutter
+        run: flutter analyze
+      - name: Exercise MT1-MT8 Work surfaces and native depths
+        run: >-
+          flutter test
+          test/space_work_surface_test.dart
+          test/space_work_g1_realizations_test.dart
+          test/space_work_g2_depth_test.dart
+          test/space_work_g3_depth_test.dart
+          test/space_work_g4_depth_test.dart
+          test/space_work_mt7_test.dart

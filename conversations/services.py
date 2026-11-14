@@ -234,7 +234,19 @@ def can_publish_in_conversation(actor, conversation: Conversation) -> bool:
         context = conversation.context
     except ConversationContext.DoesNotExist:
         return False
-    return _has_scope_permission(actor, context, "PUBLISH")
+    if _has_scope_permission(actor, context, "PUBLISH"):
+        return True
+    if not _authenticated(actor) or not can_view_conversation(actor, conversation):
+        return False
+    # Invitation/acceptance authorizes contribution *inside this Conversation*
+    # only. It never creates a Role/Mandate or context-wide publishing right.
+    if ConversationParticipation.objects.filter(
+        conversation=conversation, profile=actor,
+        status=ConversationParticipationStatus.ACTIVE,
+    ).exists():
+        return True
+    from .participant_services import collective_access_since
+    return collective_access_since(actor, conversation) is not None
 
 
 def can_moderate_conversation(actor, conversation: Conversation) -> bool:
@@ -383,8 +395,11 @@ def ensure_context_conversation(
     conversation.save()
     context.conversation = conversation
     try:
-        context.save()
+        with transaction.atomic():
+            context.save()
     except IntegrityError:
+        # A concurrent ensure won the unique context. Roll back the failed
+        # insert to a savepoint before querying the canonical winner.
         canonical = ConversationContext.objects.select_related("conversation").get(**lookup)
         conversation.delete()
         return canonical.conversation
@@ -450,10 +465,12 @@ def activate_participation(
             "created_by": actor,
         },
     )
+    was_active = participation.status == ConversationParticipationStatus.ACTIVE
     participation.status = ConversationParticipationStatus.ACTIVE
     participation.source = source
     participation.represented_space = represented_space
-    participation.joined_at = timezone.now()
+    if not was_active:
+        participation.joined_at = timezone.now()
     participation.left_at = None
     participation.removed_at = None
     participation.save()
@@ -517,6 +534,11 @@ def create_conversation_invitation(*, actor, conversation: Conversation, invitee
 
 @transaction.atomic
 def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitation, accept: bool):
+    # Serialize consent with closing the Conversation. Keep the parent lock
+    # before the child lock, as in create_conversation_invitation.
+    Conversation.objects.select_for_update(of=("self",)).get(
+        pk=invitation.conversation_id,
+    )
     locked = ConversationInvitation.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=invitation.pk)
     if locked.invitee_id != getattr(actor, "pk", None):
         raise PermissionDenied("Seule la personne invitée peut répondre.")
@@ -528,6 +550,12 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
         locked.responded_at = now
         locked.save(update_fields=["status", "responded_at", "updated_at"])
         return locked
+    if accept:
+        # An old invitation cannot revive a revoked mandate, closed contact
+        # policy or blocked relationship. The response owner remains atomic.
+        from .participant_services import invitation_accept_allowed
+        if not invitation_accept_allowed(actor, locked):
+            raise ValidationError("Cette invitation ne peut plus être acceptée.")
     locked.status = ConversationInvitationStatus.ACCEPTED if accept else ConversationInvitationStatus.DECLINED
     locked.responded_at = now
     locked.save(update_fields=["status", "responded_at", "updated_at"])
@@ -545,9 +573,9 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
 @transaction.atomic
 def create_join_request(*, actor, conversation: Conversation, represented_space=None, client_reference=None):
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
-    if locked.entry_mode != ConversationEntryMode.REQUEST:
+    if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.REQUEST:
         raise ValidationError("Cette Conversation n’accepte pas de demandes d’entrée.")
-    if not context_base_eligible(actor, locked.context):
+    if not actor.is_active or not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
     normalized_reference = (client_reference or "").strip() or None
     if normalized_reference:
@@ -571,12 +599,41 @@ def create_join_request(*, actor, conversation: Conversation, represented_space=
 
 
 @transaction.atomic
+def withdraw_join_request(*, actor, join_request: ConversationJoinRequest):
+    """Withdraw a pending personal intent; never revoke approved access."""
+    locked = ConversationJoinRequest.objects.select_for_update(
+        of=("self",),
+    ).get(pk=join_request.pk)
+    if locked.requester_id != getattr(actor, "pk", None):
+        raise PermissionDenied("Cette demande d'entrée ne vous appartient pas.")
+    if locked.status == ConversationJoinRequestStatus.CANCELLED:
+        return locked
+    if locked.status != ConversationJoinRequestStatus.PENDING:
+        raise ValidationError("Cette demande a déjà été traitée.")
+    locked.status = ConversationJoinRequestStatus.CANCELLED
+    locked.responded_at = timezone.now()
+    locked.save(update_fields=["status", "responded_at", "updated_at"])
+    return locked
+
+
+@transaction.atomic
 def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, approve: bool):
+    # A manager cannot approve after a concurrent lifecycle transition.
+    Conversation.objects.select_for_update(of=("self",)).get(
+        pk=join_request.conversation_id,
+    )
     locked = ConversationJoinRequest.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=join_request.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas traiter cette demande d’entrée.")
     if locked.status != ConversationJoinRequestStatus.PENDING:
         return locked
+    if approve:
+        if (locked.conversation.lifecycle != ConversationLifecycle.OPEN
+                or locked.conversation.entry_mode != ConversationEntryMode.REQUEST):
+            raise ValidationError("Cette Conversation n'accepte plus d'entrées.")
+        if (not locked.requester.is_active
+                or not context_base_eligible(locked.requester, locked.conversation.context)):
+            raise PermissionDenied("La demande n'est plus éligible dans ce contexte.")
     locked.status = ConversationJoinRequestStatus.APPROVED if approve else ConversationJoinRequestStatus.REJECTED
     locked.responded_at = timezone.now()
     locked.save(update_fields=["status", "responded_at", "updated_at"])
@@ -594,9 +651,9 @@ def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, app
 @transaction.atomic
 def join_conversation(*, actor, conversation: Conversation):
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
-    if locked.entry_mode != ConversationEntryMode.JOIN:
+    if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.JOIN:
         raise ValidationError("Cette Conversation ne permet pas l’adhésion directe.")
-    if not context_base_eligible(actor, locked.context):
+    if not actor.is_active or not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
     return activate_participation(
         actor=actor,
@@ -608,12 +665,16 @@ def join_conversation(*, actor, conversation: Conversation):
 
 @transaction.atomic
 def update_personal_conversation_state(
-    *, actor, conversation: Conversation, opened=False, mute=None, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None
+    *, actor, conversation: Conversation, opened=False, mute=None, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None, share_read_receipts=None
 ) -> ConversationUserState:
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Cette Conversation n’est pas accessible.")
     state, _ = ConversationUserState.objects.select_for_update().get_or_create(conversation=conversation, profile=actor)
     now = timezone.now()
+    if share_read_receipts is not None:
+        if type(share_read_receipts) is not bool:
+            raise ValidationError("Préférence de lecture invalide.")
+        state.share_read_receipts = share_read_receipts
     if opened:
         state.last_opened_at = now
     if mute is True:

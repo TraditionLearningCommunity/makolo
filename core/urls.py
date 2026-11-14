@@ -3,10 +3,17 @@ from django.urls import path
 from commerce.order_web_views import PersonalCommerceOrderWebDetailView
 
 from .home_views import MatureParticipantHomeView
+from .appuis_web import AppuisWebView
 from .transverse_search_web import PersonalSearchWebView
 from .interoperability_views import PersonalConnectionsView
-from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
-from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView
+from .m8c_participant_views import ParticipantJourneyDetailView
+from .occurrence_scanner_web import PersonalOccurrenceScannerView
+from .occurrence_experience_web import (
+    PersonalOccurrenceDayOfView,
+    PersonalOccurrenceDepthView,
+    PersonalOccurrenceLiveView,
+)
+from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView, MatureParticipantConsiderationsView
 from .participant_views import (
     ParticipantAccessDetailView,
     ParticipantAccessListView,
@@ -30,6 +37,8 @@ urlpatterns = [
     path("me/", MatureParticipantHomeView.as_view(), name="participant-home"),
     path("me/ongoing/", MatureParticipantOngoingView.as_view(), name="participant-ongoing"),
     path("me/moi/", MatureParticipantMeView.as_view(), name="participant-me"),
+    path("me/moi/appuis/", AppuisWebView.as_view(), name="participant-appuis"),
+    path("me/moi/choix/", MatureParticipantConsiderationsView.as_view(), name="participant-me-choices"),
     path("me/connections/", PersonalConnectionsView.as_view(), name="participant-connections"),
     path("mark/", MakoloMarkView.as_view(), name="makolo-mark"),
     path("me/journeys/", ParticipantJourneyListView.as_view(), name="participant-journeys"),
@@ -49,9 +58,24 @@ urlpatterns = [
         name="participant-invitation-decline",
     ),
     path(
+        "me/occurrences/<uuid:pk>/day-of/",
+        PersonalOccurrenceDayOfView.as_view(),
+        name="participant-occurrence-day-of",
+    ),
+    path(
         "me/occurrences/<uuid:pk>/live/",
-        ParticipantOccurrenceLiveView.as_view(),
+        PersonalOccurrenceLiveView.as_view(),
         name="participant-occurrence-live",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/depth/<str:kind>/",
+        PersonalOccurrenceDepthView.as_view(),
+        name="participant-occurrence-depth",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/scanner/",
+        PersonalOccurrenceScannerView.as_view(),
+        name="participant-occurrence-scanner",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(

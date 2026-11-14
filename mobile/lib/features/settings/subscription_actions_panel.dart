@@ -1,0 +1,880 @@
+import 'dart:math';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/app_runtime.dart';
+import '../../network/api_error.dart';
+import 'subscription_billing_format.dart';
+
+Map<String, dynamic>? _object(Object? raw) {
+  if (raw is! Map) return null;
+  return raw.map((key, value) => MapEntry(key.toString(), value));
+}
+
+List<Map<String, dynamic>> _objects(Object? raw) {
+  if (raw is! List) return const [];
+  return raw.map(_object).whereType<Map<String, dynamic>>().toList();
+}
+
+String _value(Object? raw, [String fallback = '']) {
+  final value = raw?.toString().trim() ?? '';
+  return value.isEmpty ? fallback : value;
+}
+
+String _actionError(Object error) {
+  if (error is MakoloApiError) {
+    if (error.statusCode == 401) return 'Votre session doit être renouvelée.';
+    if (error.statusCode == 403 || error.statusCode == 404) {
+      return 'Cette action n’est plus accessible.';
+    }
+    if (error.statusCode == 400) return error.message;
+  }
+  return 'La demande n’a pas pu être confirmée. Vérifiez son état avant de réessayer.';
+}
+
+String _uniqueIntent() {
+  final random = Random.secure();
+  return List.generate(
+    24,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+}
+
+/// Self-service controls are projections of the server catalog and transitions.
+/// No capability, quote, or payment state is computed here.
+class SubscriptionActionsPanel extends StatefulWidget {
+  const SubscriptionActionsPanel({
+    super.key,
+    required this.runtime,
+    required this.snapshot,
+    required this.onUpdated,
+    this.section = 'overview',
+    this.spaceSlug,
+    this.expectedSpaceId,
+  });
+
+  final AppRuntime runtime;
+  final Map<String, dynamic> snapshot;
+  final Future<void> Function() onUpdated;
+  final String section;
+  final String? spaceSlug;
+  final String? expectedSpaceId;
+
+  @override
+  State<SubscriptionActionsPanel> createState() =>
+      _SubscriptionActionsPanelState();
+}
+
+class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
+  bool _busy = false;
+  bool _loadingMore = false;
+  String? _error;
+  final List<Map<String, dynamic>> _extraBills = [];
+  final List<Map<String, dynamic>> _extraHistory = [];
+  int? _offset;
+  int? _historyOffset;
+  bool _loadingHistory = false;
+
+  String get subscriptionPath => widget.spaceSlug == null
+      ? 'api/v1/subscriptions/me/'
+      : 'api/v1/subscriptions/spaces/${Uri.encodeComponent(widget.spaceSlug!)}/';
+
+  bool get canManage =>
+      _object(widget.snapshot['subscription'])?['can_manage'] != false;
+
+  bool _sameSubject(AppRuntime runtime, String? profileId) {
+    if (!mounted ||
+        !identical(widget.runtime, runtime) ||
+        runtime.session?.profileId != profileId) {
+      return false;
+    }
+    if (widget.spaceSlug == null) return true;
+    final actor = runtime.actorContext?.value;
+    return actor is SpaceActorContext &&
+        actor.space.slug == widget.spaceSlug &&
+        actor.space.id == widget.expectedSpaceId &&
+        _object(widget.snapshot['space'])?['id']?.toString() ==
+            widget.expectedSpaceId;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
+    _historyOffset =
+        _object(widget.snapshot['history'])?['next_offset'] as int?;
+  }
+
+  @override
+  void didUpdateWidget(covariant SubscriptionActionsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.runtime != oldWidget.runtime ||
+        widget.snapshot != oldWidget.snapshot ||
+        widget.spaceSlug != oldWidget.spaceSlug ||
+        widget.expectedSpaceId != oldWidget.expectedSpaceId) {
+      _extraBills.clear();
+      _extraHistory.clear();
+      _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
+      _historyOffset =
+          _object(widget.snapshot['history'])?['next_offset'] as int?;
+      _error = null;
+    }
+  }
+
+  Widget _list(String title, Object? source) {
+    if (source is! List || source.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          for (final row in source)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ${_value(_object(row)?['label'] ?? _object(row)?['title'], _value(row))}',
+                  ),
+                  if (_object(row) case final detail?)
+                    if (_value(
+                      detail['detail'],
+                      _value(detail['description']),
+                    ).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Text(
+                          _value(
+                                detail['detail'],
+                                _value(detail['description']),
+                              ) +
+                              (detail['state'] == null
+                                  ? ''
+                                  : ' · ${subscriptionConditionStatusLabel(detail['state'])}'),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _preview(String endpoint, String title) async {
+    final api = widget.runtime.api;
+    final sourceRuntime = widget.runtime;
+    final profileId = sourceRuntime.session?.profileId;
+    if (api == null || _busy) {
+      setState(() => _error = 'Cette action nécessite une connexion active.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    late final Map<String, dynamic> preview;
+    try {
+      preview = (await api.get(endpoint)).jsonObject();
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = _actionError(error);
+        });
+      }
+      return;
+    }
+    if (!mounted ||
+        !_sameSubject(sourceRuntime, profileId) ||
+        widget.runtime.api != api) {
+      return;
+    }
+    setState(() => _busy = false);
+    final billedAmount = num.tryParse(
+      _object(preview['billing_terms'])?['amount']?.toString() ?? '',
+    );
+    final paidChoice = billedAmount != null && billedAmount > 0;
+    final requiresPaymentVerification =
+        preview['has_payment_requirement'] == true;
+    final intent = _uniqueIntent();
+    var confirming = false;
+    String? failed;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(sheetContext).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(_value(preview['target_name'], title)),
+                  if (_object(preview['billing_terms']) != null) ...[
+                    const SizedBox(height: 8),
+                    Text(subscriptionPriceLabel(preview['billing_terms'])),
+                  ],
+                  if (_value(preview['current_name']).isNotEmpty)
+                    Text('Depuis : ${_value(preview['current_name'])}'),
+                  if (_value(preview['eligibility']).isNotEmpty)
+                    Text('Disponibilité : ${_value(preview['eligibility'])}'),
+                  _list('Capacités obtenues', preview['features_gained']),
+                  _list('Capacités retirées', preview['features_lost']),
+                  if (_objects(preview['features_gained']).isEmpty &&
+                      _objects(preview['features_lost']).isEmpty &&
+                      _objects(preview['quota_changes']).isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Aucune différence de capacité déclarée entre ces offres. Comparez le tarif et les conditions avant de continuer.',
+                      ),
+                    ),
+                  _list('Conditions', preview['requirements']),
+                  _list('À savoir', preview['warnings']),
+                  for (final quota in _objects(preview['quota_changes'])) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_value(quota['label'])} : ${_value(quota['current_value'], '—')} → ${_value(quota['target_value'], '—')}',
+                    ),
+                  ],
+                  if (preview['quota_changes'] is List &&
+                      (preview['quota_changes'] as List).isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Les limites sont calculées selon votre usage actuel.',
+                      ),
+                    ),
+                  if (preview['has_payment_requirement'] == true) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Une condition de paiement doit être satisfaite avant l’activation.',
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    paidChoice
+                        ? 'Votre choix sera enregistré avant le paiement. L’abonnement actuel reste actif jusqu’à confirmation.'
+                        : requiresPaymentVerification
+                        ? 'Votre demande restera en cours jusqu’à validation du paiement requis. La formule actuelle reste active.'
+                        : 'Makolo appliquera ce changement lorsque les conditions sont satisfaites.',
+                  ),
+                  if (failed != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      failed!,
+                      style: TextStyle(
+                        color: Theme.of(sheetContext).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: confirming
+                              ? null
+                              : () => Navigator.pop(sheetContext),
+                          child: const Text('Retour'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed:
+                              confirming ||
+                                  !canManage ||
+                                  preview['can_confirm'] == false
+                              ? null
+                              : () async {
+                                  // A preview dialog can outlive its actor
+                                  // context. Never send a mutation for the
+                                  // former Space after the user switches.
+                                  if (!_sameSubject(sourceRuntime, profileId) ||
+                                      widget.runtime.api != api ||
+                                      !canManage) {
+                                    if (sheetContext.mounted) {
+                                      Navigator.pop(sheetContext);
+                                    }
+                                    return;
+                                  }
+                                  final approved = await showDialog<bool>(
+                                    context: sheetContext,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: Text(
+                                        preview['kind'] == 'addon_remove'
+                                            ? 'Retirer cette option ?'
+                                            : 'Confirmer le changement ?',
+                                      ),
+                                      content: Text(
+                                        '${_value(preview['target_name'], title)}${paidChoice ? '\n${subscriptionPriceLabel(preview['billing_terms'])}' : ''}\nLa formule actuelle reste applicable tant que les conditions ne sont pas remplies.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            false,
+                                          ),
+                                          child: const Text('Retour'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            true,
+                                          ),
+                                          child: const Text('Confirmer'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (approved != true ||
+                                      !sheetContext.mounted ||
+                                      !_sameSubject(sourceRuntime, profileId) ||
+                                      widget.runtime.api != api) {
+                                    return;
+                                  }
+                                  setSheet(() {
+                                    confirming = true;
+                                    failed = null;
+                                  });
+                                  try {
+                                    final result = (await api.post(
+                                      endpoint,
+                                      body: {'idempotency_key': intent},
+                                    )).jsonObject();
+                                    final paymentId = _value(
+                                      _object(
+                                        result['transition'],
+                                      )?['payment_obligation_id'],
+                                    );
+                                    if (!_sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        ) ||
+                                        widget.runtime.api != api) {
+                                      return;
+                                    }
+                                    await widget.onUpdated();
+                                    if (sheetContext.mounted) {
+                                      Navigator.pop(sheetContext);
+                                    }
+                                    if (paymentId.isNotEmpty &&
+                                        mounted &&
+                                        _sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        )) {
+                                      await context.push(
+                                        '/payments/obligations/${Uri.encodeComponent(paymentId)}',
+                                      );
+                                      if (_sameSubject(
+                                        sourceRuntime,
+                                        profileId,
+                                      )) {
+                                        await widget.onUpdated();
+                                      }
+                                    }
+                                  } on Object catch (error) {
+                                    // The intent key is unchanged, including after a lost response.
+                                    if (_sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        ) &&
+                                        widget.runtime.api == api) {
+                                      await widget.onUpdated();
+                                    }
+                                    if (sheetContext.mounted) {
+                                      setSheet(() {
+                                        failed = _actionError(error);
+                                        confirming = false;
+                                      });
+                                    }
+                                  }
+                                },
+                          child: Text(
+                            canManage && preview['can_confirm'] != false
+                                ? (confirming
+                                      ? 'Confirmation…'
+                                      : paidChoice
+                                      ? 'Continuer vers le paiement'
+                                      : requiresPaymentVerification
+                                      ? 'Demander le changement'
+                                      : 'Appliquer le changement')
+                                : 'Consultation uniquement',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPayment(String obligationId) async {
+    final sourceRuntime = widget.runtime;
+    final profileId = sourceRuntime.session?.profileId;
+    if (obligationId.isEmpty || !_sameSubject(sourceRuntime, profileId)) return;
+    await context.push(
+      '/payments/obligations/${Uri.encodeComponent(obligationId)}',
+    );
+    if (_sameSubject(sourceRuntime, profileId)) {
+      await widget.onUpdated();
+    }
+  }
+
+  Future<void> _transition(String id, String action) async {
+    final api = widget.runtime.api;
+    final sourceRuntime = widget.runtime;
+    final profileId = sourceRuntime.session?.profileId;
+    if (_busy || api == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          action == 'complete'
+              ? 'Finaliser le changement ?'
+              : 'Annuler la demande ?',
+        ),
+        content: const Text(
+          'Makolo vérifiera à nouveau vos droits et les conditions.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Retour'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true ||
+        !_sameSubject(sourceRuntime, profileId) ||
+        widget.runtime.api != api) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await api.post(
+        '${subscriptionPath}transitions/${Uri.encodeComponent(id)}/$action/',
+      );
+      if (_sameSubject(sourceRuntime, profileId) && widget.runtime.api == api) {
+        await widget.onUpdated();
+      }
+    } on Object catch (error) {
+      if (_sameSubject(sourceRuntime, profileId) && widget.runtime.api == api) {
+        await widget.onUpdated();
+        if (mounted) setState(() => _error = _actionError(error));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _more() async {
+    final api = widget.runtime.api;
+    final sourceRuntime = widget.runtime;
+    final profileId = sourceRuntime.session?.profileId;
+    final snapshot = widget.snapshot;
+    final offset = _offset;
+    if (_loadingMore || api == null || offset == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final result = (await api.get(
+        '${subscriptionPath}obligations/?offset=$offset',
+      )).jsonObject();
+      if (!_sameSubject(sourceRuntime, profileId) ||
+          widget.runtime.api != api ||
+          widget.snapshot != snapshot) {
+        return;
+      }
+      final previous = {
+        ..._objects(_object(widget.snapshot['billing'])?['items']),
+        ..._extraBills,
+      }.map((row) => _value(row['id'])).toSet();
+      final next = _objects(result['items']);
+      setState(() {
+        _extraBills.addAll(
+          next.where((row) => previous.add(_value(row['id']))),
+        );
+        _offset = result['next_offset'] as int?;
+      });
+    } on Object catch (error) {
+      if (mounted) setState(() => _error = _actionError(error));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _moreHistory() async {
+    final api = widget.runtime.api;
+    final offset = _historyOffset;
+    final runtime = widget.runtime;
+    final profileId = runtime.session?.profileId;
+    final snapshot = widget.snapshot;
+    if (api == null || offset == null || _loadingHistory) return;
+    setState(() => _loadingHistory = true);
+    try {
+      final result = (await api.get(
+        '${subscriptionPath}transitions/?offset=$offset',
+      )).jsonObject();
+      if (!_sameSubject(runtime, profileId) ||
+          widget.runtime.api != api ||
+          widget.snapshot != snapshot) {
+        return;
+      }
+      final seen = {
+        ..._objects(_object(widget.snapshot['history'])?['items']),
+        ..._extraHistory,
+      }.map((item) => _value(item['id'])).toSet();
+      setState(() {
+        _extraHistory.addAll(
+          _objects(result['items'])
+              .where((item) => seen.add(_value(item['id']))),
+        );
+        _historyOffset = result['next_offset'] as int?;
+      });
+    } on Object catch (error) {
+      if (_sameSubject(runtime, profileId)) {
+        setState(() => _error = _actionError(error));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subscription = _object(widget.snapshot['subscription']);
+    if (subscription == null) return const SizedBox.shrink();
+    final catalog = _objects(widget.snapshot['catalog']);
+    final addons = _objects(subscription['active_addons']);
+    final transition = _object(widget.snapshot['transition']);
+    final hasOpenTransition = transition?['open'] == true;
+    final billingRestricted =
+        _object(widget.snapshot['billing'])?['visibility'] == 'restricted';
+    final bills = [
+      ..._objects(_object(widget.snapshot['billing'])?['items']),
+      ..._extraBills,
+    ];
+    final history = [
+      ..._objects(_object(widget.snapshot['history'])?['items']),
+      ..._extraHistory,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        if (widget.section == 'options' && addons.isNotEmpty) ...[
+          Text(
+            'Options actives',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          for (final row in addons)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(_value(row['name'], 'Option')),
+              subtitle: Text(subscriptionPriceLabel(row['billing_terms'])),
+              trailing: canManage && !hasOpenTransition
+                  ? TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _preview(
+                              '${subscriptionPath}addons/${Uri.encodeComponent(_value(row['item_id']))}/remove/',
+                              'Retirer ${_value(row['name'], 'cette option')}',
+                            ),
+                      child: const Text('Retirer'),
+                    )
+                  : null,
+            ),
+          const SizedBox(height: 12),
+        ],
+        if ((widget.section == 'overview' || widget.section == 'plans') &&
+            canManage &&
+            transition != null &&
+            transition['open'] == true) ...[
+          const SizedBox(height: 8),
+          if (widget.section == 'plans' &&
+              transition['next_action'] == 'pay' &&
+              _value(transition['payment_obligation_id']).isNotEmpty)
+            FilledButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _openPayment(
+                      _value(transition['payment_obligation_id']),
+                    ),
+              icon: const Icon(Icons.credit_card_outlined),
+              label: const Text('Reprendre le paiement'),
+            )
+          else if (widget.section == 'plans' &&
+              transition['next_action'] == 'finance_access_required')
+            const Text(
+              'Une personne autorisée à gérer les finances de cet Espace doit régler cette obligation.',
+            ),
+          if (transition['status'] == 'ready')
+            FilledButton(
+              onPressed: _busy
+                  ? null
+                  : () => _transition(_value(transition['id']), 'complete'),
+              child: const Text('Finaliser le changement prêt'),
+            ),
+          if (transition['can_cancel'] != false)
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _transition(_value(transition['id']), 'cancel'),
+              child: const Text('Annuler ce changement'),
+            )
+          else
+            const Text(
+              'Ce changement possède une obligation financière. '
+              'Une annulation exige d’abord la régularisation de cette obligation.',
+            ),
+        ],
+        if (widget.section == 'history') ...[
+          if (history.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Aucun changement enregistré.'),
+            ),
+          for (final event in history) ...[
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                _value(event['source_name']).isEmpty
+                    ? _value(event['target_name'], 'Changement')
+                    : '${_value(event['source_name'])} → ${_value(event['target_name'], 'Changement')}',
+              ),
+              subtitle: Text(
+                '${event['kind'] == 'base_switch' ? 'Changement de formule' : _value(event['kind_label'])} · ${_value(event['status_label'], 'À vérifier')}${subscriptionDateLabel(event['completed_at'] ?? event['requested_at']).isEmpty ? '' : ' · ${subscriptionDateLabel(event['completed_at'] ?? event['requested_at'])}'}',
+              ),
+            ),
+            const Divider(height: 1),
+          ],
+          if (_historyOffset != null)
+            TextButton(
+              onPressed: _loadingHistory ? null : _moreHistory,
+              child: Text(
+                _loadingHistory
+                    ? 'Chargement…'
+                    : 'Voir les demandes précédentes',
+              ),
+            ),
+        ],
+        if (widget.section == 'plans' || widget.section == 'options') ...[
+          if (widget.section == 'plans' &&
+              _object(subscription['current_base']) != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Formule actuelle : ${_value(_object(subscription['current_base'])?['name'])}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          Text(
+            widget.section == 'options'
+                ? 'Options disponibles'
+                : 'Autres formules',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          if (hasOpenTransition)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                transition?['next_action'] == 'pay'
+                    ? 'Un changement attend son paiement. Terminez-le avant un nouveau choix.'
+                    : 'Un changement est en cours. Terminez-le ou annulez-le avant un nouveau choix.',
+              ),
+            ),
+          if (catalog
+              .where(
+                (option) =>
+                    (option['plan_type'] == 'addon') ==
+                        (widget.section == 'options') &&
+                    option['current'] != true,
+              )
+              .isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Aucune autre offre disponible pour le moment.'),
+            ),
+          for (final option in catalog)
+            if ((option['plan_type'] == 'addon') ==
+                    (widget.section == 'options') &&
+                option['current'] != true)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _value(option['name']),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subscriptionPriceLabel(option['billing_terms']),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          if (_objects(option['benefits']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(
+                                  _objects(option['benefits']).first['title'],
+                                ),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            )
+                          else if (_value(option['description']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(option['description']),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if (option['eligibility'] != 'available' &&
+                              _value(option['eligibility_label']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(option['eligibility_label']),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if ((option['can_request'] == true ||
+                                  option['can_preview'] == true) &&
+                              !hasOpenTransition)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _preview(
+                                        '${subscriptionPath}plans/${Uri.encodeComponent(_value(option['plan_version_id']))}/',
+                                        widget.section == 'options'
+                                            ? 'Examiner cette option'
+                                            : 'Examiner cette formule',
+                                      ),
+                                child: const Text('Voir les détails'),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+        if (widget.section == 'billing') ...[
+          if (billingRestricted)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Les montants de cet Espace sont réservés aux personnes '
+                'autorisées à consulter ses finances.',
+              ),
+            )
+          else if (bills.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Aucun montant enregistré pour cet abonnement. '
+                'Vos paiements et échéances apparaîtront ici.',
+              ),
+            ),
+          for (final obligation in bills) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                '${_value(obligation['amount'])} ${_value(obligation['currency'])}',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_value(obligation['label'], 'Abonnement')),
+                  Text(
+                    subscriptionObligationStatusLabel(obligation['status']) +
+                        (subscriptionDateLabel(obligation['due_at']).isEmpty
+                            ? ''
+                            : ' · Échéance ${subscriptionDateLabel(obligation['due_at'])}'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+              trailing:
+                  _value(obligation['id']).isNotEmpty &&
+                      (widget.spaceSlug == null ||
+                          obligation['can_open_detail'] == true)
+                  ? const Icon(Icons.chevron_right_rounded)
+                  : null,
+              onTap:
+                  _value(obligation['id']).isEmpty ||
+                      (widget.spaceSlug != null &&
+                          obligation['can_open_detail'] != true)
+                  ? null
+                  : () => _openPayment(_value(obligation['id'])),
+            ),
+            const Divider(height: 1),
+          ],
+          if (_offset != null)
+            TextButton(
+              onPressed: _loadingMore ? null : _more,
+              child: Text(
+                _loadingMore ? 'Chargement…' : 'Voir les autres paiements',
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}

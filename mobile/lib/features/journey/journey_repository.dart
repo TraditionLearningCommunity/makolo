@@ -58,6 +58,106 @@ class JourneyRepository {
     );
   }
 
+  /// Owner identity comes only from a durable personal projection, never a
+  /// caller-provided list or a client-generated Journey.
+  static List<String> knownJourneyIdsFromOngoing(
+    StoredProjection? ongoing, {
+    int limit = 6,
+  }) {
+    if (limit <= 0) return const [];
+    final items = ongoing?.payload['items'];
+    if (items is! List) return const [];
+
+    final ids = <String>{};
+    final uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    for (final row in items) {
+      if (row is! Map) continue;
+      final source = row['source'];
+      if (source is! Map || source['kind'] != 'journey') continue;
+      final raw = source['id'];
+      if (raw is! String || !uuid.hasMatch(raw)) continue;
+      if (!ids.add(raw)) continue;
+      if (ids.length >= limit) break;
+    }
+    return List.unmodifiable(ids);
+  }
+
+  static bool _isUuid(String value) {
+    final parts = value.split('-');
+    const sizes = [8, 4, 4, 4, 12];
+    if (parts.length != sizes.length) return false;
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].length != sizes[i] ||
+          int.tryParse(parts[i], radix: 16) == null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Only owner links already acquired in the Profile database are prepared.
+  static Map<String, String> knownFormLinksFromDetail(
+    StoredProjection? detail, {
+    int limit = 6,
+  }) {
+    if (detail == null || limit <= 0) return const {};
+    final rows = detail.payload['forms'];
+    if (rows is! List) return const {};
+    final links = <String, String>{};
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = row['id']?.toString() ?? '';
+      final ownerLinks = row['links'];
+      if (ownerLinks is! Map) continue;
+      final link = ownerLinks['detail']?.toString() ?? '';
+      if (!_isUuid(id) || link != '/api/v1/questionnaires/requests/$id/') {
+        continue;
+      }
+      links[id] = link;
+      if (links.length >= limit) break;
+    }
+    return Map.unmodifiable(links);
+  }
+
+  static Map<String, String> knownRequirementLinksFromDetail(
+    StoredProjection? detail, {
+    required String journeyId,
+    int limit = 6,
+  }) {
+    if (detail == null || limit <= 0) return const {};
+    final rows = detail.payload['requirements'];
+    if (rows is! List) return const {};
+    final links = <String, String>{};
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = row['id']?.toString() ?? '';
+      final link = row['link']?.toString() ?? '';
+      if (!_isUuid(id) ||
+          !_isUuid(journeyId) ||
+          link != '/api/v1/me/journeys/$journeyId/requirements/$id/') {
+        continue;
+      }
+      links[id] = link;
+      if (links.length >= limit) break;
+    }
+    return Map.unmodifiable(links);
+  }
+
+  /// Prepare owner details already referenced by the personal working set.
+  /// Only stored Profile facts select identities; no page or widget cache.
+  Future<int> prepareKnownJourneySources({int limit = 6}) async {
+    final engine = sync;
+    if (engine == null || limit <= 0) return 0;
+    final ongoing = await store.readProjection('personal.ongoing');
+    final ids = knownJourneyIdsFromOngoing(ongoing, limit: limit);
+    for (final id in ids) {
+      engine.registerPreparedSource(sourceFor(id));
+    }
+    return ids.length;
+  }
+
   Stream<StoredProjection?> watchDetail(String journeyId) {
     return store.watchProjection(projectionKind, resourceKey: journeyId);
   }

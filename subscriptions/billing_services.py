@@ -125,7 +125,7 @@ def create_subscription_billing_obligation(
         commerce_order=None,
         step=None,
         reason=PaymentObligationReason.SUBSCRIPTION,
-        label=f"Subscription {billing_terms.plan_version.plan.code} v{billing_terms.plan_version.version}",
+        label=f"Abonnement — {billing_terms.plan_version.name}",
         amount=billing_terms.amount,
         currency=billing_terms.currency,
         processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
@@ -184,13 +184,67 @@ def ensure_transition_billing_obligation(*, transition, actor=None):
 @transaction.atomic
 def sync_subscription_billing_obligation(*, obligation):
     link = (
-        SubscriptionBillingObligation.objects.select_for_update()
+        SubscriptionBillingObligation.objects.select_for_update(of=("self",))
         .filter(obligation=obligation)
         .select_related("transition")
         .first()
     )
+    if link and link.coverage_id:
+        from .coverage_services import reconcile_coverage_payment
+        return reconcile_coverage_payment(coverage=link.coverage)
     if not link or not link.transition_id:
         return None
-    from .transition_services import evaluate_transition_readiness
+    from .transition_services import (
+        evaluate_transition_readiness,
+        finalize_ready_self_service_transition,
+    )
 
-    return evaluate_transition_readiness(transition=link.transition)
+    evaluated = evaluate_transition_readiness(transition=link.transition)
+    return finalize_ready_self_service_transition(transition=evaluated)
+
+
+@transaction.atomic
+def create_coverage_billing_obligation(*, coverage, billing_key, actor=None, due_at=None):
+    """Separate billing lane: a financier pays a pinned coverage, never a beneficiary Subscription."""
+    from .coverage_models import CoverageStatus, SubscriptionCoverage
+
+    key = (billing_key or "").strip()
+    if not key or len(key) > 128:
+        raise SubscriptionBillingError("Une clé de facturation explicite (128 caractères maximum) est obligatoire.")
+    coverage = (
+        SubscriptionCoverage.objects.select_for_update(of=("self",))
+        .select_related("billing_terms", "plan_version__plan", "payer_profile", "payer_space")
+        .get(pk=coverage.pk)
+    )
+    if coverage.status == CoverageStatus.ENDED:
+        raise SubscriptionBillingError("Une couverture terminée ne peut être refacturée.")
+    terms = coverage.billing_terms
+    existing = SubscriptionBillingObligation.objects.filter(
+        coverage=coverage, billing_terms=terms, billing_key=key,
+    ).select_related("obligation").first()
+    if existing:
+        return existing.obligation
+    if terms.amount == 0:
+        return None
+    amount = terms.amount * (coverage.purchased_quantity if terms.coverage_pricing_mode == "per_seat" else 1)
+    if amount > 9999999999.99:
+        raise SubscriptionBillingError("Le montant dépasse la précision supportée.")
+    source_key = "subscription-coverage:" + hashlib.sha256(
+        f"{coverage.pk}:{terms.pk}:{key}".encode("utf-8")
+    ).hexdigest()
+    obligation = create_payment_obligation(
+        journey=None, commerce_order=None, step=None,
+        reason=PaymentObligationReason.SUBSCRIPTION,
+        label=f"Couverture {coverage.plan_version.plan.code} v{coverage.plan_version.version}",
+        amount=amount, currency=terms.currency,
+        processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
+        payer_profile=coverage.payer_profile, payer_space=coverage.payer_space,
+        payee_platform=True, due_at=due_at or _resolve_due_at(billing_terms=terms),
+        created_by=_actor_or_none(actor), source_key=source_key,
+    )
+    link = SubscriptionBillingObligation(
+        subscription=None, coverage=coverage, transition=None,
+        billing_terms=terms, obligation=obligation, billing_key=key,
+    )
+    link.save()
+    return obligation

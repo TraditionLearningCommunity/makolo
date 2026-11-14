@@ -6,6 +6,9 @@ from rest_framework.test import APITestCase
 from accounts.models import User
 from notifications.models import Notification, NotificationCategory, NotificationKind
 from notifications.navigation import build_notification_navigation
+from notifications.visuals import notification_visual
+from activities.models import ActivityStatus, ActivityVisibility
+from types import SimpleNamespace
 
 
 class M100NotificationNavigationContractTests(SimpleTestCase):
@@ -61,6 +64,24 @@ class M100NotificationNavigationContractTests(SimpleTestCase):
         self.assertEqual(navigation["target"], "event")
         self.assertEqual(navigation["resource"], {"kind": "event", "id": event_id})
         self.assertNotIn("links", navigation)
+
+    def test_visual_fallback_never_trusts_metadata_or_private_activity(self):
+        notification = self._notification(
+            image_url="https://example.org/untrusted.jpg",
+            actor_avatar="https://example.org/actor.jpg",
+        )
+        self.assertEqual(notification_visual(notification), {
+            "kind": "icon", "category": "system", "image_url": None,
+        })
+        private = SimpleNamespace(
+            category="event",
+            activity=SimpleNamespace(
+                status=ActivityStatus.DRAFT,
+                visibility=ActivityVisibility.PRIVATE,
+            ),
+            journey_id=None,
+        )
+        self.assertIsNone(notification_visual(private)["image_url"])
 
     def test_action_url_is_never_parsed_into_structured_navigation(self):
         notification = self._notification()
@@ -137,6 +158,8 @@ class M100ShellPrivacyContractTests(APITestCase):
         mine = self.client.get(f"/api/v1/notifications/{self.mine.pk}/")
         self.assertEqual(mine.status_code, 200)
         self.assertEqual(mine["Cache-Control"], "private, no-store")
+        self.assertEqual(mine.json()["visual"]["kind"], "icon")
+        self.assertIsNone(mine.json()["visual"]["image_url"])
         navigation = mine.json()["navigation"]
         self.assertEqual(navigation["target"], "journey")
         self.assertEqual(

@@ -1,0 +1,56 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}Historique · {{ context_label }} | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-5" id="conversation-history">
+  <header class="mb-7">
+    <a href="{% url 'conversations:detail' conversation.pk %}" class="inline-flex min-h-11 items-center rounded-lg text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4" style="color:var(--mk-brand)">← {{ context_label }}</a>
+    <h1 class="mk-page-title mt-2">Retrouver un Point</h1>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">Historique et résultats accessibles</p>
+  </header>
+  <form method="get" role="search" aria-label="Rechercher dans la conversation" class="grid gap-3 rounded-2xl border p-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end" style="border-color:var(--mk-border)">
+    <label class="block min-w-0">
+      <span class="mb-1 block text-sm font-semibold">Recherche</span>
+      <input name="q" value="{{ query }}" maxlength="120" class="mk-input w-full" type="search" placeholder="Un Point, une décision, un fichier…" autocomplete="off">
+    </label>
+    <label class="block">
+      <span class="mb-1 block text-sm font-semibold">Afficher</span>
+      <select name="section" class="mk-input w-full">
+        <option value="history" {% if section == 'history' %}selected{% endif %}>Historique</option>
+        <option value="all" {% if section == 'all' %}selected{% endif %}>Tous les Points</option>
+        <option value="active" {% if section == 'active' %}selected{% endif %}>En cours</option>
+      </select>
+    </label>
+    <button class="mk-action-button min-h-11" data-variant="primary" type="submit">Rechercher</button>
+  </form>
+  {% if history_error %}
+    <div role="alert" class="mt-5 rounded-xl border p-4 text-sm" style="border-color:var(--mk-border)">
+      {{ history_error }}
+      <a href="?section={{ section }}" class="ml-2 underline" style="color:var(--mk-brand)">Recommencer</a>
+    </div>
+  {% endif %}
+  <section class="mt-7" aria-labelledby="history-results-title">
+    <h2 id="history-results-title" class="text-base font-extrabold">Points accessibles</h2>
+    <div aria-live="polite" class="mt-4 space-y-3">
+      {% for group in history_groups %}
+        {% ifchanged group.day %}
+          <p class="pt-3 text-center text-xs font-semibold" style="color:var(--mk-muted)">
+            {% if group.day %}{{ group.day|date:'d F Y' }}{% else %}Date inconnue{% endif %}
+          </p>
+        {% endifchanged %}
+        {% include 'conversations/_timeline_group.html' with group=group %}
+      {% empty %}
+        {% if not history_error %}
+          <p class="py-7 text-sm" style="color:var(--mk-muted)">Aucun Point accessible pour ce filtre.</p>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if next_cursor %}
+      <nav aria-label="Suite de l’historique" class="mt-7">
+        <a class="mk-action-button inline-flex min-h-11 items-center" data-variant="secondary" href="?{{ next_query }}">Voir les Points plus anciens</a>
+      </nav>
+    {% endif %}
+  </section>
+</main>
+<script defer src="{% static 'js/conversations-media-gallery.js' %}"></script>
+{% endblock %}

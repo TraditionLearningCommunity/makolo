@@ -1,9 +1,40 @@
 {% extends "base/app.html" %}
+{% load static %}
+{% block title %}Créer un dossier | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/objective-organizer.css' %}">{% endblock %}
 {% block content %}
-<div style="max-width:680px;margin:0 auto;padding:1rem;">
-  <p><a class="mk-btn mk-btn-ghost" href="{% url 'objectives:dossier-list' %}">← Dossiers</a></p>
-  <p style="margin:1rem 0 0;color:#5232DB;font-weight:700;">Objectif composé</p>
-  <h1>Nouveau Dossier</h1>
-  <form method="post">{% csrf_token %}{{ form.as_p }}<button class="mk-btn mk-btn-primary" type="submit">Créer le Dossier</button></form>
-</div>
+<main class="mk-organizer mk-organizer--create">
+  <nav class="mk-organizer__breadcrumb" aria-label="Fil d’Ariane">
+    <a href="{% url 'core:participant-me' %}">Moi</a>
+    <span aria-hidden="true">/</span>
+    <a href="{% url 'objectives:organizer' %}{{ scope_query }}">Mes démarches</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">Créer un dossier</span>
+  </nav>
+  <header class="mk-organizer__heading">
+    <div>
+      <p class="mk-organizer__eyebrow">Objectif concret</p>
+      <h1>Créer un dossier</h1>
+    </div>
+    <div class="mk-organizer__heading-mark" aria-hidden="true"><i data-lucide="folder-plus"></i></div>
+  </header>
+  <form method="post" class="mk-organizer__create-form" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="mk-organizer__form-errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      <div class="mk-organizer__field{% if field.errors %} mk-organizer__field--invalid{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-label="obligatoire">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="mk-organizer__field-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<div class="mk-organizer__field-errors" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+    <div class="mk-organizer__form-footer">
+      <button class="mk-organizer__primary mk-action-button" data-variant="primary" type="submit"><i data-lucide="check" aria-hidden="true"></i>Créer le dossier</button>
+      <a class="mk-organizer__form-cancel mk-action-button" data-variant="ghost" href="{% url 'objectives:organizer' %}{{ scope_query }}">Annuler</a>
+    </div>
+  </form>
+</main>
 {% endblock %}

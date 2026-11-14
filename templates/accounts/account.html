@@ -5,7 +5,7 @@
   <section>
     <span class="mk-kicker">Compte</span>
     <h1 class="mk-page-title">Compte</h1>
-    <p class="mk-page-copy mt-4 text-[15px]">Gérez l’accès à Makolo et les capacités réellement disponibles pour ce compte.</p>
+    <p class="mk-page-copy mt-4 text-[15px]">Gérez votre accès à Makolo et les services liés à votre compte.</p>
   </section>
   <section class="mk-panel p-5 sm:p-6">
     <h2 class="text-lg font-extrabold">Accès au compte</h2>
@@ -14,13 +14,13 @@
       <div><dt class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Adresse e-mail</dt><dd class="mt-1 font-bold">{{ request.user.email|default:"Non ajoutée" }}</dd></div>
     </dl>
     <div class="mt-5 flex flex-wrap gap-2">
-      <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a>
-      <a href="{% url 'account:switcher' %}" class="mk-btn mk-btn-secondary">Comptes mémorisés</a>
+      <a href="{% url 'account:password-change' %}" class="mk-action-button" data-variant="secondary">Changer le mot de passe</a>
+      <a href="{% url 'account:switcher' %}" class="mk-action-button" data-variant="secondary">Comptes mémorisés</a>
     </div>
   </section>
   <section class="grid gap-4 md:grid-cols-2">
     <a href="{% url 'subscriptions:home' %}" class="mk-panel block p-5"><p class="font-extrabold">Abonnement & facturation</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre abonnement personnel Makolo.</p></a>
-    <a href="{% url 'core:participant-connections' %}" class="mk-panel block p-5"><p class="font-extrabold">Connexions</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Vos connexions personnelles supportées.</p></a>
+    <a href="{% url 'core:participant-connections' %}" class="mk-panel block p-5"><p class="font-extrabold">Connexions</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Gérez vos connexions personnelles.</p></a>
   </section>
   <section class="mk-panel p-5 sm:p-6">
     <h2 class="text-lg font-extrabold">Accès sur cet appareil</h2>
@@ -31,7 +31,7 @@
     <h2 class="text-lg font-extrabold">Suppression du compte</h2>
     {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}
     <p class="mt-4 text-sm" style="color:var(--mk-muted)">La suppression est distincte de la déconnexion et peut être bloquée par des responsabilités encore actives.</p>
-    <a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost mt-4" style="color:var(--mk-danger)">Supprimer le compte</a>
+    <a href="{% url 'account:delete' %}" class="mk-action-button mt-4" data-variant="danger">Supprimer le compte</a>
   </section>
 </div>
 {% endblock %}

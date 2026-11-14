@@ -1,4 +1,6 @@
 from django.test import TestCase
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from rest_framework.test import APIClient
 
@@ -73,6 +75,95 @@ class PersonalMeCapitalAPIContractTests(TestCase):
         self.assertEqual(data["bookmarks"]["items"][0]["activity"]["id"], str(activity.pk))
         self.assertEqual(data["watches"]["items"], [])
         self.assertNotIn("criteria", str(data["watches"]))
+
+    def test_bookmarked_media_reuses_published_recognition_only(self):
+        from activities.models import ActivityVisibility
+
+        activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Formation reconnue",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        ActivityBookmark.objects.create(user=self.user, activity=activity)
+        media = SimpleNamespace(
+            use_id="ea1a8fe1-3549-4ad1-86a2-bad932f2a235",
+            mime_type="image/jpeg",
+            alt_text="Salle de formation",
+        )
+        with patch(
+            "presentations.media_selectors.public_presentation_media_for_activities",
+            return_value={str(activity.pk): [media]},
+        ):
+            response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        row = response.json()["data"]["considerations"]["bookmarks"]["items"][0]
+        binding = row["media_bindings"][0]
+        self.assertEqual(binding["purpose"], "RECOGNIZE")
+        self.assertEqual(binding["target"], {"kind": "activity", "id": str(activity.pk)})
+        self.assertEqual(binding["resource"]["mime_type"], "image/jpeg")
+        self.assertEqual(binding["resource"]["alt_text"], "Salle de formation")
+        self.assertIn("/media/uses/", binding["resource"]["url"])
+        self.assertNotIn("file_path", str(binding))
+
+    def test_saved_media_is_also_available_on_bounded_continuation(self):
+        from activities.models import ActivityVisibility
+
+        activities = []
+        for index in range(7):
+            activity = Activity.objects.create(
+                owner_profile=self.user,
+                created_by=self.user,
+                title=f"Possibilité {index}",
+                status=ActivityStatus.PUBLISHED,
+                visibility=ActivityVisibility.PUBLIC,
+            )
+            ActivityBookmark.objects.create(user=self.user, activity=activity)
+            activities.append(activity)
+        oldest = activities[0]
+        media = SimpleNamespace(
+            use_id="ea1a8fe1-3549-4ad1-86a2-bad932f2a235",
+            mime_type="image/png",
+            alt_text="Lieu de la possibilité",
+        )
+        with patch(
+            "presentations.media_selectors.public_presentation_media_for_activities",
+            return_value={str(oldest.pk): [media]},
+        ):
+            root = self.client.get("/api/v1/me/")
+            page = self.client.get(
+                "/api/v1/me/preview/considerations/",
+                {"family": "bookmarks", "offset": 6, "limit": 24},
+            )
+        self.assertEqual(root.status_code, 200)
+        self.assertEqual(page.status_code, 200)
+        initial = root.json()["data"]["considerations"]["bookmarks"]
+        self.assertEqual(initial["next_offset"], 6)
+        self.assertTrue(initial["has_more"])
+        continued = page.json()["data"]["collection"]
+        self.assertEqual(len(continued["items"]), 1)
+        self.assertFalse(continued["has_more"])
+        row = continued["items"][0]
+        self.assertEqual(row["activity"]["id"], str(oldest.pk))
+        self.assertEqual(row["media_bindings"][0]["purpose"], "RECOGNIZE")
+
+    def test_private_bookmark_does_not_reveal_media(self):
+        from activities.models import ActivityVisibility
+
+        activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Contenu privé",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PRIVATE,
+        )
+        ActivityBookmark.objects.create(user=self.user, activity=activity)
+        response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        row = response.json()["data"]["considerations"]["bookmarks"]["items"][0]
+        self.assertEqual(row["activity"]["title"], "Contenu privé")
+        self.assertNotIn("media_bindings", row)
 
     def test_team_membership_is_not_projected_as_authority(self):
         organization = Organization.objects.create(
@@ -157,12 +248,159 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             "personal.me.passport",
         )
         self.assertEqual(complete.json()["data"]["variant"], "complete")
+        self.assertIn("private_details", complete.json()["data"])
+        self.assertEqual(
+            complete.json()["data"]["private_details"]["username"],
+            self.user.username,
+        )
         self.assertEqual(
             complete.json()["data"]["declared"]["interests"][0]["topic"]["label"],
             "Sujet privé",
         )
         self.assertEqual(public.json()["data"]["variant"], "public")
+        self.assertNotIn("private_details", public.json()["data"])
         self.assertEqual(public.json()["data"]["declared"]["interests"], [])
+        for variant in ("thematic", "custom"):
+            response = self.client.get(f"/api/v1/me/passport/?variant={variant}")
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("private_details", response.json()["data"])
+
+    def test_personalized_passport_api_requires_explicit_disclosure_selection(self):
+        self.user.bio = "Description privée pour mon Passeport"
+        self.user.metadata = {"avatar_url": "/media/private-personal-avatar.jpg"}
+        self.user.save(update_fields=["bio", "metadata", "updated_at"])
+
+        identity_only = self.client.get("/api/v1/me/passport/?variant=custom")
+        self.assertEqual(identity_only.status_code, 200)
+        empty = identity_only.json()["data"]
+        self.assertEqual(empty["identity"]["avatar_url"], "")
+        self.assertEqual(empty["identity"]["bio"], "")
+        self.assertEqual(empty["activities"], [])
+        self.assertNotIn("private_details", empty)
+
+        deliberate = self.client.get(
+            "/api/v1/me/passport/?variant=custom&include=bio&include=avatar",
+        )
+        self.assertEqual(deliberate.status_code, 200)
+        selected = deliberate.json()["data"]
+        self.assertEqual(
+            selected["identity"]["bio"], "Description privée pour mon Passeport",
+        )
+        self.assertEqual(
+            selected["identity"]["avatar_url"], "/media/private-personal-avatar.jpg",
+        )
+        self.assertNotIn("private_details", selected)
+
+    def test_passport_collective_context_is_owner_only_and_not_authority(self):
+        organization = Organization.objects.create(
+            name="Collectif CV Z4", created_by=self.other,
+        )
+        team = Team.objects.create(
+            organization=organization, name="Équipe CV Z4", is_active=True,
+        )
+        TeamMembership.objects.create(
+            team=team, user=self.user, status=TeamMembershipStatus.ACTIVE,
+        )
+
+        complete = self.client.get("/api/v1/me/passport/")
+        self.assertEqual(complete.status_code, 200)
+        data = complete.json()["data"]
+        self.assertEqual(
+            data["collectives"]["team_affiliations"],
+            [{"team": "Équipe CV Z4", "space": "Collectif CV Z4"}],
+        )
+        self.assertEqual(data["collectives"]["active_space_mandates"], [])
+
+        for variant in ("public", "thematic", "custom"):
+            response = self.client.get(f"/api/v1/me/passport/?variant={variant}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.json()["data"]["collectives"]["team_affiliations"], [],
+            )
+            self.assertEqual(
+                response.json()["data"]["collectives"]["active_space_mandates"], [],
+            )
+
+    def test_dated_history_api_never_reads_another_profiles_snapshots(self):
+        from sharing.passport import build_profile_passport
+        from sharing.passport_documents import issue_passport_snapshot
+
+        mine = issue_passport_snapshot(build_profile_passport(self.user, variant="complete"))
+        another = issue_passport_snapshot(build_profile_passport(self.other, variant="complete"))
+        listing = self.client.get("/api/v1/me/passport/history/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json()["data"]["count"], 1)
+        self.assertEqual(listing.json()["data"]["items"][0]["id"], str(mine.pk))
+        self.assertEqual(listing["Cache-Control"], "private, no-store")
+        one = self.client.get(f"/api/v1/me/passport/history/{mine.pk}/")
+        self.assertEqual(one.status_code, 200)
+        self.assertEqual(one.json()["data"]["document_id"], mine.document_id)
+        denied = self.client.get(f"/api/v1/me/passport/history/{another.pk}/")
+        self.assertEqual(denied.status_code, 404)
+
+    def test_issued_passport_share_api_is_owner_scoped_without_reissuance(self):
+        from sharing.models import PassportSnapshot
+        from sharing.passport import build_profile_passport
+        from sharing.passport_documents import issue_passport_snapshot
+
+        mine = issue_passport_snapshot(build_profile_passport(
+            self.user, variant="custom", selected_sections=("bio",),
+        ))
+        foreign = issue_passport_snapshot(build_profile_passport(
+            self.other, variant="custom", selected_sections=("bio",),
+        ))
+        before = PassportSnapshot.objects.count()
+        result = self.client.post(
+            f"/api/v1/me/passport/history/{mine.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertIn("passport/shared/", result.json()["data"]["share_url"])
+        self.assertEqual(PassportSnapshot.objects.count(), before)
+        self.assertEqual(result["Cache-Control"], "private, no-store")
+
+        denied = self.client.post(
+            f"/api/v1/me/passport/history/{foreign.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(denied.status_code, 404)
+
+        complete = issue_passport_snapshot(build_profile_passport(
+            self.user, variant="complete",
+        ))
+        invalid = self.client.post(
+            f"/api/v1/me/passport/history/{complete.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_passport_pdf_is_authenticated_and_issues_verifiable_snapshot(self):
+        from sharing.models import PassportSnapshot
+
+        topic = Topic.objects.create(code="z4-pdf", label="Culture")
+        ProfileInterest.objects.create(profile=self.user, topic=topic, is_public=True)
+        response = self.client.get("/api/v1/me/passport/pdf/?variant=complete")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        snapshot = PassportSnapshot.objects.get(profile=self.user)
+        self.assertEqual(snapshot.variant, "complete")
+        self.assertIn("Culture", str(snapshot.payload["interests"]))
+
+        self.client.force_authenticate(user=None)
+        anonymous = self.client.get("/api/v1/me/passport/pdf/")
+        self.assertIn(anonymous.status_code, (401, 403))
+        self.assertEqual(PassportSnapshot.objects.count(), 1)
+
+    def test_passport_pdf_rejects_invalid_custom_selection(self):
+        topic = Topic.objects.create(code="z4-pdf-private", label="Sujet")
+        ProfileInterest.objects.create(profile=self.user, topic=topic)
+        response = self.client.get(
+            "/api/v1/me/passport/pdf/?variant=custom&activity="
+            "00000000-0000-0000-0000-000000000001&include=interests"
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_partner_projection_is_personal_and_minimally_disclosed(self):
         organization = Organization.objects.create(

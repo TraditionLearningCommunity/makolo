@@ -1,0 +1,26 @@
+<section class="mk-panel px-4 py-4 sm:px-6" aria-labelledby="personal-transition-history-title">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2 id="personal-transition-history-title" class="text-lg font-bold">Historique des changements</h2>
+    {% if compact %}
+    <a class="inline-flex min-h-11 items-center text-sm font-semibold" style="color:var(--mk-brand)" href="{% url 'subscriptions:history' %}">Tout voir</a>
+    {% endif %}
+  </div>
+  {% if personal_history.items %}
+  <ul class="mt-2 divide-y">
+    {% for transition in personal_history.items %}
+    {% if not compact or forloop.counter <= 2 %}<li class="flex flex-wrap items-center justify-between gap-3 py-3" style="border-color:var(--mk-border)">
+      <div>
+        <p class="text-sm font-semibold">{% if transition.source_name %}{{ transition.source_name }} → {% endif %}{{ transition.target_name }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ transition.kind_label }} · {{ transition.requested_at|date:'d/m/Y' }}</p>
+      </div>
+      <span class="text-sm font-medium">{{ transition.status_label }}</span>
+    </li>{% endif %}
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="mt-3 text-sm" style="color:var(--mk-muted)">Aucun changement enregistré.</p>
+  {% endif %}
+  {% if personal_history.next_offset is not None and not compact %}
+    <a class="mt-2 inline-flex min-h-11 items-center text-sm font-semibold" href="{% url 'subscriptions:history' %}?offset={{ personal_history.next_offset }}">Voir les demandes précédentes</a>
+  {% endif %}
+</section>

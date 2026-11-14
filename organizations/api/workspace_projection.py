@@ -12,7 +12,7 @@ from authorization.selectors import (
 from organizations.models import Organization, TeamMembershipStatus
 from organizations.space_product import (
     operating_preset_for_space,
-    operational_footprint_for_space,
+    visible_operational_footprint_for_space,
 )
 from trust.selectors import active_public_verifications_for_space
 
@@ -383,7 +383,7 @@ def build_space_workspace(profile, space):
     }
     if direct_space_authority:
         payload["operational_footprint"] = {
-            "signals": list(operational_footprint_for_space(space).signals)
+            "signals": list(visible_operational_footprint_for_space(space, profile).signals)
         }
         payload["team_summary"] = {
             "active_members": space.teams.filter(

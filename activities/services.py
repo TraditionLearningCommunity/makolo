@@ -9,6 +9,8 @@ from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from organizations.services import require_space_operational
+from subscriptions.entitlements import resolve_entitlement
+from subscriptions.entitlements import resolve_entitlement
 
 from .models import (
     Activity,
@@ -82,6 +84,20 @@ def create_activity(*, created_by, title, space=None, owner_profile=None, **fiel
         raise ValidationError(
             {"owner_profile": "Une Activity personnelle doit être créée par son propriétaire."}
         )
+
+    # Permission/Mandate belongs to the caller's workflow. Product capability
+    # belongs solely to the logical Activity owner, never the acting Profile.
+    entitlement_subject = space if space is not None else owner_profile
+    capability = resolve_entitlement(entitlement_subject, "activities.create")
+    if not capability.allowed:
+        raise ValidationError({
+            "subscription": "La création d'Activity n'est pas disponible pour ce sujet."
+        })
+
+    subject = space if space is not None else owner_profile
+    entitlement = resolve_entitlement(subject, "activities.create")
+    if not entitlement.allowed:
+        raise ValidationError({"subscription": "Votre formule ne permet pas de créer une activité actuellement."})
 
     activity = Activity(
         space=space,
@@ -526,3 +542,30 @@ def attach_occurrence_place(*, occurrence: Occurrence, place, role=OccurrencePla
         link.position = position
         link.save(update_fields=["position", "updated_at"])
     return link
+
+@transaction.atomic
+def set_occurrence_live_enabled(*, occurrence, actor, enabled):
+    """Opt-in Live on one Occurrence, with owner authority checked on every change."""
+    from django.core.exceptions import PermissionDenied
+    from authorization.constants import PermissionCode
+    from authorization.services import can
+
+    if not isinstance(enabled, bool):
+        raise ValidationError({"enabled": "Valeur booléenne attendue."})
+    activity = occurrence.activity
+    authorized = can(
+        actor, PermissionCode.ACTIVITY_MANAGE,
+        activity=activity, include_platform=False,
+    ) or bool(
+        activity.space_id and can(
+            actor, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+            activity.space, include_platform=False,
+        )
+    )
+    if not authorized:
+        raise PermissionDenied("Vous ne pouvez pas configurer Makolo Live pour cette Occurrence.")
+    current = Occurrence.objects.select_for_update().get(pk=occurrence.pk)
+    if current.live_enabled != enabled:
+        current.live_enabled = enabled
+        current.save(update_fields=["live_enabled", "updated_at"])
+    return current

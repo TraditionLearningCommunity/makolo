@@ -1,0 +1,210 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %} | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/appuis.css' %}">{% endblock %}
+{% block content %}
+<main data-mk-surface="appuis" data-appuis-actor="{% if is_space %}space{% else %}profile{% endif %}">
+  <a class="ap-back" href="{{ back_url }}" aria-label="Revenir à {% if is_space %}Nous{% else %}Moi{% endif %}">
+    <i data-lucide="arrow-left" aria-hidden="true"></i> Retour
+  </a>
+  <header class="ap-intro">
+    <h1>{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %}</h1>
+    <p>{% if is_space %}Retrouvez les reconnaissances, avantages et partenariats de cet Espace.{% else %}Retrouve tes reconnaissances, avantages et partenariats.{% endif %}</p>
+  </header>
+
+  {% if appuis_available %}
+    {% if appuis_metrics %}
+    <div class="ap-hero{% if appuis_metrics|length == 1 %} ap-hero--single{% endif %}" aria-label="Synthèse des appuis disponibles">
+      <h2 class="ap-hero-title">{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %}</h2>
+      <p class="ap-hero-desc">Ce qui est déjà disponible</p>
+      <div class="ap-metrics">
+        {% for metric in appuis_metrics %}
+          <div class="ap-metric">
+            <i data-lucide="{{ metric.icon }}" aria-hidden="true"></i>
+            <strong>{{ metric.value }}</strong>
+            <span>{{ metric.label }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if appuis_family_count > 1 %}
+    <nav class="ap-filters" aria-label="Filtrer les appuis">
+      <button type="button" class="ap-filter" data-appuis-filter="all" aria-pressed="true">Tous</button>
+      {% if has_recognition_appuis %}<button type="button" class="ap-filter" data-appuis-filter="recognition" aria-pressed="false">Reconnaissance</button>{% endif %}
+      {% if has_loyalty_appuis %}<button type="button" class="ap-filter" data-appuis-filter="loyalty" aria-pressed="false">Fidélité</button>{% endif %}
+      {% if has_partner_appuis %}<button type="button" class="ap-filter" data-appuis-filter="partners" aria-pressed="false">Partenariats</button>{% endif %}
+    </nav>
+    {% endif %}
+
+    {% if has_loyalty_appuis %}
+    <section class="ap-family" data-appuis-family="loyalty" aria-labelledby="appuis-loyalty">
+      <header class="ap-section-head">
+        <i data-lucide="gift" aria-hidden="true"></i>
+        <h2 id="appuis-loyalty">{% if is_space %}Notre fidélité{% else %}Ma fidélité{% endif %}</h2>
+        {% if loyalty_url %}<a class="ap-see-all" href="{{ loyalty_url }}">Tout voir <span aria-hidden="true">→</span></a>{% endif %}
+      </header>
+      <div class="ap-grid">
+      {% for item in loyalty_cards %}
+        <a class="ap-card" href="{{ item.url }}" {% if forloop.counter > 3 %}data-appuis-more="loyalty" hidden{% endif %}>
+          <span class="ap-card-symbol"><i data-lucide="gift" aria-hidden="true"></i></span>
+          <span class="ap-card-copy">
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.organization }}</small>
+            {% if item.balance or item.tier %}
+              <em>{% if item.balance %}{{ item.balance }} {{ item.unit }}{% endif %}{% if item.balance and item.tier %} · {% endif %}{% if item.tier %}{{ item.tier }}{% endif %}</em>
+            {% endif %}
+          </span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+      </div>
+      {% if loyalty_cards|length > 3 %}
+        <button class="ap-expand" type="button" data-appuis-expand="loyalty" aria-expanded="false">Tout voir</button>
+      {% endif %}
+      {% if loyalty_rewards %}
+      <details class="ap-family-detail">
+        <summary>Récompenses mobilisables</summary>
+        <div class="ap-grid">
+        {% for reward in loyalty_rewards %}
+          <a class="ap-card" href="{% url 'loyalty:portal' reward.program.organization.slug %}">
+            <span class="ap-card-symbol"><i data-lucide="award" aria-hidden="true"></i></span>
+            <span class="ap-card-copy">
+              <strong>{{ reward.name }}</strong>
+              <small>{{ reward.program.organization.name }}</small>
+              {% if reward.points_cost %}<em>{{ reward.points_cost }} {{ reward.program.points_name }}</em>{% endif %}
+            </span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </a>
+        {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+      {% if loyalty_memberships %}
+      <details class="ap-family-detail">
+        <summary>Mes adhésions</summary>
+        <div class="ap-grid">
+        {% for item in loyalty_memberships %}
+          <a class="ap-card" href="{% url 'loyalty:portal' item.program.organization.slug %}">
+            <span class="ap-card-symbol"><i data-lucide="badge-check" aria-hidden="true"></i></span>
+            <span class="ap-card-copy">
+              <strong>{{ item.plan.name }}</strong>
+              <small>{{ item.program.organization.name }} · {{ item.get_status_display }}</small>
+            </span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </a>
+        {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if has_recognition_appuis %}
+    <section class="ap-family" data-appuis-family="recognition" aria-labelledby="appuis-recognition">
+      <header class="ap-section-head">
+        <i data-lucide="award" aria-hidden="true"></i>
+        <h2 id="appuis-recognition">{% if is_space %}Nos reconnaissances{% else %}Mes reconnaissances{% endif %}</h2>
+        {% if recognition_url %}<a class="ap-see-all" href="{{ recognition_url }}">Tout voir <span aria-hidden="true">→</span></a>{% endif %}
+      </header>
+      {% if recognition_credits %}
+        <p class="ap-note">{{ recognition_credits }} crédits Recognition disponibles</p>
+      {% endif %}
+      <div class="ap-grid">
+      {% for item in recognition_cards %}
+        <a class="ap-card" href="{{ recognition_url }}" {% if forloop.counter > 3 %}data-appuis-more="recognition" hidden{% endif %}>
+          <span class="ap-card-symbol"><i data-lucide="{{ item.symbol }}" aria-hidden="true"></i></span>
+          <span class="ap-card-copy">
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.subtitle }}</small>
+          </span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+      </div>
+      {% if recognition_cards|length > 3 %}
+        <button class="ap-expand" type="button" data-appuis-expand="recognition" aria-expanded="false">Tout voir</button>
+      {% endif %}
+      {% if recognition_recent %}
+        <details class="ap-family-detail">
+          <summary>Historique des mouvements</summary>
+          <div class="ap-grid">
+          {% for item in recognition_recent %}
+            <div class="ap-card">
+              <span class="ap-card-symbol"><i data-lucide="history" aria-hidden="true"></i></span>
+              <span class="ap-card-copy">
+                <strong>{{ item.description|default:'Mouvement Recognition' }}</strong>
+                {% if item.points %}<small>{{ item.points }} crédits</small>{% endif %}
+              </span>
+            </div>
+          {% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if has_partner_appuis %}
+    <section class="ap-family" data-appuis-family="partners" aria-labelledby="appuis-partners">
+      <header class="ap-section-head">
+        <i data-lucide="handshake" aria-hidden="true"></i>
+        <h2 id="appuis-partners">{% if is_space %}Nos partenariats{% else %}Mes partenariats{% endif %}</h2>
+      </header>
+      <div class="ap-grid">
+      {% for partner in partner_cards %}
+        <a class="ap-card" href="{% if partner_is_personal %}{% url 'partners:my-detail' partner.pk %}{% else %}{% url 'partners:partner-detail' partner.pk %}{% endif %}" {% if forloop.counter > 3 %}data-appuis-more="partners" hidden{% endif %}>
+          <span class="ap-card-symbol"><i data-lucide="handshake" aria-hidden="true"></i></span>
+          <span class="ap-card-copy">
+            <strong>{{ partner.display_name }}</strong>
+            <small>{{ partner.organization.name }}</small>
+          </span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+      </div>
+      {% if partner_cards|length > 3 %}
+        <button class="ap-expand" type="button" data-appuis-expand="partners" aria-expanded="false">Tout voir</button>
+      {% endif %}
+      {% if partner_campaigns or partner_codes or partner_commissions or partner_payouts %}
+      <details class="ap-family-detail">
+        <summary>Campagnes et retombées</summary>
+        <div class="ap-grid">
+        {% for item in partner_campaigns %}
+          <div class="ap-card">
+            <span class="ap-card-symbol"><i data-lucide="megaphone" aria-hidden="true"></i></span>
+            <span class="ap-card-copy"><strong>{{ item.name }}</strong><small>{{ item.get_status_display }}</small></span>
+          </div>
+        {% endfor %}
+        {% for item in partner_codes %}
+          <div class="ap-card">
+            <span class="ap-card-symbol"><i data-lucide="qr-code" aria-hidden="true"></i></span>
+            <span class="ap-card-copy"><strong>{{ item.code }}</strong><small>{% if item.is_usable %}Utilisable{% else %}Non utilisable{% endif %}</small></span>
+          </div>
+        {% endfor %}
+        {% for item in partner_commissions %}
+          <div class="ap-card">
+            <span class="ap-card-symbol"><i data-lucide="receipt" aria-hidden="true"></i></span>
+            <span class="ap-card-copy"><strong>{{ item.amount }} {{ item.currency }}</strong><small>{{ item.get_status_display }}</small></span>
+          </div>
+        {% endfor %}
+        {% for item in partner_payouts %}
+          <div class="ap-card">
+            <span class="ap-card-symbol"><i data-lucide="wallet" aria-hidden="true"></i></span>
+            <span class="ap-card-copy"><strong>{{ item.amount }} {{ item.currency }}</strong><small>{{ item.get_status_display }}</small></span>
+          </div>
+        {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+    </section>
+    {% endif %}
+  {% else %}
+    <section class="ap-empty" role="status">
+      <h2>Aucun appui établi à afficher pour le moment.</h2>
+      <p>Les programmes, reconnaissances et relations apparaîtront ici dès qu'ils seront disponibles dans leur domaine propriétaire.</p>
+    </section>
+  {% endif %}
+</main>
+<script src="{% static 'js/appuis.js' %}" defer></script>
+{% endblock %}

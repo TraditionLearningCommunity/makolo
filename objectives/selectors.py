@@ -4,7 +4,7 @@ from django.db.models import Count, Prefetch, Q
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
 from authorization.selectors import current_mandates
-from authorization.services import activity_ids_with_permission, dossier_ids_with_permission, space_ids_with_permission
+from authorization.services import activity_ids_with_permission, dossier_ids_with_permission, project_ids_with_permission, space_ids_with_permission
 from journeys.models import Journey
 from organizations.models import TeamMembershipStatus
 from readiness.selectors import readiness_queryset
@@ -51,13 +51,23 @@ def manageable_dossiers_for_profile(profile):
 
 
 def projects_for_profile(profile):
-    if not getattr(profile, "is_authenticated", False): return Project.objects.none()
+    if not getattr(profile, "is_authenticated", False):
+        return Project.objects.none()
     view_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_VIEW)
     manage_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
+    project_permissions = [
+        project_ids_with_permission(profile, PermissionCode.PROJECT_VIEW),
+        project_ids_with_permission(profile, PermissionCode.PROJECT_MANAGE),
+        project_ids_with_permission(profile, PermissionCode.PROJECT_AUTHORITY_MANAGE),
+    ]
     queryset = Project.objects.select_related("owner_profile", "owning_space", "created_by")
-    if view_spaces is None or manage_spaces is None: return queryset
-    space_ids = set(view_spaces) | set(manage_spaces)
-    return queryset.filter(Q(owner_profile=profile) | Q(owning_space_id__in=space_ids)).distinct()
+    if view_spaces is None or manage_spaces is None or any(ids is None for ids in project_permissions):
+        return queryset
+    spaces = set(view_spaces) | set(manage_spaces)
+    projects = set().union(*(set(ids) for ids in project_permissions))
+    return queryset.filter(
+        Q(owner_profile=profile) | Q(owning_space_id__in=spaces) | Q(pk__in=projects)
+    ).distinct()
 
 
 def project_for_profile(profile, project_id): return projects_for_profile(profile).get(pk=project_id)
@@ -218,8 +228,76 @@ def current_dossier_authority_mandates(dossier, *, at=None):
 
 
 def collaboration_candidates_for_dossier(dossier):
-    """Bounded existing principals only; this is not a global user search."""
+    """Known Dossier principals, not a global directory or an authority grant.
+
+    An effective Dossier mandate remains a known relationship even when the
+    holder is not a member of a Team in the owning Space. Team membership can
+    offer a candidate but never confers Dossier management authority.
+    """
+    known_ids = set(
+        current_dossier_authority_mandates(dossier).values_list(
+            "profile_id", flat=True,
+        ),
+    )
+    known_ids.update(
+        active_assignments_for_dossier(dossier).values_list(
+            "assignee_id", flat=True,
+        ),
+    )
+    candidates = User.objects.filter(is_active=True)
     if dossier.owning_space_id:
-        return User.objects.filter(is_active=True, team_memberships__team__organization=dossier.owning_space, team_memberships__status=TeamMembershipStatus.ACTIVE).distinct().order_by("first_name", "last_name", "username", "pk")
-    known_ids = {dossier.owner_profile_id}; known_ids.update(current_dossier_authority_mandates(dossier).values_list("profile_id", flat=True)); known_ids.update(active_assignments_for_dossier(dossier).values_list("assignee_id", flat=True))
-    return User.objects.filter(pk__in=known_ids, is_active=True).order_by("first_name", "last_name", "username", "pk")
+        # A Space Mandate is itself a known relationship: its holder need
+        # not also belong to a Team. This does not grant Dossier authority.
+        known_ids.update(
+            current_mandates().filter(
+                scope_type=AuthorityScope.SPACE,
+                space_id=dossier.owning_space_id,
+            ).values_list("profile_id", flat=True),
+        )
+        return candidates.filter(
+            Q(
+                team_memberships__team__organization_id=dossier.owning_space_id,
+                team_memberships__status=TeamMembershipStatus.ACTIVE,
+            ) | Q(pk__in=known_ids)
+        ).distinct().order_by("first_name", "last_name", "username", "pk")
+    known_ids.add(dossier.owner_profile_id)
+    return candidates.filter(pk__in=known_ids).order_by(
+        "first_name", "last_name", "username", "pk",
+    )
+
+
+def coordination_candidates_for_dossier(dossier):
+    """Authorized coordination choices before pagination.
+
+    Filter by *current, effective* permission-bearing Mandates rather than
+    taking the first 50 Team members and only then checking authority.
+    This is a presentation selector, not an authorization decision:
+    assign_dossier() must still revalidate under its object lock.
+    """
+    scope_permission = (
+        Q(
+            scope_type=AuthorityScope.DOSSIER, dossier=dossier,
+            role__role_permissions__permission__code=PermissionCode.DOSSIER_MANAGE,
+        ) | Q(
+            scope_type=AuthorityScope.PLATFORM,
+            role__role_permissions__permission__code=PermissionCode.PLATFORM_MANAGE,
+        )
+    )
+    if dossier.owning_space_id:
+        scope_permission |= Q(
+            scope_type=AuthorityScope.SPACE,
+            space_id=dossier.owning_space_id,
+            role__role_permissions__permission__code=PermissionCode.SPACE_MANAGE,
+        )
+    # Test the active flag and its code on the same RolePermission join.
+    # Separate .filter() calls could match two different role-permission rows.
+    grants = current_mandates().filter(
+        Q(role__role_permissions__permission__is_active=True)
+        & scope_permission,
+    ).values_list("profile_id", flat=True)
+    eligible = Q(pk__in=grants) | Q(is_superuser=True)
+    if dossier.owner_profile_id:
+        eligible |= Q(pk=dossier.owner_profile_id)
+    return collaboration_candidates_for_dossier(dossier).filter(
+        eligible,
+    ).distinct().order_by("first_name", "last_name", "username", "pk")

@@ -1,4 +1,5 @@
-from rest_framework.exceptions import NotFound
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -41,12 +42,22 @@ class SpaceNowAPIView(_SpaceAttentionAPIView):
 
 class SpaceDiscoverAPIView(_SpaceAttentionAPIView):
     def get(self, request, slug):
+        if "profile_id" in request.query_params:
+            raise ValidationError({"profile_id": ["Le Profil actif est résolu par le serveur."]})
+        if request.query_params.get("context") not in (None, "", "space"):
+            raise ValidationError({"context": ["Contexte Space incompatible."]})
+        if request.query_params.get("space") not in (None, "", slug):
+            raise ValidationError({"space": ["Space incompatible avec la route."]})
         space = self.get_space(request, slug)
-        payload = build_space_discover_projection(
-            profile=request.user,
-            space=space,
-            responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
-        )
+        try:
+            payload = build_space_discover_projection(
+                profile=request.user,
+                space=space,
+                responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
+                params=request.query_params,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"discovery": exc.messages}) from exc
         if payload is None:
             raise NotFound()
         return self.response(payload)

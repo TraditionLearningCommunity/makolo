@@ -112,7 +112,7 @@ class PaymentStartView(LoginRequiredMixin, View):
                     "; ".join(getattr(exc, "messages", [str(exc)])),
                 )
             else:
-                messages.success(request, "Paiement initialisé.")
+                messages.info(request, "Demande de paiement créée. La confirmation est en attente.")
                 return redirect("payments:detail", pk=payment.pk)
         return render(
             request,
@@ -184,7 +184,7 @@ class CommercePaymentStartView(LoginRequiredMixin, View):
             except (PermissionDenied, ValidationError) as exc:
                 messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
             else:
-                messages.success(request, "Paiement initialisé.")
+                messages.info(request, "Demande de paiement créée. La confirmation est en attente.")
                 return redirect("payments:detail", pk=payment.pk)
         return render(
             request,

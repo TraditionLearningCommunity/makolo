@@ -1,0 +1,5 @@
+<div data-ongoing-batch data-next-token="{{ ongoing_next_token|default:'' }}" data-state="{% if ongoing_next_token %}more{% else %}end{% endif %}">
+  {% for item in ongoing_items %}
+    {% include "core/_ongoing_unit.html" %}
+  {% endfor %}
+</div>

@@ -11,7 +11,8 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 from journeys.models import Journey
 
-from .models import Form, FormQuestion, FormRequest, FormResponse, FormVersion, QuestionType
+from .models import Form, FormQuestion, FormRequest, FormResponse, FormVersion, QuestionType, QuestionnaireMedia
+from .media_services import add_questionnaire_media, remove_questionnaire_media, media_sections
 from .services import (
     add_question,
     create_form,
@@ -61,8 +62,23 @@ class ParticipantFormRequestView(LoginRequiredMixin, TemplateView):
         form_request = _participant_request(self.request.user, kwargs["pk"])
         response = getattr(form_request, "response", None)
         existing = {answer.question_id: answer.value for answer in response.answers.all()} if response else {}
-        rows = [{"question": q, "value": existing.get(q.pk)} for q in form_request.form_version.questions.all()]
-        context.update({"form_request": form_request, "form_response": response, "question_rows": rows})
+        root, questions, choices = media_sections(form_request.form_version)
+        rows = [
+            {
+                "question": q,
+                "value": existing.get(q.pk),
+                "media": questions.get(q.pk, []),
+                "choices": [
+                    {"label": label, "media": choices.get((q.pk, index), [])}
+                    for index, label in enumerate(q.choices)
+                ],
+            }
+            for q in form_request.form_version.questions.all()
+        ]
+        context.update({
+            "form_request": form_request, "form_response": response,
+            "form_media": root, "question_rows": rows,
+        })
         return context
 
     def post(self, request, *args, **kwargs):
@@ -92,7 +108,9 @@ class ManageQuestionnairesView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         activity = self._activity()
-        forms = Form.objects.filter(activity=activity).prefetch_related("versions__questions")
+        forms = Form.objects.filter(activity=activity).prefetch_related(
+            "versions__questions", "versions__media",
+        )
         requests = (
             FormRequest.objects.filter(journey__activity=activity)
             .select_related("journey", "journey__beneficiary", "form_version", "form_version__form")
@@ -133,6 +151,44 @@ class ManageQuestionnairesView(LoginRequiredMixin, TemplateView):
                     choices=choices,
                 )
                 messages.success(request, "Question ajoutée.")
+            elif action == "add_media":
+                version = get_object_or_404(
+                    FormVersion.objects.select_related("form__activity"),
+                    pk=request.POST.get("version_id"), form__activity=activity,
+                )
+                target = (request.POST.get("media_target") or "form").split(":")
+                if len(target) == 1 and target[0] == "form":
+                    question, index = None, None
+                elif len(target) in (2, 3) and target[0] in {"question", "choice"}:
+                    question = get_object_or_404(
+                        FormQuestion, pk=target[1], form_version=version,
+                    )
+                    if target[0] == "choice" and len(target) == 3:
+                        index = int(target[2])
+                    elif target[0] == "question" and len(target) == 2:
+                        index = None
+                    else:
+                        raise ValidationError("Emplacement du média invalide.")
+                else:
+                    raise ValidationError("Emplacement du média invalide.")
+                upload = request.FILES.get("file")
+                if upload is None:
+                    raise ValidationError("Choisissez un média.")
+                add_questionnaire_media(
+                    actor=request.user, version=version, question=question,
+                    choice_index=index, position=int(request.POST.get("position") or 0),
+                    uploaded_file=upload, kind=request.POST.get("kind") or "file",
+                    caption=request.POST.get("caption", ""),
+                )
+                messages.success(request, "Média ajouté au questionnaire.")
+            elif action == "remove_media":
+                media = get_object_or_404(
+                    QuestionnaireMedia.objects.select_related("form_version__form"),
+                    pk=request.POST.get("media_id"),
+                    form_version__form__activity=activity,
+                )
+                remove_questionnaire_media(actor=request.user, media=media)
+                messages.success(request, "Média retiré du brouillon.")
             elif action == "publish":
                 version = get_object_or_404(FormVersion.objects.select_related("form"), pk=request.POST.get("version_id"), form__activity=activity)
                 publish_form_version(form_version=version, actor=request.user)

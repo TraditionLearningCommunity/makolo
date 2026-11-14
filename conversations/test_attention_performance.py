@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import TestCase
@@ -6,6 +8,7 @@ from django.test.utils import CaptureQueriesContext
 from activities.involvement_models import (
     ActivityInvolvement,
     ActivityInvolvementConfirmationBasis,
+    ActivityInvolvementStatus,
     ActivityInvolvementFunction,
     ActivityInvolvementFunctionKind,
 )
@@ -20,7 +23,7 @@ from .audience_models import (
     ConversationAudienceRuleOperation,
 )
 from .audience_services import add_audience_rule, create_audience_set
-from .core_models import ConversationContextKind
+from .core_models import ConversationContextKind, ConversationLifecycle
 from .point_models import ConversationPointKind, ConversationPointResponseMode
 from .point_services import create_point
 from .services import ensure_context_conversation
@@ -119,3 +122,63 @@ class ConversationAttentionPerformanceTests(TestCase):
         many_queries, many_items = self._query_count()
         self.assertEqual(len(many_items), 20)
         self.assertLessEqual(many_queries, one_queries + 1)
+
+    def test_repeated_points_reuse_live_visibility_decision_within_read(self):
+        from . import point_services
+
+        self._create_attention_points(8)
+        with patch(
+            "conversations.point_services.can_view_conversation",
+            wraps=point_services.can_view_conversation,
+        ) as checked:
+            items = attention_points_for_profile(self.profile, limit=8)
+        self.assertEqual(len(items), 8)
+        # Repeated point checks still run the canonical permission service,
+        # but a single read resolves the shared conversation boundary once.
+        self.assertEqual(checked.call_count, 1)
+
+    def test_a_new_read_rechecks_revoked_involvement_authority(self):
+        self._create_attention_points(1)
+        self.assertEqual(len(attention_points_for_profile(self.profile, limit=1)), 1)
+
+        ActivityInvolvement.objects.filter(
+            activity=self.activity, profile=self.profile,
+        ).update(status=ActivityInvolvementStatus.REMOVED)
+
+        # A later read must not inherit a prior audience or viewer cache.
+        self.assertEqual(attention_points_for_profile(self.profile, limit=1), [])
+
+    def test_invisible_prefix_does_not_hide_later_authorized_attention(self):
+        other = create_audience_set(
+            actor=self.manager,
+            conversation=self.conversation,
+            label="Manager-only attention",
+        )
+        add_audience_rule(
+            actor=self.manager,
+            audience_set=other,
+            operation=ConversationAudienceRuleOperation.INCLUDE,
+            kind=ConversationAudienceRuleKind.EXPLICIT_PROFILE,
+            profile=self.manager,
+        )
+        for index in range(8):
+            create_point(
+                actor=self.manager,
+                conversation=self.conversation,
+                kind=ConversationPointKind.QUESTION,
+                response_mode=ConversationPointResponseMode.FREE_TEXT,
+                title=f"Hidden attention {index}",
+                visibility_audience=other,
+                response_audience=other,
+                expected_action_audience=other,
+            )
+        self._create_attention_points(1)
+        items = attention_points_for_profile(self.profile, limit=1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].conversation_id, self.conversation.pk)
+
+    def test_closed_conversation_has_no_attention(self):
+        self._create_attention_points(1)
+        self.conversation.lifecycle = ConversationLifecycle.CLOSED
+        self.conversation.save(update_fields=["lifecycle"])
+        self.assertEqual(attention_points_for_profile(self.profile, limit=1), [])

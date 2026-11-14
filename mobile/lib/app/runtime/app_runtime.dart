@@ -2,6 +2,7 @@ import '../../auth/token_store.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../features/access/access_repository.dart';
+import '../../notifications/notification_repository.dart';
 import '../../features/continuity/conversation_repository.dart';
 import '../../features/continuity/history_repository.dart';
 import '../../features/continuity/objective_repository.dart';
@@ -13,10 +14,13 @@ import '../../features/preparation/preparation_repository.dart';
 import '../../features/questionnaires/questionnaire_repository.dart';
 import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../../features/resources/resource_repository.dart';
+import '../../features/resources/trust_resource_repository.dart';
 import '../../features/space/space_repository.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/geo_search_gateway.dart';
+import '../../platform/routing/routing_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -42,10 +46,14 @@ class AppRuntime {
     this.api,
     this.database,
     this.store,
+    this.publicDatabase,
+    this.publicStore,
     this.personal,
     this.interoperability,
     this.discovery,
     this.location,
+    this.geoSearch,
+    this.routing,
     this.accesses,
     this.dayOf,
     this.live,
@@ -53,9 +61,11 @@ class AppRuntime {
     this.objectives,
     this.history,
     this.conversations,
+    this.notifications,
     this.requirements,
     this.preparationResources,
     this.resources,
+    this.trustResources,
     this.questionnaires,
     this.drafts,
     this.questionnaireSubmit,
@@ -74,7 +84,7 @@ class AppRuntime {
   final LaunchPreferencesStore? launchPreferences;
   final AppPreferencesController? preferences;
   final MakoloRuntimeConfig? config;
-  final ResumableInteractionStore? interactions;
+  final ResumableInteractionAccess? interactions;
 
   MakoloMapsConfig get mapConfig =>
       config?.maps ?? const MakoloMapsConfig(enabled: false, style: null);
@@ -83,10 +93,14 @@ class AppRuntime {
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
+  final MakoloDatabase? publicDatabase;
+  final ProfileStore? publicStore;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final DiscoveryRepository? discovery;
   final LocationCapability? location;
+  final GeoSearchGateway? geoSearch;
+  final RoutingGateway? routing;
   final AccessRepository? accesses;
   final DayOfRepository? dayOf;
   final LiveRepository? live;
@@ -94,9 +108,11 @@ class AppRuntime {
   final ObjectiveRepository? objectives;
   final HistoryRepository? history;
   final ConversationRepository? conversations;
+  final NotificationRepository? notifications;
   final RequirementRepository? requirements;
   final PreparationResourcesRepository? preparationResources;
   final ResourceRepository? resources;
+  final TrustResourceRepository? trustResources;
   final QuestionnaireRepository? questionnaires;
   final DraftRepository? drafts;
   final QuestionnaireSubmitCoordinator? questionnaireSubmit;
@@ -112,9 +128,13 @@ class AppRuntime {
   bool get apiConfigured => api != null;
 
   Future<void> close() async {
+    sync?.deactivate();
+    outboxProcessor?.deactivate();
     api?.close();
+    routing?.close();
     preferences?.dispose();
     actorContext?.dispose();
     await database?.close();
+    await publicDatabase?.close();
   }
 }

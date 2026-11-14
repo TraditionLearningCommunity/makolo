@@ -106,6 +106,7 @@ def service_participant_workspace(context, journey):
 
     return {
         "is_service_workspace": True,
+        "viewer": actor,
         "journey": journey,
         "service_context": service_context,
         "service_details": journey.activity.service_details,
@@ -117,7 +118,11 @@ def service_participant_workspace(context, journey):
         "obligations": obligations,
         "submissions": submissions,
         "outcomes": outcomes,
-        "timeline": _timeline(service_context, steps, artifacts, notes, obligations, submissions, outcomes),
+        "supplementary_timeline": [
+            item for item in _timeline(
+                service_context, steps, artifacts, notes, obligations, submissions, outcomes
+            ) if item["kind"] not in {"journey", "step", "payment", "note"}
+        ][:12],
         "required_steps_count": len(required_steps),
         "completed_required_steps_count": len(completed_required),
         "required_requirements_count": len(required_requirements),

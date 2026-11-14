@@ -2,16 +2,15 @@
 {% block space_content %}
 <section class="mk-ws4-stack mk-ws4-pilot" aria-labelledby="space-pilot-heading">
   <header class="mk-ws4-heading">
-    <a class="mk-ws4-back" href="{{ space_us_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i>Nous</a>
+    <a class="mk-action-button" data-variant="link" href="{{ space_us_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i>Nous</a>
     <span class="mk-kicker">Piloter</span>
     <h2 id="space-pilot-heading">Est-ce que cela fonctionne ? Qu’est-ce qui change ? Que devons-nous ajuster ?</h2>
-    <p>Une lecture de recul à partir des faits analytiques que votre autorité permet réellement de voir.</p>
   </header>
 
   {% if projection.sections.analytics %}
     {% with analytics=projection.sections.analytics %}
       {% if analytics.state == 'insufficient_data' %}
-      <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pas encore assez d’activité pour dégager une tendance utile.</strong><p>Les valeurs connues restent affichées comme telles ; elles ne deviennent ni une tendance ni un score.</p></div></div>
+      <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pas encore assez d’activité pour dégager une tendance utile.</strong></div></div>
       {% endif %}
 
       {% if analytics.signals %}
@@ -24,14 +23,14 @@
             {% if signal.why %}<p>{{ signal.why }}</p>{% endif %}
             {% if signal.evidence %}<p>Base observée : {{ signal.evidence.value }} · {{ signal.evidence.unit }}</p>{% endif %}
             {% if signal.uncertainty %}<p>Limite : {{ signal.uncertainty }}</p>{% endif %}
-            <small>Source : {{ signal.owner }} · Portefeuille borné aux {{ analytics.coverage.limit }} derniers événements visibles.</small>
-            {% if pilot_owner_links.analytics %}<p><a href="{{ pilot_owner_links.analytics }}">Approfondir dans Analytics</a></p>{% endif %}
+            <small>Source : {{ signal.owner }} · Analyse limitée aux {{ analytics.coverage.limit }} derniers événements accessibles.</small>
+            {% if pilot_owner_links.analytics %}<p><a href="{{ pilot_owner_links.analytics }}">Voir les analyses détaillées</a></p>{% endif %}
           </article>{% endfor %}</div>
       </section>
       {% endif %}
 
       <details class="mk-ws4-card" aria-labelledby="pilot-operation">
-        <summary class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Faits de soutien</span><h3 id="pilot-operation">Comprendre les mesures</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></summary>
+        <summary class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Faits de soutien</span><h3 id="pilot-operation">Comprendre les mesures</h3></div><span class="mk-ws4-coverage">Jusqu’à {{ analytics.coverage.limit }} événements consultables.</span></summary>
         <dl class="mk-ws4-metric-grid">
           {% for metric in analytics.metrics %}
           <div class="mk-ws4-metric">
@@ -50,13 +49,13 @@
               {% if metric.state == 'known' %}
                 <strong>{{ metric.value }}{% if metric.unit == 'percent' %} %{% endif %}</strong><small>Connu</small>
               {% elif metric.state == 'insufficient_data' %}
-                <strong class="mk-ws4-word-value">Données insuffisantes</strong><small>Pas de valeur défendable</small>
+                <strong class="mk-ws4-word-value">Données insuffisantes</strong><small>Aucune mesure disponible</small>
               {% elif metric.state == 'unknown' %}
                 <strong class="mk-ws4-word-value">Inconnu</strong><small>Valeur non connue</small>
               {% elif metric.state == 'unavailable' %}
-                <strong class="mk-ws4-word-value">Indisponible</strong><small>Capacité non disponible</small>
+                <strong class="mk-ws4-word-value">Indisponible</strong><small>Donnée non accessible</small>
               {% else %}
-                <strong class="mk-ws4-word-value">{{ metric.state }}</strong><small>État projeté par le serveur</small>
+                <strong class="mk-ws4-word-value">{{ metric.state }}</strong><small>À vérifier</small>
               {% endif %}
             </dd>
           </div>
@@ -75,12 +74,12 @@
       </section>
       {% endif %}
 
-      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Approfondir dans Analytics</strong><small>Les faits analytiques restent propriétaires de cette profondeur.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
+      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Voir les analyses détaillées</strong><small>Consulter les mesures détaillées.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
     {% endwith %}
   {% elif projection.authority.scope == 'activity_limited' %}
-    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global indisponible pour cette responsabilité</strong><p>Une autorité limitée à une activité ne donne pas accès aux Analytics du Space.</p></div></div>
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global non accessible avec ce rôle</strong><p>Vous n’avez pas accès aux données globales de cet espace.</p></div></div>
   {% else %}
-    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pilotage indisponible avec votre autorité actuelle</strong><p>Makolo ne remplace pas une capability absente par zéro, par une estimation ou par un tableau de bord vide.</p></div></div>
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pilotage non accessible avec vos droits actuels</strong><p>Les données de pilotage ne sont pas accessibles avec vos droits actuels.</p></div></div>
   {% endif %}
 </section>
 {% endblock %}

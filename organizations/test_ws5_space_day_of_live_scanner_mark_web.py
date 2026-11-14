@@ -59,6 +59,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Départ 08 h",
+            live_enabled=True,
             start_at=self.now - timedelta(minutes=10),
             end_at=self.now + timedelta(hours=2),
             status=OccurrenceStatus.SCHEDULED,
@@ -128,19 +129,24 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Jour J")
         self.assertContains(response, "Départ 08 h")
+        self.assertNotContains(response, "État : unknown")
         self.assertContains(
             response,
             self._url("organizations:space-occurrence-live", self.occurrence),
             html=False,
         )
 
-    def test_day_of_is_occurrence_scoped_and_non_current_is_not_promoted(self):
+    def test_future_day_of_remains_available_but_does_not_imply_live(self):
         self.client.force_login(self.operator)
         self.assertEqual(
             self.client.get(
                 self._url("organizations:space-occurrence-day-of", self.future)
             ).status_code,
-            404,
+            200,
+        )
+        self.assertNotContains(
+            self.client.get(self._url("organizations:space-occurrence-day-of", self.future)),
+            "Consulter Makolo Live",
         )
         self.assertEqual(
             self.client.get(
@@ -161,16 +167,19 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             self._url("organizations:space-occurrence-live", self.occurrence)
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["projection"]["perspective"], "operator")
+        self.assertIn("organizer", response.context["projection"]["sections"])
         self.assertEqual(response.context["projection"]["phase"], "live")
+        self.assertContains(response, "Makolo Live · Lecture du réel")
+        self.assertNotContains(response, "Makolo Live · Occurrence")
+        self.assertNotContains(response, ">unknown</dd>")
         self.assertContains(
             response,
-            "Une planification n’est jamais présentée comme une observation live.",
+            "Le calendrier de l'Occurrence est une prévision, non une observation.",
         )
         self.assertNotContains(response, "Date.now")
         self.assertNotContains(response, "setInterval")
 
-    def test_scanner_assignment_is_not_authority_and_generic_owner_gap_is_honest(self):
+    def test_scanner_assignment_never_grants_authority_but_canonical_scan_is_available(self):
         url = self._url("organizations:space-occurrence-scanner", self.occurrence)
 
         self.client.force_login(self.assigned_only)
@@ -179,9 +188,9 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.client.force_login(self.scanner)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["scanner_available"])
-        self.assertContains(response, "Scanner indisponible pour cette Occurrence")
-        self.assertNotContains(response, 'id="scanner-console"')
+        self.assertTrue(response.context["scanner_available"])
+        self.assertContains(response, 'id="scanner-console"')
+        self.assertContains(response, 'data-auto-start="false"')
 
         action = self.client.post(
             self._url(
@@ -190,8 +199,8 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             ),
             {"token": "not-a-real-credential"},
         )
-        self.assertEqual(action.status_code, 409)
-        self.assertEqual(action.json()["result"], "unavailable")
+        self.assertEqual(action.status_code, 400)
+        self.assertEqual(action.json()["result"], "invalid_credential")
 
     def test_scanner_get_does_not_survive_authority_revocation_on_post(self):
         self.client.force_login(self.scanner)
@@ -214,9 +223,11 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             self._url("organizations:space-occurrence-scanner", self.occurrence)
         )
         self.assertEqual(response.status_code, 200)
-        # Generic Activity has no owner scan endpoint, so the interactive scanner
-        # is intentionally absent rather than faked.
+        # Canonical Scanner is available for a generic Activity, but the
+        # camera must never start without the operator's explicit action.
+        self.assertContains(response, 'id="scanner-console"')
         self.assertNotContains(response, 'data-auto-start="true"')
+        self.assertContains(response, 'id="manual-form"')
 
     def test_space_mark_hands_day_of_to_ws5_without_client_authority(self):
         self.client.force_login(self.owner)
@@ -289,9 +300,10 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         )
         self.assertEqual(second.context["mark_result"]["state"], "needs_confirmation")
         self.assertContains(second, "Confirmation nécessaire")
+        self.assertContains(second, "avec le rôle « finance ».")
         self.assertContains(second, "Confirmer cette action")
 
-    def test_ended_occurrence_closes_day_of_naturally_without_archive_route(self):
+    def test_ended_occurrence_keeps_day_of_but_not_a_live_link(self):
         self.occurrence.status = OccurrenceStatus.COMPLETED
         self.occurrence.start_at = self.now - timedelta(hours=3)
         self.occurrence.end_at = self.now - timedelta(minutes=5)
@@ -302,4 +314,66 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         response = self.client.get(
             self._url("organizations:space-occurrence-day-of", self.occurrence)
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Terminé")
+        self.assertNotContains(response, "Consulter Makolo Live")
+
+    def test_space_mark_shared_desktop_preparation_and_privacy(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self._url("organizations:space-mark"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-root')
+        self.assertContains(response, 'data-mk-mark-window')
+        self.assertContains(response, 'data-mk-mark-restore')
+        self.assertContains(response, 'data-mk-mark-files')
+        self.assertContains(response, 'data-mk-mark-voice')
+        self.assertContains(response, 'data-mk-mark-attach-open')
+        self.assertContains(response, 'data-mk-mark-gallery')
+        self.assertContains(response, 'data-mk-mark-send')
+        self.assertContains(response, 'mk-mark-composer')
+        self.assertNotContains(response, 'data-mk-mark-link-input')
+        self.assertNotContains(response, '>Continuer</button>')
+        self.assertNotContains(response, 'name="attachments"')
+        self.assertNotContains(response, 'data-mk-mark-owner-form')
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_space_mark_cancel_confirmation_does_not_execute_owner_mutation(self):
+        self.client.force_login(self.owner)
+        before = self.client.post(
+            self._url("organizations:space-mark"),
+            {
+                "value": "Ajoute un membre",
+                "team_member_email": self.operator.email,
+                "team_member_role": "finance",
+            },
+        )
+        self.assertEqual(before.context["mark_result"]["state"], "needs_confirmation")
+        self.assertContains(before, 'name="cancel_confirmation"')
+
+        cancelled = self.client.post(
+            self._url("organizations:space-mark"),
+            {
+                "value": "Ajoute un membre",
+                "team_member_email": self.operator.email,
+                "team_member_role": "finance",
+                "confirm_code": "add_team_member",
+                "confirm_email": self.operator.email,
+                "confirm_role": "finance",
+                "cancel_confirmation": "1",
+            },
+        )
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertNotIn("mark_result", cancelled.context)
+        self.assertContains(cancelled, "Ajoute un membre")
+
+    def test_space_mark_rejects_overlong_input_without_truncation(self):
+        self.client.force_login(self.owner)
+        message = "Organiser " * 85
+        response = self.client.post(
+            self._url("organizations:space-mark"), {"value": message},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response, "maximum 600 caractères", status_code=400,
+        )
+        self.assertContains(response, message, status_code=400)

@@ -1,30 +1,100 @@
 {% extends 'base/app.html' %}
 {% block title %}Makolo | Mark{% endblock %}
 {% block content %}
-<div class="mk-mark-page">
+<div class="mk-mark-page" data-mk-surface="mark" data-mk-mark-root
+  data-mk-mark-scope="personal:{{ request.user.pk }}">
+  <section class="mk-mark-window" data-mk-mark-window aria-label="Demande Makolo">
+    <div class="mk-mark-window-tools" role="group" aria-label="Affichage de Makolo Mark">
+      <button type="button" data-mk-mark-float hidden>Ouvrir en fenêtre</button>
+      <button type="button" data-mk-mark-minimize hidden>Réduire</button>
+      <button type="button" data-mk-mark-inline hidden>Afficher sur la page</button>
+      <button type="button" data-mk-mark-clear>Effacer mon brouillon</button>
+    </div>
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
     <h1>Qu’est-ce que vous avez en tête ?</h1>
-    <p>Dites-le comme vous le diriez à quelqu’un.</p>
   </section>
 
-  <form method="post" class="mk-mark-form">
+  <form method="post" class="mk-mark-form" data-mk-mark-form>
     {% csrf_token %}
-    <label for="mark-intent" class="sr-only">Ce que vous voulez donner à Makolo</label>
+    <label for="mark-intent" class="sr-only">Votre demande</label>
+    <div class="mk-mark-composer">
     <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
+    {% if mark_selected %}
+    <div class="mk-mark-selected" data-mk-mark-selected>
+      <span>Élément déjà sélectionné pour cette demande</span>
+      <input type="hidden" name="selected_kind" value="{{ mark_selected.kind }}">
+      <input type="hidden" name="selected_id" value="{{ mark_selected.id }}">
+      {% if mark_selected.family %}
+      <input type="hidden" name="selected_family" value="{{ mark_selected.family }}">
+      {% endif %}
+      <button type="button" class="mk-action-button" data-variant="secondary"
+        data-mk-mark-clear-selection>Retirer cet élément</button>
+    </div>
+    {% endif %>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
-    <button type="submit" class="mk-now-cta">Continuer</button>
+    {% include 'partials/mark_input_tools.html' with mark_scope='personal' %}
+    <span class="mk-mark-count" data-mk-mark-count hidden aria-live="off"></span>
+    <button type="submit" class="mk-mark-send" data-mk-mark-send
+      title="Continuer" aria-label="Continuer avec votre demande">
+      <i data-lucide="arrow-up" aria-hidden="true"></i>
+    </button>
+    </div>
   </form>
 
-  {% if mark_needs_clarification %}
+  {% include 'partials/mark_personal_asset_form.html' %}
+
+  {% if mark_result %}
+  <section class="mk-mark-clarify" aria-live="polite" aria-labelledby="mark-result-title">
+    <h2 id="mark-result-title">{{ mark_result.message }}</h2>
+
+    {% if mark_result.question.options %}
+    <div class="mk-mark-starts" role="group" aria-label="Choisir un élément">
+      {% for option in mark_result.question.options %}
+      {% if option.kind and option.id %}
+      <form method="post" class="mk-mark-option">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="{{ mark_text }}">
+        <input type="hidden" name="selected_kind" value="{{ option.kind }}">
+        <input type="hidden" name="selected_id" value="{{ option.id }}">
+        {% if option.family %}<input type="hidden" name="selected_family" value="{{ option.family }}">{% endif %}
+        <button type="submit" class="mk-action-button" data-variant="secondary">{{ option.label|default:"Choisir cet élément" }}</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mark_result.state == "needs_confirmation" and mark_result.action.code == "redeem_recognition" %}
+    <div class="mk-panel mt-4 p-4">
+      <p>{{ mark_result.action.summary }}</p>
+      <form method="post" class="mk-mark-form">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="{{ mark_text }}">
+        <input type="hidden" name="selected_kind" value="recognition_reward">
+        <input type="hidden" name="selected_id" value="{{ mark_result.action.target.id }}">
+        <input type="hidden" name="confirm_code" value="redeem_recognition">
+        <input type="hidden" name="confirm_target_id" value="{{ mark_result.action.target.id }}">
+        <input type="hidden" name="idempotency_key" value="{{ mark_confirmation_key }}">
+        <button type="submit" class="mk-action-button" data-variant="primary">Confirmer cette utilisation</button>
+        <button type="submit" class="mk-action-button" data-variant="quiet" name="cancel_confirmation" value="1">Annuler cette proposition</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if mark_needs_clarification and not mark_result.question.options %}
   <section class="mk-mark-clarify" aria-labelledby="mark-clarify-title">
-    <h2 id="mark-clarify-title">Qu’est-ce que vous voulez obtenir à partir de ça ?</h2>
+    <h2 id="mark-clarify-title">Que souhaitez-vous faire ?</h2>
     <div class="mk-mark-starts">
-      <a href="{% url 'discovery:home' %}?q={{ mark_text|urlencode }}" class="mk-mark-start"><i data-lucide="compass"></i><span><strong>Explorer des possibilités</strong><small>Chercher quelque chose qui pourrait convenir.</small></span></a>
-      <a href="{% url 'core:participant-ongoing' %}" class="mk-mark-start"><i data-lucide="route"></i><span><strong>Reprendre quelque chose</strong><small>Revenir à une réalité déjà engagée.</small></span></a>
-      <a href="{% url 'core:participant-me' %}" class="mk-mark-start"><i data-lucide="search-check"></i><span><strong>Retrouver ce que j’ai déjà</strong><small>Revenir à ce qui existe déjà autour de vous.</small></span></a>
+      <a href="{% url 'discovery:home' %}?q={{ mark_text|urlencode }}" class="mk-mark-start"><i data-lucide="compass"></i><span><strong>Explorer des possibilités</strong><small>Voir les possibilités correspondantes.</small></span></a>
+      <a href="{% url 'core:participant-ongoing' %}" class="mk-mark-start"><i data-lucide="route"></i><span><strong>Reprendre quelque chose</strong><small>Reprendre une démarche ou une activité en cours.</small></span></a>
+      <a href="{% url 'core:participant-me' %}" class="mk-mark-start"><i data-lucide="search-check"></i><span><strong>Retrouver ce que j’ai déjà</strong><small>Consulter mes documents, accès et informations.</small></span></a>
     </div>
   </section>
   {% endif %}
+  </section>
+  <button type="button" class="mk-mark-restore" data-mk-mark-restore hidden>Reprendre ma demande</button>
 </div>
 {% endblock %}

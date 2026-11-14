@@ -1,0 +1,64 @@
+{# Shared canonical Save/owner/Sharing controls; no new authority. #}
+  {% if not discovery_space %}
+  {% if not detail or card.actions.save and card.actions.save.url or card.actions.share and card.actions.share.url %}
+  <div class="mt-5 flex flex-wrap gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Actions pour cette opportunité">
+    {% if card.actions.save and card.actions.save.url %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
+        {% if request.user.is_authenticated %}
+          <form method="post" action="{{ card.actions.save.url }}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="mk-action-button min-h-[48px] w-full justify-center gap-1 px-1 text-center sm:px-2" data-variant="ghost" aria-pressed="{% if card.actions.save.state == 'saved' %}true{% else %}false{% endif %}" aria-label="{{ card.actions.save.label }}">
+              {% include 'discovery/_orbit_icon.html' with saved=card.actions.save.state size='20' %}
+              <span class="sr-only">{{ card.actions.save.label }}</span>
+            </button>
+          </form>
+        {% else %}
+          <a href="{% url 'core:login' %}?next={{ request.get_full_path|urlencode }}" class="mk-action-button min-h-[48px] w-full justify-center gap-1 px-1 text-center sm:px-2" data-variant="ghost">
+            {% include 'discovery/_orbit_icon.html' with size='20' %}
+            <span class="sr-only">Enregistrer</span>
+          </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if not detail %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
+      {% if card.actions.primary and card.actions.primary.enabled and card.actions.primary.url %}
+        <a href="{{ card.actions.primary.url }}" class="mk-action-button min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="primary" aria-label="{% if card.actions.primary.code == 'access' %}{% if card.presentation_kind == 'event' or card.presentation_kind == 'transport' %}Voir mon billet{% elif card.presentation_kind == 'service' %}Voir ma confirmation{% else %}Voir mon accès{% endif %}{% else %}{{ card.actions.primary.label }}{% endif %}"><i data-lucide="{{ card.actions.primary.icon }}" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">{{ card.actions.primary.label }}</span></a>
+      {% else %}
+        <a href="{% if card.n2_url %}{{ card.n2_url }}{% if discovery_space %}&{% else %}?{% endif %}from={{ request.get_full_path|urlencode }}{% else %}{{ card.url }}{% endif %}" class="mk-action-button min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="secondary" aria-label="Voir le détail"><i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Voir plus</span></a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if card.actions.share and card.actions.share.url %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
+        {% if request.user.is_authenticated %}
+          <div data-makolo-share data-create-url="{{ card.actions.share.url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ card.title }}" data-share-text="{{ card.summary|default:'Une opportunité Makolo vous a été partagée.' }}">
+            <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
+            <details class="relative group">
+              <summary class="mk-action-button min-h-[48px] w-full cursor-pointer justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="ghost" aria-label="Options de partage"><i data-lucide="send" class="h-4 w-4 shrink-0" aria-hidden="true"></i><span class="sr-only">Partager</span><i data-lucide="chevron-down" class="h-3 w-3 shrink-0" aria-hidden="true"></i></summary>
+              <div class="absolute right-0 top-full z-30 mt-2 flex flex-col gap-2 rounded-2xl border p-3 shadow-lg" style="width:min(18rem,calc(100vw - 2rem));border-color:var(--mk-border);background:var(--mk-surface-solid)" role="group" aria-label="Options de partage">
+                <button type="button" class="mk-action-button w-full justify-start" data-variant="secondary" data-share-internal>Envoyer dans Makolo</button>
+                <button type="button" class="mk-action-button w-full justify-start" data-variant="secondary" data-share-native>Partager avec…</button>
+                <button type="button" class="mk-action-button w-full justify-start" data-variant="secondary" data-share-copy>Copier le lien</button>
+                <button type="button" class="mk-action-button w-full justify-start" data-variant="secondary" data-share-qr-button>Afficher le QR</button>
+                <div data-share-internal-panel hidden>
+                  <label class="text-sm font-semibold" for="discovery-share-person-{{ card.candidate_key|slugify }}">Rechercher une personne Makolo</label>
+                  <input id="discovery-share-person-{{ card.candidate_key|slugify }}" class="mk-input mt-2 w-full" type="search" autocomplete="off" data-share-person-search placeholder="Nom ou identifiant public">
+                  <div data-share-person-results role="listbox" aria-label="Profils Makolo"></div>
+                </div>
+                <div data-share-qr-panel hidden>
+                  <img data-share-qr alt="QR du lien de partage Makolo" class="mx-auto w-40 rounded-xl bg-white p-2">
+                </div>
+                <span data-share-feedback role="status" aria-live="polite" class="text-xs" style="color:var(--mk-muted)"></span>
+              </div>
+            </details>
+          </div>
+        {% else %}
+          <a href="{% url 'core:login' %}?next={{ request.get_full_path|urlencode }}" class="mk-action-button min-h-[48px] w-full justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="ghost" aria-label="Partager"><i data-lucide="send" class="h-5 w-5 shrink-0" aria-hidden="true"></i><span class="sr-only">Partager</span></a>
+        {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}

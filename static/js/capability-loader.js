@@ -44,4 +44,9 @@
   document.addEventListener('htmx:afterSettle', (event) => {
     ensureShareRuntime(event.detail?.elt || document);
   });
+  // Client-side continuity pages are inserted without HTMX; bind only the
+  // newly admitted capabilities, including when the first page had none.
+  document.addEventListener('makolo:fragment-inserted', (event) => {
+    ensureShareRuntime(event.detail?.scope || document);
+  });
 })();

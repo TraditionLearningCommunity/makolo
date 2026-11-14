@@ -1,0 +1,40 @@
+{% extends 'organizations/space/ws4_base.html' %}
+{% block space_content %}
+<section class="mk-ws4-stack" aria-labelledby="space-authority-title">
+  <header class="mk-ws4-heading">
+    <span class="mk-kicker">Nous · Responsabilités</span>
+    <h2 id="space-authority-title">Mes autorisations</h2>
+    <p>Rôles et droits actifs dans {{ space.name }}. Chaque action reste soumise à une vérification au moment de son exécution.</p>
+  </header>
+  <nav class="mk-ws4-actions" aria-label="Retour aux responsabilités">
+    <a class="mk-ws4-action mk-ws4-action--quiet" href="{{ space_us_url }}">
+      <i data-lucide="arrow-left" aria-hidden="true"></i><span><strong>Retour à Nous</strong><small>Identité et responsabilités de l’Espace</small></span>
+    </a>
+  </nav>
+  {% for mandate in authority_mandates %}
+  <article class="mk-ws4-card" aria-labelledby="authority-role-{{ forloop.counter }}">
+    <div class="mk-ws4-card-head"><div>
+      <span class="mk-ws4-eyebrow">{{ mandate.scope.label }} · {{ mandate.scope.target }}</span>
+      <h3 id="authority-role-{{ forloop.counter }}">{{ mandate.role.label }}</h3>
+    </div></div>
+    {% if mandate.role.description %}<p>{{ mandate.role.description }}</p>{% endif %}
+    <p class="mk-ws4-note">
+      {% if mandate.valid_from %}Valable depuis le {{ mandate.valid_from|date:"d/m/Y H:i" }}.{% endif %}
+      {% if mandate.valid_until %}Fin de validité : {{ mandate.valid_until|date:"d/m/Y H:i" }}.{% else %}Aucune date de fin définie.{% endif %}
+    </p>
+    <h4 class="font-semibold mt-3">Droits associés à ce rôle</h4>
+    {% if mandate.permissions %}
+      <ul class="mk-ws4-list">
+      {% for permission in mandate.permissions %}
+        <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="check-circle-2"></i></span><div><strong>{{ permission.label }}</strong></div></li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p class="mk-ws4-empty">Aucun droit actif associé à ce rôle.</p>
+    {% endif %}
+  </article>
+  {% empty %}
+    <div class="mk-ws4-state" role="status"><strong>Aucune autorisation active.</strong></div>
+  {% endfor %}
+</section>
+{% endblock %}

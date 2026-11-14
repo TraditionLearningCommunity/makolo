@@ -1,0 +1,87 @@
+{% comment %}Derived pending actions only. Owner services validate every POST again.{% endcomment %}
+{% if participation_overview.sent_results or participation_overview.join_requests_to_decide or participation_overview.my_join_requests %}
+<section class="mb-7 space-y-5" id="participation-inbox" aria-labelledby="participation-heading">
+  <h2 id="participation-heading" class="text-base font-extrabold">Invitations et demandes</h2>
+
+  {% if participation_overview.join_requests_to_decide %}
+  <div class="space-y-2" aria-label="Demandes d'entrée à examiner">
+    <h3 class="font-semibold">Demandes à examiner</h3>
+    {% for item in participation_overview.join_requests_to_decide %}
+    <article class="mk-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div>
+        <p class="font-semibold">@{{ item.identifier }}</p>
+        <p class="text-xs" style="color:var(--mk-muted)">Demande d'entrée · {{ item.created_at|date:'d/m/Y à H:i' }}</p>
+        {% if not item.can_approve %}
+        <p class="mt-1 text-xs" style="color:var(--mk-muted)">L'entrée n'est plus éligible ; vous pouvez refuser la demande.</p>
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'conversations:participants' item.conversation_id %}" class="flex flex-wrap gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="join_request_id" value="{{ item.id }}">
+        <button class="mk-action-button" data-variant="secondary" type="submit" name="action" value="reject">Refuser</button>
+        {% if item.can_approve %}
+        <button class="mk-action-button" data-variant="primary" type="submit" name="action" value="approve">Accepter</button>
+        {% endif %}
+      </form>
+    </article>
+    {% endfor %}
+    {% if participation_overview.more_join_requests %}
+    <p class="text-xs" style="color:var(--mk-muted)">D'autres demandes restent à examiner dans leurs Conversations.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if participation_overview.sent_results %}
+  <div class="space-y-2" aria-label="Invitations que j'ai envoyées">
+    <h3 class="font-semibold">Invitations envoyées</h3>
+    {% for item in participation_overview.sent_results %}
+    <article class="mk-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div>
+        <p class="font-semibold">{% if item.kind == 'profile' %}@{% endif %}{{ item.identifier }}</p>
+        <p class="text-xs" style="color:var(--mk-muted)">{% if item.kind == 'profile' %}Profil{% elif item.kind == 'space' %}Espace{% else %}Groupe{% endif %} · En attente d'acceptation</p>
+      </div>
+      <form method="post" action="{% url 'conversations:participants' item.conversation_id %}">
+        {% csrf_token %}
+        {% if item.kind == 'profile' %}
+        <input type="hidden" name="invitation_id" value="{{ item.id }}">
+        <button class="mk-action-button" data-variant="secondary" type="submit" name="action" value="cancel">Annuler l'invitation</button>
+        {% else %}
+        <input type="hidden" name="collective_id" value="{{ item.id }}">
+        <button class="mk-action-button" data-variant="secondary" type="submit" name="action" value="revoke">Retirer l'invitation</button>
+        {% endif %}
+      </form>
+    </article>
+    {% endfor %}
+    {% if participation_overview.more_sent %}
+    <p class="text-xs" style="color:var(--mk-muted)">D'autres invitations restent consultables dans les Conversations concernées.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if participation_overview.my_join_requests %}
+  <div class="space-y-2" aria-label="Mes demandes d'entrée">
+    <h3 class="font-semibold">Mes demandes d'entrée</h3>
+    {% for item in participation_overview.my_join_requests %}
+    <article class="mk-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div>
+        <p class="font-semibold">Demande d'entrée en attente</p>
+        <p class="text-xs" style="color:var(--mk-muted)">Transmise le {{ item.created_at|date:'d/m/Y à H:i' }}</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% if item.conversation_id %}
+        <a class="mk-action-button" data-variant="secondary" href="{% url 'conversations:participants' item.conversation_id %}">Voir ma demande</a>
+        {% endif %}
+        <form method="post" action="{% url 'conversations:join-withdraw' item.id %}">
+          {% csrf_token %}
+          <button class="mk-action-button" data-variant="secondary" type="submit">Retirer ma demande</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+    {% if participation_overview.more_my_requests %}
+    <p class="text-xs" style="color:var(--mk-muted)">D'autres demandes personnelles sont en attente.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}

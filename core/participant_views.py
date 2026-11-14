@@ -28,9 +28,12 @@ from readiness.selectors import participant_readiness_queryset, readiness_querys
 from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_actions import participant_accept_invitation, participant_decline_invitation
 from .history_presentation import history_access_label, history_journey_label
+from .journey_time_presentation import journey_day_label, additional_place_details
+from conversations.composing import can_ensure_context_conversation
+from conversations.presentation import conversations_for_context
+from rest_framework.exceptions import NotFound
 from .participant_presentation import (
     access_status_label,
-    journey_progress,
     journey_status_label,
     next_participant_action,
     occurrence_timing,
@@ -414,6 +417,15 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         )
         readiness = resolve_journey_readiness(journey, viewer=self.request.user)
         card = _journey_card(journey, readiness=readiness)
+        place = card["place"]
+        try:
+            conversation_available = bool(
+                conversations_for_context(self.request.user, "journey", str(journey.pk))
+            ) or can_ensure_context_conversation(
+                self.request.user, "journey", str(journey.pk)
+            )
+        except (NotFound, ValueError, TypeError):
+            conversation_available = False
         live = resolve_occurrence_live(occurrence=journey.occurrence, actor=self.request.user) if journey.occurrence else None
         if live and live.get("perspective") != "participant":
             live = None
@@ -431,9 +443,19 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
             {
                 **card,
                 "mature": mature,
+                "journey_conversation_available": conversation_available,
+                "journey_day_label": journey_day_label(journey.occurrence),
+                "journey_additional_address": additional_place_details(place),
+                "journey_access_instructions": place.access_instructions if place else None,
                 "live": live,
                 "live_url": reverse("core:participant-occurrence-live", kwargs={"pk": journey.occurrence_id}) if live else None,
-                "progress": journey_progress(journey),
+                "journey_steps": list(journey.steps.all().order_by("position", "created_at", "id")),
+                "journey_form_requests": list(
+                    journey.form_requests.select_related("form_version").order_by("created_at", "id")
+                ),
+                "journey_transitions": list(
+                    journey.transitions.order_by("-created_at", "-pk")[:10]
+                ),
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,

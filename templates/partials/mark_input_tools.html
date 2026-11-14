@@ -1,0 +1,67 @@
+{% comment %}
+Mark's Web composer is text-first. Native files are prepared locally; only
+PersonalAsset's existing form can accept an explicitly confirmed document.
+No attachment or guessed entitlement is submitted to the Mark text endpoint.
+{% endcomment %}
+<section class="mk-mark-support" data-mk-mark-support aria-label="Préparer la demande">
+  <div class="mk-mark-tools" role="group" aria-label="Outils de saisie">
+    <button type="button" class="mk-mark-icon" data-mk-mark-attach-open
+      title="Ajouter une pièce" aria-label="Ajouter une pièce" aria-expanded="false">
+      <i data-lucide="plus" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="mk-mark-icon" data-mk-mark-voice hidden
+      title="Dicter" aria-label="Dicter">
+      <i data-lucide="mic" aria-hidden="true"></i>
+    </button>
+  </div>
+  <div class="mk-mark-attach-menu" data-mk-mark-attach-menu hidden role="group"
+    aria-label="Choisir une pièce">
+    <button type="button" data-mk-mark-photo-open>
+      <i data-lucide="camera" aria-hidden="true"></i><span>Appareil photo</span>
+    </button>
+    <button type="button" data-mk-mark-gallery-open>
+      <i data-lucide="images" aria-hidden="true"></i><span>Photos</span>
+    </button>
+    <button type="button" data-mk-mark-files-open>
+      <i data-lucide="paperclip" aria-hidden="true"></i><span>Fichiers</span>
+    </button>
+  </div>
+  <input id="mark-files-{{ mark_scope|default:'personal' }}" type="file"
+    data-mk-mark-files hidden multiple>
+  <input id="mark-photo-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-photo hidden
+    capture="environment" accept="image/*">
+  <input id="mark-gallery-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-gallery hidden
+    accept="image/*" multiple>
+  <div class="mk-mark-dictation" data-mk-mark-dictation hidden>
+    <i data-lucide="mic" aria-hidden="true"></i>
+    <span data-mk-mark-speech-status role="status">Dictée</span>
+    <button type="button" data-mk-mark-speech-start title="Recommencer" aria-label="Recommencer la dictée">
+      <i data-lucide="mic" aria-hidden="true"></i>
+    </button>
+    <button type="button" data-mk-mark-speech-stop title="Terminer" aria-label="Terminer la dictée" disabled>
+      <i data-lucide="square" aria-hidden="true"></i>
+    </button>
+    <button type="button" data-mk-mark-speech-use title="Garder" aria-label="Garder le texte dicté" disabled>
+      <i data-lucide="check" aria-hidden="true"></i>
+    </button>
+    <button type="button" data-mk-mark-speech-cancel title="Annuler" aria-label="Annuler la dictée">
+      <i data-lucide="x" aria-hidden="true"></i>
+    </button>
+  </div>
+  <div class="mk-mark-references" data-mk-mark-references aria-live="polite"></div>
+  <dialog class="mk-mark-preview" data-mk-mark-preview aria-label="Aperçu d'une pièce">
+    <div class="mk-mark-preview-content" data-mk-mark-preview-body></div>
+    <button type="button" class="mk-action-button" data-variant="secondary"
+      data-mk-mark-preview-close>Fermer</button>
+  </dialog>
+  <p class="mk-mark-error" data-mk-mark-feedback role="status" aria-live="polite" hidden></p>
+</section>
+<div data-mk-mark-text-consent class="mk-mark-text-consent" hidden>
+  <p>Cette demande transmettra seulement votre texte. Pour conserver une pièce, utilisez Mes documents.</p>
+  <div class="mk-mark-tools">
+    <button type="button" class="mk-action-button" data-variant="primary"
+      data-mk-mark-confirm-text>Continuer avec le texte</button>
+    <button type="button" class="mk-action-button" data-variant="secondary"
+      data-mk-mark-keep-draft>Revenir</button>
+  </div>
+</div>

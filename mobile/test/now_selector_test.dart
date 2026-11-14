@@ -54,6 +54,69 @@ void main() {
   const selector = NowSelector();
   final now = DateTime.utc(2026, 10, 3, 14);
 
+  test('preserves only owner-supplied subject, delta and exit condition', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:semantic',
+            'human_context': 'Voyage Kolwezi',
+            'state_meaning': 'Une réponse est attendue.',
+            'subject': {'label': 'Réservation'},
+            'delta': {'meaning': 'Le statut a changé.'},
+            'exit_condition': {'label': 'La réservation est confirmée.'},
+            'response': {'type': 'wait'},
+          },
+        ],
+      ),
+      now: now,
+    );
+    final situation = result.situations.single;
+    expect(situation.subject, 'Réservation');
+    expect(situation.delta, 'Le statut a changé.');
+    expect(situation.exitCondition, 'La réservation est confirmée.');
+    expect(situation.topology, NowTopology.waiting);
+  });
+
+  test('only owner deadline state qualifies an old Now date', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:overdue',
+            'human_context': 'Inscription',
+            'state_meaning': 'Une vérification reste nécessaire.',
+            'timing': {
+              'deadline_at': '2026-10-03T10:00:00+00:00',
+              'deadline_state': 'overdue',
+            },
+          },
+        ],
+      ),
+      now: now,
+    );
+    expect(result.situations.single.metadata, contains('Échéance dépassée'));
+  });
+
+  test('wire timestamps display as readable dates, not raw ISO', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:conference',
+            'human_context': 'Conférence cybersécurité',
+            'state_meaning': 'Vérifier la prochaine étape.',
+            'timing': {'starts_at': '2026-10-03T10:00:00+00:00'},
+          },
+        ],
+      ),
+      now: now,
+    );
+    final label = result.situations.single.metadata.single;
+    expect(label, matches(RegExp(r'^\d{2}/\d{2}/\d{4} · \d{2}:\d{2}$')));
+    expect(label, isNot(contains('T10:00:00')));
+  });
+
   test('adapts real personal.now shape without re-ranking', () {
     final result = selector.select(
       projection: projection(
@@ -101,6 +164,23 @@ void main() {
       result.situations.single.meaning,
       'Votre certificat doit être transmis aujourd’hui.',
     );
+  });
+
+  test('uses canonical owner knowledge_context instead of guessing', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:document',
+            'human_context': 'Inscription',
+            'state': 'Document à vérifier',
+            'knowledge_context': {'knowledge_state': 'partial'},
+          },
+        ],
+      ),
+      now: now,
+    );
+    expect(result.situations.single.knowledgeState, 'partial');
   });
 
   test('known empty projection is calm', () {
@@ -174,7 +254,7 @@ void main() {
     expect(result.situations.single.responseLabel, isNull);
   });
 
-  test('keeps server deadline_at in presentation metadata', () {
+  test('humanizes server deadline without losing its instant', () {
     final result = selector.select(
       projection: projection(
         items: const [
@@ -192,10 +272,7 @@ void main() {
       now: now,
     );
 
-    expect(
-      result.situations.single.metadata,
-      contains('2026-10-07T18:00:00+00:00'),
-    );
+    expect(result.situations.single.metadata, contains('07/10/2026 · 20:00'));
   });
 
   test(

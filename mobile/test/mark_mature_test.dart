@@ -5,6 +5,10 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/features/mark/mark_repository.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
 
 import 'fakes.dart';
 
@@ -26,6 +30,73 @@ void main() {
     expect(result.message, contains('Enregistré sur cet appareil'));
   });
 
+  test(
+    'a local document is never represented as a server submission',
+    () async {
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+      );
+      final repository = MarkRepository(runtime);
+      final result = await repository.submit(
+        actor: const PersonalActorContext(),
+        input: '',
+        inputKind: 'document',
+        attachments: [
+          {'file_id': 'local-only', 'purpose': 'mark_intake'},
+        ],
+      );
+      expect(result.state, 'local_attachments_only');
+      expect(result.message, contains('Aucun fichier n’a été transmis'));
+    },
+  );
+
+  test('newest Mark draft wins when autosaves overlap', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final drafts = DraftRepository(
+      database: database,
+      outbox: OutboxRepository(database, 'profile-serial'),
+      profileId: 'profile-serial',
+    );
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      drafts: drafts,
+    );
+    final repository = MarkRepository(runtime);
+    final first = repository.saveDraft(
+      actor: const PersonalActorContext(),
+      input: 'Première version',
+      inputKind: 'text',
+    );
+    final second = repository.saveDraft(
+      actor: const PersonalActorContext(),
+      input: 'Version finale',
+      inputKind: 'text',
+    );
+    await Future.wait([first, second]);
+    final draft = await repository.readDraft(const PersonalActorContext());
+    expect(draft?['input'], 'Version finale');
+  });
+
+  test('a local URL is not treated as an interpreted reference', () async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    final result = await MarkRepository(runtime).submit(
+      actor: const PersonalActorContext(),
+      input: '',
+      links: ['https://example.org/opportunity'],
+    );
+    expect(result.state, 'local_references_only');
+    expect(result.message, contains('pas interprétés'));
+  });
+
   testWidgets(
     'initial Mark keeps input dominant and exposes native intake actions',
     (tester) async {
@@ -40,14 +111,144 @@ void main() {
 
       expect(find.text('Qu’est-ce que vous avez en tête ?'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Joindre'), findsOneWidget);
-      expect(find.text('Photo'), findsOneWidget);
-      expect(find.text('Voix'), findsOneWidget);
-      expect(find.text('Continuer'), findsOneWidget);
+      expect(find.text('Joindre'), findsNothing);
+      expect(find.text('Photo'), findsNothing);
+      expect(find.text('Image'), findsNothing);
+      expect(find.text('Lien'), findsNothing);
+      expect(find.text('Voix'), findsNothing);
+      expect(find.text('Continuer'), findsNothing);
+      expect(find.byTooltip('Ajouter une pièce'), findsOneWidget);
+      expect(find.byTooltip('Dicter ou enregistrer'), findsOneWidget);
+      expect(find.byTooltip('Joindre un fichier'), findsNothing);
+      expect(find.byTooltip('Prendre une photo'), findsNothing);
+      expect(find.byTooltip('Choisir une image'), findsNothing);
+      expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Pièces et liens conservés dans le brouillon local',
+        ),
+        findsNothing,
+      );
       expect(find.textContaining('A1'), findsNothing);
       expect(find.textContaining('A2'), findsNothing);
     },
   );
+
+  testWidgets(
+    'microphone is never presented as a successful capture without storage',
+    (tester) async {
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+      );
+      await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Dicter ou enregistrer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enregistrer un audio'), findsOneWidget);
+      await tester.tap(find.text('Enregistrer un audio'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('L’enregistrement n’est pas disponible dans cette session.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('single add button reveals three native media sources', (
+    tester,
+  ) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Ajouter une pièce'));
+    await tester.pumpAndSettle();
+    expect(find.text('Appareil photo'), findsOneWidget);
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Fichiers'), findsOneWidget);
+    expect(find.text('Lien'), findsNothing);
+  });
+
+  testWidgets('typed safe URL is recognized without a link tool', (
+    tester,
+  ) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    await tester.enterText(
+      find.byType(TextField),
+      'Voir https://example.org/activity',
+    );
+    await tester.pump();
+    expect(find.text('https://example.org/activity'), findsOneWidget);
+    expect(find.text('Lien'), findsNothing);
+    expect(find.text('Qu’est-ce que vous avez en tête ?'), findsNothing);
+    expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
+  });
+
+  testWidgets('Mark runtime switch does not display another Profile draft', (
+    tester,
+  ) async {
+    final dbA = MakoloDatabase.memory();
+    final dbB = MakoloDatabase.memory();
+    addTearDown(dbA.close);
+    addTearDown(dbB.close);
+
+    DraftRepository makeDrafts(MakoloDatabase db, String profile) =>
+        DraftRepository(
+          database: db,
+          outbox: OutboxRepository(db, profile),
+          profileId: profile,
+        );
+    final draftsA = makeDrafts(dbA, 'profile-a');
+    final draftsB = makeDrafts(dbB, 'profile-b');
+    for (final entry in [
+      (draftsA, 'Texte privé A'),
+      (draftsB, 'Texte privé B'),
+    ]) {
+      await entry.$1.saveLocal(
+        draftId: 'mark:personal',
+        owner: 'profile',
+        resourceKind: 'mark_intake',
+        resourceId: 'mark:personal',
+        payload: {'input': entry.$2, 'attachments': <Object>[]},
+      );
+    }
+    AppRuntime runtime(String profile, DraftRepository drafts) => AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: profile,
+      ),
+      recovery: SessionRecoveryController(),
+      drafts: drafts,
+    );
+    final first = runtime('profile-a', draftsA);
+    final second = runtime('profile-b', draftsB);
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: first)));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Texte privé A',
+    );
+
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: second)));
+    await tester.pumpAndSettle();
+    final editor = tester.widget<TextField>(find.byType(TextField));
+    expect(editor.controller?.text, 'Texte privé B');
+    expect(editor.controller?.text, isNot(contains('Texte privé A')));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('Mark never renders a second Space design', (tester) async {
     final runtime = AppRuntime(
@@ -84,7 +285,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.textContaining('Contexte sélectionné : journey'),
+      find.textContaining('Élément sélectionné pour cette demande'),
       findsOneWidget,
     );
   });

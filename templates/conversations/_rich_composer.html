@@ -1,0 +1,94 @@
+{% load static %}
+{% if composer.can_form %}
+  <details class="mt-4 rounded-xl border px-4 py-3" style="border-color:var(--mk-border)" {% if compose_draft.mode == 'form' %}open{% endif %}>
+    <summary class="mk-disclosure-trigger">Formulaire</summary>
+    <div class="mt-4 grid gap-5 sm:grid-cols-2">
+      {% if composer.form_options %}
+        <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="space-y-3">{% csrf_token %}
+          <input type="hidden" name="mode" value="form">
+          <input type="hidden" name="client_reference" value="{% if compose_draft.mode == 'form' %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.form }}{% endif %}">
+          <label class="block text-xs font-semibold" for="form-version">Formulaire disponible</label>
+          <select id="form-version" name="form_version_id" required class="mk-input w-full" data-conversation-form-version>
+            <option value="" selected disabled>Choisir un formulaire</option>
+            {% for item in composer.form_options %}
+              <option value="{{ item.id }}" data-form-title="{{ item.title }}" {% if compose_draft.form_version_id == item.id %}selected{% endif %}>{{ item.title }}</option>
+            {% endfor %}
+          </select>
+          <label class="sr-only" for="form-existing-title">Objet</label>
+          <input name="title" id="form-existing-title" class="mk-input w-full" required maxlength="220" value="{% if compose_draft.mode == 'form' %}{{ compose_draft.title }}{% endif %}" placeholder="Objet de la demande" data-conversation-form-title>
+          {% include 'conversations/_composer_audience.html' %}
+          <button class="mk-action-button" data-variant="primary" type="submit">Demander</button>
+        </form>
+      {% endif %}
+      <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="form">
+        <input type="hidden" name="client_reference" value="{% if compose_draft.mode == 'form' and not compose_draft.form_version_id %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.form }}-new{% endif %}">
+        <label class="block text-xs font-semibold" for="form-new-title">Nouveau formulaire</label>
+        <input id="form-new-title" name="title" class="mk-input w-full" required maxlength="220" placeholder="Objet">
+        <label class="sr-only" for="form-new-questions">Questions</label>
+        <textarea id="form-new-questions" name="questions" class="mk-input w-full" required rows="3" placeholder="Une question par ligne"></textarea>
+        {% include 'conversations/_composer_audience.html' %}
+        <button class="mk-action-button" data-variant="primary" type="submit">Demander</button>
+      </form>
+    </div>
+  </details>
+{% endif %}
+
+{% if composer.media_kinds %}
+  <form class="mt-4 space-y-3" method="post" enctype="multipart/form-data"
+        action="{% url 'conversations:media' conversation.pk %}#conversation-compose"
+        data-conversation-media-form data-media-focus="{% url 'conversations:detail' conversation.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="client_reference" value="{{ compose_refs.file }}" data-media-ref>
+    <input type="hidden" name="kind" value="file" data-media-kind>
+    {% if composer.text_mode == 'exchange_select' %}
+      <label class="block text-xs font-semibold" for="media-exchange">Échange
+        <select name="point_id" id="media-exchange" class="mk-input mt-1 w-full" required>
+          <option value="" selected disabled>Choisir</option>
+          {% for point in composer.exchange_targets %}<option value="{{ point.id }}">{{ point.title }}</option>{% endfor %}
+        </select>
+      </label>
+    {% elif composer.default_exchange_point_id %}
+      <input type="hidden" name="point_id" value="{{ composer.default_exchange_point_id }}">
+    {% endif %}
+    {% if composer.audience_selection_required and composer.text_mode == 'information' %}
+      <label class="block text-xs font-semibold" for="media-audience">Destinataires
+        <select name="audience_id" id="media-audience" required class="mk-input mt-1 w-full">
+          <option value="" selected disabled>Choisir</option>
+          {% for item in composer.audiences %}<option value="{{ item.id }}">{{ item.label }}</option>{% endfor %}
+        </select>
+      </label>
+    {% elif composer.default_audience_id %}
+      <input type="hidden" name="audience_id" value="{{ composer.default_audience_id }}">
+    {% endif %}
+    {% if composer.representable_space_id %}
+      <label class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)">
+        <input type="checkbox" name="represented_space_id" value="{{ composer.representable_space_id }}"> Au nom de cet Espace
+      </label>
+    {% endif %}
+    <label class="sr-only" for="media-caption">Légende</label>
+    <input id="media-caption" name="body" type="text" maxlength="5000" class="mk-input w-full" placeholder="Légende (facultative)">
+    <div class="flex flex-wrap items-center gap-3">
+      {% if 'voice' in composer.media_kinds %}
+        <button type="button" class="mk-action-button" data-variant="secondary" data-voice-start><span aria-hidden="true">●</span> Vocal</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-pause>Pause</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-resume>Reprendre</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-stop>Terminer</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-cancel>Annuler</button>
+        <button type="button" class="mk-action-button hidden" data-variant="primary" data-voice-send>Envoyer le vocal</button>
+      {% endif %}
+      {% if 'image' in composer.media_kinds %}
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Photo<input type="file" class="sr-only" name="file" accept="image/jpeg,image/png" data-media-file="image"></label>
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Caméra<input type="file" class="sr-only" accept="image/*" capture="environment" data-media-file="image"></label>
+      {% endif %}
+      {% if 'file' in composer.media_kinds %}
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Document<input type="file" class="sr-only" name="file" accept=".pdf,.txt,.doc,.docx,application/pdf,text/plain" data-media-file="file"></label>
+      {% endif %}
+    </div>
+    <audio class="hidden w-full" controls preload="metadata" data-voice-preview></audio>
+    <p role="status" aria-live="polite" class="text-sm" data-media-state></p>
+    <button class="mk-action-button hidden" data-variant="primary" type="button" data-media-retry>Réessayer l’envoi</button>
+    <noscript><p class="text-sm">Joindre un fichier et envoyer.</p><button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button></noscript>
+  </form>
+{% endif %}

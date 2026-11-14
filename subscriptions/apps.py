@@ -9,10 +9,12 @@ class SubscriptionsConfig(AppConfig):
     def import_models(self):
         """Load runtime, eligibility, transition, billing and ongoing models during Django model import."""
         super().import_models()
-        from . import billing_models, eligibility_models, ongoing_models, runtime_models, transition_models
+        from . import billing_models, coverage_models, eligibility_models, ongoing_models, runtime_models, transition_models
 
         for name in ("Subscription", "SubscriptionItem", "EntitlementGrant"):
             setattr(self.models_module, name, getattr(runtime_models, name))
+        for name in ("SubscriptionCoverage", "SubscriptionCoverageAllocation"):
+            setattr(self.models_module, name, getattr(coverage_models, name))
         for name in ("PlanRequirement", "EntitlementRequirement"):
             setattr(self.models_module, name, getattr(eligibility_models, name))
         for name in (
@@ -34,7 +36,7 @@ class SubscriptionsConfig(AppConfig):
         )
 
     def ready(self):
-        from . import domain_event_hooks, signals  # noqa: F401
+        from . import coverage_event_hooks, domain_event_hooks, signals  # noqa: F401
         from .evaluators import register_subscription_evaluators
 
         register_subscription_evaluators()

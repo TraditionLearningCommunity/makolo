@@ -26,6 +26,7 @@
         <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{{ form.non_field_errors }}</div>
         {% endif %}
 
+        {% include 'subscriptions/_blocked_action_handoff.html' %}
         <div class="grid gap-6 md:grid-cols-2">
             {% for field in form %}
             <div class="{% if field.name == 'description' or field.name == 'short_description' or field.name == 'cover_image' %}md:col-span-2{% endif %}">

@@ -29,6 +29,7 @@ from presentations.participant_state import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from presentations.product_language import vocabulary_for
 from operations.participant_occurrence_live import participant_occurrence_live_available
+from operations.occurrence_live import occurrence_live_phase
 from organizations.models import SpaceLifecycle
 
 
@@ -426,7 +427,9 @@ class OccurrenceDetailAPIView(APIView):
         )
 
         live_available = (
-            participant_occurrence_live_available(
+            occurrence.live_enabled
+            and occurrence_live_phase(occurrence) in {"arrival", "live"}
+            and participant_occurrence_live_available(
                 occurrence=occurrence,
                 actor=request.user,
             )
@@ -454,6 +457,8 @@ class OccurrenceDetailAPIView(APIView):
                 "kind": "activity",
                 "id": str(activity.pk),
                 "title": activity.title,
+                # Only canonical vocabulary; no new vertical or workflow truth.
+                "vocabulary": _vocabulary(activity),
             },
             "state": {"code": occurrence.status},
             "timing": _timing(occurrence),

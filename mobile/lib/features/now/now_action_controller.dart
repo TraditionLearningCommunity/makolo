@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import 'now_proposal_decision.dart';
+import 'now_display_labels.dart';
 
 /// Only the existing owner service may authorize and confirm a mutation.
 /// Presentation never turns a capability or a URL into a generic HTTP action.
@@ -109,11 +112,13 @@ class NowActionGroup extends StatefulWidget {
     required this.situation,
     required this.api,
     this.onOpenOwner,
+    this.compact = false,
   });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final VoidCallback? onOpenOwner;
+  final bool compact;
 
   @override
   State<NowActionGroup> createState() => _NowActionGroupState();
@@ -121,6 +126,9 @@ class NowActionGroup extends StatefulWidget {
 
 class _NowActionGroupState extends State<NowActionGroup> {
   bool _sending = false;
+  bool _confirming = false;
+  bool _verifying = false;
+  bool _needsVerification = false;
   bool _confirmedByOwner = false;
   String? _error;
 
@@ -130,15 +138,25 @@ class _NowActionGroupState extends State<NowActionGroup> {
     if (oldWidget.situation.identity != widget.situation.identity) {
       _error = null;
       _confirmedByOwner = false;
+      _needsVerification = false;
+      _verifying = false;
+      _confirming = false;
     }
   }
 
   Future<void> _execute(NowBusinessActionPresentation action) async {
     final api = widget.api;
-    if (api == null || _sending || _confirmedByOwner) return;
+    if (api == null ||
+        _sending ||
+        _confirming ||
+        _needsVerification ||
+        _confirmedByOwner) {
+      return;
+    }
     final path = NowOwnerAction.authorizedPath(widget.situation, action);
     if (path == null) return;
 
+    setState(() => _confirming = true);
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -159,7 +177,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
         ],
       ),
     );
-    if (approved != true || !mounted) return;
+    if (!mounted) return;
+    setState(() => _confirming = false);
+    if (approved != true) return;
 
     setState(() {
       _sending = true;
@@ -185,12 +205,39 @@ class _NowActionGroupState extends State<NowActionGroup> {
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error =
-            'Cette décision n’a pas été confirmée. '
-            'Vérifiez son état dans la démarche avant de réessayer.';
+        _needsVerification = true;
+        _error = 'Décision non confirmée. Vérifiez son état avant toute nouvelle action.';
       });
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _verifyBeforeRetry() async {
+    if (_verifying || _sending || !_needsVerification) return;
+    final refresh = NowActionRefreshScope.maybeOf(context);
+    if (refresh == null) {
+      widget.onOpenOwner?.call();
+      return;
+    }
+    setState(() => _verifying = true);
+    try {
+      // Read the new owner-backed situation before allowing another decision.
+      await refresh();
+      if (mounted) {
+        setState(() {
+          _needsVerification = false;
+          _error = null;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Vérification indisponible. Consultez la situation avant de réessayer.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _verifying = false);
     }
   }
 
@@ -236,10 +283,18 @@ class _NowActionGroupState extends State<NowActionGroup> {
                 );
               }
               final active =
-                  !_sending && !_confirmedByOwner && (direct || canHandoff);
+                  !_sending &&
+                  !_confirming &&
+                  !_verifying &&
+                  !_needsVerification &&
+                  !_confirmedByOwner &&
+                  (direct || canHandoff);
               if (!direct && !canHandoff) {
                 return Text(
-                  action.label,
+                  nowDisplayActionLabel(
+                    action.label,
+                    widget.situation.humanContext,
+                  ),
                   style: Theme.of(context).textTheme.titleMedium,
                 );
               }
@@ -248,16 +303,38 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   : direct
                   ? () => unawaited(_execute(action))
                   : widget.onOpenOwner;
-              if (index == 0) {
-                return FilledButton.icon(
-                  onPressed: callback,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  label: Text(action.label),
-                );
-              }
-              return OutlinedButton(
+              final label = widget.compact && !direct
+                  ? nowDisplayHandoffLabel(
+                      action.label,
+                      widget.situation.meaning,
+                      widget.situation.humanContext,
+                    )
+                  : nowDisplayActionLabel(
+                      action.label,
+                      widget.situation.humanContext,
+                    );
+              final phase = _confirmedByOwner
+                  ? MakoloActionPhase.confirmed
+                  : _sending
+                  ? MakoloActionPhase.processing
+                  : _needsVerification
+                  ? MakoloActionPhase.failed
+                  : !active
+                  ? MakoloActionPhase.unavailable
+                  : MakoloActionPhase.available;
+              return MakoloActionButton(
+                key: ValueKey(
+                  'now-business-action-${widget.situation.identity}-$index',
+                ),
+                label: label,
                 onPressed: callback,
-                child: Text(action.label),
+                icon: index == 0 ? Icons.arrow_forward_rounded : null,
+                appearance: widget.compact
+                    ? MakoloActionAppearance.quiet
+                    : index == 0
+                    ? MakoloActionAppearance.primary
+                    : MakoloActionAppearance.secondary,
+                phase: phase,
               );
             },
           ),
@@ -277,6 +354,21 @@ class _NowActionGroupState extends State<NowActionGroup> {
             _error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
+          if (_needsVerification &&
+              (NowActionRefreshScope.maybeOf(context) != null ||
+                  widget.onOpenOwner != null))
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: MakoloActionButton(
+                label: _verifying ? 'Vérification…' : 'Vérifier la situation',
+                icon: Icons.refresh_rounded,
+                onPressed: _verifying ? null : _verifyBeforeRetry,
+                appearance: MakoloActionAppearance.secondary,
+                phase: _verifying
+                    ? MakoloActionPhase.processing
+                    : MakoloActionPhase.available,
+              ),
+            ),
         ],
       ],
     );

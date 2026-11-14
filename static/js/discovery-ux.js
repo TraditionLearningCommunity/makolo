@@ -1,4 +1,22 @@
 (() => {
+  // Native history keeps the exact scroll and selection on a true N2 return.
+  // Deep links keep their safe server-generated href instead.
+  const returnLink = document.querySelector('[data-discovery-return]');
+  if (returnLink) {
+    returnLink.addEventListener('click', (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey ||
+          event.shiftKey || event.altKey || window.history.length < 2 ||
+          !document.referrer) return;
+      const destination = new URL(returnLink.href, window.location.href);
+      const previous = new URL(document.referrer, window.location.href);
+      if (destination.origin !== previous.origin ||
+          destination.pathname !== previous.pathname ||
+          destination.search !== previous.search) return;
+      event.preventDefault();
+      window.history.back();
+    });
+  }
+
   const form = document.getElementById('discovery-search-form');
   const latitude = document.getElementById('discover-lat');
   const longitude = document.getElementById('discover-lon');
@@ -24,9 +42,20 @@
 
   }
 
-  const map = window.__makoloDiscoveryMap;
-  if (!map || typeof map.on !== 'function') return;
+  // Only reflect which view is selected; the map controller keeps owning
+  // list/map visibility, camera and selection.
+  const listControl = document.getElementById('discovery-show-list');
+  const mapControl = document.getElementById('discovery-show-map');
+  if (listControl && mapControl) {
+    const activeView = (view) => {
+      listControl.dataset.variant = view === 'list' ? 'secondary' : 'ghost';
+      mapControl.dataset.variant = view === 'map' ? 'secondary' : 'ghost';
+    };
+    listControl.addEventListener('click', () => activeView('list'));
+    mapControl.addEventListener('click', () => activeView('map'));
+  }
 
+  const map = window.__makoloDiscoveryMap;
   let failed = false;
   const failGracefully = () => {
     if (failed) return;
@@ -47,5 +76,15 @@
     }
   };
 
-  map.on('error', failGracefully);
+  if (!map || typeof map.on !== 'function') {
+    // The deployed bundle may decline initialization: keep the list.
+    if (document.getElementById('discovery-map')) failGracefully();
+    return;
+  }
+  map.on('error', () => {
+    // Raster tile errors after initialization may recover.
+    if (typeof map.getSource === 'function' &&
+        map.getSource('discovery-results')) return;
+    failGracefully();
+  });
 })();

@@ -246,3 +246,35 @@ Après merge :
 - vérifier sur appareil réel : cold start, splash unique, signup/availability, réseau lent/absent, navigation authentifiée, Mark central, Avatar → Connexions.
 
 La fermeture a ensuite été réconciliée avec `main@f3879e04` après l’intégration de Web Search #360 ; ce changement n’ajoute aucune responsabilité mobile et sert uniquement à garantir les gates sur le `main` réellement courant.
+
+
+## 13. Réconciliation #522 — 31 octobre 2026
+
+**Constat vérifié dans le runtime de #522 :** la vue Flutter consomme `GET /api/v1/me/interoperability/` et retient une projection `personal.interoperability` par Profil. Le serveur sélectionne les `ProviderConnection` Intelligence personnelles via `profile__user`, sans divulguer les credentials, les routes internes ni les configurations techniques. `z16.v1` expose des faits en lecture seule, pas une opération générale de création ou d'autorisation d'un service externe.
+
+La distinction reste importante :
+
+- **M7** : primitives de Connections, Actions, Providers et Extensions ;
+- **Z16** : projection de ce que le runtime a effectivement configuré pour ce Profil ;
+- **Flutter** : présentation et synchronisation de ces faits, sans devenir propriétaire des autorisations ;
+- **services réellement connectables** : nécessitent un parcours métier propriétaire, un provider concret configuré et une mutation autorisée explicitement côté serveur.
+
+Une liste vide de Z16 ne prouve pas une panne Flutter ; elle peut être la représentation exacte d'un Profil sans Connection personnelle et sans catalogue M7 runtime installé.
+
+### Fermeture mobile ciblée portée par #522
+
+L'écran Connexions dispose d'une actualisation volontaire (bouton et geste de rafraîchissement), via le `SyncEngine` existant. En cas d'échec, le snapshot local reste visible avec un message de fraîcheur ; lorsque aucun snapshot n'existe et que l'acquisition échoue, un état d'erreur explicite remplace le chargement illimité. Le rendu des capacités distingue la disponibilité déclarée de toute possibilité d'exécution directe : il n'existe toujours pas de CTA fictif.
+
+### Ce qui reste nécessaire pour une connexion personnelle utilisable de bout en bout
+
+Avant d'ajouter dans Flutter « Connecter », « Autoriser », « Désactiver » ou « Exécuter », le domaine propriétaire du service doit livrer un contrat consommable réel, incluant :
+
+1. un service concret, son identité publique et sa finalité pour l'utilisateur ;
+2. un flux d'autorisation ou de configuration valide pour le Profil (consentement, scopes, révocation) ;
+3. une opération serveur autorisée, idempotente selon le besoin, et sa représentation de résultat ;
+4. des liens/actions allowlistés dans un contrat public dont Flutter peut suivre la destination, sans déduire d'URL ou de permission ;
+5. les tests d'isolation entre Profils, de révocation, d'échec/récupération, de confidentialité et de compatibilité local-first.
+
+Les credentials restent exclusivement dans leur coffre propriétaire ; aucun secret ne rejoint le `ProfileStore` ni la projection. Les Connections Space et Platform conservent leur autorité spécifique. **Ne pas qualifier la connexion libre-service de livrée tant que ce contrat serveur n'existe pas réellement.**
+
+La validation Android et les gates Flutter/CI de #522 restent obligatoires avant toute fusion.

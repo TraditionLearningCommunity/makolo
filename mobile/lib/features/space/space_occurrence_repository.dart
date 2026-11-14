@@ -34,8 +34,8 @@ class SpaceOccurrenceRepository {
     this.sync,
   });
 
-  static const dayOfProjection = 'space.occurrence.day_of';
-  static const liveProjection = 'space.occurrence.live';
+  static const dayOfProjection = 'occurrence.experience.day_of';
+  static const liveProjection = 'occurrence.experience.live';
   static const freshnessPolicy = FreshnessPolicy(
     id: 'space-operational-volatile',
     refreshRecommendedAfter: Duration(seconds: 30),
@@ -57,9 +57,14 @@ class SpaceOccurrenceRepository {
   ) => SyncSourceDefinition.projectionEnvelope(
     sourceKey: 'space-day-of:${space.id}:$occurrenceId',
     owner: 'Operations',
-    path: 'api/v1/operations/occurrences/$occurrenceId/day-of/',
+    path:
+        'api/v1/operations/occurrences/$occurrenceId/experience/day-of/?actor_space=${space.id}',
     projectionKind: dayOfProjection,
     resourceKey: resourceKey(space, occurrenceId),
+    expectedOccurrenceId: occurrenceId,
+    expectedActorSpaceId: space.id,
+    expectedViewerProfileId: profileId,
+    expectedSurface: 'day_of',
     actorScope: SyncActorScope.space(spaceId: space.id),
     category: SyncSourceCategory.boundedOperational,
     freshnessPolicy: freshnessPolicy,
@@ -68,18 +73,20 @@ class SpaceOccurrenceRepository {
   SyncSourceDefinition liveSource(
     SpaceActorIdentity space,
     String occurrenceId,
-  ) => SyncSourceDefinition(
-    sourceKey: 'space-live:${space.id}:$occurrenceId',
+  ) => SyncSourceDefinition.projectionEnvelope(
+    sourceKey: 'space-live-experience:${space.id}:$occurrenceId',
     owner: 'Operations',
-    path: 'api/v1/operations/occurrences/$occurrenceId/live/',
+    path:
+        'api/v1/operations/occurrences/$occurrenceId/experience/live/?actor_space=${space.id}',
     projectionKind: liveProjection,
     resourceKey: resourceKey(space, occurrenceId),
+    expectedOccurrenceId: occurrenceId,
+    expectedActorSpaceId: space.id,
+    expectedViewerProfileId: profileId,
+    expectedSurface: 'live',
     actorScope: SyncActorScope.space(spaceId: space.id),
     category: SyncSourceCategory.boundedOperational,
     freshnessPolicy: freshnessPolicy,
-    parser: (response) =>
-        AcquiredProjection(schemaVersion: 1, payload: response.jsonObject()),
-    applier: applyProjectionSnapshot,
   );
 
   Stream<StoredProjection?> watchDayOf(

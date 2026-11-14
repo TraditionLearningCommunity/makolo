@@ -79,6 +79,54 @@ String? spaceOwnerRoute({
       '${Uri.encodeComponent(kind!)}/${Uri.encodeComponent(id)}';
 }
 
+/// The origin is presentation-only. It never grants a Space permission or
+/// changes the owner selected by the server. Only known Work sections can
+/// become a return destination.
+const spaceWorkSectionKeys = <String>{
+  'preparation',
+  'upcoming',
+  'active',
+  'blocked',
+  'completed',
+  'activities',
+  'offers',
+  'routes',
+  'vehicles',
+  'requests',
+};
+
+String? spaceWorkOwnerRoute({
+  required String? slug,
+  required String? kind,
+  required String? id,
+  String? section,
+  bool fromCollection = false,
+}) {
+  final route = spaceOwnerRoute(slug: slug, kind: kind, id: id);
+  if (route == null) return null;
+  if (!spaceWorkSectionKeys.contains(section)) return route;
+  return Uri.parse(route)
+      .replace(
+        queryParameters: {
+          'work_section': section!,
+          if (fromCollection) 'work_collection': '1',
+        },
+      )
+      .toString();
+}
+
+String spaceWorkReturnRoute({
+  required String slug,
+  String? section,
+  bool fromCollection = false,
+}) {
+  if (fromCollection && spaceWorkSectionKeys.contains(section)) {
+    return '/space/${Uri.encodeComponent(slug)}/work/'
+        '${Uri.encodeComponent(section!)}';
+  }
+  return '/space/work';
+}
+
 /// Keep planned dates, availability and lifecycle instants distinct.
 List<String> spaceTimingLines(Object? value) {
   final timing = spaceMap(value);

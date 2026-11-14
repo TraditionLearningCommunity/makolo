@@ -9,9 +9,9 @@
   <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
     <div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-surface-soft)">
       <p class="font-bold">Disponible dans cet Espace</p>
-      <p class="mt-1 text-sm" style="color:var(--mk-muted)">Cette capacité est affichée parce que le serveur Z15 l’a autorisée pour votre Mandat actuel. Les actions et données restent contrôlées par leur domaine propriétaire.</p>
+      <p class="mt-1 text-sm" style="color:var(--mk-muted)">Vous avez accès à cet outil dans cet espace.</p>
     </div>
-    <a href="{{ capability_destination_url }}" class="mk-btn mk-btn-primary">{{ capability_action_label }}</a>
+    <a href="{{ capability_destination_url }}" class="mk-action-button" data-variant="primary">{{ capability_action_label }}</a>
   </div>
 </section>
 {% endblock %}

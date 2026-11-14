@@ -8,6 +8,9 @@ abstract interface class PushTokenSource {
 class FirebasePushTokenSource implements PushTokenSource {
   FirebasePushTokenSource(this.messaging);
 
+  factory FirebasePushTokenSource.system() =>
+      FirebasePushTokenSource(FirebaseMessaging.instance);
+
   final FirebaseMessaging messaging;
 
   @override

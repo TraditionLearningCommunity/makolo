@@ -1,0 +1,79 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-5xl space-y-6" aria-labelledby="mt6-title" data-mt6-depth="{{ work_g4.kind }}">
+  <nav class="flex flex-wrap gap-3 text-sm" aria-label="Fil de navigation">
+    <a class="underline" href="{{ work_g4.back_url }}">{{ work_g4.back_label }}</a>
+    {% if work_g4.parent_url and work_g4.parent_url != work_g4.back_url %}
+      <a class="underline" href="{{ work_g4.parent_url }}">Voir la {% if work_g4.creative %}création{% else %}production{% endif %} liée</a>
+    {% endif %}
+  </nav>
+  <header class="space-y-3">
+    <span class="mk-kicker">
+      {% if work_g4.activity %}{% if work_g4.creative %}Œuvre ou création{% else %}Production{% endif %}
+      {% else %}{% if work_g4.creative %}Présentation{% else %}Édition{% endif %} ou réalisation{% endif %}
+    </span>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="mt6-title" class="text-3xl font-extrabold tracking-tight">{{ work_g4.title }}</h2>
+      <span class="mk-badge">{{ work_g4.status }}</span>
+    </div>
+    {% if work_g4.summary %}<p style="color:var(--mk-muted)">{{ work_g4.summary }}</p>{% endif %}
+  </header>
+  {% if work_g4.media %}
+    <figure class="mk-panel max-w-xl overflow-hidden" data-mt6-recognition>
+      <img src="{{ work_g4.media.url }}" alt="{{ work_g4.media.label }}" loading="lazy" decoding="async" class="w-full object-contain">
+      {% if work_g4.media.label %}<figcaption class="p-3 text-sm">{{ work_g4.media.label }}</figcaption>{% endif %}
+    </figure>
+  {% endif %}
+  {% if work_g4.description %}
+    <section class="mk-panel p-5" aria-label="Description"><p class="whitespace-pre-line">{{ work_g4.description }}</p></section>
+  {% endif %}
+  {% if work_g4.occurrence %}
+    <section class="mk-panel p-5 space-y-2" aria-label="Date de réalisation">
+      <h3 class="font-extrabold">{% if work_g4.creative %}Présentation{% else %}Édition{% endif %}</h3>
+      {% if work_g4.timing.start_date %}
+        <p>{{ work_g4.timing.start_date|date:"DATE_FORMAT" }}{% if work_g4.timing.start_time %} · {{ work_g4.timing.start_time|time:"H:i" }}{% endif %}{% if work_g4.timing.timezone %} · {{ work_g4.timing.timezone }}{% endif %}</p>
+      {% endif %}
+      {% if work_g4.context.place.name %}<p>Lieu : {{ work_g4.context.place.name }}</p>{% endif %}
+      {% if work_g4.context.activity.title %}<p>Reliée à : {{ work_g4.context.activity.title }}</p>{% endif %}
+      {% if not work_g4.timing.start_date and not work_g4.context.place.name %}<p>Date et lieu non établis.</p>{% endif %}
+    </section>
+  {% endif %}
+  {% if work_g4.activity %}
+    <section aria-labelledby="mt6-related" class="space-y-3">
+      <h3 id="mt6-related" class="text-xl font-extrabold">{{ work_g4.related_label }}</h3>
+      {% if work_g4.next_occurrence %}
+        <p>Prochaine {% if work_g4.creative %}présentation{% else %}édition{% endif %} : {{ work_g4.next_occurrence.label }}
+        {% if work_g4.next_occurrence.start_date %} · {{ work_g4.next_occurrence.start_date|date:"DATE_FORMAT" }}{% endif %}</p>
+      {% endif %}
+      {% if work_g4.related %}
+        <ol class="mk-panel divide-y px-5" style="border-color:var(--mk-border)">
+          {% for row in work_g4.related %}
+            <li class="py-4 flex flex-wrap items-center justify-between gap-3">
+              <div><p class="font-extrabold">{{ row.title }}</p>
+                <p class="text-sm" style="color:var(--mk-muted)">{{ row.state }}{% if row.timing.start_date %} · {{ row.timing.start_date|date:"DATE_FORMAT" }}{% endif %}</p></div>
+              {% if row.url %}<a class="mk-action-button" data-variant="secondary" href="{{ row.url }}">Ouvrir</a>
+              {% else %}<span class="text-sm">Date non ouvrable dans cet état</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="mk-panel p-5">Aucune date liée pour le moment. {% if work_g4.creative %}La création{% else %}La production{% endif %} reste disponible.</p>
+      {% endif %}
+      <nav aria-label="Pages des réalisations" class="flex flex-wrap justify-between gap-3">
+        {% if work_g4.previous %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g4.previous }}">Précédentes</a>{% endif %}
+        {% if work_g4.next %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g4.next }}">Voir les suivantes</a>{% endif %}
+      </nav>
+    </section>
+  {% endif %}
+  {% if work_g4.actions %}
+    <section class="mk-panel p-5 space-y-3" aria-labelledby="mt6-actions">
+      <h3 id="mt6-actions" class="font-extrabold">Actions autorisées</h3>
+      <div class="flex flex-wrap gap-2">
+      {% for action in work_g4.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+      </div>
+    </section>
+  {% endif %}
+  <footer><a class="mk-action-button" data-variant="secondary" href="{{ work_g4.back_url }}">{{ work_g4.back_label }}</a></footer>
+</main>
+{% endblock %}

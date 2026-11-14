@@ -1,6 +1,10 @@
 from django.urls import path
 
-from .credential_views import PublicCredentialVerifyView
+from .credential_views import (
+    CredentialDetailView,
+    MyCredentialsView,
+    PublicCredentialVerifyView,
+)
 from .staff_proof_views import StaffProofQueueView, StaffProofRevokeView
 from .views import (
     DisputeDetailView,
@@ -8,6 +12,7 @@ from .views import (
     JourneyFeedbackView,
     JourneyReportView,
     MyProofsView,
+    ProofDetailView,
     PublicProofVerifyView,
     PublicSpaceTrustView,
     ReportDetailView,
@@ -31,7 +36,14 @@ urlpatterns = [
     path("disputes/<uuid:dispute_id>/", DisputeDetailView.as_view(), name="dispute-detail"),
     path("evidence/<uuid:evidence_id>/", EvidenceDownloadView.as_view(), name="evidence-download"),
     path("proofs/", MyProofsView.as_view(), name="my-proofs"),
+    path("proofs/<uuid:proof_id>/", ProofDetailView.as_view(), name="proof-detail"),
     path("proofs/verify/<uuid:public_id>/", PublicProofVerifyView.as_view(), name="proof-verify"),
+    path("credentials/", MyCredentialsView.as_view(), name="my-credentials"),
+    path(
+        "credentials/<uuid:credential_id>/",
+        CredentialDetailView.as_view(),
+        name="credential-detail",
+    ),
     path("credentials/verify/<uuid:public_id>/", PublicCredentialVerifyView.as_view(), name="credential-verify"),
     path("staff/", StaffTrustQueueView.as_view(), name="staff-queue"),
     path("staff/proofs/", StaffProofQueueView.as_view(), name="staff-proof-queue"),

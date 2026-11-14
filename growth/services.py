@@ -38,6 +38,8 @@ SESSION_VISIT_ID = "growth_marketing_visit_id"
 PRESET_DEFINITIONS = {
     "welcome_follower": {
         "label": "Bienvenue nouvel abonné",
+        "display_label": "Accueillir les nouveaux abonnés",
+        "trigger_label": "Lorsqu’une personne suit votre Espace",
         "trigger": CRMWorkflowTrigger.FOLLOWED_ORGANIZER,
         "event_required": False,
         "marketing": False,
@@ -46,6 +48,8 @@ PRESET_DEFINITIONS = {
     },
     "reservation_expired": {
         "label": "Relance réservation expirée",
+        "display_label": "Informer d’une réservation expirée",
+        "trigger_label": "Lorsqu’une réservation expire",
         "trigger": CRMWorkflowTrigger.ORDER_EXPIRED,
         "event_required": False,
         "marketing": False,
@@ -54,6 +58,8 @@ PRESET_DEFINITIONS = {
     },
     "event_reminder_24h": {
         "label": "Rappel J-1",
+        "display_label": "Rappeler la date d’un événement",
+        "trigger_label": "La veille de l’événement",
         "trigger": CRMWorkflowTrigger.BEFORE_EVENT,
         "event_required": True,
         "marketing": False,
@@ -63,6 +69,8 @@ PRESET_DEFINITIONS = {
     },
     "post_checkin_thanks": {
         "label": "Remerciement participant",
+        "display_label": "Remercier après l’arrivée",
+        "trigger_label": "Après l’enregistrement de la présence",
         "trigger": CRMWorkflowTrigger.CHECKED_IN,
         "event_required": True,
         "marketing": False,
@@ -71,6 +79,8 @@ PRESET_DEFINITIONS = {
     },
     "no_show_reactivation": {
         "label": "Réactivation no-show",
+        "display_label": "Recontacter après une absence",
+        "trigger_label": "Après une absence à l’événement",
         "trigger": CRMWorkflowTrigger.NO_SHOW,
         "event_required": True,
         "marketing": True,
@@ -372,10 +382,10 @@ def available_crm_presets(organization):
 def activate_crm_preset(*, organization, actor, preset_key, event=None):
     definition = PRESET_DEFINITIONS.get(preset_key)
     if not definition:
-        raise ValidationError("Preset CRM inconnu.")
+        raise ValidationError("Message automatique introuvable.")
     if definition.get("event_required"):
         if not event:
-            raise ValidationError("Ce preset nécessite un événement.")
+            raise ValidationError("Choisissez un événement pour ce message.")
         if event.organization_id != organization.pk:
             raise ValidationError("L'événement doit appartenir à cette organisation.")
     elif event and event.organization_id != organization.pk:
@@ -393,7 +403,7 @@ def activate_crm_preset(*, organization, actor, preset_key, event=None):
     workflow = CRMWorkflow(
         organization=organization,
         name=workflow_name,
-        description="Preset Growth V1 Makolo. Modifiable ensuite depuis CRM Automation.",
+        description="Message automatique personnalisable.",
         trigger=definition["trigger"],
         event=event if definition.get("event_required") else None,
         event_offset_minutes=definition.get("offset", 0),

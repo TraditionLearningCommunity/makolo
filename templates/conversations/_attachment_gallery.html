@@ -1,0 +1,101 @@
+{% if files %}
+<section class="mt-3 space-y-2" data-conversation-media-group aria-label="Médias de ce Point">
+  {% if files|length > 1 %}
+    <p class="text-xs font-semibold" style="color:var(--mk-muted)">{{ files|length }} médias associés</p>
+  {% endif %}
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    {% for attachment in files %}
+      <article class="min-w-0 overflow-hidden rounded-xl border p-2" style="border-color:var(--mk-border)"
+        data-conversation-media-item
+        data-media-kind="{{ attachment.kind }}"
+        data-media-mime="{{ attachment.mime_type }}"
+        data-media-name="{{ attachment.original_name }}"
+        data-media-caption="{{ attachment.caption }}"
+        data-media-url="{% url 'conversations:attachment-inline' attachment.pk %}"
+        data-media-download="{% url 'conversations:attachment' attachment.pk %}">
+        {% if attachment.kind == 'image' %}
+          <button type="button" class="block w-full overflow-hidden rounded-lg focus-visible:outline-2"
+                  data-conversation-media-open aria-label="Agrandir la photo : {{ attachment.original_name }}">
+            <img class="max-h-64 w-full object-contain" loading="lazy"
+                 src="{% url 'conversations:attachment-inline' attachment.pk %}"
+                 alt="{{ attachment.original_name }}">
+          </button>
+        {% elif attachment.kind == 'voice' or attachment.kind == 'audio' %}
+          <p class="mb-2 text-xs font-semibold" style="color:var(--mk-muted)">{% if attachment.kind == 'voice' %}Note vocale{% else %}Audio{% endif %}</p>
+          <audio controls preload="none" class="w-full" aria-label="{{ attachment.original_name }}"
+                 src="{% url 'conversations:attachment-inline' attachment.pk %}"></audio>
+        {% elif attachment.kind == 'video' %}
+          <video controls preload="none" class="max-h-64 w-full rounded-lg"
+                 aria-label="{{ attachment.original_name }}"
+                 src="{% url 'conversations:attachment-inline' attachment.pk %}"></video>
+        {% elif attachment.mime_type == 'application/pdf' %}
+          <details class="rounded-lg p-2" style="background:var(--mk-soft);color:var(--mk-ink)">
+            <summary class="cursor-pointer text-sm font-semibold">Lire le PDF dans la conversation</summary>
+            <iframe title="Document PDF : {{ attachment.original_name }}" loading="lazy"
+                    sandbox="allow-same-origin" referrerpolicy="no-referrer"
+                    class="mt-2 w-full rounded-lg bg-white" style="height:18rem"
+                    src="{% url 'conversations:attachment-inline' attachment.pk %}"></iframe>
+          </details>
+        {% elif attachment.mime_type == 'text/plain' %}
+          <details class="rounded-lg p-2" style="background:var(--mk-soft);color:var(--mk-ink)">
+            <summary class="cursor-pointer text-sm font-semibold">Lire le document texte</summary>
+            <iframe title="Document texte : {{ attachment.original_name }}" loading="lazy"
+                    sandbox="allow-same-origin" referrerpolicy="no-referrer"
+                    class="mt-2 w-full rounded-lg bg-white" style="height:14rem"
+                    src="{% url 'conversations:attachment-inline' attachment.pk %}"></iframe>
+          </details>
+        {% else %}
+          <p class="flex min-h-20 items-center justify-center gap-2 text-sm">
+            <span aria-hidden="true">▤</span> Document à ouvrir avec une application compatible
+          </p>
+        {% endif %}
+        {% if attachment.caption %}
+          <p class="mt-2 whitespace-pre-wrap text-sm">{{ attachment.caption }}</p>
+        {% endif %}
+        <div class="mt-2 flex items-center justify-between gap-2">
+          <span class="min-w-0 truncate text-xs" title="{{ attachment.original_name }}" style="color:var(--mk-muted)">
+            {% if attachment.kind == 'image' %}Photo
+            {% elif attachment.kind == 'voice' %}Note vocale
+            {% elif attachment.kind == 'audio' %}Audio
+            {% elif attachment.kind == 'video' %}Vidéo
+            {% elif attachment.mime_type == 'application/pdf' %}PDF
+            {% else %}Document{% endif %}
+          </span>
+          <div class="flex shrink-0 gap-2">
+            <button type="button" data-conversation-media-open class="text-xs font-semibold underline"
+                    style="color:var(--mk-brand)" aria-label="Voir {{ attachment.original_name }} en détail">
+              Détails
+            </button>
+            <a href="{% url 'conversations:attachment' attachment.pk %}"
+               class="text-xs font-semibold underline" style="color:var(--mk-brand)"
+               aria-label="Télécharger {{ attachment.original_name }}">Télécharger</a>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+  <dialog data-conversation-media-dialog
+          class="max-w-none rounded-2xl border p-0 shadow-xl backdrop:bg-black/70" style="width:min(96vw,980px)"
+          aria-label="Visionneuse des médias">
+    <div class="p-3 sm:p-4">
+      <div class="flex items-center justify-between gap-2">
+        <p data-media-dialog-title class="min-w-0 truncate text-sm font-semibold">Média</p>
+        <button type="button" data-media-dialog-close class="mk-action-button" data-variant="secondary" aria-label="Fermer">Fermer</button>
+      </div>
+      <div data-media-dialog-body class="mt-3 flex min-h-48 items-center justify-center"></div>
+      <p data-media-dialog-caption class="mt-2 whitespace-pre-wrap text-sm"></p>
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex gap-2">
+          <button type="button" data-media-dialog-prev class="mk-action-button" data-variant="secondary" aria-label="Média précédent">Précédent</button>
+          <button type="button" data-media-dialog-next class="mk-action-button" data-variant="secondary" aria-label="Média suivant">Suivant</button>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" data-media-dialog-share class="mk-action-button" data-variant="secondary">Partager</button>
+          <a data-media-dialog-download class="mk-action-button" data-variant="secondary" href="#">Télécharger</a>
+        </div>
+      </div>
+      <p data-media-dialog-status class="mt-2 text-xs" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
+</section>
+{% endif %}

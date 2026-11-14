@@ -2,6 +2,7 @@ from django.urls import path
 
 from .product_views import ProductOperationsDashboardView
 from .subscription_views import (
+    OperationsCoverageBillingTermsUpdateView,
     OperationsEntitlementGrantCreateView,
     OperationsEntitlementGrantRevokeView,
     OperationsEntitlementRequirementCreateView,
@@ -51,6 +52,7 @@ urlpatterns = [
     path("subscriptions/catalog/plans/<uuid:plan_id>/versions/new/", OperationsPlanVersionCreateView.as_view(), name="subscription-version-create"),
     path("subscriptions/catalog/versions/<uuid:version_id>/", OperationsPlanVersionView.as_view(), name="subscription-version"),
     path("subscriptions/catalog/versions/<uuid:version_id>/edit/", OperationsPlanVersionUpdateView.as_view(), name="subscription-version-edit"),
+    path("subscriptions/catalog/versions/<uuid:version_id>/billing/", OperationsCoverageBillingTermsUpdateView.as_view(), name="subscription-version-billing"),
     path("subscriptions/catalog/versions/<uuid:version_id>/publish/", OperationsPlanVersionPublishView.as_view(), name="subscription-version-publish"),
     path("subscriptions/catalog/versions/<uuid:version_id>/retire/", OperationsPlanVersionRetireView.as_view(), name="subscription-version-retire"),
     path("subscriptions/catalog/versions/<uuid:version_id>/benefits/new/", OperationsPlanBenefitCreateView.as_view(), name="subscription-benefit-create"),

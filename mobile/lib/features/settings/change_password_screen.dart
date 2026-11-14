@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/app_runtime.dart';
 import '../../auth/auth_repository.dart';
 import '../../design/makolo_theme.dart';
@@ -137,12 +139,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ],
               const SizedBox(height: MakoloSpacing.lg),
-              FilledButton(
+              MakoloActionButton(
                 key: const Key('change-password-submit'),
+                appearance: MakoloActionAppearance.primary,
                 onPressed: _busy ? null : _submit,
-                child: Text(
-                  _busy ? 'Modification…' : 'Modifier le mot de passe',
-                ),
+                busy: _busy,
+                label: _busy ? 'Modification…' : 'Modifier le mot de passe',
               ),
             ],
           ),

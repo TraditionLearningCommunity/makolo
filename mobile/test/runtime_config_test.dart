@@ -47,6 +47,71 @@ void main() {
       );
     });
 
+    test('geocoding is independent from maps and off by default', () {
+      final config = MakoloRuntimeConfig.fromValues(const {});
+      expect(config.geocoding.enabled, isFalse);
+      expect(config.geocoding.apiKey, isNull);
+      expect(config.geocoding.provider, 'maptiler');
+      expect(config.geocoding.endpoint, isNull);
+      expect(config.maps.enabled, isFalse);
+    });
+
+    test('geocoding requires explicit key and endpoint when enabled', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENABLED': 'true',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+      final config = MakoloRuntimeConfig.fromValues(const {
+        'MAKOLO_GEOCODING_ENABLED': 'true',
+        'MAKOLO_GEOCODING_API_KEY': 'test-only',
+        'MAKOLO_GEOCODING_PROVIDER': 'google_maps',
+        'MAKOLO_GEOCODING_ENDPOINT': 'https://geo.example.test/v1/search',
+      });
+
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENABLED': 'true',
+          'MAKOLO_GEOCODING_API_KEY': 'test-only',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENABLED': 'true',
+          'MAKOLO_GEOCODING_ENDPOINT': 'https://geo.example.test/geocoding',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+      expect(config.geocoding.enabled, isTrue);
+      expect(config.geocoding.apiKey, 'test-only');
+      expect(config.geocoding.provider, 'google_maps');
+      expect(
+        config.geocoding.endpoint,
+        Uri.parse('https://geo.example.test/v1/search'),
+      );
+      expect(config.maps.enabled, isFalse);
+    });
+
+    test('rejects unsupported geocoding providers', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_PROVIDER': 'unknown',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+    });
+
+    test('rejects insecure geocoding endpoint overrides', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENDPOINT': 'http://geo.example.test/search',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+    });
+
     test('requires a DSN when Sentry is enabled', () {
       expect(
         () => MakoloRuntimeConfig.fromValues(const {

@@ -1,0 +1,441 @@
+/* Makolo Interaction Grammar — shared application primitives.
+ * Opt-in, presentation-only. Screen CSS owns layout, never button/menu semantics.
+ * Existing .mk-btn/.mk-panel remain supported during group-by-group migration.
+ */
+.mk-interaction {
+  --mk-control-radius: 12px;
+  --mk-control-min-size: 44px;
+  --mk-control-gap: .5rem;
+  --mk-control-motion: 150ms;
+}
+.mk-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mk-control-gap, .5rem);
+  min-height: var(--mk-control-min-size, 44px);
+  padding: .625rem .9rem;
+  border: 1px solid transparent;
+  border-radius: var(--mk-control-radius, 12px);
+  background: transparent;
+  color: var(--mk-text);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--mk-control-motion, 150ms) ease,
+    border-color var(--mk-control-motion, 150ms) ease,
+    color var(--mk-control-motion, 150ms) ease;
+}
+.mk-action-button[data-variant="primary"] {
+  background: var(--mk-brand);
+  color: #fff;
+}
+.mk-action-button[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--mk-brand-hover, var(--mk-brand-strong));
+}
+.mk-action-button[data-variant="secondary"] {
+  background: var(--mk-surface-solid);
+  border-color: var(--mk-border-strong);
+}
+.mk-action-button[data-variant="secondary"]:hover:not(:disabled),
+.mk-action-button[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--mk-surface-muted);
+}
+/* Textual action link shared across primary and secondary surfaces. */
+.mk-action-button[data-variant="link"] {
+  background: transparent;
+  color: var(--mk-brand);
+  border-color: transparent;
+  padding-inline: .5rem;
+}
+.mk-action-button[data-variant="link"]:hover:not(:disabled) {
+  color: var(--mk-brand-hover, var(--mk-brand-strong));
+  background: var(--mk-brand-soft);
+}
+/* Inverse actions are shared by branded, dark or image-backed surfaces. */
+.mk-action-button[data-variant="inverse"] {
+  color: #fff;
+  border-color: rgb(255 255 255 / .72);
+  background: rgb(255 255 255 / .08);
+}
+.mk-action-button[data-variant="inverse"]:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(255 255 255 / .18);
+}
+.mk-action-button[data-variant="inverse"]:focus-visible {
+  outline-color: #fff !important;
+}
+.mk-action-button[data-variant="danger"] {
+  border-color: var(--mk-danger);
+  color: var(--mk-danger);
+  background: var(--mk-surface-solid);
+}
+.mk-action-button[data-size="icon"] {
+  min-width: var(--mk-control-min-size, 44px);
+  padding: .5rem;
+}
+.mk-action-button:disabled,
+.mk-action-button[aria-disabled="true"] {
+  opacity: .56;
+  cursor: not-allowed;
+}
+.mk-action-button:focus-visible,
+.mk-action-item:focus-visible,
+.mk-interaction-select:focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 3px !important;
+}
+.mk-action-button > svg,
+.mk-action-item > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+/* Shared progressive disclosure on native <details>, no custom JS needed. */
+.mk-disclosure-trigger {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 12px;
+  color: var(--mk-brand);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+}
+.mk-disclosure-trigger::-webkit-details-marker { display: none; }
+.mk-disclosure-trigger:focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 3px !important;
+}
+.mk-action-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.mk-action-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 75;
+  min-width: min(236px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 14px;
+  background: var(--mk-surface-solid);
+  box-shadow: var(--mk-shadow-float, var(--mk-shadow-md));
+  color: var(--mk-text);
+}
+.mk-action-panel[hidden] { display: none !important; }
+.mk-action-item {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--mk-text);
+  font: inherit;
+  font-size: .875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mk-action-item:hover:not(:disabled),
+.mk-action-item:focus-visible {
+  background: var(--mk-surface-muted);
+}
+.mk-action-item[data-danger="true"] { color: var(--mk-danger); }
+.mk-action-item:disabled,
+.mk-action-item[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.mk-action-divider {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--mk-border);
+}
+.mk-interaction-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.mk-interaction-row__body { flex: 1; min-width: 0; }
+.mk-interaction-row__actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.mk-interaction-select {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--mk-brand);
+}
+.mk-selection-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--mk-border);
+  border-radius: 16px;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+}
+.mk-interaction-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 12px;
+  background: var(--mk-surface-muted);
+  color: var(--mk-text);
+}
+.mk-interaction-feedback[data-state="failed"],
+.mk-interaction-feedback[data-state="conflict"] {
+  border-color: var(--mk-danger);
+}
+.mk-interaction-feedback[data-state="pending"] {
+  border-style: dashed;
+}
+.mk-interaction-feedback[data-state="confirmed"] {
+  border-color: var(--mk-positive);
+}
+.mk-context-preview {
+  min-width: 0;
+  border: 1px solid var(--mk-border);
+  border-radius: 18px;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+}
+@media (max-width: 767px) {
+  .mk-action-panel { right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-action-button { transition: none; }
+}
+
+/* F2 — owner-neutral shared interaction layers, opt-in on every surface. */
+[data-mk-query-item][hidden],
+[data-mk-selection-bar][hidden],
+[data-mk-edit-form][hidden],
+[data-mk-edit-view][hidden] { display: none !important; }
+.mk-query-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.mk-query-controls > label { display: grid; gap: 6px; min-width: 148px; }
+.mk-query-controls > label:first-child { flex: 1 1 220px; }
+.mk-query-empty {
+  padding: 20px 16px;
+  border: 1px dashed var(--mk-border-strong);
+  border-radius: 14px;
+  color: var(--mk-muted);
+  background: var(--mk-surface-muted);
+}
+.mk-interaction-preview {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(86dvh, 900px);
+  padding: 0;
+  margin: auto;
+  overflow: auto;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 20px;
+  box-shadow: var(--mk-shadow-float, var(--mk-shadow-md));
+}
+.mk-interaction-preview::backdrop { background: rgb(15 23 42 / .5); }
+.mk-interaction-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--mk-border);
+}
+.mk-interaction-preview__body { padding: 20px; }
+.mk-inline-editor { display: grid; gap: 10px; }
+.mk-inline-editor__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.mk-reorder-collection { display: grid; gap: 10px; }
+.mk-reorder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--mk-border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: var(--mk-surface-solid);
+}
+.mk-reorder-row__content { flex: 1; min-width: 0; }
+.mk-reorder-row__actions { display: flex; flex: none; gap: 3px; }
+.mk-reorder-row__actions .mk-action-button { min-width: 44px; }
+.mk-reorder-row[aria-busy="true"],
+[data-mk-reorder-scope][aria-busy="true"] { cursor: progress; }
+.mk-interaction-field-error {
+  color: var(--mk-danger);
+  font-size: .82rem;
+}
+@media (max-width: 767px) {
+  .mk-query-controls { align-items: stretch; }
+  .mk-query-controls > label { flex: 1 1 100%; }
+  .mk-interaction-preview {
+    width: 100%;
+    max-width: none;
+    max-height: min(90dvh, 920px);
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-interaction-preview { scroll-behavior: auto; }
+}
+
+/* Owner-bound direct manipulation; drag is optional, native form fallback required. */
+.mk-drop-target {
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px dashed var(--mk-border-strong);
+  border-radius: 12px;
+  background: var(--mk-surface-muted);
+  color: var(--mk-text);
+}
+.mk-drop-target[data-mk-drop-active="true"] {
+  border-style: solid;
+  border-color: var(--mk-brand);
+  box-shadow: 0 0 0 3px var(--mk-brand-soft);
+}
+.mk-move-handle,
+.mk-reorder-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--mk-border);
+  border-radius: 10px;
+  color: var(--mk-muted);
+  background: var(--mk-surface-solid);
+  cursor: grab;
+}
+.mk-move-handle:active,
+.mk-reorder-handle:active { cursor: grabbing; }
+.mk-move-handle:focus-visible,
+.mk-reorder-handle:focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 3px !important;
+}
+.mk-move-status { min-height: 1.5em; color: var(--mk-muted); }
+
+
+/* Group 2 — shared secondary navigation, tabs, and owner-backed fields. */
+.mk-interaction-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--mk-surface-muted);
+}
+.mk-interaction-tabs > :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mk-muted);
+  text-align: center;
+  text-decoration: none;
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mk-interaction-tabs > :is(a, button):is([aria-current="page"], [aria-pressed="true"], .is-active) {
+  background: var(--mk-surface-solid);
+  color: var(--mk-brand);
+  border-color: var(--mk-border);
+}
+.mk-interaction-tabs > :is(a, button):hover:not([aria-disabled="true"]) {
+  color: var(--mk-brand);
+}
+.mk-interaction-tabs > :is(a, button):focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 2px !important;
+}
+.mk-interaction-field {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 12px;
+  font: inherit;
+  font-size: .925rem;
+}
+.mk-interaction-field:focus-visible {
+  border-color: var(--mk-brand);
+  outline: 2px solid var(--mk-brand);
+  outline-offset: 2px;
+}
+.mk-interaction-field:disabled,
+.mk-interaction-field[aria-disabled="true"] {
+  opacity: .56;
+  cursor: not-allowed;
+}
+.mk-interaction-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.mk-interaction-status {
+  min-height: 1.4rem;
+  color: var(--mk-muted);
+}
+.mk-interaction-status[data-state="rejected"],
+.mk-interaction-status[data-state="conflict"] {
+  color: var(--mk-danger);
+}
+
+/* Depth surfaces: hidden means hidden even when a shared action class is present.
+   The Tailwind .hidden utility can otherwise lose to a later component stylesheet. */
+.mk-action-button[hidden],
+.mk-action-button.hidden,
+.mk-action-item[hidden] { display: none !important; }
+
+/* Display-only hint inside an already navigable owner row. Not a button. */
+.mk-action-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-control-radius, 12px);
+  color: var(--mk-brand);
+  background: var(--mk-surface-muted);
+  font-size: .85rem;
+  font-weight: 700;
+  pointer-events: none;
+}

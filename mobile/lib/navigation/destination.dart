@@ -111,6 +111,28 @@ enum MakoloDestination {
   }
 }
 
+/// Restores the last semantic door under the persisted actor. The
+/// actor preference does not certify present-day server authority.
+String restoredShellPath(ActorContext actor, String? lastPath) {
+  final door =
+      MakoloDestination.forPath(lastPath ?? '')?.door ?? MakoloPrimaryDoor.now;
+  return MakoloDestination.forActor(actor, door).path;
+}
+
+/// Route selection is presentation only. The corresponding owner endpoints
+/// still validate Profile, Space and Mandate independently on the server.
+String connectionsRouteForActor(ActorContext actor) => switch (actor) {
+  PersonalActorContext() => '/connections',
+  SpaceActorContext(:final space) =>
+    '/space/${Uri.encodeComponent(space.slug)}/connections',
+};
+
+String subscriptionRouteForActor(ActorContext actor) => switch (actor) {
+  PersonalActorContext() => '/billing',
+  SpaceActorContext(:final space) =>
+    '/space/${Uri.encodeComponent(space.slug)}/subscription',
+};
+
 class StructuredDestination {
   const StructuredDestination({
     required this.kind,

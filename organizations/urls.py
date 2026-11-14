@@ -1,4 +1,13 @@
 from django.urls import include, path
+from space_assets.web_views import (
+    SpaceDocumentsWebView, SpaceDocumentDetailWebView,
+    SpaceDocumentUploadWebView, SpaceDocumentVersionWebView,
+    SpaceDocumentArchiveWebView, SpaceDocumentDownloadWebView,
+    SpaceDocumentShareWebView, SpaceDocumentShareRevokeWebView,
+    SpaceDocumentReuseWebView,
+    SpaceDocumentUpdateWebView, SpaceDocumentPreviewWebView,
+)
+from payments.space_obligation_views import SpacePayerObligationWebView
 
 from transport.console_views import (
     TransportConsoleCreateDepartureView,
@@ -13,9 +22,12 @@ from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
 from .console_services import SpaceConsoleServicesView
 from .console_subscription import (
+    SpaceCoverageDecisionView,
     SpaceAddonRemovePreviewView,
     SpaceAddonRemoveView,
     SpaceConsoleSubscriptionView,
+    SpaceSubscriptionBillingView,
+    SpaceSubscriptionHistoryView,
     SpaceSubscriptionChangeView,
     SpaceSubscriptionPreviewView,
     SpaceTransitionCancelView,
@@ -50,6 +62,7 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
+from core.appuis_web import AppuisWebView
 from .space_web_views import (
     SpaceDiscoverView,
     SpaceInteroperabilityView,
@@ -58,7 +71,14 @@ from .space_web_views import (
     SpaceRelationshipsView,
     SpaceUsView,
 )
-from .space_work_web import SpaceWorkView
+from .space_work_web import SpaceWorkCollectionView, SpaceWorkView
+from .space_work_g1_web import SpaceWorkG1DepthView
+from .space_work_g2_web import SpaceWorkG2DepthView
+from .space_work_g3_web import SpaceWorkG3DepthView
+from .space_work_g4_web import SpaceWorkG4DepthView
+from .space_work_g3_offer_web import SpaceWorkG3OfferView
+from .space_work_g3_departure_web import SpaceWorkG3DepartureOperationsView
+from .space_work_g2_create_web import SpaceWorkG2CreateView
 from .space_retrieval_web import SpaceHistoryWebView, SpaceSearchWebView
 from .space_retrieval_detail_web import (
     SpaceRetrievalActivityDetailView,
@@ -68,6 +88,7 @@ from .space_retrieval_detail_web import (
 from .space_ws5_web import (
     SpaceMarkWS5View,
     SpaceOccurrenceDayOfView,
+    SpaceOccurrenceDepthView,
     SpaceOccurrenceLiveView,
     SpaceOccurrenceScannerActionView,
     SpaceOccurrenceScannerView,
@@ -92,18 +113,69 @@ urlpatterns = [
     path("new/", OrganizationCreateView.as_view(), name="create"),
     path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
     path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/us/documents/", SpaceDocumentsWebView.as_view(), name="space-documents"),
+    path("<slug:slug>/us/documents/add/", SpaceDocumentUploadWebView.as_view(), name="space-document-upload"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/", SpaceDocumentDetailWebView.as_view(), name="space-document-detail"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/versions/", SpaceDocumentVersionWebView.as_view(), name="space-document-version"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/edit/", SpaceDocumentUpdateWebView.as_view(), name="space-document-update"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/archive/", SpaceDocumentArchiveWebView.as_view(), name="space-document-archive"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/share/", SpaceDocumentShareWebView.as_view(), name="space-document-share"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/reuse/", SpaceDocumentReuseWebView.as_view(), name="space-document-reuse"),
+    path("<slug:slug>/us/documents/shares/<uuid:delivery_id>/revoke/", SpaceDocumentShareRevokeWebView.as_view(), name="space-document-share-revoke"),
+    path("<slug:slug>/us/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadWebView.as_view(), name="space-document-download"),
+    path("<slug:slug>/us/documents/versions/<uuid:version_id>/preview/", SpaceDocumentPreviewWebView.as_view(), name="space-document-preview"),
+    path("<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationWebView.as_view(), name="space-payment-obligation"),
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/live/", SpaceOccurrenceLiveView.as_view(), name="space-occurrence-live"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/depth/<str:kind>/", SpaceOccurrenceDepthView.as_view(), name="space-occurrence-depth"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path(
+        "<slug:slug>/work/collection/<str:section>/",
+        SpaceWorkCollectionView.as_view(), name="space-work-collection",
+    ),
+    path(
+        "<slug:slug>/work/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG1DepthView.as_view(), name="space-work-depth",
+    ),
+    path(
+        "<slug:slug>/work/g2/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG2DepthView.as_view(), name="space-work-depth-g2",
+    ),
+    path(
+        "<slug:slug>/work/g4/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG4DepthView.as_view(), name="space-work-depth-g4",
+    ),
+    path(
+        "<slug:slug>/work/g3/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG3DepthView.as_view(), name="space-work-depth-g3",
+    ),
+    path(
+        "<slug:slug>/work/g3/activities/<uuid:activity_id>/offers/new/",
+        SpaceWorkG3OfferView.as_view(), name="space-work-g3-offer-create",
+    ),
+    path(
+        "<slug:slug>/work/g3/offers/<uuid:offer_id>/edit/",
+        SpaceWorkG3OfferView.as_view(), name="space-work-g3-offer-edit",
+    ),
+    path(
+        "<slug:slug>/work/g3/departures/<uuid:departure_id>/operations/",
+        SpaceWorkG3DepartureOperationsView.as_view(),
+        name="space-work-g3-departure-operations",
+    ),
+    path(
+        "<slug:slug>/work/g2/new/",
+        SpaceWorkG2CreateView.as_view(), name="space-work-create-g2",
+    ),
     path("<slug:slug>/history/", SpaceHistoryWebView.as_view(), name="space-history"),
     path("<slug:slug>/search/", SpaceSearchWebView.as_view(), name="space-search"),
     path("<slug:slug>/retrieval/activities/<uuid:activity_id>/", SpaceRetrievalActivityDetailView.as_view(), name="space-retrieval-activity-detail"),
     path("<slug:slug>/retrieval/occurrences/<uuid:occurrence_id>/", SpaceRetrievalOccurrenceDetailView.as_view(), name="space-retrieval-occurrence-detail"),
     path("<slug:slug>/retrieval/orders/<uuid:order_id>/", SpaceRetrievalOrderDetailView.as_view(), name="space-retrieval-order-detail"),
     path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
+    path("<slug:slug>/us/appuis/", AppuisWebView.as_view(), name="space-us-appuis"),
     path("<slug:slug>/us/connections/", SpaceInteroperabilityView.as_view(), name="space-interoperability"),
     path("<slug:slug>/relationships/", SpaceRelationshipsView.as_view(), name="space-relationships"),
     path("<slug:slug>/pilot/", SpacePilotView.as_view(), name="space-pilot"),
@@ -191,6 +263,9 @@ urlpatterns = [
     path("<slug:slug>/analytics/", SpaceConsoleAnalyticsView.as_view(), name="console-analytics"),
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
     path("<slug:slug>/subscription/", SpaceConsoleSubscriptionView.as_view(), name="console-subscription"),
+    path("<slug:slug>/subscription/billing/", SpaceSubscriptionBillingView.as_view(), name="console-subscription-billing"),
+    path("<slug:slug>/subscription/coverages/allocations/<uuid:allocation_id>/", SpaceCoverageDecisionView.as_view(), name="console-coverage-decision"),
+    path("<slug:slug>/subscription/history/", SpaceSubscriptionHistoryView.as_view(), name="console-subscription-history"),
     path("<slug:slug>/subscription/preview/<uuid:plan_version_id>/", SpaceSubscriptionPreviewView.as_view(), name="console-subscription-preview"),
     path("<slug:slug>/subscription/change/<uuid:plan_version_id>/", SpaceSubscriptionChangeView.as_view(), name="console-subscription-change"),
     path("<slug:slug>/subscription/addon/<uuid:item_id>/remove/preview/", SpaceAddonRemovePreviewView.as_view(), name="console-subscription-addon-remove-preview"),

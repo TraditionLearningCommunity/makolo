@@ -87,10 +87,33 @@ class WS4SpaceWebTests(TestCase):
         )
         self.assertContains(response, self.space.name)
         self.assertContains(response, "Équipe")
-        self.assertContains(response, "Responsabilités")
-        self.assertContains(response, "Ownership")
+        self.assertContains(response, "Ma place dans cet Espace")
+        self.assertContains(response, "Comprendre mes autorisations")
+        self.assertContains(response, "Gouvernance")
+        self.assertContains(response, "Notre Passeport")
+        self.assertNotContains(response, "Passeport de cet Espace")
+        self.assertContains(response, 'class="mk-identity-passport-gateway"')
+        self.assertContains(response, 'class="mk-identity-passport-action"')
+        self.assertContains(
+            response,
+            reverse("sharing:passport-space", kwargs={"slug": self.space.slug}),
+        )
+        self.assertIn("team", response.context["projection"]["relationships"]["sections"])
+        self.assertContains(response, "Explorer ces relations")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        mandate = next(
+            row for row in response.context["projection"]["responsibilities"]["items"]
+            if not row.get("combined")
+        )
+        from urllib.parse import quote
+
+        self.assertContains(
+            response,
+            f"?responsibility={quote(mandate['key'], safe='')}",
+        )
         self.assertContains(response, "Faits de vérification")
-        self.assertContains(response, "Personnes & relations")
+        self.assertContains(response, "Nos relations")
+        self.assertNotContains(response, "Au moins 4 relations dans cet aperçu")
         self.assertContains(response, "Paramètres de l’Espace")
         self.assertContains(response, "Connexions")
         self.assertEqual(
@@ -101,6 +124,113 @@ class WS4SpaceWebTests(TestCase):
         self.assertNotIn("permissions", html)
         self.assertNotIn("health score", html)
         self.assertNotIn("performance score", html)
+
+    def test_nous_compact_layout_uses_owner_links_without_new_business_route(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url("organizations:space-us"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-space-us-root')
+        self.assertContains(response, 'data-us-territories')
+        self.assertContains(response, 'data-us-layout="list"')
+        self.assertContains(response, 'data-us-layout-choice="list"')
+        self.assertContains(response, 'data-us-layout-choice="grid"')
+        self.assertContains(response, 'aria-pressed="false"')
+        self.assertContains(response, 'css/space-us-n1.css')
+        self.assertContains(response, 'js/space-us-layout.js')
+        self.assertContains(response, "Notre espace")
+        self.assertContains(response, self.url("organizations:space-us"))
+        self.assertNotContains(response, 'data-us-layout-choice="objectives"')
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_nous_web_does_not_disclose_stale_institution_rows(self):
+        self.client.force_login(self.owner)
+        initial = self.client.get(self.url("organizations:space-us"))
+        projection = initial.context["projection"]
+        projection["team"]["visibility"] = "unavailable"
+        projection["team"]["items"] = [
+            {"profile": {"name": "NEVER_SHOW_TEAM_MEMBER"}}
+        ]
+        projection["ownership"]["visibility"] = "restricted"
+        projection["ownership"]["items"] = [
+            {
+                "profile": {"name": "NEVER_SHOW_OWNER"},
+                "responsibility": {"label": "Owner"},
+            }
+        ]
+        projection["relationships"]["visibility"] = "restricted"
+        projection["relationships"]["sections"] = {
+            "partners": {
+                "items": [{"name": "NEVER_SHOW_RELATION"}],
+                "has_more": False,
+            }
+        }
+        with patch(
+            "organizations.space_web_views.build_space_us_projection",
+            return_value=projection,
+        ):
+            response = self.client.get(self.url("organizations:space-us"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "NEVER_SHOW_TEAM_MEMBER")
+        self.assertNotContains(response, "NEVER_SHOW_OWNER")
+        self.assertNotContains(response, "NEVER_SHOW_RELATION")
+        self.assertContains(response, "Les détails de l’équipe ne sont pas accessibles.")
+
+    def test_n3_authority_web_revalidates_selection_without_disclosing_n1(self):
+        self.client.force_login(self.owner)
+        root = self.client.get(self.url("organizations:space-us"))
+        self.assertContains(root, "Comprendre mes autorisations")
+        self.assertNotContains(root, "Droits associés à ce rôle")
+        depth = self.client.get(self.url("organizations:space-us", detail="authority"))
+        self.assertEqual(depth.status_code, 200)
+        self.assertEqual(depth["Cache-Control"], "private, no-store")
+        self.assertContains(depth, "Mes autorisations")
+        self.assertContains(depth, "Droits associés à ce rôle")
+
+        mandate = next(
+            row for row in root.context["projection"]["responsibilities"]["items"]
+            if not row.get("combined")
+        )
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-us", detail="authority", mandate=mandate["key"])
+            ).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-us", detail="authority", mandate="mandate:foreign")
+            ).status_code,
+            404,
+        )
+        self.client.force_login(self.member)
+        self.assertEqual(
+            self.client.get(self.url("organizations:space-us", detail="authority")).status_code,
+            404,
+        )
+
+    def test_us_hides_restricted_team_aggregate_and_shows_lifecycle(self):
+        viewer = User.objects.create_user(
+            username="ws4-marketing", email="ws4-marketing@test.local", password="x"
+        )
+        grant_space_role(
+            profile=viewer,
+            space=self.space,
+            role=SystemRoleCode.MARKETING,
+            granted_by=self.owner,
+        )
+        self.space.lifecycle = "suspended"
+        self.space.save(update_fields=["lifecycle"])
+        self.client.force_login(viewer)
+
+        response = self.client.get(self.url("organizations:space-us"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection"]["team"]["visibility"], "restricted")
+        self.assertIsNone(response.context["projection"]["team"]["active_members"])
+        self.assertNotIn("mk-ws4-count", response.content.decode())
+        self.assertNotContains(response, self.member.full_name or self.member.username)
+        self.assertContains(response, "Cet Espace est suspendu.")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_membership_platform_and_cross_space_access_do_not_open_ws4(self):
         platform = User.objects.create_user(
@@ -222,17 +352,18 @@ class WS4SpaceWebTests(TestCase):
         )
 
         self.client.force_login(self.owner)
-        response = self.client.get(
-            self.url("organizations:space-interoperability")
-        )
+        url = self.url("organizations:space-interoperability")
+        response = self.client.get(f"{url}?tab=mine")
+        detail = self.client.get(f"{url}?connection={connection.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertEqual(response.context["interoperability"]["context"], "space")
         self.assertContains(response, "Service institutionnel")
         self.assertContains(response, "Connecté et disponible")
-        self.assertContains(response, "Génération de texte")
+        self.assertContains(detail, "Génération de texte")
         self.assertNotContains(response, "Connexion Profile privée")
         self.assertNotContains(response, "Connexion Platform privée")
+        self.assertNotContains(response, "Traitement disponible")
         html = response.content.decode("utf-8")
         self.assertNotIn("space-secret-ciphertext", html)
         self.assertNotIn("space-key-hint", html)
@@ -273,7 +404,10 @@ class WS4SpaceWebTests(TestCase):
             self.url("organizations:space-interoperability")
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aucune connexion configurée pour ce Space.")
+        mine = self.client.get(
+            f'{self.url("organizations:space-interoperability")}?tab=mine'
+        )
+        self.assertContains(mine, "Aucune connexion établie.")
 
     def test_relationships_preserve_kinds_and_same_profile_is_not_merged(self):
         Group.objects.create(
@@ -303,6 +437,11 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Collaborateur · Équipe")
         self.assertContains(response, "Contact CRM")
         self.assertContains(response, "Partenaire")
+        self.assertContains(response, "Comprendre cette relation")
+        self.assertContains(response, f"kind=team_member&amp;id=")
+        self.assertContains(response, f"kind=crm_contact&amp;id=")
+        self.assertContains(response, f"kind=partner&amp;id=")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertContains(response, self.member.full_name or self.member.username)
         html = response.content.decode()
         self.assertNotIn(self.member.email, html)

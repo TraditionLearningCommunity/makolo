@@ -1,0 +1,8 @@
+{% if subscription_return_url %}
+<section class="mk-panel p-4 sm:p-5" aria-label="Reprendre une action">
+  <span class="mk-kicker">Votre action initiale</span>
+  <p class="mt-2 text-sm" style="color:var(--mk-muted)">Vous êtes venu ici depuis une action bloquée. Les conditions de l’abonnement peuvent demander une vérification ou une activation ; elles ne sont pas réputées satisfaites par cette visite.</p>
+  <a class="mk-btn mk-btn-secondary mt-3" href="{{ subscription_return_url }}">Revenir à l’action</a>
+  <p class="mt-2 text-xs" style="color:var(--mk-muted)">Le formulaire devra éventuellement être complété à nouveau. La permission d’agir reste vérifiée par le serveur.</p>
+</section>
+{% endif %}

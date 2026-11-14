@@ -123,7 +123,7 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
         categories[slug] = upsert(EventCategory, slug, defaults={
             "name": name,
             "slug": slug,
-            "description": f"Événements de démonstration Makolo : {name}.",
+            "description": f"Organisation et coordination d’événements : {name}.",
             "is_active": True,
         })
 
@@ -142,7 +142,7 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
         })
         venues.append(venue)
     online = upsert(EventVenue, "online", defaults={
-        "name": "Makolo Live Room — Démo",
+        "name": "Makolo Live Room",
         "kind": VenueKind.ONLINE,
         "address": "",
         "city": "",
@@ -193,10 +193,10 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
             "venue": venue,
             "title": title,
             "slug": f"demo-{year}-{i+1:02d}-{stable_token(title, 6)}",
-            "short_description": f"{title} : une expérience Makolo pensée pour la communauté de {city}.",
+            "short_description": f"Rencontre à {city} autour de {title.lower()}.",
             "description": (
-                f"{title} réunit participants, intervenants et partenaires autour d'une expérience "
-                f"réaliste de démonstration. Billetterie, communication, accès et suivi sont gérés dans Makolo."
+                f"Retrouvez le programme de {title}, les horaires et les modalités de participation "
+                f"pour cette rencontre à {city}."
             ),
             "status": status,
             "visibility": visibility,
@@ -374,7 +374,7 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
                     "idempotency_key": f"demo-payment-{order_seq:06d}",
                     "checkout_url": "",
                     "failure_code": "DECLINED_DEMO" if payment_status == PaymentStatus.FAILED else "",
-                    "failure_message": "Paiement de démonstration refusé par le sandbox." if payment_status == PaymentStatus.FAILED else "",
+                    "failure_message": "Le règlement n’a pas pu aboutir." if payment_status == PaymentStatus.FAILED else "",
                     "metadata": {"seed": "makolo-demo", "channel": "web"},
                     "processed_at": created + timedelta(minutes=5) if payment_status not in {PaymentStatus.PENDING, PaymentStatus.PROCESSING} else None,
                     "succeeded_at": created + timedelta(minutes=5) if payment_status in {PaymentStatus.SUCCEEDED, PaymentStatus.REFUNDED} else None,
@@ -501,7 +501,7 @@ def _seed_scanner(ctx: SeedContext) -> None:
                 "event": event,
                 "name": gate_name,
                 "slug": f"gate-{j+1}",
-                "description": f"{gate_name} — scénario de démonstration.",
+                "description": f"Point de passage : {gate_name}.",
                 "is_active": True,
                 "throughput_target_per_minute": 25 if j == 0 else 12,
                 "warning_rejection_rate": 25,
@@ -524,7 +524,7 @@ def _seed_scanner(ctx: SeedContext) -> None:
                 "is_active": True,
                 "valid_from": event.start_at - timedelta(hours=2),
                 "valid_until": event.end_at + timedelta(hours=1),
-                "notes": "Affectation de démonstration.",
+                "notes": "Affectation au poste prévu pour cette session.",
             })
             backdate(assignment, created_at=event.start_at - timedelta(days=7), updated_at=event.start_at - timedelta(days=1))
             assignments.append(assignment)

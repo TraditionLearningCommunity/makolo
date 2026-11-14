@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/local/profile_store.dart';
+import '../features/discovery/discovery_repository.dart';
 import '../design/behavior_primitives.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 import '../navigation/avatar_sheet.dart';
+import '../navigation/active_context_avatar.dart';
 import '../navigation/destination.dart';
 import '../navigation/shell_header.dart';
-import '../navigation/space_context_bar.dart';
 import '../sync/sync_status.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
@@ -44,6 +45,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   Stream<StoredProjection?>? _meStream;
   ActorContextController? _actorController;
   String? _rememberedPath;
+  bool _refreshingShellSignals = false;
 
   @override
   void initState() {
@@ -121,6 +123,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _refreshShellSignals() async {
+    // Resume and secondary-screen callbacks can overlap on slow transports.
+    // Presence is advisory: keep at most one pair of requests in flight.
+    if (_refreshingShellSignals) return;
+    _refreshingShellSignals = true;
+    try {
+      await _loadShellSignals();
+    } finally {
+      _refreshingShellSignals = false;
+    }
+  }
+
+  Future<void> _loadShellSignals() async {
     final api = widget.runtime.api;
     if (api == null) {
       if (!mounted) return;
@@ -136,23 +150,27 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         'api/v1/conversations/attention-presence/',
       );
       final value = response.jsonObject()['has_attention'];
-      if (mounted) {
+      if (mounted && identical(api, widget.runtime.api)) {
         setState(
           () => _hasConversationAttention = value is bool ? value : null,
         );
       }
     } on Object {
-      if (mounted) setState(() => _hasConversationAttention = null);
+      if (mounted && identical(api, widget.runtime.api)) {
+        setState(() => _hasConversationAttention = null);
+      }
     }
 
     try {
       final response = await api.get('api/v1/notifications/unread-presence/');
       final value = response.jsonObject()['has_unread'];
-      if (mounted) {
+      if (mounted && identical(api, widget.runtime.api)) {
         setState(() => _hasUnreadNotifications = value is bool ? value : null);
       }
     } on Object {
-      if (mounted) setState(() => _hasUnreadNotifications = null);
+      if (mounted && identical(api, widget.runtime.api)) {
+        setState(() => _hasUnreadNotifications = null);
+      }
     }
   }
 
@@ -184,13 +202,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _goDestination(MakoloDestination.forActor(_actor, door));
   }
 
+  void _openConversations() {
+    final actor = _actor;
+    final uri = actor is SpaceActorContext
+        ? Uri(
+            path: '/conversations',
+            queryParameters: {'context': 'space', 'space': actor.space.id},
+          ).toString()
+        : '/conversations';
+    unawaited(_openSecondary(uri));
+  }
+
   void _openAvatar() {
     showMakoloAvatarSheet(
       context,
       runtime: widget.runtime,
-      onConnections: () => context.push('/connections'),
-      onBilling: () => context.push('/billing'),
-      onAccount: () => context.push('/account'),
+      onConnections: () => context.push(connectionsRouteForActor(_actor)),
+      onEditProfile: () => context.push('/me/profile'),
+      onBilling: () => context.push(subscriptionRouteForActor(_actor)),
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
@@ -202,22 +231,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       top: false,
       child: Column(
         children: [
-          if (actor is SpaceActorContext)
-            MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
-          if (syncStatus != null) ...[
-            NetworkStateCue(status: syncStatus),
-            if (syncStatus.state == SyncVisualState.pending ||
-                syncStatus.state == SyncVisualState.conflict)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.md,
-                  MakoloSpacing.sm,
-                  MakoloSpacing.md,
-                  0,
-                ),
-                child: NetworkStateIndicator(status: syncStatus),
-              ),
-          ],
+          // Technical retry/conflict state stays in the local outbox.
+          // A user-facing failure belongs beside the affected action, not
+          // above every destination (Now, Discover, Conversations, etc.).
+          // Offline/failed refreshes never hide an already known projection.
           Expanded(child: widget.navigationShell),
         ],
       ),
@@ -232,6 +249,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     final syncStatus = SyncStatusScope.maybeOf(context);
     final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
     final destinations = MakoloDestination.primaryForActor(actor);
+    // Search and Map navigate the same Discovery field for the active actor.
+    // An earlier Profile or Space exploration must never survive an actor switch.
+    final rememberedExploration = widget.runtime.discovery?.activeExploration;
+    final discoveryQuery = switch (actor) {
+      SpaceActorContext(:final space) =>
+        rememberedExploration?.isSpace == true &&
+                rememberedExploration?.spaceId == space.id &&
+                rememberedExploration?.spaceSlug == space.slug
+            ? rememberedExploration!
+            : DiscoveryQuery(spaceSlug: space.slug, spaceId: space.id),
+      PersonalActorContext() =>
+        rememberedExploration?.isSpace == true
+            ? const DiscoveryQuery()
+            : rememberedExploration ?? const DiscoveryQuery(),
+    };
+    final enableSpaceDiscoveryActions =
+        actor is SpaceActorContext &&
+        destination.door == MakoloPrimaryDoor.discover;
 
     return StreamBuilder<StoredProjection?>(
       stream: _meStream,
@@ -239,6 +274,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         final identity = snapshot.data?.payload['identity'];
         final displayName = identity is Map ? identity['display_name'] : null;
         final profileUsername = identity is Map ? identity['username'] : null;
+        final avatarUrl = identity is Map ? identity['avatar_url'] : null;
+        final baseUri = widget.runtime.api?.baseUri;
+        final resolvedAvatar =
+            avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
+            ? baseUri.resolve(avatarUrl)
+            : null;
+        final validAvatar =
+            resolvedAvatar != null &&
+            (resolvedAvatar.scheme == 'https' ||
+                resolvedAvatar.scheme == 'http') &&
+            resolvedAvatar.host == baseUri!.host;
         final avatarLetter =
             displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
@@ -249,17 +295,37 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
+            avatarVisual: actor is SpaceActorContext
+                ? ActiveContextAvatar(
+                    runtime: widget.runtime,
+                    actor: actor,
+                    size: 36,
+                  )
+                : null,
+            avatarUrl: actor is PersonalActorContext && validAvatar
+                ? resolvedAvatar.toString()
+                : null,
+            avatarProfileId: actor is PersonalActorContext
+                ? widget.runtime.personal?.store.profileId
+                : null,
+            avatarApi: widget.runtime.api,
+            avatarRevision: snapshot.data?.receivedAt,
             profileUsername: profileUsername is String ? profileUsername : null,
             hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
-            onConversations: () => unawaited(_openSecondary('/conversations')),
+            onConversations: _openConversations,
             onNotifications: () => unawaited(_openSecondary('/notifications')),
-            onSearch: actor is PersonalActorContext
-                ? () => context.push('/discover/search')
+            onSearch:
+                actor is PersonalActorContext || enableSpaceDiscoveryActions
+                ? () => context.push(
+                    discoveryQuery.routeLocation('/discover/search'),
+                  )
                 : null,
-            onMap: actor is PersonalActorContext
-                ? () => context.push('/discover/map')
+            onMap: actor is PersonalActorContext || enableSpaceDiscoveryActions
+                ? () => context.push(
+                    discoveryQuery.routeLocation('/discover/map'),
+                  )
                 : null,
             onCalendar: actor is PersonalActorContext
                 ? () => context.push('/ongoing/calendar')

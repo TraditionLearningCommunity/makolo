@@ -9,6 +9,12 @@ from operations.checkpoint_api import (
     OperatorOccurrenceCheckpointsAPIView,
 )
 from operations.live_api import OccurrenceLiveAPIView, OccurrenceOperationalReadinessAPIView
+from operations.experience_insight_api import OccurrenceExperienceInsightAPIView
+from operations.occurrence_experience_api import (
+    OccurrenceExperienceDayOfAPIView,
+    OccurrenceExperienceLiveAPIView,
+    OccurrenceExperienceLiveConfigurationAPIView,
+)
 from operations.offline_api import OccurrenceOfflineActionPackAPIView
 from operations.placement_api import (
     MyOccurrencePlacementsAPIView,
@@ -53,6 +59,26 @@ urlpatterns = [
     path("incidents/<uuid:pk>/", OperationsIncidentDetailAPIView.as_view(), name="incident-detail"),
     path("moderation/", ModerationCasesAPIView.as_view(), name="moderation"),
     path("workers/", WorkerHealthAPIView.as_view(), name="workers"),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/day-of/",
+        OccurrenceExperienceDayOfAPIView.as_view(),
+        name="occurrence-experience-day-of",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/live/",
+        OccurrenceExperienceLiveAPIView.as_view(),
+        name="occurrence-experience-live",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/live-configuration/",
+        OccurrenceExperienceLiveConfigurationAPIView.as_view(),
+        name="occurrence-experience-live-configuration",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/insights/<str:kind>/",
+        OccurrenceExperienceInsightAPIView.as_view(),
+        name="occurrence-experience-insight",
+    ),
     path(
         "occurrences/<uuid:occurrence_id>/readiness/",
         OccurrenceOperationalReadinessAPIView.as_view(),

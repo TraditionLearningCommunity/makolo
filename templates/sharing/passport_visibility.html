@@ -1,0 +1,26 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}Confidentialité du Passeport · Makolo
+{% endblock %}
+{% block content %}
+<script defer src="{% static 'js/passport-visibility.js' %}"></script>
+<main class="mx-auto max-w-4xl space-y-6 pb-16">
+  <header class="space-y-3">
+    <a href="{% url 'sharing:passport-me' %}" class="mk-action-button" data-variant="secondary">← Mon Passeport</a>
+    <h1 class="mk-page-title">Confidentialité du Passeport</h1>
+
+  </header>
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Présentation</h2>
+    {% for item in fields %}
+      {% include 'sharing/passport_visibility_item.html' %}
+    {% endfor %}
+  </section>
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Collections</h2>
+    {% for item in collections %}
+      {% include 'sharing/passport_visibility_item.html' %}
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}

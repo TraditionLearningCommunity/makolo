@@ -5,8 +5,9 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 
 from activities.models import Occurrence
-from journeys.models import JourneyStatus
+from journeys.models import JourneyStatus, WorkflowKind
 from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from operations.occurrence_live import occurrence_live_phase
 
 from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_presentation import occurrence_timing
@@ -20,13 +21,24 @@ class ParticipantJourneyDetailView(BaseParticipantJourneyDetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         journey = context["journey"]
+        if journey.workflow == WorkflowKind.SERVICE and journey.status == JourneyStatus.FULFILLED:
+            # A completed Makolo workflow is not an external acceptance.
+            context["status_label"] = "Suivi terminé dans Makolo"
         live = (
             resolve_participant_occurrence_live(
                 occurrence=journey.occurrence,
                 actor=self.request.user,
             )
-            if journey.occurrence
+            if (
+                journey.occurrence
+                and journey.occurrence.live_enabled
+                and occurrence_live_phase(journey.occurrence) in {"arrival", "live"}
+            )
             else None
+        )
+        context["day_of_url"] = (
+            reverse("core:participant-occurrence-day-of", kwargs={"pk": journey.occurrence_id})
+            if journey.occurrence_id else None
         )
         context["live"] = live
         context["mature"] = journey_action_presentation(

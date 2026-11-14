@@ -1,0 +1,17 @@
+{% if composer.media_kinds %}
+<div class="mt-3 space-y-3 rounded-xl border p-3" style="border-color:var(--mk-border)"
+     data-semantic-media-controls data-semantic-allowed="{{ composer.media_kinds|join:',' }}" hidden>
+  <p class="text-xs font-semibold">Médias associés à ce Point</p>
+  <label class="block text-sm">
+    <span class="block mb-1">Photos, audio, vidéo ou documents</span>
+    <input type="file" multiple class="mk-input w-full" data-semantic-point-files
+           accept=".jpg,.jpeg,.png,.pdf,.txt,.doc,.docx,.m4a,.mp3,.wav,.ogg,.webm,.mp4">
+  </label>
+  <div class="space-y-2" data-semantic-point-captions></div>
+  {% if point_kind == 'poll' %}
+    <div class="space-y-3" data-semantic-option-uploads>
+    </div>
+  {% endif %}
+  <p role="status" aria-live="polite" data-semantic-media-status class="text-sm"></p>
+</div>
+{% endif %}

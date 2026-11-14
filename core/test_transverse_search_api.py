@@ -9,6 +9,8 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
+from trust.credential_models import Credential, CredentialType
+from trust.models import Proof, ProofType
 
 
 class TransverseSearchBoundaryTests(TestCase):
@@ -56,6 +58,88 @@ class TransverseSearchBoundaryTests(TestCase):
         self.assertEqual(
             self.client.get(url, {"profile_id": str(self.other.pk)}).status_code, 400
         )
+
+    def test_personal_search_federates_owned_trust_resources_without_leak(self):
+        owner_journey = Journey.objects.create(
+            initiated_by=self.owner,
+            beneficiary=self.owner,
+            activity=self.visible,
+            status=JourneyStatus.FULFILLED,
+            workflow=WorkflowKind.REGISTRATION,
+        )
+        other_journey = Journey.objects.create(
+            initiated_by=self.other,
+            beneficiary=self.other,
+            activity=self.secret,
+            status=JourneyStatus.FULFILLED,
+            workflow=WorkflowKind.REGISTRATION,
+        )
+        owner_proof = Proof.objects.create(
+            subject_profile=self.owner,
+            journey=owner_journey,
+            proof_type=ProofType.JOURNEY_COMPLETED,
+        )
+        Proof.objects.create(
+            subject_profile=self.other,
+            journey=other_journey,
+            proof_type=ProofType.JOURNEY_COMPLETED,
+        )
+
+        owner_credential = Credential(
+            subject_profile=self.owner,
+            issuer_space=self.space,
+            issued_by=self.owner,
+            activity=self.visible,
+            credential_type=CredentialType.ATTESTATION,
+            title="Titre transverse Makolo",
+        )
+        owner_credential.full_clean()
+        owner_credential.save()
+        other_credential = Credential(
+            subject_profile=self.other,
+            issuer_space=self.space,
+            issued_by=self.owner,
+            activity=self.secret,
+            credential_type=CredentialType.ATTESTATION,
+            title="Titre transverse Makolo",
+        )
+        other_credential.full_clean()
+        other_credential.save()
+
+        self.client.force_authenticate(self.owner)
+        proof_payload = self.client.get(
+            "/api/v1/me/search/",
+            {"q": "Journey accomplie"},
+        ).json()["data"]
+        proof_rows = [
+            row
+            for row in proof_payload["items"]
+            if row["source"]["kind"] == "proof"
+        ]
+        self.assertEqual(
+            [row["source"]["id"] for row in proof_rows],
+            [str(owner_proof.pk)],
+        )
+        self.assertEqual(proof_rows[0]["human_type"], "Preuve")
+        self.assertIn("/api/v1/me/proofs/", proof_rows[0]["owner_api"])
+
+        credential_payload = self.client.get(
+            "/api/v1/me/search/",
+            {"q": "Titre transverse"},
+        ).json()["data"]
+        credential_rows = [
+            row
+            for row in credential_payload["items"]
+            if row["source"]["kind"] == "credential"
+        ]
+        self.assertEqual(
+            [row["source"]["id"] for row in credential_rows],
+            [str(owner_credential.pk)],
+        )
+        self.assertEqual(credential_rows[0]["human_type"], "Titre")
+        self.assertIn("/api/v1/me/titles/", credential_rows[0]["owner_api"])
+        self.assertIn("proof", credential_payload["coverage"]["owners"])
+        self.assertIn("credential", credential_payload["coverage"]["owners"])
 
     def test_space_search_does_not_leak_activity_or_count(self):
         self.client.force_authenticate(self.scoped)

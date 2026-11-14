@@ -426,6 +426,12 @@ class ObtentionApiTests(TestCase):
         obtention_id = create_response.json()["id"]
 
         self.client.force_login(self.beneficiary)
+        journey_url = reverse(
+            "obtention_api:journey-create", kwargs={"pk": obtention_id}
+        )
+        empty = self.client.get(journey_url)
+        self.assertEqual(empty.status_code, 200)
+        self.assertEqual(empty.json()["existing_journeys"], [])
         journey_response = self.client.post(
             reverse(
                 "obtention_api:journey-create",
@@ -440,3 +446,15 @@ class ObtentionApiTests(TestCase):
         self.assertEqual(len(payload["steps"]), 1)
         self.assertEqual(len(payload["requirements"]), 1)
         self.assertEqual(payload["requirements"][0]["key"], "pickup-required")
+        replay = self.client.post(
+            journey_url, data={"mode": "rent"}, content_type="application/json"
+        )
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay.json()["id"], payload["id"])
+        existing = self.client.get(journey_url)
+        self.assertEqual(existing.status_code, 200)
+        self.assertEqual(existing.json()["existing_journeys"][0]["id"], payload["id"])
+        self.client.force_login(self.owner)
+        owner_view = self.client.get(journey_url)
+        self.assertEqual(owner_view.status_code, 200)
+        self.assertEqual(owner_view.json()["existing_journeys"], [])

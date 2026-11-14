@@ -38,8 +38,15 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
-      - name: Canonical format check
-        run: bash tool/dart_format.sh check
+      # Mobile CI owns the full lib/test formatting gate. Golden tests check
+      # only their own inputs, so unrelated Flutter screens cannot block Now.
+      - name: Format check for Now golden sources
+        run: >-
+          dart format --output=none --set-exit-if-changed
+          lib/features/now
+          lib/presentation/contracts/now_presentation.dart
+          lib/dev/scenarios/now_scenarios.dart
+          test/now_golden_test.dart
       - name: Verify approved G01 S1-S5 references
         run: flutter test test/now_golden_test.dart
       - name: Render review artifacts without changing the branch

@@ -7,7 +7,7 @@ from django.db import transaction
 from questionnaires.models import FormRequestStatus, FormVersionStatus
 from questionnaires.services import request_form_for_profile
 
-from .audience_services import resolve_audience_ids
+from .audience_services import conversation_viewer_ids, resolve_audience_ids
 from .core_models import ConversationContextKind
 from .form_models import ConversationPointFormRequest
 from .point_models import ConversationPoint, ConversationPointKind
@@ -56,7 +56,9 @@ def ensure_form_requests_for_point(*, actor, point: ConversationPoint, form_vers
     if audience is None:
         raise ValidationError("Un Point Formulaire doit définir une audience attendue.")
 
-    target_ids = resolve_audience_ids(audience)
+    target_ids = resolve_audience_ids(audience) & conversation_viewer_ids(locked.conversation)
+    if not target_ids:
+        raise ValidationError("Aucun destinataire actuellement autorisé pour ce formulaire.")
     existing = {
         link.target_profile_id: link
         for link in ConversationPointFormRequest.objects.select_related("form_request").filter(

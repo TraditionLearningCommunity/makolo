@@ -15,6 +15,7 @@ from tickets.services import create_order
 from core.api.personal_projections import (
     build_personal_now_projection,
     build_personal_ongoing_projection,
+    _ongoing_temporal_facts,
 )
 
 
@@ -425,3 +426,34 @@ class Z2WaitlistBoundaryTests(TestCase):
             and action["confirmation_required"] is True
             for action in decision["business_actions"]
         ))
+
+
+class OngoingTemporalFactsTests(TestCase):
+    def test_only_owner_human_dates_are_projected(self):
+        item = {
+            "source": {"kind": "journey", "id": "j1"},
+            "occurrence": {"kind": "occurrence", "id": "o1"},
+            "timing": {
+                "start_date": "2026-11-12",
+                "timezone": "Africa/Kinshasa",
+                "updated_at": "2026-10-26T10:00:00Z",
+            },
+            "next": {
+                "title": "Remettre le document",
+                "timing": {"due_at": "2026-11-10T13:00:00Z"},
+            },
+        }
+        facts = _ongoing_temporal_facts(item)
+        self.assertEqual([fact["kind"] for fact in facts], [
+            "occurrence_start", "next_due",
+        ])
+        self.assertEqual(facts[0]["source"]["kind"], "occurrence")
+        self.assertEqual(facts[1]["label"], "Remettre le document")
+        self.assertNotIn("updated_at", str(facts))
+
+    def test_no_technical_timestamp_becomes_calendar_fact(self):
+        self.assertEqual(_ongoing_temporal_facts({
+            "source": {"kind": "project", "id": "p1"},
+            "timing": {"created_at": "2026-10-20"},
+            "next": None,
+        }), [])

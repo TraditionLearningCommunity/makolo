@@ -1,6 +1,6 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, serializers, status
@@ -12,7 +12,7 @@ from organizations.models import Organization
 from organizations.permissions import organization_has_public_profile
 from promotions.models import Promotion
 
-from loyalty.models import LoyaltyAccount, LoyaltyLedgerEntry, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipSubscription
+from loyalty.models import LoyaltyAccount, LoyaltyLedgerEntry, LoyaltyProgram, LoyaltyReward, LoyaltyTier, MembershipPlan, MembershipStatus, MembershipSubscription
 from loyalty.permissions import user_can_manage_loyalty_strategy, user_can_view_loyalty_workspace
 from loyalty.selectors import get_accounts_visible_to, get_programs_visible_to, get_subscriptions_visible_to, personal_rewards_available_to
 from loyalty.services import activate_membership, adjust_points, cancel_membership, redeem_reward, request_membership
@@ -159,6 +159,20 @@ def _personal_loyalty_reward_payload(reward):
     }
 
 
+def _personal_membership_payload(subscription):
+    """Expose only owner-confirmed actions on this authenticated membership."""
+    payload = MembershipSubscriptionSerializer(subscription).data
+    if subscription.status in {MembershipStatus.PENDING, MembershipStatus.ACTIVE}:
+        payload["capabilities"] = ["cancel"]
+        payload["links"] = {
+            "cancel": f"/api/v1/loyalty/memberships/{subscription.pk}/cancel/",
+        }
+    else:
+        payload["capabilities"] = []
+        payload["links"] = {}
+    return payload
+
+
 class MyLoyaltyAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -207,10 +221,10 @@ class MyLoyaltyAPIView(APIView):
                 _personal_loyalty_account_payload(account)
                 for account in accounts
             ],
-            "memberships": MembershipSubscriptionSerializer(
-                subscriptions,
-                many=True,
-            ).data,
+            "memberships": [
+                _personal_membership_payload(subscription)
+                for subscription in subscriptions
+            ],
             "rewards": LoyaltyRewardRedemptionSerializer(
                 redemptions,
                 many=True,
@@ -238,6 +252,57 @@ class MyLoyaltyAPIView(APIView):
         return response
 
 
+class MyLoyaltyProgramAPIView(APIView):
+    """Member-owned program depth, including non-public organizations.
+
+    A visible account or membership is required; knowing a UUID is not
+    sufficient. All mutations stay with their existing owner services.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        program = get_object_or_404(
+            LoyaltyProgram.objects.prefetch_related(
+                "tiers", "membership_plans", "rewards"
+            ).filter(is_active=True).filter(
+                Q(accounts__user=request.user) |
+                Q(subscriptions__user=request.user)
+            ).distinct(),
+            pk=pk,
+        )
+        membership = (
+            get_subscriptions_visible_to(request.user)
+            .filter(program=program, user=request.user)
+            .select_related("plan", "program__organization")
+            .order_by("-requested_at").first()
+        )
+        active_membership = bool(
+            membership and membership.status in {
+                MembershipStatus.ACTIVE, MembershipStatus.PENDING
+            }
+        )
+        plans = MembershipPlanSerializer(
+            program.membership_plans.all(), many=True
+        ).data
+        if not active_membership:
+            for plan in plans:
+                if plan["is_active"] and plan["is_free"]:
+                    plan["capabilities"] = ["join"]
+                    plan["links"] = {"join": "/api/v1/loyalty/memberships/join/"}
+        response = Response({
+            "program": {
+                **LoyaltyProgramSerializer(program).data,
+                "membership_plans": plans,
+            },
+            "my_membership": (
+                _personal_membership_payload(membership) if membership else None
+            ),
+            "capabilities": [],
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class OrganizationProgramAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -247,7 +312,25 @@ class OrganizationProgramAPIView(APIView):
         if not organization_has_public_profile(organization) and not can_workspace:
             raise PermissionDenied("Ce programme n'est pas public.")
         program = get_object_or_404(LoyaltyProgram.objects.prefetch_related("tiers", "membership_plans", "rewards"), organization=organization, is_active=True)
-        payload = {"program": LoyaltyProgramSerializer(program).data}
+        allowed_to_manage = bool(
+            request.user.is_authenticated and
+            user_can_manage_loyalty_strategy(request.user, organization)
+        )
+        payload = {
+            "program": LoyaltyProgramSerializer(program).data,
+            "capabilities": (
+                ["create_tier", "create_plan", "create_reward"]
+                if allowed_to_manage else []
+            ),
+            "links": (
+                {
+                    "create_tier": "/api/v1/loyalty/tiers/",
+                    "create_plan": "/api/v1/loyalty/plans/",
+                    "create_reward": "/api/v1/loyalty/rewards/",
+                }
+                if allowed_to_manage else {}
+            ),
+        }
         if request.user.is_authenticated:
             account = LoyaltyAccount.objects.filter(
                 program=program,

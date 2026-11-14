@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
 from organizations.models import Organization
@@ -70,17 +71,98 @@ class PassportPublicIdentityTests(TestCase):
         self.assertNotContains(response, "QR de vérification")
         self.assertIsNone(response.context["passport_snapshot"])
 
-    def test_non_searchable_profile_returns_404_even_with_known_identifier(self):
-        self.profile.searchable = False
-        self.profile.save(update_fields=["searchable", "updated_at"])
+    def test_private_profile_returns_404_even_with_known_identifier(self):
+        self.profile.public_profile = False
+        self.profile.save(update_fields=["public_profile", "updated_at"])
         response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
         self.assertEqual(response.status_code, 404)
 
-    def test_non_searchable_space_returns_404_even_with_known_identifier(self):
+    def test_private_space_returns_404_even_with_known_identifier(self):
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile", "updated_at"])
+        response = self.client.get(reverse("public-passport", kwargs={"identifier": "mulykap-demo"}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_profile_not_searchable_remains_accessible_by_direct_link(self):
+        self.profile.searchable = False
+        self.profile.save(update_fields=["searchable", "updated_at"])
+        response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Naomi Traore")
+
+    def test_public_space_not_searchable_remains_accessible_by_direct_link(self):
         self.space.searchable = False
         self.space.save(update_fields=["searchable", "updated_at"])
         response = self.client.get(reverse("public-passport", kwargs={"identifier": "mulykap-demo"}))
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mulykap Demo")
+
+    def test_owner_can_open_private_passport_when_not_searchable(self):
+        self.profile.public_profile = False
+        self.profile.searchable = False
+        self.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("sharing:passport-me"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection"].variant, "complete")
+
+    def test_canonical_identifier_grants_private_variants_to_owner_only(self):
+        self.profile.public_profile = False
+        self.profile.searchable = False
+        self.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(url, {"variant": "complete"}).status_code, 404)
+        self.client.force_login(self.space_owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        self.client.force_login(self.user)
+        preview = self.client.get(url)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context["projection"].variant, "public")
+
+        complete = self.client.get(url, {"variant": "complete"})
+        self.assertEqual(complete.status_code, 200)
+        self.assertEqual(complete.context["projection"].variant, "complete")
+        self.assertContains(complete, "Informations personnelles")
+        self.assertEqual(complete["Cache-Control"], "private, no-store")
+
+        selected = self.client.get(
+            url, {"variant": "custom", "include": "bio"},
+        )
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(selected.context["projection"].variant, "custom")
+        self.assertNotIn("owner_details", selected.context["projection"].identity)
+
+    def test_anonymous_public_variant_cannot_request_owner_content(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        self.assertEqual(
+            self.client.get(url, {"variant": "complete"}).status_code, 403,
+        )
+        self.assertEqual(
+            self.client.get(url, {"variant": "custom", "include": "bio"}).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(url, {"variant": "thematic", "topic": "any"}).status_code,
+            403,
+        )
+        self.assertEqual(self.client.get(url, {"variant": "unknown"}).status_code, 404)
+
+    def test_public_identity_only_passport_can_be_issued(self):
+        minimal = User.objects.create_user(
+            username="passport-only-name",
+            password="Strong-Passport-Test-2026!",
+        )
+        UserProfile.objects.create(user=minimal, public_profile=True)
+        url = reverse("public-passport", kwargs={"identifier": "passport-only-name"})
+        response = self.client.get(url, {"document": "1"})
+        self.assertEqual(response.status_code, 200)
+        snapshot = response.context["passport_snapshot"]
+        self.assertEqual(snapshot.payload["identity"]["name"], minimal.username)
+        self.assertEqual(snapshot.payload["activities"], [])
+        self.assertEqual(snapshot.payload["identity"]["owner_details"], {})
 
     def test_rendered_passport_issues_verifiable_snapshot(self):
         response = self.client.get(
@@ -94,9 +176,140 @@ class PassportPublicIdentityTests(TestCase):
 
         verification = self.client.get(response.context["passport_verification_url"])
         self.assertEqual(verification.status_code, 200)
-        self.assertContains(verification, "Document Makolo authentique")
+        self.assertContains(verification, "Version émise par Makolo")
         self.assertContains(verification, snapshot.document_id)
         self.assertContains(verification, snapshot.payload_hash)
+
+    def test_verification_url_is_stable_and_legacy_signed_links_still_resolve(self):
+        from django.core import signing
+        from sharing.passport_documents import (
+            PASSPORT_VERIFY_SALT, passport_verification_token,
+            resolve_passport_verification_token,
+        )
+
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        issued = self.client.get(url, {"document": "1"})
+        snapshot = issued.context["passport_snapshot"]
+        current_token = passport_verification_token(snapshot)
+        self.assertEqual(current_token, passport_verification_token(snapshot))
+        from urllib.parse import urlsplit
+        self.assertEqual(
+            urlsplit(issued.context["passport_verification_url"]).path,
+            reverse("sharing:passport-verify", kwargs={"token": current_token}),
+        )
+        self.assertEqual(resolve_passport_verification_token(current_token).pk, snapshot.pk)
+
+        # Previously printed QR codes used TimestampSigner. They must not
+        # break when the canonical history link becomes deterministic.
+        legacy_token = signing.dumps(
+            {"passport_id": str(snapshot.pk), "payload_hash": snapshot.payload_hash},
+            salt=PASSPORT_VERIFY_SALT, compress=True,
+        )
+        self.assertEqual(resolve_passport_verification_token(legacy_token).pk, snapshot.pk)
+        self.assertEqual(
+            self.client.get(reverse("sharing:passport-verify", kwargs={
+                "token": legacy_token,
+            })).status_code,
+            200,
+        )
+
+    def test_two_issued_versions_retain_their_own_dated_content(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        first = self.client.get(url, {"document": "1"})
+        first_snapshot = first.context["passport_snapshot"]
+        first_link = first.context["passport_verification_url"]
+
+        self.user.bio = "Présentation actualisée après la première émission."
+        self.user.save(update_fields=["bio", "updated_at"])
+        second = self.client.get(url, {"document": "1"})
+        second_snapshot = second.context["passport_snapshot"]
+        self.assertNotEqual(first_snapshot.pk, second_snapshot.pk)
+
+        historical = self.client.get(first_link)
+        self.assertEqual(historical.status_code, 200)
+        self.assertTrue(historical.context["can_view_dated_passport"])
+        self.assertContains(historical, "Le Passeport à cette date")
+        self.assertContains(historical, "Entrepreneure à Goma.")
+        self.assertNotContains(historical, "Présentation actualisée après la première émission.")
+        self.assertContains(historical, first_snapshot.document_id)
+        self.assertNotContains(historical, second_snapshot.document_id)
+        self.assertEqual(historical["Cache-Control"], "private, no-store")
+
+        current = self.client.get(url)
+        self.assertContains(current, "Présentation actualisée après la première émission.")
+        self.assertNotContains(current, "Entrepreneure à Goma.")
+
+    def test_versions_list_is_private_and_links_to_exact_issued_snapshots(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        first = self.client.get(url, {"document": "1"})
+        snapshot = first.context["passport_snapshot"]
+        history_url = reverse("sharing:passport-me-history")
+
+        anonymous = self.client.get(history_url)
+        self.assertIn(anonymous.status_code, (302, 403))
+        self.client.force_login(self.space_owner)
+        denied = self.client.get(history_url)
+        self.assertEqual(denied.status_code, 200)
+        self.assertNotContains(denied, snapshot.document_id)
+
+        self.client.force_login(self.user)
+        history = self.client.get(history_url)
+        self.assertEqual(history.status_code, 200)
+        self.assertContains(history, snapshot.document_id)
+        from urllib.parse import urlsplit
+        self.assertContains(
+            history, urlsplit(first.context["passport_verification_url"]).path,
+        )
+        self.assertEqual(history["Cache-Control"], "private, no-store")
+
+    def test_unpublishing_public_passport_hides_historical_content_from_visitors(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        first = self.client.get(url, {"document": "1"})
+        signed = first.context["passport_verification_url"]
+
+        self.profile.public_profile = False
+        self.profile.save(update_fields=["public_profile", "updated_at"])
+        anonymous = self.client.get(signed)
+        self.assertEqual(anonymous.status_code, 200)
+        self.assertFalse(anonymous.context["can_view_dated_passport"])
+        self.assertNotContains(anonymous, "Entrepreneure à Goma.")
+
+        self.client.force_login(self.user)
+        owner = self.client.get(signed)
+        self.assertTrue(owner.context["can_view_dated_passport"])
+        self.assertContains(owner, "Entrepreneure à Goma.")
+
+    def test_revocation_or_integrity_failure_never_serves_historical_content(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        first = self.client.get(url, {"document": "1"})
+        snapshot = first.context["passport_snapshot"]
+        signed = first.context["passport_verification_url"]
+
+        snapshot.revoked_at = timezone.now()
+        snapshot.save(update_fields=["revoked_at"])
+        revoked = self.client.get(signed)
+        self.assertFalse(revoked.context["can_view_dated_passport"])
+        self.assertContains(revoked, "révoquée")
+        self.assertNotContains(revoked, "Entrepreneure à Goma.")
+
+        snapshot.revoked_at = None
+        snapshot.save(update_fields=["revoked_at"])
+        original_payload = snapshot.payload
+        corrupted = {**original_payload, "identity": {
+            **original_payload["identity"], "bio": "Texte altéré hors émission",
+        }}
+        PassportSnapshot.objects.filter(pk=snapshot.pk).update(payload=corrupted)
+        invalid = self.client.get(signed)
+        self.assertFalse(invalid.context["snapshot_intact"])
+        self.assertFalse(invalid.context["can_view_dated_passport"])
+        self.assertContains(invalid, "ne correspond pas")
+        self.assertNotContains(invalid, "Texte altéré hors émission")
+
+        PassportSnapshot.objects.filter(pk=snapshot.pk).update(
+            payload=original_payload, payload_hash="0" * 64,
+        )
+        invalid_token = self.client.get(signed)
+        self.assertEqual(invalid_token.status_code, 404)
 
     def test_invalid_verification_token_returns_404(self):
         response = self.client.get(

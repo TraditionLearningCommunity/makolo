@@ -183,6 +183,13 @@ class NowSelector {
     String? whyNow = _semanticString(whyNowRaw, 'meaning');
     if (timing is Map) {
       whyNow ??= _string(timing['label']) ?? _string(timing['why_now']);
+      // Only owner-provided deadline states may qualify a date. Never infer
+      // overdue from a timestamp that could mean a start or observation.
+      if (_string(timing['deadline_state']) == 'overdue') {
+        metadata.add('Échéance dépassée');
+      } else if (_string(timing['deadline_state']) == 'due_today') {
+        metadata.add('Échéance aujourd’hui');
+      }
       for (final key in const [
         'deadline_at',
         'due_at',
@@ -190,7 +197,10 @@ class NowSelector {
         'deadline',
       ]) {
         final value = _string(timing[key]);
-        if (value != null) metadata.add(value);
+        if (value != null) {
+          final readable = _readableTiming(value);
+          if (!metadata.contains(readable)) metadata.add(readable);
+        }
       }
     }
 
@@ -333,6 +343,12 @@ class NowSelector {
       whyNow: whyNow,
       whyNowReason: whyNowReason,
       serverState: serverState,
+      subject:
+          _semanticString(raw['subject'], 'label') ?? _string(raw['subject']),
+      delta: _semanticString(raw['delta'], 'meaning') ?? _string(raw['delta']),
+      exitCondition:
+          _semanticString(raw['exit_condition'], 'label') ??
+          _string(raw['exit_condition']),
       consequence: _semanticString(raw['consequence'], 'effect'),
       consequenceState: _semanticString(raw['consequence'], 'state'),
       turn: _semanticString(raw['turn'], 'type'),
@@ -344,7 +360,9 @@ class NowSelector {
       relationMembers: List.unmodifiable(members),
       relations: List.unmodifiable(relations),
       makoloPreparation: List.unmodifiable(_strings(raw['makolo_preparation'])),
-      knowledgeState: _string(raw['knowledge_state']),
+      knowledgeState:
+          _nestedString(raw, 'knowledge_context', 'knowledge_state') ??
+          _string(raw['knowledge_state']),
       emphasis: index == 0
           ? NowPresentationEmphasis.primary
           : NowPresentationEmphasis.secondary,
@@ -377,6 +395,16 @@ class NowSelector {
     return value['state'] == 'overdue'
         ? 'Échéance dépassée : $formatted'
         : 'Échéance : $formatted';
+  }
+
+  // Dates are display-only; server timestamps remain authoritative.
+  String _readableTiming(String raw) {
+    final instant = DateTime.tryParse(raw);
+    if (instant == null) return raw;
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) {
+      return DateFormat('dd/MM/yyyy').format(instant);
+    }
+    return DateFormat('dd/MM/yyyy · HH:mm').format(instant.toLocal());
   }
 
   String? _nestedString(Map payload, String parent, String child) {

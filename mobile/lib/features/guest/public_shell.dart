@@ -10,10 +10,12 @@ class PublicExperienceShell extends StatelessWidget {
     super.key,
     required this.current,
     required this.child,
+    this.headerActions = const [],
   });
 
   final int current;
   final Widget child;
+  final List<Widget> headerActions;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class PublicExperienceShell extends StatelessWidget {
           icon: const MakoloMark(size: 36),
         ),
         actions: [
+          ...headerActions,
           OutlinedButton(
             key: const Key('guest-login-action'),
             onPressed: () => context.push('/login'),
@@ -51,30 +54,45 @@ class PublicExperienceShell extends StatelessWidget {
         ],
       ),
       body: SafeArea(top: false, child: child),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: current,
-        onDestinationSelected: (index) => context.go(switch (index) {
-          0 => '/welcome',
-          1 => '/discover',
-          _ => '/spaces',
-        }),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Découvrir',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups),
-            label: 'Espaces',
-          ),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final colors = Theme.of(context).colorScheme;
+            return TextStyle(
+              color: states.contains(WidgetState.selected)
+                  ? colors.onSurface
+                  : colors.onSurfaceVariant,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w600,
+            );
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: current,
+          onDestinationSelected: (index) => context.go(switch (index) {
+            0 => '/welcome',
+            1 => '/discover',
+            _ => '/spaces',
+          }),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Accueil',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Découvrir',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.groups_outlined),
+              selectedIcon: Icon(Icons.groups),
+              label: 'Espaces',
+            ),
+          ],
+        ),
       ),
     );
   }

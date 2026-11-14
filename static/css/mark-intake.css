@@ -1,0 +1,567 @@
+/* Makolo Mark — shared progressive Web presentation.
+   Desktop floating mode is a bounded action workspace, not a chat window. */
+.mk-mark-page[data-mk-mark-root] {
+  width: min(100%, 720px);
+  min-width: 0;
+}
+.mk-mark-window {
+  position: relative;
+  min-width: 0;
+}
+.mk-mark-window-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.mk-mark-window-tools button,
+.mk-mark-restore {
+  border: 1px solid var(--mk-border);
+  color: var(--mk-text);
+  background: var(--mk-surface-solid);
+  padding: 9px 13px;
+  border-radius: 12px;
+  font-size: .8rem;
+  min-height: 42px;
+  cursor: pointer;
+}
+.mk-mark-page [hidden] { display: none !important; }
+.mk-mark-support {
+  margin-top: 14px;
+  padding: 14px 0;
+  display: grid;
+  gap: 10px;
+}
+.mk-mark-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.mk-mark-tools > label.mk-action-button {
+  position: relative;
+  cursor: pointer;
+}
+.mk-mark-link-editor,
+.mk-mark-dictation,
+.mk-mark-text-consent {
+  border: 1px solid var(--mk-border);
+  border-radius: 16px;
+  padding: 13px;
+  background: var(--mk-surface-solid);
+}
+.mk-mark-link-editor label,
+.mk-mark-dictation label {
+  display: block;
+  color: var(--mk-text);
+  font-weight: 700;
+  font-size: .88rem;
+  margin-bottom: 8px;
+}
+.mk-mark-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mk-mark-link-row input,
+.mk-mark-dictation textarea {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+.mk-mark-dictation textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  resize: vertical;
+}
+.mk-mark-references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mk-mark-reference {
+  min-width: 0;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--mk-brand) 9%, var(--mk-surface-solid));
+  border-radius: 999px;
+  border: 1px solid var(--mk-border);
+  padding: 4px 8px 4px 12px;
+  font-size: .78rem;
+}
+.mk-mark-reference > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: min(55vw, 440px);
+}
+.mk-mark-reference-remove {
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+}
+.mk-mark-hint {
+  color: var(--mk-muted);
+  font-size: .79rem;
+  line-height: 1.5;
+}
+.mk-mark-owner-link {
+  color: var(--mk-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: .85rem;
+  font-weight: 730;
+}
+.mk-mark-text-consent {
+  margin: 8px 0 14px;
+  display: grid;
+  gap: 12px;
+}
+.mk-mark-text-consent p {
+  color: var(--mk-text);
+  line-height: 1.5;
+}
+.mk-mark-page [data-mk-mark-feedback] {
+  line-height: 1.4;
+  font-size: .82rem;
+}
+.mk-mark-page .mk-mark-form {
+  margin-top: 16px;
+}
+.mk-mark-page .mk-mark-clarify {
+  max-width: 100%;
+}
+.mk-mark-page .mk-mark-option button {
+  width: 100%;
+  justify-content: flex-start;
+}
+.mk-mark-page .mk-mark-starts {
+  margin-bottom: 12px;
+}
+.mk-mark-page :is(input, textarea, button, a):focus-visible {
+  outline: 3px solid var(--mk-brand);
+  outline-offset: 2px;
+}
+.mk-mark-restore {
+  position: fixed;
+  z-index: 70;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  box-shadow: var(--mk-shadow-sm);
+  color: var(--mk-brand);
+  font-weight: 750;
+}
+@media (min-width: 1200px) {
+  .mk-mark-page[data-mk-mark-mode="floating"] .mk-mark-window {
+    position: fixed;
+    z-index: 70;
+    top: 64px;
+    right: max(20px, calc((100vw - 1440px)/2));
+    width: min(690px, calc(100vw - 60px));
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--mk-surface-solid);
+    color: var(--mk-text);
+    border: 1px solid var(--mk-border);
+    border-radius: 24px;
+    box-shadow: 0 18px 64px rgba(15, 23, 42, .23);
+    padding: 20px 26px 28px;
+  }
+  .mk-mark-page[data-mk-mark-mode="minimized"] .mk-mark-window {
+    display: none;
+  }
+  .mk-mark-page[data-mk-mark-mode="floating"] .mk-mark-intro h1 {
+    font-size: clamp(1.5rem, 2vw, 2.2rem);
+  }
+  .mk-mark-page[data-mk-mark-mode="floating"] .mk-mark-orb {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 12px;
+  }
+  .mk-mark-page[data-mk-mark-mode="floating"] .mk-mark-form textarea[name="intent"],
+  .mk-mark-page[data-mk-mark-mode="floating"] .mk-mark-form textarea[name="value"] {
+    min-height: 126px;
+  }
+}
+@media (max-width: 767px) {
+  .mk-mark-window-tools { display: none; }
+  .mk-mark-tools > .mk-action-button { min-height: 44px; }
+  .mk-mark-link-row { flex-wrap: wrap; }
+  .mk-mark-link-row input { flex-basis: 100%; }
+  .mk-mark-references { gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-mark-window, .mk-mark-restore { transition: none !important; }
+}
+
+.mk-mark-preview {
+  width: min(92vw, 640px);
+  max-height: min(85dvh, 750px);
+  overflow: auto;
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid var(--mk-border);
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  box-shadow: var(--mk-shadow-sm);
+}
+.mk-mark-preview::backdrop {
+  background: rgba(15, 23, 42, .6);
+}
+.mk-mark-preview-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+}
+.mk-mark-preview-media {
+  max-width: 100%;
+  max-height: min(65dvh, 560px);
+  display: block;
+  object-fit: contain;
+}
+
+.mk-mark-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--mk-muted);
+  font-size: .86rem;
+}
+.mk-mark-selected > span {
+  flex: 1;
+  min-width: 190px;
+}
+
+.mk-mark-reference-save {
+  border-left: 1px solid var(--mk-border);
+  padding: 4px 8px;
+  min-height: 32px;
+  font-size: .77rem;
+  color: var(--mk-brand);
+  font-weight: 750;
+}
+.mk-mark-owner-panel {
+  margin-top: 18px;
+  padding: clamp(14px, 3vw, 22px);
+  border: 1px solid var(--mk-border);
+  border-radius: 20px;
+  background: var(--mk-surface-solid);
+  display: grid;
+  gap: 12px;
+}
+.mk-mark-owner-panel > h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.mk-mark-owner-panel > p {
+  font-size: .84rem;
+  color: var(--mk-muted);
+  line-height: 1.5;
+}
+.mk-mark-owner-fields {
+  margin-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mk-mark-owner-fields label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  font-size: .82rem;
+}
+.mk-mark-owner-fields input,
+.mk-mark-owner-fields select {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 680px) {
+  .mk-mark-owner-fields { grid-template-columns: 1fr; }
+}
+
+/* Compact Mark composer, shared by Profile and Space. */
+.mk-mark-page .mk-mark-composer {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 62px 10px 12px;
+  border: 1px solid var(--mk-border);
+  border-radius: 24px;
+  background: var(--mk-surface-solid);
+}
+.mk-mark-page .mk-mark-composer:focus-within {
+  border-color: var(--mk-brand);
+}
+.mk-mark-page .mk-mark-composer textarea[name="intent"],
+.mk-mark-page .mk-mark-composer textarea[name="value"] {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  max-height: 220px;
+  padding: 10px 4px 8px;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+  background: transparent !important;
+  color: var(--mk-text);
+  font: inherit;
+  resize: vertical;
+}
+.mk-mark-page .mk-mark-composer textarea:focus-visible {
+  outline: none;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-support {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-tools {
+  order: 2;
+  display: flex;
+  gap: 6px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-references {
+  order: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mk-mark-page .mk-mark-composer .mk-mark-dictation {
+  order: 3;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-height: 48px;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--mk-surface-solid);
+  border: 1px solid var(--mk-border);
+  border-radius: 16px;
+  font-size: .85rem;
+}
+.mk-mark-page .mk-mark-dictation [data-mk-mark-speech-status] {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-mark-page .mk-mark-dictation button,
+.mk-mark-page .mk-mark-icon {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mk-text);
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-dictation button:disabled { opacity: .35; }
+.mk-mark-page :is(.mk-mark-icon, .mk-mark-dictation button) svg { width: 22px; height: 22px; }
+.mk-mark-page .mk-mark-icon:hover { background: color-mix(in srgb, var(--mk-brand) 8%, transparent); }
+.mk-mark-page .mk-mark-send {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  background: var(--mk-brand);
+  color: #fff;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-send svg { width: 21px; height: 21px; }
+.mk-mark-page .mk-mark-send:disabled { opacity: .34; cursor: default; }
+.mk-mark-page .mk-mark-count {
+  position: absolute;
+  right: 68px;
+  bottom: 23px;
+  font-size: .75rem;
+  color: var(--mk-muted);
+}
+.mk-mark-page .mk-mark-attach-menu {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% - 2px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(550px, 90vw);
+  padding: 12px;
+  border: 1px solid var(--mk-border);
+  border-radius: 22px;
+  background: var(--mk-surface-solid);
+  box-shadow: 0 15px 45px rgba(15, 23, 42, .16);
+}
+.mk-mark-page .mk-mark-attach-menu button {
+  min-width: 0;
+  min-height: 102px;
+  padding: 12px 5px;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mk-brand) 6%, var(--mk-surface-solid));
+  color: var(--mk-text);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font: inherit;
+  font-size: .82rem;
+}
+.mk-mark-page .mk-mark-attach-menu svg { width: 25px; height: 25px; }
+.mk-mark-page .mk-mark-file-tile {
+  position: relative;
+  width: 104px;
+  min-height: 114px;
+  border-radius: 14px;
+  padding: 3px 3px 8px;
+  background: color-mix(in srgb, var(--mk-brand) 5%, var(--mk-surface-solid));
+  border: 1px solid var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-preview {
+  width: 100%;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: var(--mk-surface-solid);
+  cursor: pointer;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-mark-page .mk-mark-file-type {
+  color: var(--mk-brand);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.mk-mark-page .mk-mark-file-name {
+  padding: 5px 2px 0;
+  font-size: .7rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mk-mark-page .mk-mark-file-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-file-save {
+  border: 0;
+  color: var(--mk-brand);
+  text-align: left;
+  padding: 4px;
+  font-size: .71rem;
+  font-weight: 700;
+  background: transparent;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--mk-border);
+  border-radius: 999px;
+  color: var(--mk-muted);
+  font-size: .73rem;
+}
+.mk-mark-page .mk-mark-link-chip span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+.mk-mark-page .mk-mark-link-chip button { min-width: 32px; min-height: 32px; }
+.mk-mark-page .mk-mark-composer [data-mk-mark-feedback] {
+  order: 4;
+  margin: 2px 0;
+}
+@media (max-width: 767px) {
+  .mk-mark-page.mk-mark-writing .mk-mark-intro { display: none; }
+  .mk-mark-page .mk-mark-composer { padding-right: 60px; }
+  .mk-mark-page .mk-mark-composer textarea[name="intent"],
+  .mk-mark-page .mk-mark-composer textarea[name="value"] {
+    min-height: 44px;
+    max-height: 150px;
+  }
+  .mk-mark-page .mk-mark-attach-menu {
+    left: 0;
+    width: min(90vw, 450px);
+  }
+  .mk-mark-page .mk-mark-attach-menu button { font-size: .76rem; }
+}
+
+/* On small-screen browsers, the active composer follows the visual viewport,
+   not the scroll position of a long page behind the software keyboard. */
+@media (max-width: 767px) {
+  .mk-mark-page.mk-mark-writing .mk-mark-form {
+    min-height: 180px;
+    padding-bottom: 130px;
+  }
+  .mk-mark-page.mk-mark-writing .mk-mark-composer {
+    position: fixed;
+    z-index: 65;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(12px + var(--mk-mark-keyboard-offset, 0px));
+    width: auto;
+    max-height: min(65dvh, 360px);
+    overflow: visible;
+    box-shadow: 0 12px 42px rgba(15, 23, 42, .12);
+  }
+  .mk-mark-page.mk-mark-writing .mk-mark-attach-menu {
+    bottom: calc(100% + 8px);
+  }
+}

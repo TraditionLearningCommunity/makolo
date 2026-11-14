@@ -26,6 +26,102 @@ class MakoloStateTransition extends StatelessWidget {
   }
 }
 
+/// Lightweight context peek on explicit intent (long press on touch).
+/// Reuses published/projected facts; the normal tap keeps its normal route.
+Future<void> showMakoloQuickPreview(
+  BuildContext context, {
+  required String title,
+  String? eyebrow,
+  String? summary,
+  ImageProvider<Object>? avatar,
+  IconData icon = Icons.info_outline_rounded,
+  List<String> facts = const [],
+  String? actionLabel,
+  VoidCallback? onOpen,
+}) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (sheetContext) => SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner,
+        MakoloSpacing.xs,
+        MakoloSpacing.inner,
+        MakoloSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 23,
+                foregroundImage: avatar,
+                child: avatar == null ? Icon(icon) : null,
+              ),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(sheetContext).textTheme.titleMedium,
+                    ),
+                    if (eyebrow != null && eyebrow.isNotEmpty)
+                      Text(
+                        eyebrow,
+                        style: Theme.of(sheetContext).textTheme.labelSmall
+                            ?.copyWith(
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (summary != null && summary.isNotEmpty) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            Text(summary, maxLines: 4, overflow: TextOverflow.ellipsis),
+          ],
+          for (final fact in facts.take(4))
+            if (fact.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                child: Text(
+                  fact,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(sheetContext).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+          if (onOpen != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  onOpen();
+                },
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: Text(actionLabel ?? 'Ouvrir'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
 class MakoloStatusMetadataAction extends StatelessWidget {
   const MakoloStatusMetadataAction({
     super.key,

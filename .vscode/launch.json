@@ -1,0 +1,81 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Makolo DEV — PythonAnywhere",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "flutterMode": "debug",
+      "deviceId": "RFCNA0800DA",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=config/dev.json"
+      ]
+    },
+    {
+      "name": "Makolo DEV — Local USB",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "flutterMode": "debug",
+      "deviceId": "RFCNA0800DA",
+      "preLaunchTask": "Makolo — ADB Reverse Samsung USB",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=config/dev.json",
+        "--dart-define=MAKOLO_API_BASE_URL=http://127.0.0.1:9999"
+      ]
+    },
+    {
+      "name": "Makolo DEV — Tailscale",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "flutterMode": "debug",
+      "deviceId": "RFCNA0800DA",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=config/dev.json",
+        "--dart-define=MAKOLO_API_BASE_URL=http://100.127.52.102:9999"
+      ]
+    },
+    {
+      "name": "Makolo DEV — Émulateur Local",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "flutterMode": "debug",
+      "deviceId": "emulator-5554",
+      "preLaunchTask": "Makolo — Préparer émulateur local",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=config/dev.json",
+        "--dart-define=MAKOLO_API_BASE_URL=http://127.0.0.1:9999"
+      ]
+    },
+    {
+      "name": "Makolo DEV — Émulateur PythonAnywhere",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile",
+      "flutterMode": "debug",
+      "deviceId": "emulator-5554",
+      "args": [
+        "--flavor",
+        "dev",
+        "--dart-define-from-file=config/dev.json"
+      ],
+      "preLaunchTask": "Makolo — Préparer émulateur PythonAnywhere"
+    }
+  ]
+}

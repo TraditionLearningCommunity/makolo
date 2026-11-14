@@ -1,34 +1,52 @@
 {% extends 'organizations/space/base.html' %}
 {% block space_content %}
-<div class="mk-mark-page" data-mk-mark-context="space">
+<div class="mk-mark-page" data-mk-mark-root data-mk-mark-context="space"
+  data-mk-mark-scope="space:{{ request.user.pk }}:{{ space.pk }}">
+  <section class="mk-mark-window" data-mk-mark-window aria-label="Demande Makolo pour {{ space.name }}">
+    <div class="mk-mark-window-tools" role="group" aria-label="Affichage de Makolo Mark">
+      <button type="button" data-mk-mark-float hidden>Ouvrir en fenêtre</button>
+      <button type="button" data-mk-mark-minimize hidden>Réduire</button>
+      <button type="button" data-mk-mark-inline hidden>Afficher sur la page</button>
+      <button type="button" data-mk-mark-clear>Effacer mon brouillon</button>
+    </div>
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
     <p class="text-sm font-semibold" aria-label="Contexte courant">{{ space.name }}{% if selected_responsibility.key != "all" %} · {{ selected_responsibility.label }}{% endif %}</p>
     <h1>Qu’est-ce que vous avez en tête ?</h1>
-    <p>Dites-le comme vous le diriez à quelqu’un.</p>
   </section>
 
-  <form method="post" class="mk-mark-form">
+  <form method="post" class="mk-mark-form" data-mk-mark-form>
     {% csrf_token %}
-    <label for="mark-value" class="sr-only">Ce que vous voulez donner à Makolo</label>
-    <textarea id="mark-value" name="value" maxlength="600" rows="7" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
+    <label for="mark-value" class="sr-only">Votre demande</label>
+    <div class="mk-mark-composer">
+    <textarea id="mark-value" name="value" maxlength="600" rows="5" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
+    {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
+    {% include 'partials/mark_input_tools.html' with mark_scope='space' %}
+    <span class="mk-mark-count" data-mk-mark-count hidden aria-live="off"></span>
+    {% if mark_result.state != "needs_confirmation" %}
+    <button type="submit" class="mk-mark-send" data-mk-mark-send
+      title="Continuer" aria-label="Continuer avec votre demande">
+      <i data-lucide="arrow-up" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+    </div>
 
     {% if mark_result.question.code == "which_occurrence" or mark_result.state == "needs_clarification" and mark_result.question.code == "which_occurrence" %}
     <div class="mt-4 space-y-3">
-      <label for="mark-occurrence">Occurrence concernée, si elle est déjà connue</label>
-      <input id="mark-occurrence" name="occurrence_id" type="text" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off">
+      <label for="mark-occurrence">Date ou séance concernée</label>
+      <input id="mark-occurrence" name="occurrence_id" type="text" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off" class="mk-interaction-field">
     </div>
     {% endif %}
 
-    {% if mark_result.question.code == "team_member_identity_and_responsibility" %}
+    {% if mark_result.question.code == "team_member_identity_and_responsibility" or mark_result.question.code == "team_member_details_invalid" %}
     <div class="mk-mark-support">
       <div>
-        <label for="mark-team-email">Profil à ajouter</label>
-        <input id="mark-team-email" name="team_member_email" type="email" autocomplete="email">
+        <label for="mark-team-email">E-mail du collaborateur</label>
+        <input id="mark-team-email" name="team_member_email" type="email" autocomplete="email" class="mk-interaction-field">
       </div>
       <div>
-        <label for="mark-team-role">Responsabilité / rôle d’autorité</label>
-        <input id="mark-team-role" name="team_member_role" type="text" autocomplete="off">
+        <label for="mark-team-role">Rôle à attribuer</label>
+        <input id="mark-team-role" name="team_member_role" type="text" autocomplete="off" class="mk-interaction-field">
       </div>
     </div>
     {% endif %}
@@ -43,25 +61,26 @@
         <strong>Confirmation nécessaire</strong>
         <p>{{ mark_result.action.consequence }}</p>
       </section>
-      <button type="submit" class="mk-now-cta">Confirmer cette action</button>
-    {% else %}
-      <button type="submit" class="mk-now-cta">Continuer</button>
+      <div class="mk-mark-tools">
+        <button type="submit" class="mk-action-button" data-variant="primary">Confirmer cette action</button>
+        <button type="submit" class="mk-action-button" data-variant="secondary"
+          name="cancel_confirmation" value="1">Annuler cette proposition</button>
+      </div>
     {% endif %}
   </form>
 
   {% if mark_result %}
   <section class="mk-mark-clarify" aria-live="polite">
-    <p class="mk-kicker">{{ mark_result.state }}</p>
     <h2>{{ mark_result.message }}</h2>
-    {% if mark_result.question %}
-      <p>Une précision supplémentaire est nécessaire pour continuer.</p>
-    {% endif %}
+
     {% if mark_handoff_url %}
       <a href="{{ mark_handoff_url }}" class="mk-mark-start">
-        <span><strong>Continuer vers la surface propriétaire</strong><small>Makolo remet la suite au domaine qui en est responsable.</small></span>
+        <span><strong>Continuer</strong><small>Ouvrir la suite de cette demande.</small></span>
       </a>
     {% endif %}
   </section>
   {% endif %}
+  </section>
+  <button type="button" class="mk-mark-restore" data-mk-mark-restore hidden>Reprendre ma demande</button>
 </div>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% load static %}
+<div
+  data-occurrence-revalidate
+  data-owner-surface="{{ projection.surface|default:'scanner' }}"
+  data-live-ends-at="{% if projection.surface == 'live' %}{{ projection.live.ends_at|default:'' }}{% endif %}"
+  class="my-3"
+>
+  <p
+    data-occurrence-state
+    hidden
+    class="hidden rounded-xl border p-4 text-sm"
+    style="border-color:var(--mk-border)"
+    role="status"
+    aria-live="polite"
+  ></p>
+  <button
+    type="button"
+    data-occurrence-refresh
+    hidden
+    class="mk-action-button mt-3 hidden"
+    data-variant="secondary"
+  >Actualiser et revérifier mes droits</button>
+</div>
+<script src="{% static 'js/occurrence_continuity.js' %}" defer></script>

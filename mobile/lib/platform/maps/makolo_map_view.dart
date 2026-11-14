@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -26,21 +27,30 @@ class MapViewport {
   final double tilt;
 }
 
+typedef MapFeatureTap = void Function(
+  math.Point<double> point,
+  MapCoordinate coordinate,
+);
+
 class MakoloMapView extends StatelessWidget {
   const MakoloMapView({
     required this.styleString,
     required this.initialViewport,
     this.onTap,
+    this.onFeatureTap,
     this.onStyleReady,
     this.onMapCreated,
+    this.onViewportChanged,
     super.key,
   });
 
   final String styleString;
   final MapViewport initialViewport;
   final ValueChanged<MapCoordinate>? onTap;
+  final MapFeatureTap? onFeatureTap;
   final VoidCallback? onStyleReady;
   final ValueChanged<MapLibreMapController>? onMapCreated;
+  final ValueChanged<MapViewport>? onViewportChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -55,13 +65,46 @@ class MakoloMapView extends StatelessWidget {
         bearing: initialViewport.bearing,
         tilt: initialViewport.tilt,
       ),
-      onMapClick: onTap == null
+      // A style layer's feature tap normally consumes Map click events.
+      // Allow Discovery's clustered layers to receive the same tap position.
+      featureTapsTriggersMapClick: onFeatureTap != null,
+      onMapClick: onTap == null && onFeatureTap == null
           ? null
-          : (_, coordinate) => onTap!(
-              MapCoordinate(coordinate.latitude, coordinate.longitude),
-            ),
+          : (point, coordinate) {
+              final location = MapCoordinate(
+                coordinate.latitude,
+                coordinate.longitude,
+              );
+              onTap?.call(location);
+              onFeatureTap?.call(point, location);
+            },
       onStyleLoadedCallback: onStyleReady,
       onMapCreated: onMapCreated,
+      onCameraMove: onViewportChanged == null
+          ? null
+          : (camera) {
+              final target = camera.target;
+              if (!target.latitude.isFinite ||
+                  !target.longitude.isFinite ||
+                  !camera.zoom.isFinite ||
+                  !camera.bearing.isFinite ||
+                  !camera.tilt.isFinite ||
+                  camera.zoom < 0 ||
+                  target.latitude < -90 ||
+                  target.latitude > 90 ||
+                  target.longitude < -180 ||
+                  target.longitude > 180) {
+                return;
+              }
+              onViewportChanged!(
+                MapViewport(
+                  center: MapCoordinate(target.latitude, target.longitude),
+                  zoom: camera.zoom,
+                  bearing: camera.bearing,
+                  tilt: camera.tilt,
+                ),
+              );
+            },
     );
   }
 }
@@ -80,8 +123,10 @@ class ConfiguredMakoloMapView extends StatefulWidget {
     required this.initialViewport,
     required this.fallbackBuilder,
     this.onTap,
+    this.onFeatureTap,
     this.onStyleReady,
     this.onMapCreated,
+    this.onViewportChanged,
     this.styleLoadTimeout = const Duration(seconds: 20),
     super.key,
   });
@@ -90,8 +135,10 @@ class ConfiguredMakoloMapView extends StatefulWidget {
   final MapViewport initialViewport;
   final MakoloMapFallbackBuilder fallbackBuilder;
   final ValueChanged<MapCoordinate>? onTap;
+  final MapFeatureTap? onFeatureTap;
   final VoidCallback? onStyleReady;
   final ValueChanged<MapLibreMapController>? onMapCreated;
+  final ValueChanged<MapViewport>? onViewportChanged;
   final Duration styleLoadTimeout;
 
   @override
@@ -181,8 +228,10 @@ class _ConfiguredMakoloMapViewState extends State<ConfiguredMakoloMapView> {
       styleString: _style!,
       initialViewport: widget.initialViewport,
       onTap: widget.onTap,
+      onFeatureTap: widget.onFeatureTap,
       onStyleReady: _handleStyleReady,
       onMapCreated: widget.onMapCreated,
+      onViewportChanged: widget.onViewportChanged,
     );
   }
 }

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/features/me/me_collectives_screen.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
@@ -82,14 +87,28 @@ Map<String, dynamic> _fullPayload({bool supportAvailable = false}) {
       'teams': {
         'count': 1,
         'items': [
-          {'kind': 'team', 'id': 'team-1', 'name': 'Équipe terrain'},
+          {
+            'kind': 'team',
+            'id': 'team-1',
+            'name': 'Équipe terrain',
+            'space': {'id': 'space-1', 'name': 'Espace Makolo'},
+          },
         ],
         'has_more': false,
       },
       'groups': {
         'count': 1,
         'items': [
-          {'kind': 'group', 'id': 'group-1', 'name': 'Groupe local'},
+          {
+            'kind': 'group',
+            'id': 'group-1',
+            'name': 'Groupe local',
+            'owner': {
+              'kind': 'space',
+              'id': 'space-1',
+              'name': 'Espace Makolo',
+            },
+          },
         ],
         'has_more': false,
       },
@@ -204,7 +223,7 @@ void main() {
     expect(selection.identitySubtitle, 'Ingénieur · Lubumbashi, RDC');
     expect(
       selection.territories.map((territory) => territory.presentation.key),
-      ['passport', 'considerations', 'collectives', 'accesses', 'resources'],
+      ['passport', 'accesses', 'considerations', 'collectives', 'resources'],
     );
 
     final resources = selection.territories.singleWhere(
@@ -216,14 +235,25 @@ void main() {
       'proof',
       'credential',
     ]);
+    expect(
+      resources.items
+          .where(
+            (item) =>
+                item.destination.kind == 'personal_asset' ||
+                item.destination.kind == 'proof' ||
+                item.destination.kind == 'credential',
+          )
+          .every((item) => item.canOpen),
+      isTrue,
+    );
 
     final collectives = selection.territories.singleWhere(
       (territory) => territory.presentation.key == 'collectives',
     );
     expect(collectives.items.map((item) => item.subtitle), [
-      'Contexte autorisé',
-      'Équipe',
-      'Groupe',
+      'Peut agir pour cet Espace',
+      'Équipe · Espace Makolo',
+      'Groupe · Espace Makolo',
     ]);
     expect(
       collectives.items
@@ -233,8 +263,247 @@ void main() {
                 item.destination.kind == 'group',
           )
           .map((item) => item.subtitle),
-      isNot(contains('Contexte autorisé')),
+      isNot(contains('Peut agir pour cet Espace')),
     );
+  });
+
+  test('homonymous teams and proofs keep their canonical context', () {
+    final payload = _fullPayload();
+    final collectives = payload['collectives'] as Map<String, dynamic>;
+    collectives['teams'] = {
+      'count': 2,
+      'items': [
+        {
+          'id': 'team-one',
+          'name': 'Équipe principale',
+          'space': {'id': 'space-one', 'name': 'Mulykap'},
+        },
+        {
+          'id': 'team-two',
+          'name': 'Équipe principale',
+          'space': {'id': 'space-two', 'name': 'Fondation'},
+        },
+      ],
+      'has_more': false,
+    };
+    final resources = payload['resources'] as Map<String, dynamic>;
+    resources['proofs'] = {
+      'count': 2,
+      'items': [
+        {
+          'id': 'proof-one',
+          'proof_type_label': 'Accès utilisé',
+          'status_label': 'Établie',
+          'activity': {'title': 'Rencontre à Luanda'},
+        },
+        {
+          'id': 'proof-two',
+          'proof_type_label': 'Accès utilisé',
+          'status_label': 'Établie',
+          'activity': {'title': 'Atelier à Cape Town'},
+        },
+      ],
+      'has_more': false,
+    };
+    final selection = selector.select(
+      projection: _projection(payload),
+      now: now,
+    );
+    final teams = selection.territories
+        .singleWhere((territory) => territory.presentation.key == 'collectives')
+        .items
+        .where((item) => item.destination.kind == 'team')
+        .toList();
+    expect(teams.map((item) => item.destination.id), ['team-one', 'team-two']);
+    expect(teams.map((item) => item.subtitle), [
+      'Équipe · Mulykap',
+      'Équipe · Fondation',
+    ]);
+    final proofs = selection.territories
+        .singleWhere((territory) => territory.presentation.key == 'resources')
+        .items
+        .where((item) => item.destination.kind == 'proof')
+        .toList();
+    expect(proofs.map((item) => item.subtitle), [
+      'Rencontre à Luanda · Établie',
+      'Atelier à Cape Town · Établie',
+    ]);
+    expect(proofs.map((item) => item.destination.kind), ['proof', 'proof']);
+  });
+
+  test('saved media requires an owner-backed recognition use', () {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    final bookmark = <String, dynamic>{
+      'id': 'bookmark-1',
+      'activity': {'id': 'activity-1', 'title': 'Formation'},
+      'media_bindings': [
+        {
+          'purpose': 'RECOGNIZE',
+          'target': {'kind': 'activity', 'id': 'activity-1'},
+          'resource': {
+            'kind': 'presentation_media_use',
+            'id': 'use-1',
+            'url': '/presentations/media/uses/use-1/file/',
+            'mime_type': 'image/jpeg',
+            'alt_text': 'Salle de formation',
+          },
+        },
+      ],
+    };
+    considerations['bookmarks'] = {
+      'count': 1,
+      'items': [bookmark],
+      'has_more': false,
+    };
+    MeItemPresentation savedItem() {
+      final selected = selector.select(
+        projection: _projection(payload),
+        now: now,
+      );
+      return selected.territories
+          .singleWhere(
+            (section) => section.presentation.key == 'considerations',
+          )
+          .items
+          .singleWhere((item) => item.destination.kind == 'activity');
+    }
+
+    expect(savedItem().mediaPath, '/presentations/media/uses/use-1/file/');
+    expect(savedItem().mediaAlt, 'Salle de formation');
+
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'other-activity';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'activity-1';
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        'https://external.example/media.jpg';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        '/presentations/media/uses/use-1/file/';
+    (bookmark['media_bindings'] as List)[0]['purpose'] = 'UNDERSTAND';
+    expect(savedItem().mediaPath, isNull);
+  });
+
+  testWidgets(
+    'Moi limits saved preview to three and opens the full collection',
+    (tester) async {
+      final payload = _fullPayload();
+      final considerations = payload['considerations'] as Map<String, dynamic>;
+      considerations['bookmarks'] = {
+        'count': 5,
+        'items': [
+          for (var index = 0; index < 5; index++)
+            {
+              'id': 'bookmark-$index',
+              'activity': {
+                'id': 'activity-$index',
+                'title': 'Possibilité $index',
+              },
+            },
+        ],
+        'has_more': false,
+      };
+      var opened = '';
+      final selection = selector.select(
+        projection: _projection(payload),
+        now: now,
+      );
+      expect(
+        selection.territories
+            .singleWhere((t) => t.presentation.key == 'considerations')
+            .savedCount,
+        5,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            opened = destination.kind;
+            return true;
+          },
+        ),
+      );
+      expect(find.text('Possibilité 0'), findsOneWidget);
+      expect(find.text('Possibilité 1'), findsOneWidget);
+      expect(find.text('Possibilité 2'), findsOneWidget);
+      expect(find.text('Possibilité 3'), findsNothing);
+      expect(find.text('Possibilité 4'), findsNothing);
+      expect(find.text('Vous avez tout exploré'), findsNothing);
+      await tester.ensureVisible(
+        find.byKey(const Key('me-entry-saved_collection')),
+      );
+      await tester.tap(find.byKey(const Key('me-entry-saved_collection')));
+      expect(opened, 'saved_collection');
+    },
+  );
+
+  testWidgets('tapping personal choices heading opens its native owner', (
+    tester,
+  ) async {
+    var kind = '';
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          kind = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Ce qui compte pour moi'));
+    await tester.tap(find.text('Ce qui compte pour moi'));
+    expect(kind, 'considerations');
+  });
+
+  test('N1 uses owner counts, not locally inferred item totals', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    final byKey = {
+      for (final territory in selection.territories)
+        territory.presentation.key: territory,
+    };
+    expect(byKey['considerations']!.totalCount, 1);
+    expect(byKey['collectives']!.totalCount, 3);
+    expect(byKey['resources']!.totalCount, 3);
+    expect(selection.identityAvatarUrl, isNull);
+  });
+
+  testWidgets('N1 avatar has a legible local-first fallback', (tester) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
+    expect(find.text('GB'), findsOneWidget);
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+  });
+
+  testWidgets('wide large text stays in one readable territory column', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(900, 900),
+      textScale: 1.6,
+      child: MeView(selection: selection),
+    );
+    expect(find.byKey(const Key('me-navigation-hub')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    expect(find.byType(MakoloContentFrame), findsNothing);
   });
 
   test('support is conditional on runtime availability', () {
@@ -259,6 +528,13 @@ void main() {
       ),
       isTrue,
     );
+    final support = withSupport.territories.singleWhere(
+      (territory) => territory.presentation.key == 'support',
+    );
+    expect(support.items, hasLength(1));
+    expect(support.items.single.destination.kind, 'support_collection');
+    expect(support.items.single.destination.id, 'recognition');
+    expect(support.items.single.canOpen, isTrue);
   });
 
   test('sparse remains section-first with local empty territories', () {
@@ -341,10 +617,9 @@ void main() {
     expect(find.byKey(const Key('me-first-availability')), findsOneWidget);
     expect(find.text('Identité'), findsOneWidget);
     expect(find.text('Passeport Makolo'), findsOneWidget);
-    expect(find.text('Ce qui compte pour moi'), findsOneWidget);
-    expect(find.text('Mes collectifs'), findsOneWidget);
-    expect(find.text('Mes accès'), findsOneWidget);
-    expect(find.text('Mes ressources'), findsOneWidget);
+    expect(find.text('Mes projets'), findsOneWidget);
+    expect(find.text('Mes dossiers'), findsOneWidget);
+    expect(find.text('Mon espace'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
@@ -356,13 +631,12 @@ void main() {
 
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
-    expect(
-      find.text('Aucun Passeport disponible ici pour le moment.'),
-      findsOneWidget,
-    );
-    expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
-    expect(find.text('Aucun collectif lié pour le moment.'), findsOneWidget);
-    expect(find.text('Aucune ressource disponible ici.'), findsOneWidget);
+    expect(find.text('Aucun passeport disponible.'), findsOneWidget);
+    expect(find.text('Ce qui compte pour moi'), findsOneWidget);
+    expect(find.text('Mes collectifs'), findsOneWidget);
+    expect(find.text('Mes ressources'), findsOneWidget);
+    expect(find.text('Mes veilles'), findsOneWidget);
+    expect(find.text('Mes suivis'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -374,7 +648,7 @@ void main() {
       viewport: const Size(800, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
     expect(find.byKey(const Key('me-territories-wide')), findsNothing);
   });
 
@@ -386,8 +660,8 @@ void main() {
       viewport: const Size(840, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
-    expect(find.byKey(const Key('makolo-adaptive-grid')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-hub')), findsOneWidget);
+    expect(find.byType(MakoloContentFrame), findsOneWidget);
   });
 
   testWidgets('900 stays two-territory without dashboard expansion', (
@@ -400,12 +674,8 @@ void main() {
       viewport: const Size(900, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
-
-    final grid = tester.widget<MakoloAdaptiveGrid>(
-      find.byKey(const Key('me-territories-wide')),
-    );
-    expect(grid.maxColumns, 2);
+    expect(find.byType(MakoloContentFrame), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
   });
 
   testWidgets('sparse wide does not add cognitive depth for width alone', (
@@ -422,39 +692,334 @@ void main() {
       child: MeView(selection: selection),
     );
 
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
   });
 
-  testWidgets('resource N2 changes focus and back restores Moi', (
+  testWidgets(
+    'owner handoff opens a real destination without a fake Moi depth',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      String? openedKind;
+      String? openedId;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            openedKind = destination.kind;
+            openedId = destination.id;
+            return true;
+          },
+        ),
+      );
+
+      await tester.ensureVisible(find.text('Passeport.pdf'));
+      await tester.pump();
+      await tester.tap(find.text('Passeport.pdf'));
+      await tester.pump();
+
+      expect(openedKind, 'personal_asset');
+      expect(openedId, isNotEmpty);
+      expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+      expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    },
+  );
+
+  test('Passport and Group use explicit native owner destinations', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    final passport = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'passport',
+    );
+    expect(passport.items.single.destination.kind, 'passport');
+    expect(passport.items.single.canOpen, isTrue);
+
+    final collectives = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'collectives',
+    );
+    final groups = collectives.items.where(
+      (item) => item.destination.kind == 'group',
+    );
+    expect(groups, isNotEmpty);
+    expect(groups.every((item) => item.canOpen), isTrue);
+  });
+
+  testWidgets(
+    'compact Moi shows a single Passport card and concise saved items',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(selection: selection, onOpenDestination: (_) => true),
+      );
+      expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+      final passport = find.byKey(const ValueKey('me-territory-passport'));
+      expect(passport, findsOneWidget);
+      expect(tester.getSize(passport).width, closeTo(430, 0.1));
+      expect(find.text('Mon passeport'), findsOneWidget);
+      expect(find.text('Enregistré'), findsNothing);
+      expect(find.text('Passeport.pdf'), findsOneWidget);
+
+      // No giant framed wrapper around the identity and territory content.
+      expect(find.byType(Card), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('saved previews open their real Activity without a submenu', (
+    tester,
+  ) async {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    considerations['bookmarks'] = {
+      'count': 1,
+      'items': [
+        {
+          'id': 'bookmark-1',
+          'activity': {'id': 'activity-1', 'title': 'Possibilité conservée'},
+        },
+      ],
+      'has_more': false,
+    };
+    final selection = selector.select(
+      projection: _projection(payload),
+      now: now,
+    );
+    String? destination;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (item) {
+          destination = item.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Possibilité conservée'));
+    await tester.tap(find.text('Possibilité conservée'));
+    expect(destination, 'activity');
+    expect(find.text('Enregistré'), findsNothing);
+  });
+
+  testWidgets('Moi switches list/grid without losing its destinations', (
     tester,
   ) async {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
       now: now,
     );
-
+    var destination = '';
     await PresentationHarness.pump(
       tester,
       viewport: const Size(430, 932),
-      child: MeView(selection: selection),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (item) {
+          destination = item.kind;
+          return true;
+        },
+      ),
     );
-
-    await tester.ensureVisible(find.text('Passeport.pdf'));
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    expect(
+      find.byKey(const Key('me-shortcut-project_collection')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('me-shortcut-dossier_collection')),
+      findsOneWidget,
+    );
+    expect(find.text('Mes veilles'), findsOneWidget);
+    expect(find.text('Mes suivis'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
+    expect(find.text('Liste'), findsNothing);
+    expect(find.text('Grille'), findsNothing);
+    await tester.tap(find.byTooltip('Grille'));
     await tester.pump();
-    await tester.tap(find.text('Passeport.pdf'));
+    expect(find.byKey(const Key('me-navigation-grid')), findsOneWidget);
+    expect(find.text('Passeport.pdf'), findsNothing);
+    await tester.tap(find.byTooltip('Liste'));
     await tester.pump();
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const Key('me-shortcut-project_collection')),
+    );
+    await tester.tap(find.byKey(const Key('me-shortcut-project_collection')));
+    expect(destination, 'project_collection');
+  });
 
-    expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
-    expect(find.text('Privé'), findsOneWidget);
-    expect(find.textContaining('Son usage dépendra'), findsNothing);
-    expect(find.textContaining('Requirement'), findsNothing);
-    expect(find.textContaining('AccessCredential'), findsNothing);
+  testWidgets(
+    'Moi grid centers its information and keeps Discover saved symbol',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(selection: selection, onOpenDestination: (_) => true),
+      );
 
-    await tester.tap(find.widgetWithText(TextButton, 'Moi'));
+      await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
+      await tester.tap(find.byTooltip('Grille'));
+      await tester.pump();
+
+      final saved = find.byKey(const Key('me-grid-saved_collection'));
+      await tester.ensureVisible(saved);
+      expect(
+        find.descendant(
+          of: saved,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is DiscoveryOrbitIcon && widget.saved,
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: saved, matching: find.text('À retrouver')),
+        findsOneWidget,
+      );
+
+      final resources = find.byKey(const Key('me-grid-resource_collection'));
+      await tester.ensureVisible(resources);
+      expect(
+        find.descendant(
+          of: resources,
+          matching: find.text('Documents, preuves et attestations'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: resources, matching: find.text('3 ressources')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('list mode previews only locally received Access and History', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-1');
+    await store.putProjection(
+      kind: 'personal.accesses',
+      resourceKey: 'beneficiary:0:24',
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {
+            'identity': {'kind': 'access', 'id': 'right-1'},
+            'activity': {'id': 'activity-1', 'title': 'Billet de formation'},
+          },
+        ],
+        'page': {'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+    await store.putProjection(
+      kind: 'personal.history',
+      resourceKey: 'offset:0:limit:24',
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': 'journey-1'},
+            'title': 'Formation accomplie',
+          },
+        ],
+        'page': {'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+    String? opened;
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        store: store,
+        onOpenDestination: (destination) {
+          opened = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Billet de formation'), findsOneWidget);
+    await tester.ensureVisible(find.text('Billet de formation'));
+    await tester.tap(find.text('Billet de formation'));
+    expect(opened, 'access');
+    expect(find.text('Formation accomplie'), findsOneWidget);
+    await tester.ensureVisible(find.text('Formation accomplie'));
+    await tester.tap(find.text('Formation accomplie'));
+    expect(opened, 'journey');
+  });
+
+  testWidgets('identity edit uses an explicit owner destination', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    String? kind;
+    await PresentationHarness.pump(
+      tester,
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          kind = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.tap(find.byTooltip('Modifier mon profil'));
     await tester.pump();
-
+    expect(kind, 'profile_self');
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+  });
+
+  testWidgets('unknown owner item cannot open an invented depth', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    var invocations = 0;
+    await PresentationHarness.pump(
+      tester,
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (_) {
+          invocations++;
+          return true;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Technologie'));
+    await tester.pump();
+    await tester.tap(find.text('Technologie'));
+    await tester.pump();
+    expect(invocations, 0);
+    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
   });
 
   testWidgets('body starts with identity without repeating Moi', (
@@ -530,6 +1095,67 @@ void main() {
     expect(find.byType(MakoloNotice), findsNothing);
   });
 
+  testWidgets(
+    'collectives depth is contextual, scrollable and has no page control',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-1');
+      await store.putProjection(
+        kind: 'personal.me',
+        schemaVersion: 1,
+        payload: _fullPayload(),
+        receivedAt: now,
+        sourceGeneratedAt: now,
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('http://localhost/'),
+        tokenStore: _UnusedMeTokenStore(),
+      );
+      addTearDown(() => api.close());
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeCollectivesScreen(
+          personal: PersonalRepository(store),
+          api: api,
+          onOpenDestination: (_) => true,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Équipe terrain'), findsOneWidget);
+      expect(find.text('Équipe · Espace Makolo'), findsOneWidget);
+      expect(find.text('Groupe · Espace Makolo'), findsOneWidget);
+      expect(find.text('Afficher la suite'), findsNothing);
+      expect(find.text('Vous avez tout vu'), findsNothing);
+      expect(find.byKey(const Key('me-collectives-summary')), findsNothing);
+      expect(
+        find.byKey(const Key('me-collectives-title-count')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('me-collectives-search-toggle')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('me-collectives-sort')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('me-collectives-search-toggle')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('me-collectives-search')),
+        'introuvable',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Aucun collectif ne correspond à cette recherche.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('me-collectives-search-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('Équipe terrain'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final scale in [1.0, 1.3, 1.6]) {
     testWidgets('textScale $scale keeps essential content available', (
       tester,
@@ -586,6 +1212,11 @@ class _MeStreamRepository extends PersonalRepository {
 }
 
 class _NeverUsedStore implements ProfileStore {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnusedMeTokenStore implements TokenStore {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

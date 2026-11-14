@@ -15,13 +15,22 @@ on:
         options:
           - quick
           - full
+      backend_target:
+        description: "Backend targeted by the DEV APK: PythonAnywhere, Vercel PR #522, or both"
+        required: true
+        default: "pythonanywhere"
+        type: choice
+        options:
+          - pythonanywhere
+          - vercel
+          - both
       api_base_url:
         description: "Optional Makolo API override; empty keeps config/dev.json"
         required: false
         default: ""
         type: string
   push:
-    branches: [main]
+    branches: [main, fix/discover-a-continuation-context-20261014]
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
@@ -71,25 +80,71 @@ jobs:
       - name: Full checkpoint validation
         if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'full'
         run: |
-          dart format --output=none --set-exit-if-changed lib test
+          bash tool/dart_format.sh check
           flutter analyze
           flutter test --exclude-tags golden
-      - name: Prepare DEV runtime configuration
+      - name: Validate configured DEV mapping
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and .MAKOLO_MAPS_ENABLED == "true"
+            and ((.MAKOLO_MAP_STYLE // "") | startswith("https://"))
+            and .MAKOLO_GEOCODING_ENABLED == "true"
+            and ((.MAKOLO_GEOCODING_API_KEY // "") | length > 0)
+          ' config/dev.json > /dev/null
+          echo "DEV maps and geographic suggestions configured."
+      - name: Prepare backend-specific DEV runtime configurations
         env:
+          MAKOLO_APK_BACKEND_TARGET: ${{ inputs.backend_target || 'pythonanywhere' }}
           MAKOLO_APK_API_BASE_URL: ${{ inputs.api_base_url || '' }}
         run: |
           set -euo pipefail
-          cp config/dev.json /tmp/makolo-dev-runtime.json
-          if [[ -n "$MAKOLO_APK_API_BASE_URL" ]]; then
-            jq --arg api "$MAKOLO_APK_API_BASE_URL"               '.MAKOLO_API_BASE_URL = $api'               /tmp/makolo-dev-runtime.json > /tmp/makolo-dev-runtime.override.json
-            mv /tmp/makolo-dev-runtime.override.json /tmp/makolo-dev-runtime.json
+          if [[ "$MAKOLO_APK_BACKEND_TARGET" == "both" && -n "$MAKOLO_APK_API_BASE_URL" ]]; then
+            echo "api_base_url override is only supported when building one backend." >&2
+            exit 1
           fi
-      - name: Build Android DEV debug APK
-        run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-runtime.json
-      - name: Publish Android DEV debug APK
+          cp config/dev.json /tmp/makolo-dev-pythonanywhere.json
+          jq --arg api "https://makolo-git-fix-discover-1b7ca6-traditionlearningcommunity-8779.vercel.app/" \
+            '.MAKOLO_API_BASE_URL = $api' config/dev.json > /tmp/makolo-dev-vercel.json
+          if [[ -n "$MAKOLO_APK_API_BASE_URL" ]]; then
+            jq --arg api "$MAKOLO_APK_API_BASE_URL" '.MAKOLO_API_BASE_URL = $api' \
+              "/tmp/makolo-dev-${MAKOLO_APK_BACKEND_TARGET}.json" > /tmp/makolo-dev-custom.json
+            mv /tmp/makolo-dev-custom.json "/tmp/makolo-dev-${MAKOLO_APK_BACKEND_TARGET}.json"
+          fi
+      - name: Verify effective DEV runtime configurations
+        run: |
+          set -euo pipefail
+          for config in /tmp/makolo-dev-pythonanywhere.json /tmp/makolo-dev-vercel.json; do
+            jq -e '
+              .MAKOLO_ENVIRONMENT == "dev"
+              and (.MAKOLO_API_BASE_URL | type == "string" and test("^https://[^/]+/?$"))
+              and .MAKOLO_MAPS_ENABLED == "true"
+              and ((.MAKOLO_MAP_STYLE // "") | startswith("https://"))
+              and .MAKOLO_GEOCODING_ENABLED == "true"
+              and ((.MAKOLO_GEOCODING_API_KEY // "") | length > 0)
+            ' "$config" > /dev/null
+          done
+          echo "Both DEV configurations validated (no provider values printed)."
+      - name: Build Android DEV debug APK (PythonAnywhere)
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'))
+        run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-pythonanywhere.json
+      - name: Publish Android DEV debug APK (PythonAnywhere)
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'))
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: makolo-android-dev-debug-apk-${{ github.sha }}
+          name: makolo-android-dev-pythonanywhere-${{ github.sha }}
+          path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Build Android DEV debug APK (Vercel PR 522)
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || ((github.event_name == 'push' && github.ref != 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'vercel' || inputs.backend_target == 'both')))
+        run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-vercel.json
+      - name: Publish Android DEV debug APK (Vercel PR 522)
+        if: github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'vercel' || inputs.backend_target == 'both')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: makolo-android-dev-vercel-pr522-${{ github.sha }}
           path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
           if-no-files-found: error
           retention-days: 14

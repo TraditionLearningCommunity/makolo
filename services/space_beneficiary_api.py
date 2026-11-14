@@ -1,0 +1,417 @@
+"""Native applicant-Space Service flow (distinct from provider/operator MT4).
+
+The URL selects the represented Space. Every read and command rechecks live
+Mandates; there is no implicit actor from the mobile navigation state.
+"""
+from collections.abc import Mapping
+
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.api.projections import projection_envelope
+from groups.models import ActivityGroupEligibility, ActivityGroupEligibilityStatus
+from journeys.models import Journey, JourneyStatus, WorkflowKind
+from organizations.models import Organization
+from readiness import resolve_journey_readiness
+
+from .api_views import (
+    ServiceStartAPIView, _conflict_response, _error_from_owner,
+    _public_service_for_viewer,
+)
+from .forms import ServiceStartForm
+from .models import OpportunityPolicy, ServiceIntakeAnswer
+from .native_start import (
+    ServiceStartIdempotencyConflict, replay_native_start_if_exists,
+    start_service_journey_idempotently,
+)
+from .services import (
+    _questions_for_context, answer_intake_question, submit_service_journey,
+)
+from .space_beneficiary import (
+    can_act_for_space, can_act_for_space_service_journey,
+    can_read_space_service, can_read_space_service_journey,
+)
+
+
+def _reply(body, *, status=200):
+    response = Response(body, status=status)
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _space(request, slug, *, write=False):
+    space = Organization.objects.filter(slug=slug).first()
+    if space is None or not (
+        can_act_for_space(request.user, space) if write
+        else can_read_space_service(request.user, space)
+    ):
+        raise NotFound()
+    return space
+
+
+def _journey(request, slug, journey_id, *, write=False):
+    space = _space(request, slug, write=write)
+    journey = (
+        Journey.objects.select_related(
+            "activity", "beneficiary_space", "service_context",
+            "service_context__opportunity",
+            "service_context__opportunity_revision",
+        )
+        .filter(
+            pk=journey_id, beneficiary_space=space,
+            workflow=WorkflowKind.SERVICE, service_context__isnull=False,
+        )
+        .first()
+    )
+    if journey is None or not (
+        can_act_for_space_service_journey(request.user, journey) if write
+        else can_read_space_service_journey(request.user, journey)
+    ):
+        raise NotFound()
+    return space, journey
+
+
+def _public_space_service(*, pk, viewer):
+    service = _public_service_for_viewer(pk=pk, viewer=viewer)
+    # Group eligibility is a Profile-only policy. A Profile's membership
+    # cannot silently confer that eligibility upon a represented Space.
+    if ActivityGroupEligibility.objects.filter(
+        activity_id=service.activity_id,
+        status=ActivityGroupEligibilityStatus.APPROVED,
+    ).exists():
+        raise NotFound()
+    return service
+
+
+class SpaceBeneficiaryServiceStartAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug, pk):
+        space = _space(request, slug, write=True)
+        _public_space_service(pk=pk, viewer=request.user)
+        # Same Services owner prevalidation as the existing Profile flow.
+        response = ServiceStartAPIView().get(request, pk)
+        response.data["beneficiary"] = {
+            "kind": "space", "id": str(space.pk),
+            "slug": space.slug, "name": space.name,
+        }
+        response.data["links"]["start"] = reverse(
+            "organizations_api:workspace-service-applicant-start",
+            kwargs={"slug": space.slug, "pk": pk},
+        )
+        return response
+
+    def post(self, request, slug, pk):
+        space = _space(request, slug, write=True)
+        service = _public_space_service(pk=pk, viewer=request.user)
+        if not isinstance(request.data, Mapping):
+            raise ValidationError({"body": "Un objet JSON est requis."})
+        if set(request.data) - {"objective", "opportunity"}:
+            raise ValidationError({"body": "Champs non reconnus."})
+        key = request.headers.get("Idempotency-Key", "")
+        try:
+            replay = replay_native_start_if_exists(
+                service=service, actor=request.user, operation_key=key,
+                objective=request.data.get("objective") or "",
+                opportunity_id=request.data.get("opportunity"),
+                beneficiary_space=space,
+            )
+        except ServiceStartIdempotencyConflict:
+            return _conflict_response()
+        except DjangoValidationError as exc:
+            raise _error_from_owner(exc) from exc
+        if replay is not None:
+            journey, created = replay
+        else:
+            if (
+                service.opportunity_policy == OpportunityPolicy.NONE
+                and request.data.get("opportunity")
+            ):
+                raise ValidationError({
+                    "opportunity": "Ce Service n’accepte pas d’opportunité."
+                })
+            form = ServiceStartForm(data=request.data, service=service)
+            if not form.is_valid():
+                raise ValidationError(dict(form.errors))
+            try:
+                journey, created = start_service_journey_idempotently(
+                    service=service, actor=request.user, operation_key=key,
+                    objective=form.cleaned_data.get("objective") or "",
+                    opportunity=form.cleaned_data.get("opportunity"),
+                    beneficiary_space=space,
+                )
+            except ServiceStartIdempotencyConflict:
+                return _conflict_response()
+            except DjangoValidationError as exc:
+                raise _error_from_owner(exc) from exc
+            except DjangoPermissionDenied:
+                raise NotFound() from None
+
+        return _reply({
+            "journey": {
+                "kind": "journey", "id": str(journey.pk),
+                "workflow": journey.workflow, "status": journey.status,
+                "beneficiary": {"kind": "space", "id": str(space.pk)},
+            },
+            "replayed": not created,
+            "space": {"id": str(space.pk), "slug": space.slug},
+            "links": {
+                "journey": reverse(
+                    "organizations_api:workspace-beneficiary-journey",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
+                "intake": reverse(
+                    "organizations_api:workspace-beneficiary-intake",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
+            },
+        }, status=201 if created else 200)
+
+
+class SpaceBeneficiaryJourneyListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug):
+        space = _space(request, slug)
+        raw_offset = request.query_params.get("offset", "0")
+        if not raw_offset.isdecimal() or len(raw_offset) > 5:
+            raise ValidationError({"offset": "Position de page invalide."})
+        offset = int(raw_offset)
+        rows = list(
+            Journey.objects.filter(
+                beneficiary_space=space, workflow=WorkflowKind.SERVICE,
+                service_context__isnull=False,
+            )
+            .select_related("activity", "service_context")
+            .order_by("-created_at", "-pk")[offset:offset + 51]
+        )
+        return _reply({
+            "space": {
+                "id": str(space.pk), "slug": space.slug, "name": space.name,
+            },
+            "journeys": [
+                {
+                    "id": str(row.pk),
+                    "title": row.activity.title,
+                    "status": row.status,
+                    "created_at": row.created_at.isoformat(),
+                    "objective": row.service_context.objective or None,
+                    "link": reverse(
+                        "organizations_api:workspace-beneficiary-journey",
+                        kwargs={"slug": space.slug, "journey_id": row.pk},
+                    ),
+                }
+                for row in rows[:50]
+            ],
+            "has_more": len(rows) > 50,
+            "next_offset": offset + 50 if len(rows) > 50 else None,
+        })
+
+
+class SpaceBeneficiaryJourneyAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug, journey_id):
+        space, journey = _journey(request, slug, journey_id)
+        from core.api.detail_projections import (
+            _journey_step_summaries, _service_request, _service_result,
+            _service_requirements, serialize_readiness,
+        )
+        observed_at = timezone.now()
+        readiness = resolve_journey_readiness(journey, viewer=None, observed_at=observed_at)
+        readiness_payload = serialize_readiness(readiness)
+        # Readiness belongs to the owner. Its generic personal /me actions
+        # cannot be reused as Space authority or as a false handoff.
+        for group in ("ready", "actor_interventions", "waiting", "blockers"):
+            for check in readiness_payload[group]:
+                next_action = check.get("next")
+                if next_action and (next_action.get("link") or "").startswith(
+                    "/api/v1/me/"
+                ):
+                    next_action["link"] = None
+        if readiness_payload["next"] and (
+            readiness_payload["next"].get("link") or ""
+        ).startswith("/api/v1/me/"):
+            readiness_payload["next"]["link"] = None
+        write = can_act_for_space_service_journey(request.user, journey)
+        context = journey.service_context
+        forms = list(journey.form_requests.select_related("form_version").order_by("created_at", "pk"))
+        details = {
+            "identity": {
+                "kind": "journey", "id": str(journey.pk),
+                "workflow": journey.workflow,
+                "beneficiary": {"kind": "space", "id": str(space.pk)},
+            },
+            "space": {"id": str(space.pk), "slug": space.slug, "name": space.name},
+            "representation": {
+                "title": journey.activity.title,
+                "summary": journey.activity.short_description or None,
+            },
+            "state": {"code": journey.status, "label": journey.get_status_display()},
+            "readiness": readiness_payload,
+            "steps": _journey_step_summaries(journey),
+            "requirements": [
+                {
+                    **row,
+                    "link": reverse(
+                        "organizations_api:workspace-beneficiary-requirement",
+                        kwargs={
+                            "slug": space.slug,
+                            "journey_id": journey.pk,
+                            "assessment_id": row["id"],
+                        },
+                    ),
+                }
+                for row in _service_requirements(journey)
+            ],
+            "service_request": _service_request(journey),
+            "service_result": _service_result(journey),
+            "forms": [
+                {
+                    "id": str(row.pk), "title": row.form_version.title,
+                    "status": row.status, "required": row.required,
+                    "link": reverse("questionnaire-request-detail", kwargs={"pk": row.pk}),
+                    "links": {
+                        "detail": reverse("questionnaire-request-detail", kwargs={"pk": row.pk}),
+                        "save": reverse("questionnaire-response-save", kwargs={"pk": row.pk}) if write and row.status != "completed" else None,
+                        "submit": reverse("questionnaire-response-submit", kwargs={"pk": row.pk}) if write and row.status != "completed" else None,
+                    },
+                    "capabilities": ["complete_form"] if write and row.status != "completed" else [],
+                }
+                for row in forms
+            ],
+            "capabilities": {
+                "view": True,
+                "answer_intake": write and journey.status == JourneyStatus.DRAFT,
+                "upload_artifact": write,
+            },
+            "links": {
+                "intake": reverse(
+                    "organizations_api:workspace-beneficiary-intake",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
+                "artifacts": reverse(
+                    "organizations_api:workspace-beneficiary-artifacts",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
+                "resources": reverse(
+                    "organizations_api:workspace-beneficiary-resources",
+                    kwargs={"slug": space.slug, "journey_id": journey.pk},
+                ),
+            },
+        }
+        return _reply(projection_envelope(
+            projection="space.service.journey.detail",
+            data=details,
+            generated_at=observed_at,
+            scope="space",
+        ))
+
+
+class SpaceBeneficiaryRequirementAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug, journey_id, assessment_id):
+        space, journey = _journey(request, slug, journey_id)
+        from services.models import ServiceRequirementAssessment
+        from services.requirement_services import derive_requirement_consequence
+
+        assessment = (
+            ServiceRequirementAssessment.objects.select_related("requirement")
+            .filter(pk=assessment_id, context__journey=journey)
+            .first()
+        )
+        if assessment is None:
+            raise NotFound()
+        consequence = derive_requirement_consequence(assessment)
+        return _reply({
+            "owner": {"kind": "journey", "id": str(journey.pk)},
+            "space": {"id": str(space.pk), "slug": space.slug},
+            "requirement": {
+                "id": str(assessment.pk),
+                "title": assessment.requirement.title,
+                "kind": assessment.requirement.kind,
+                "required": assessment.requirement.is_mandatory,
+                "status": assessment.status,
+                "consequence": consequence.value if consequence else None,
+            },
+            "note": "Posséder une pièce n’établit pas la satisfaction de cette condition.",
+            "capabilities": {
+                "submit_evidence": can_act_for_space_service_journey(
+                    request.user, journey,
+                ) and assessment.status not in {"satisfied", "not_applicable"},
+            },
+        })
+
+
+class SpaceBeneficiaryIntakeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _details(journey):
+        context = journey.service_context
+        questions = list(_questions_for_context(context))
+        answers = {
+            row.question_id: row.value
+            for row in ServiceIntakeAnswer.objects.filter(journey=journey)
+        }
+        return {
+            "journey_id": str(journey.pk),
+            "state": journey.status,
+            "questions": [
+                {
+                    "id": str(question.pk), "label": question.prompt,
+                    "type": question.question_type, "required": question.is_required,
+                    "options": question.options,
+                    "value": answers.get(question.pk),
+                }
+                for question in questions
+            ],
+            "can_edit": journey.status == JourneyStatus.DRAFT,
+        }
+
+    def get(self, request, slug, journey_id):
+        _, journey = _journey(request, slug, journey_id, write=True)
+        return _reply(self._details(journey))
+
+    def post(self, request, slug, journey_id):
+        _, journey = _journey(request, slug, journey_id, write=True)
+        if not isinstance(request.data, Mapping):
+            raise ValidationError({"body": "Un objet JSON est requis."})
+        if set(request.data) - {"answers", "submit"}:
+            raise ValidationError({"body": "Champs non reconnus."})
+        answers = request.data.get("answers", {})
+        if not isinstance(answers, Mapping) or len(answers) > 100:
+            raise ValidationError({"answers": "Réponses invalides."})
+        if request.data.get("submit", False) not in {True, False}:
+            raise ValidationError({"submit": "Booléen requis."})
+        questions = {
+            str(question.pk): question
+            for question in _questions_for_context(journey.service_context)
+        }
+        if set(answers) - set(questions):
+            raise ValidationError({"answers": "Question inconnue."})
+        try:
+            with transaction.atomic():
+                for question_id, value in answers.items():
+                    answer_intake_question(
+                        journey=journey, question=questions[question_id],
+                        value=value, actor=request.user,
+                    )
+                if request.data.get("submit", False):
+                    submit_service_journey(journey=journey, actor=request.user)
+        except DjangoValidationError as exc:
+            raise _error_from_owner(exc) from exc
+        except DjangoPermissionDenied:
+            raise NotFound() from None
+        journey.refresh_from_db()
+        return _reply(self._details(journey))
