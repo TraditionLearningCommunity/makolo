@@ -831,10 +831,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   /// Detailed views start immediately under the AppBar; only the overview
   /// displays the full identity and its secondary modules.
   Widget _journeysHeading(Map<String, dynamic> data) {
-    final hasContent = _mode != _DossierMode.overview ||
+    final hasContent =
+        _mode != _DossierMode.overview ||
         _rows(data['visible_journeys']).isNotEmpty ||
         _rows(data['visible_dependencies']).isNotEmpty;
-    final canLink = _cap(data, 'dossier.journey.link') &&
+    final canLink =
+        _cap(data, 'dossier.journey.link') &&
         (_mode == _DossierMode.overview || _mode == _DossierMode.list);
     final scheme = Theme.of(context).colorScheme;
     final title = Row(
@@ -844,16 +846,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         const SizedBox(width: 6),
         Text(
           'Démarches',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
       ],
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final canShareLine = hasContent &&
-            constraints.maxWidth >= (canLink ? 360 : 280);
+        final canShareLine =
+            hasContent && constraints.maxWidth >= (canLink ? 360 : 280);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -863,10 +864,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   title,
                   const Spacer(),
                   SizedBox(width: 176, child: _tabs()),
-                  if (canLink) ...[
-                    const SizedBox(width: 5),
-                    _linkAction(data),
-                  ],
+                  if (canLink) ...[const SizedBox(width: 5), _linkAction(data)],
                 ],
               )
             else ...[
