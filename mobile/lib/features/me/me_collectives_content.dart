@@ -128,10 +128,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
       final space = _collectiveMap(_row(item)?['space']);
       final id = space?['id'];
       final slug = space?['slug'];
-      if (id is String &&
-          id.isNotEmpty &&
-          slug is String &&
-          slug.isNotEmpty) {
+      if (id is String && id.isNotEmpty && slug is String && slug.isNotEmpty) {
         return StructuredDestination(kind: 'space', id: id, link: slug);
       }
       return null;
@@ -224,15 +221,15 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
       child: Center(
         child: Text(
           initials.isEmpty ? '•' : initials,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: scheme.primary,
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w700),
         ),
       ),
     );
     return ClipRRect(
-      key: Key('me-collective-visual-${item.destination.kind}-${item.destination.id}'),
+      key: Key(
+        'me-collective-visual-${item.destination.kind}-${item.destination.id}',
+      ),
       borderRadius: BorderRadius.circular(14),
       child: SizedBox(
         width: size,
@@ -278,9 +275,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                       item.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     if (item.subtitle != null) ...[
                       const SizedBox(height: 4),
@@ -288,9 +284,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                         widget.offline ? 'Espace lié à moi' : item.subtitle!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ],
                   ],
@@ -319,9 +314,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final destination = _destination(item);
     final subtitle = item.subtitle;
     return Material(
-      key: Key(
-        'me-collective-${item.destination.kind}-${item.destination.id}',
-      ),
+      key: Key('me-collective-${item.destination.kind}-${item.destination.id}'),
       color: scheme.surface,
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
@@ -341,9 +334,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                       item.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 3),
@@ -351,9 +343,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
                         subtitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ],
                   ],
@@ -385,9 +376,8 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             padding: const EdgeInsets.fromLTRB(2, 24, 0, 10),
             child: Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
           )
         else
@@ -405,9 +395,9 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final spaces = _visible('space');
     final teams = _visible('team');
     final groups = _visible('group');
-    final hasResults = (_tab == _CollectiveTab.all ||
-            _tab == _CollectiveTab.spaces) &&
-        spaces.isNotEmpty ||
+    final hasResults =
+        (_tab == _CollectiveTab.all || _tab == _CollectiveTab.spaces) &&
+            spaces.isNotEmpty ||
         (_tab == _CollectiveTab.all || _tab == _CollectiveTab.teams) &&
             teams.isNotEmpty ||
         (_tab == _CollectiveTab.all || _tab == _CollectiveTab.groups) &&
@@ -428,11 +418,11 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
             child: Text(
               widget.query.trim().isNotEmpty
                   ? widget.hasMore
-                      ? 'Aucun résultat parmi les collectifs chargés.'
-                      : 'Aucun collectif ne correspond à cette recherche.'
+                        ? 'Aucun résultat parmi les collectifs chargés.'
+                        : 'Aucun collectif ne correspond à cette recherche.'
                   : widget.hasMore
-                      ? 'Chargement des autres collectifs…'
-                      : 'Aucun collectif dans cette catégorie.',
+                  ? 'Chargement des autres collectifs…'
+                  : 'Aucun collectif dans cette catégorie.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
