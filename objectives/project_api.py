@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+from accounts.models import UserProfile
 from authorization.constants import STANDARD_PROJECT_ROLE_CODES
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
@@ -15,7 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.api.projections import projection_envelope
-from objectives.models import ProjectDossierLink
+from objectives.models import ProjectDossierLink, ProjectInvitation, ProjectInvitationStatus
 from objectives.context import resolve_objective_context
 from objectives.project_workspace import project_dossier_page
 from objectives.selectors import (
@@ -27,6 +29,7 @@ from objectives.services import (
     move_dossier_to_project, set_project_lifecycle,
     revoke_project_authority,
     replace_project_authority, unlink_dossier_from_project, update_project,
+    invite_to_project, respond_project_invitation, cancel_project_invitation,
 )
 from objectives.api_views import _page_args
 
@@ -155,6 +158,181 @@ class ProjectAuthorityAPIView(APIView):
             "kind": "project", "id": str(project.pk),
             "mandate_id": str(mandate.pk), "action": values["action"],
         })
+
+
+
+def _project_role_label(code):
+    return {
+        "project-viewer": "Lecteur",
+        "project-manager": "Éditeur",
+        "project-admin": "Administrateur",
+    }.get(code, "Accès Projet")
+
+
+class ProjectPeopleSearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(
+            context.filter(projects_for_profile(request.user)), pk=pk,
+        )
+        if not can_manage_project_authority(request.user, project):
+            return Response({"detail": "Action non autorisée."},
+                            status=status.HTTP_403_FORBIDDEN)
+        query = (request.query_params.get("q") or "").strip()[:100]
+        if len(query) < 2:
+            return Response({"results": []})
+        users = get_user_model().objects.filter(is_active=True)
+        if "@" in query:
+            # No prefix email enumeration: only an exact email intentionally
+            # supplied by the inviter can be resolved.
+            users = users.filter(email__iexact=query)
+        else:
+            users = users.filter(
+                Q(profile__searchable=True) &
+                (Q(username__icontains=query) |
+                 Q(first_name__icontains=query) |
+                 Q(last_name__icontains=query))
+                | Q(username__iexact=query)
+            )
+        users = users.exclude(pk=request.user.pk)
+        if project.owner_profile_id:
+            users = users.exclude(pk=project.owner_profile_id)
+        results = []
+        for person in users.distinct().order_by("username", "pk")[:9]:
+            results.append({
+                "id": str(person.pk),
+                "name": person.full_name or person.username,
+                "username": person.username,
+                # Only echo email if the actor entered its exact address.
+                "email": person.email if "@" in query else None,
+            })
+        return Response({"results": results[:8]})
+
+
+class ProjectInvitationInput(serializers.Serializer):
+    profile_id = serializers.UUIDField(required=False)
+    identity = serializers.CharField(max_length=254, required=False)
+    role_code = serializers.ChoiceField(choices=sorted(STANDARD_PROJECT_ROLE_CODES))
+
+    def validate(self, attrs):
+        if bool(attrs.get("profile_id")) == bool(attrs.get("identity")):
+            raise serializers.ValidationError(
+                "Choisissez une personne ou saisissez son identifiant ou e-mail."
+            )
+        return attrs
+
+
+class ProjectInvitationCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(
+            context.filter(projects_for_profile(request.user)), pk=pk,
+        )
+        if not can_manage_project_authority(request.user, project):
+            return Response({"detail": "Action non autorisée."},
+                            status=status.HTTP_403_FORBIDDEN)
+        command = ProjectInvitationInput(data=request.data)
+        command.is_valid(raise_exception=True)
+        values = command.validated_data
+        users = get_user_model().objects.filter(is_active=True)
+        if values.get("profile_id"):
+            person = get_object_or_404(users, pk=values["profile_id"])
+        else:
+            identity = values["identity"].strip()
+            if "@" in identity:
+                matches = list(users.filter(email__iexact=identity)[:2])
+            else:
+                matches = list(users.filter(username__iexact=identity)[:2])
+            if len(matches) != 1:
+                return Response(
+                    {"detail": "Choisissez un compte Makolo valide."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            person = matches[0]
+        role = get_object_or_404(
+            Role.objects.filter(
+                is_active=True, is_system=True,
+                scope_type=AuthorityScope.PROJECT,
+            ), code=values["role_code"],
+        )
+        try:
+            invitation = invite_to_project(
+                actor=request.user, project=project,
+                invitee=person, role=role,
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            return _command_error(exc)
+        return Response({
+            "id": str(invitation.pk),
+            "status": invitation.status,
+            "role": _project_role_label(role.code),
+        }, status=status.HTTP_201_CREATED)
+
+
+class ProjectInvitationInboxAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        invitations = ProjectInvitation.objects.filter(
+            invitee=request.user,
+            status=ProjectInvitationStatus.PENDING,
+        ).select_related("project", "role", "invited_by").order_by("-created_at", "pk")[:100]
+        return Response({
+            "results": [{
+                "id": str(row.pk),
+                "project_title": row.project.title,
+                "project_id": str(row.project_id),
+                "invited_by": row.invited_by.full_name or row.invited_by.username,
+                "role": _project_role_label(row.role.code),
+                "created_at": row.created_at.isoformat(),
+            } for row in invitations],
+        })
+
+
+class ProjectInvitationRespondAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        action = request.data.get("action")
+        if action not in {"accept", "decline"}:
+            return Response({"detail": "Réponse inconnue."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        invitation = get_object_or_404(
+            ProjectInvitation.objects.filter(invitee=request.user), pk=pk,
+        )
+        try:
+            row = respond_project_invitation(
+                actor=request.user, invitation=invitation,
+                accept=(action == "accept"),
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            return _command_error(exc)
+        return Response({
+            "id": str(row.pk),
+            "status": row.status,
+            "project_id": str(row.project_id) if action == "accept" else None,
+        })
+
+
+class ProjectInvitationCancelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        invitation = get_object_or_404(
+            ProjectInvitation.objects.filter(
+                Q(invited_by=request.user) |
+                Q(project__owner_profile=request.user)
+            ), pk=pk,
+        )
+        try:
+            row = cancel_project_invitation(actor=request.user, invitation=invitation)
+        except (PermissionDenied, ValidationError) as exc:
+            return _command_error(exc)
+        return Response({"id": str(row.pk), "status": row.status})
 
 
 class ProjectLifecycleInput(serializers.Serializer):
