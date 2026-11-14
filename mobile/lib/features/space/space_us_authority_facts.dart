@@ -11,7 +11,10 @@ class SpaceUsAuthorityFacts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = payload['mandates'];
-    if (rows is! List || rows.isEmpty) {
+    if (rows is! List) {
+      return const Text('Autorisations indisponibles.');
+    }
+    if (rows.isEmpty) {
       return const Text('Aucune autorisation active.');
     }
     return Column(
