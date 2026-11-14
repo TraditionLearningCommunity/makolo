@@ -330,153 +330,89 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
         ),
       );
 
+  // The main Appuis indicator is the owner's confirmed Recognition balance.
+  // Loyalty program catalogs are accessible in depth, never a headline.
   Widget _hero(List<String> available) {
-    final loyalty = _data('loyalty');
-    final programCount = widget.space
-        ? (AppuisViewData.map(loyalty['program']).isNotEmpty ? 1 : 0)
-        : AppuisViewData.programs(loyalty).length;
     final recognition = _data('recognition');
-    final achievements = AppuisViewData.rows(recognition['achievements'])
-        .length;
-    final recognitionRewards = AppuisViewData.rows(recognition['rewards'])
-        .length;
-    final loyaltyRewards = widget.space
-        ? 0
-        : AppuisViewData.rows(loyalty['available_rewards']).length;
-    final credits = AppuisViewData.map(
-      recognition['summary'],
-    )['available_credits'];
-    final partnerCount = AppuisViewData.activePartners(_data('partners'))
-        .length;
-    // Each metric has one owner; never aggregate unrelated reward catalogs.
+    final summary = AppuisViewData.map(recognition['summary']);
+    final credit = summary['available_credits'];
+    final pending = summary['pending_credits'];
+    final achievements = AppuisViewData.rows(recognition['achievements']).length;
+    final partners = AppuisViewData.activePartners(_data('partners')).length;
+    final rewardCount = AppuisViewData.rows(recognition['rewards']).length;
+    final hasCredit = available.contains('recognition') &&
+        AppuisViewData.positive(credit);
     final metrics = <Widget>[
-      if (available.contains('loyalty') && programCount > 0)
-        _metric(
-          Icons.loyalty_outlined,
-          programCount,
-          'Programme',
-          'Programmes',
-        ),
-      if (available.contains('recognition') && achievements > 0)
-        _metric(
-          Icons.workspace_premium_outlined,
-          achievements,
-          'Reconnaissance',
-          'Reconnaissances',
-        )
-      else if (available.contains('recognition') && recognitionRewards > 0)
-        _metric(
-          Icons.redeem_outlined,
-          recognitionRewards,
-          'Récompense Recognition',
-          'Récompenses Recognition',
-        )
-      else if (loyaltyRewards > 0)
-        _metric(
-          Icons.redeem_outlined,
-          loyaltyRewards,
-          'Avantage fidélité',
-          'Avantages fidélité',
-        )
-      else if (available.contains('recognition') &&
-          AppuisViewData.positive(credits))
-        _metric(
-          Icons.stars_outlined,
-          int.tryParse(AppuisViewData.text(credits)) ?? 0,
-          'Crédit Recognition',
-          'Crédits Recognition',
-        ),
-      if (available.contains('partners') && partnerCount > 0)
-        _metric(
-          Icons.handshake_outlined,
-          partnerCount,
-          'Partenariat',
-          'Partenariats',
-        ),
+      if (hasCredit)
+        _metric(Icons.stars_outlined,
+          int.tryParse(AppuisViewData.text(credit)) ?? 0,
+          'Crédit', 'Crédits'),
+      if (!hasCredit && available.contains('recognition') && achievements > 0)
+        _metric(Icons.workspace_premium_outlined,
+          achievements, 'Reconnaissance', 'Reconnaissances'),
+      if (!hasCredit && available.contains('recognition') &&
+          achievements == 0 && rewardCount > 0)
+        _metric(Icons.redeem_outlined,
+          rewardCount, 'Récompense', 'Récompenses'),
+      if (available.contains('partners') && partners > 0)
+        _metric(Icons.handshake_outlined,
+          partners, 'Partenariat', 'Partenariats'),
     ];
     if (metrics.isEmpty) return const SizedBox.shrink();
     if (metrics.length == 1) {
-      final sole = available.contains('loyalty') && programCount > 0
-          ? programCount.toString() +
-                (programCount == 1 ? ' programme' : ' programmes')
-          : available.contains('recognition') && achievements > 0
-          ? achievements.toString() +
-                (achievements == 1 ? ' reconnaissance' : ' reconnaissances')
-          : available.contains('recognition') && recognitionRewards > 0
-          ? recognitionRewards.toString() +
-                (recognitionRewards == 1 ? ' récompense' : ' récompenses')
-          : loyaltyRewards > 0
-          ? loyaltyRewards.toString() +
-                (loyaltyRewards == 1 ? ' avantage' : ' avantages')
-          : partnerCount > 0
-          ? partnerCount.toString() +
-                (partnerCount == 1 ? ' partenariat' : ' partenariats')
-          : AppuisViewData.text(credits) + ' crédits Recognition';
+      final count = hasCredit ? AppuisViewData.text(credit)
+          : partners > 0 ? partners.toString()
+          : achievements > 0 ? achievements.toString()
+          : rewardCount.toString();
+      final label = hasCredit ? 'crédits disponibles'
+          : partners > 0 ? (partners == 1 ? 'partenariat' : 'partenariats')
+          : achievements > 0 ? (achievements == 1
+              ? 'reconnaissance' : 'reconnaissances')
+          : rewardCount == 1 ? 'récompense' : 'récompenses';
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.auto_awesome_outlined,
-              color: Colors.white,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                sole,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
+            colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
+          borderRadius: BorderRadius.circular(18)),
+        child: Row(children: [
+          Icon(hasCredit ? Icons.stars_outlined : partners > 0
+              ? Icons.handshake_outlined : Icons.workspace_premium_outlined,
+              size: 24, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(count + ' ' + label, style: const TextStyle(
+                color: Colors.white, fontSize: 17,
+                fontWeight: FontWeight.w700)),
+              if (hasCredit && AppuisViewData.positive(pending))
+                Text(AppuisViewData.text(pending) + ' crédits en attente',
+                  style: const TextStyle(
+                    color: Color(0xFFE5DDFF), fontSize: 12)),
+            ],
+          )),
+        ]),
       );
     }
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF5232DB), Color(0xFF2B176E)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.space ? 'Nos appuis' : 'Mes appuis',
-            style: const TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Ce qui est déjà disponible',
-            style: TextStyle(color: Color(0xFFE5DDFF)),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              for (var i = 0; i < metrics.length; i++) ...[
-                if (i != 0) const SizedBox(width: 8),
-                Expanded(child: metrics[i]),
-              ],
-            ],
-          ),
-        ],
-      ),
+          colors: [Color(0xFF5232DB), Color(0xFF2B176E)]),
+        borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(widget.space ? 'Nos appuis' : 'Mes appuis',
+          style: const TextStyle(color: Colors.white,
+            fontSize: 21, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 12),
+        Row(children: [
+          for (var i = 0; i < metrics.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: metrics[i]),
+          ],
+        ]),
+      ]),
     );
   }
 
