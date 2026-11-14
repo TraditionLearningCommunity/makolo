@@ -418,6 +418,12 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
         )
         readiness = resolve_journey_readiness(journey, viewer=self.request.user)
         card = _journey_card(journey, readiness=readiness)
+        # A completed Services follow-up is not an external success decision.
+        if (
+            journey.workflow == WorkflowKind.SERVICE
+            and journey.status == JourneyStatus.FULFILLED
+        ):
+            card["status_label"] = "Suivi terminé dans Makolo"
         place = card["place"]
         try:
             conversation_available = bool(
