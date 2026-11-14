@@ -513,7 +513,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: [
                   AppuisDashboard(
-                    key: ValueKey('appuis:' + _scope),
+                    key: ValueKey('appuis:$_scope'),
                     snapshots: _snapshots,
                     space: _space,
                     actorKey: _scope,
