@@ -158,7 +158,7 @@ void main() {
   );
 
   testWidgets(
-    'documents keep acquired content with an accessible offline notice at 1.6x',
+    'documents keep acquired content without passive network narration at 1.6x',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(430, 932);
@@ -213,7 +213,7 @@ void main() {
         find.text(
           'Données enregistrées sur cet appareil. Mise à jour indisponible.',
         ),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.text('Aucun document'), findsNothing);
       expect(tester.takeException(), isNull);
