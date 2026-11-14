@@ -224,7 +224,7 @@ class SpaceUsView(SpaceWebMixin):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.GET.get("detail") == "resources":
-            kind = self.request.GET.get("kind") or "passport"
+            kind = self.request.GET.get("kind") or "document"
             try:
                 offset = int(self.request.GET.get("offset", "0"))
                 resources = build_space_us_resources_projection(
