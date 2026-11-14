@@ -18,9 +18,18 @@
   <form method="post" class="mk-mark-form" data-mk-mark-form>
     {% csrf_token %}
     <label for="mark-value" class="sr-only">Votre demande</label>
+    <div class="mk-mark-composer">
     <textarea id="mark-value" name="value" maxlength="600" rows="5" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
     {% include 'partials/mark_input_tools.html' with mark_scope='space' %}
+    <span class="mk-mark-count" data-mk-mark-count hidden aria-live="off"></span>
+    {% if mark_result.state != "needs_confirmation" %}
+    <button type="submit" class="mk-mark-send" data-mk-mark-send
+      title="Continuer" aria-label="Continuer avec votre demande">
+      <i data-lucide="arrow-up" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+    </div>
 
     {% if mark_result.question.code == "which_occurrence" or mark_result.state == "needs_clarification" and mark_result.question.code == "which_occurrence" %}
     <div class="mt-4 space-y-3">
@@ -57,8 +66,6 @@
         <button type="submit" class="mk-action-button" data-variant="secondary"
           name="cancel_confirmation" value="1">Annuler cette proposition</button>
       </div>
-    {% else %}
-      <button type="submit" class="mk-action-button" data-variant="primary">Continuer</button>
     {% endif %}
   </form>
 
