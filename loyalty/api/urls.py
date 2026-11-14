@@ -6,6 +6,7 @@ from .views import (
     MembershipCancelAPIView,
     MembershipJoinAPIView,
     MyLoyaltyAPIView,
+    MyLoyaltyProgramAPIView,
     OrganizationProgramAPIView,
     PlanCreateAPIView,
     ProgramListCreateAPIView,
@@ -16,6 +17,7 @@ from .views import (
 
 urlpatterns = [
     path("me/", MyLoyaltyAPIView.as_view(), name="me"),
+    path("me/programs/<uuid:pk>/", MyLoyaltyProgramAPIView.as_view(), name="me-program"),
     path("organizations/<slug:slug>/", OrganizationProgramAPIView.as_view(), name="organization-program"),
     path("memberships/join/", MembershipJoinAPIView.as_view(), name="membership-join"),
     path("memberships/<uuid:pk>/cancel/", MembershipCancelAPIView.as_view(), name="membership-cancel"),
