@@ -134,7 +134,10 @@ void main() {
     expect(find.text('Dossier et démarches'), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
     expect(find.byTooltip('Vue d’ensemble'), findsOneWidget);
-    expect(tester.getSize(find.byTooltip('Liste')).width, lessThanOrEqualTo(44));
+    expect(
+      tester.getSize(find.byTooltip('Liste')).width,
+      lessThanOrEqualTo(44),
+    );
     expect(tester.takeException(), isNull);
   });
 }
