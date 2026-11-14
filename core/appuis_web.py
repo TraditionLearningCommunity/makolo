@@ -306,8 +306,9 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
             and recognition_account.lifetime_earned > 0 else None
         )
         context["has_recognition_appuis"] = bool(
-            recognition_account is not None or recognition_cards or
-            incoming_rows or context["recognition_recent"]
+            recognition_credits is not None
+            or context["recognition_pending_credits"] is not None
+            or recognition_cards or incoming_rows or context["recognition_recent"]
         )
         context["has_loyalty_appuis"] = bool(loyalty_cards)
         context["has_partner_appuis"] = bool(partner_rows)
