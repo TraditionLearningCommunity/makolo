@@ -66,6 +66,7 @@ class ProjectAuthorityGrantForm(forms.Form):
     )
     role = forms.ModelChoiceField(
         label="Accès proposé",
+        widget=forms.RadioSelect(attrs={"class": "mk-project__role-radio"}),
         queryset=Role.objects.filter(
             scope_type=AuthorityScope.PROJECT,
             is_system=True, is_active=True,
