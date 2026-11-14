@@ -12,6 +12,7 @@ from authorization.services import can
 from journeys.models import Journey
 
 from .models import Form, FormQuestion, FormRequest, FormResponse, FormVersion, QuestionType, QuestionnaireMedia
+from .presentation import questionnaire_response_presentation
 from .media_services import add_questionnaire_media, remove_questionnaire_media, media_sections
 from .services import (
     add_question,
@@ -60,25 +61,7 @@ class ParticipantFormRequestView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         form_request = _participant_request(self.request.user, kwargs["pk"])
-        response = getattr(form_request, "response", None)
-        existing = {answer.question_id: answer.value for answer in response.answers.all()} if response else {}
-        root, questions, choices = media_sections(form_request.form_version)
-        rows = [
-            {
-                "question": q,
-                "value": existing.get(q.pk),
-                "media": questions.get(q.pk, []),
-                "choices": [
-                    {"label": label, "media": choices.get((q.pk, index), [])}
-                    for index, label in enumerate(q.choices)
-                ],
-            }
-            for q in form_request.form_version.questions.all()
-        ]
-        context.update({
-            "form_request": form_request, "form_response": response,
-            "form_media": root, "question_rows": rows,
-        })
+        context.update(questionnaire_response_presentation(form_request))
         return context
 
     def post(self, request, *args, **kwargs):
