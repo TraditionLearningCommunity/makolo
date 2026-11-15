@@ -56,12 +56,14 @@ No attachment or guessed entitlement is submitted to the Mark text endpoint.
   </dialog>
   <p class="mk-mark-error" data-mk-mark-feedback role="status" aria-live="polite" hidden></p>
 </section>
-<div data-mk-mark-text-consent class="mk-mark-text-consent" hidden>
-  <p>Cette demande transmettra seulement votre texte. Pour conserver une pièce, utilisez Mes documents.</p>
-  <div class="mk-mark-tools">
-    <button type="button" class="mk-action-button" data-variant="primary"
-      data-mk-mark-confirm-text>Continuer avec le texte</button>
-    <button type="button" class="mk-action-button" data-variant="secondary"
-      data-mk-mark-keep-draft>Revenir</button>
-  </div>
+<div data-mk-mark-text-consent class="mk-mark-inline-choice" hidden>
+  <i data-lucide="info" aria-hidden="true"></i>
+  <span>Pièces non incluses</span>
+  <button type="button" data-mk-mark-confirm-text title="Envoyer le texte seul">
+    Texte seul
+  </button>
+  <button type="button" data-mk-mark-keep-draft
+    aria-label="Revenir à la préparation" title="Revenir">
+    <i data-lucide="x" aria-hidden="true"></i>
+  </button>
 </div>
