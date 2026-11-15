@@ -1502,133 +1502,152 @@ class _MarkScreenState extends State<MarkScreen> {
                                       ),
                                     const SizedBox(height: 12),
                                     ConstrainedBox(
-                                      constraints: const BoxConstraints(maxHeight: 210),
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 210,
+                                      ),
                                       child: SingleChildScrollView(
                                         child: Wrap(
                                           spacing: 8,
                                           runSpacing: 8,
                                           children: [
-                                        for (final detected in _typedLinks)
-                                          Tooltip(
-                                            message:
-                                                'Lien reconnu dans votre texte',
-                                            child: Chip(
-                                              avatar: const Icon(
-                                                Icons.link,
-                                                size: 18,
-                                              ),
-                                              label: ConstrainedBox(
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      maxWidth: 200,
+                                            for (final detected in _typedLinks)
+                                              Tooltip(
+                                                message: 'Lien reconnu dans votre texte',
+                                                child: Chip(
+                                                  avatar: const Icon(
+                                                    Icons.link,
+                                                    size: 18,
+                                                  ),
+                                                  label: ConstrainedBox(
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          maxWidth: 200,
+                                                        ),
+                                                    child: Text(
+                                                      detected,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      maxLines: 1,
                                                     ),
-                                                child: Text(
-                                                  detected,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  maxLines: 1,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                        for (final link in _links)
-                                          Chip(
-                                            avatar: const Icon(
-                                              Icons.link,
-                                              size: 18,
-                                            ),
-                                            label: ConstrainedBox(
-                                              constraints: const BoxConstraints(
-                                                maxWidth: 280,
-                                              ),
-                                              child: Text(
-                                                link,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            onDeleted: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _removeLink(link),
+                                            for (final link in _links)
+                                              Chip(
+                                                avatar: const Icon(
+                                                  Icons.link,
+                                                  size: 18,
+                                                ),
+                                                label: ConstrainedBox(
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                        maxWidth: 280,
+                                                      ),
+                                                  child: Text(
+                                                    link,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                            deleteButtonTooltipMessage:
-                                                'Retirer ce lien',
-                                          ),
-                                        for (final item in _attachments) ...[
-                                          if (_isVisualAttachment(item))
-                                            _MarkImageThumbnail(
-                                              key: ValueKey(
-                                                'mark-thumb:$_draftRevision:${item['file_id']}',
+                                                ),
+                                                onDeleted: _busy
+                                                    ? null
+                                                    : () => unawaited(
+                                                        _removeLink(link),
+                                                      ),
+                                                deleteButtonTooltipMessage:
+                                                    'Retirer ce lien',
                                               ),
-                                              loadPath: () =>
-                                                  _localThumbnailPath(
-                                                    item['file_id']
-                                                            ?.toString() ??
-                                                        '',
+                                            for (final item
+                                                in _attachments) ...[
+                                              if (_isVisualAttachment(item))
+                                                _MarkImageThumbnail(
+                                                  key: ValueKey(
+                                                    'mark-thumb:$_draftRevision:${item['file_id']}',
                                                   ),
-                                              name:
-                                                  item['name']?.toString() ??
-                                                  'Image',
-                                              onOpen: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _previewAttachment(item),
-                                                    ),
-                                              onRemove: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _removeAttachment(item),
-                                                    ),
-                                            )
-                                          else if (item['kind'] != 'audio')
-                                            _MarkDocumentThumbnail(
-                                              key: ValueKey(
-                                                'mark-file:$_draftRevision:${item['file_id']}',
-                                              ),
-                                              filename:
-                                                  item['name']?.toString() ??
-                                                  'Document',
-                                              onOpen: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _previewAttachment(item),
-                                                    ),
-                                              onRemove: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _removeAttachment(item),
-                                                    ),
-                                            )
-                                          else
-                                            InputChip(
-                                              avatar: Icon(
-                                                item['kind'] == 'audio'
-                                                    ? Icons.mic_none
-                                                    : item['kind'] == 'photo'
-                                                    ? Icons.image_outlined
-                                                    : Icons.attach_file,
-                                                size: 18,
-                                              ),
-                                              label: Text(
-                                                '${item['name']?.toString() ?? 'Pièce'}'
-                                                '${item['saved_asset_id'] != null ? ' ✓' : ''}',
-                                              ),
-                                              onPressed: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _previewAttachment(item),
-                                                    ),
-                                              onDeleted: _busy
-                                                  ? null
-                                                  : () => unawaited(
-                                                      _removeAttachment(item),
-                                                    ),
-                                              deleteButtonTooltipMessage:
-                                                  'Retirer cette pièce',
-                                            ),
-                                        ],
-                                      ],
+                                                  loadPath: () =>
+                                                      _localThumbnailPath(
+                                                        item['file_id']
+                                                                ?.toString() ??
+                                                            '',
+                                                      ),
+                                                  name:
+                                                      item['name']
+                                                          ?.toString() ??
+                                                      'Image',
+                                                  onOpen: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _previewAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                  onRemove: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _removeAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                )
+                                              else if (item['kind'] != 'audio')
+                                                _MarkDocumentThumbnail(
+                                                  key: ValueKey(
+                                                    'mark-file:$_draftRevision:${item['file_id']}',
+                                                  ),
+                                                  filename:
+                                                      item['name']
+                                                          ?.toString() ??
+                                                      'Document',
+                                                  onOpen: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _previewAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                  onRemove: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _removeAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                )
+                                              else
+                                                InputChip(
+                                                  avatar: Icon(
+                                                    item['kind'] == 'audio'
+                                                        ? Icons.mic_none
+                                                        : item['kind'] ==
+                                                              'photo'
+                                                        ? Icons.image_outlined
+                                                        : Icons.attach_file,
+                                                    size: 18,
+                                                  ),
+                                                  label: Text(
+                                                    '${item['name']?.toString() ?? 'Pièce'}'
+                                                    '${item['saved_asset_id'] != null ? ' ✓' : ''}',
+                                                  ),
+                                                  onPressed: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _previewAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                  onDeleted: _busy
+                                                      ? null
+                                                      : () => unawaited(
+                                                          _removeAttachment(
+                                                            item,
+                                                          ),
+                                                        ),
+                                                  deleteButtonTooltipMessage:
+                                                      'Retirer cette pièce',
+                                                ),
+                                            ],
+                                          ],
                                         ),
                                       ),
                                     ),

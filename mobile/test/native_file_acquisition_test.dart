@@ -309,5 +309,4 @@ void main() {
     expect(mediaPicker.requestedLimit, 3);
     expect(result.files.every((file) => file.owner == 'profile'), isTrue);
   });
-
 }
