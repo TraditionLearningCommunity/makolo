@@ -458,7 +458,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["primary_business_label"], "Activités")
         self.assertEqual(
             response.data["presentation"]["empty_message"],
-            "Aucune activité visible pour le moment.",
+            "Aucune activité à afficher.",
         )
         self.assertEqual(
             response.data["sections"]["activities"]["representation"],

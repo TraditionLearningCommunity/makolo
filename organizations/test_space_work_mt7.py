@@ -49,14 +49,14 @@ class SpaceMetierMT7Tests(TestCase):
         )
 
     def test_collection_from_n1_to_n2_retains_page_and_section(self):
-        created = [self.activity(f"Activité {index:02d}") for index in range(14)]
+        created = [self.activity(f"Activité {index:02d}") for index in range(22)]
         root = self.client.get(self.work_url)
         self.assertEqual(root.status_code, 200)
         activities = next(
             section for section in root.context["work_sections"]
             if section["key"] == "activities"
         )
-        self.assertEqual(len(activities["items"]), 12)
+        self.assertEqual(len(activities["items"]), 20)
         self.assertTrue(activities["has_more"])
         self.assertIn("/work/collection/activities/", activities["continuation_url"])
         self.assertIn("page=2", activities["continuation_url"])
@@ -80,9 +80,9 @@ class SpaceMetierMT7Tests(TestCase):
         self.assertEqual(parse_qs(urlsplit(back).query)["responsibility"], ["all"])
 
     def test_nested_n2_occurrence_retains_origin_without_reusing_owner_page(self):
-        for i in range(12):
+        for i in range(20):
             self.activity(f"Activité {i:02d}")
-        work = self.activity("Activité 12")
+        work = self.activity("Activité 20")
         date = Occurrence.objects.create(
             activity=work, label="Date de terrain",
             start_at=timezone.now() + timedelta(days=2),
@@ -237,7 +237,7 @@ class SpaceMetierMT7Tests(TestCase):
                 )
 
     def test_mt8_root_preview_with_continuation_is_not_complete(self):
-        for index in range(14):
+        for index in range(22):
             self.activity(f"Programme réel {index:02d}")
         response = self.api.get(reverse(
             "organizations_api:workspace-work",
@@ -245,7 +245,7 @@ class SpaceMetierMT7Tests(TestCase):
         ))
         self.assertEqual(response.status_code, 200)
         activities = response.data["sections"]["activities"]
-        self.assertEqual(len(activities["items"]), 12)
+        self.assertEqual(len(activities["items"]), 20)
         self.assertTrue(activities["has_more"])
         self.assertEqual(activities["coverage_state"], "partial")
         self.assertEqual(response.data["coverage_state"], "partial")
