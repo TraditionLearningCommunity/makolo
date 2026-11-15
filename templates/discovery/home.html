@@ -128,7 +128,7 @@
     {% endif %}
 
     <section class="flex flex-wrap items-end justify-between gap-3"><div><span class="mk-kicker">Résultats</span><h2 class="mt-2 text-2xl font-extrabold tracking-[-.04em]" aria-live="polite">{{ result_count }} résultat{{ result_count|pluralize }}</h2></div></section>
-    <div class="grid gap-5 {% if nearby_active and map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)] lg:items-start{% endif %}">
+    <div class="grid gap-5 lg:items-start {% if nearby_active and map_items %}lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]{% else %}lg:grid-cols-[minmax(0,1fr)_minmax(280px,.42fr)]{% endif %}">
         {% if nearby_active and map_items %}
         <section id="discovery-map-panel" class="hidden lg:block lg:order-2 lg:sticky lg:top-24 lg:self-start" style="order:2;align-self:start" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(360px,70vh,720px);min-height:360px" aria-label="Carte des résultats localisés"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">Impossible d’afficher la carte.</p></div></section>
         {% endif %}
@@ -138,6 +138,11 @@
             {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">{% if filters.q or filters.place or filters.city or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}Aucun résultat pour ces critères.{% else %}Rien à découvrir pour le moment.{% endif %}</h3>{% if filters.q or filters.place or filters.city or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}<a href="{{ request.path }}" class="mk-action-button mt-4" data-variant="secondary" aria-label="Effacer les critères" title="Tout afficher"><i data-lucide="rotate-ccw" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Tout afficher</span></a>{% endif %}</div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Vous avez tout exploré.</p><a href="#discovery-search-form" class="mk-action-button mt-4" data-variant="secondary">Modifier ma recherche</a></div>{% endif %}
             {% if page_obj.has_next and next_continuation %}<nav class="flex justify-center pt-2" aria-label="Continuer l’exploration"><a class="mk-action-button" data-variant="secondary" rel="next" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}&amp;continuation={{ next_continuation|urlencode }}"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>Voir plus</a></nav>{% endif %}
         </section>
+        {% if not nearby_active or not map_items %}
+        <div id="discover-preview-wrapper" class="hidden lg:order-2 lg:sticky lg:top-24 lg:block">
+            {% include "discovery/_preview.html" %}
+        </div>
+        {% endif %}
     </div>
 </div>
 {% if nearby_active and map_items %}{{ map_items|json_script:"discovery-map-data" }}{{ map_config|json_script:"discovery-map-config" }}{% endif %}
