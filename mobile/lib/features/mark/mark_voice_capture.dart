@@ -23,6 +23,7 @@ class MarkVoiceCapture extends StatefulWidget {
   final ProfileFileStore store;
   final String owner;
   final Future<void> Function(StoredLocalFile file) onCaptured;
+
   /// Only supply this callback when a real file-audio recognizer is available.
   final Future<void> Function(StoredLocalFile file)? onTranscribe;
   final VoidCallback onClose;

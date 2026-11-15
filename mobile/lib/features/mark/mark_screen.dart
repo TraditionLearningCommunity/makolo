@@ -1250,8 +1250,10 @@ class _MarkScreenState extends State<MarkScreen> {
     // Mark's owner APIs accept text only; this choice is explicit, not a modal.
     if ((attachments.isNotEmpty || links.isNotEmpty) &&
         (input.isEmpty || !_textOnlyConsent)) {
-      _show('Ces pièces ne peuvent pas être envoyées ici. '
-          'Choisissez « Texte seul » pour continuer sans elles.');
+      _show(
+        'Ces pièces ne peuvent pas être envoyées ici. '
+        'Choisissez « Texte seul » pour continuer sans elles.',
+      );
       return;
     }
     final allowTextOnly =
@@ -1631,12 +1633,17 @@ class _MarkScreenState extends State<MarkScreen> {
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      const Icon(Icons.info_outline_rounded, size: 17),
+                                      const Icon(
+                                        Icons.info_outline_rounded,
+                                        size: 17,
+                                      ),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
                                           'Pièces non incluses',
-                                          style: Theme.of(context).textTheme.bodySmall,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
                                         ),
                                       ),
                                       ChoiceChip(
