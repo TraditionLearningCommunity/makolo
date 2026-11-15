@@ -1057,6 +1057,10 @@ def build_space_work_projection(
             None,
         ) if source_kind or source_id else None
     )
+    # A selected owner must be visible and authorized. A scoped read with no
+    # matching owner is not an empty Space dashboard (and must not return 200).
+    if (source_kind or source_id) and selection is None:
+        return None
     if (
         selection is not None
         and space.archetype in {"generic", "community"}
