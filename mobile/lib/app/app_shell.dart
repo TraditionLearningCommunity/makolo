@@ -370,16 +370,53 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 }
 
+/// Reuses the same navigation as Now, Discover, Ongoing and Me/Us.
+/// Mark is selected without introducing a competing five-branch router.
+class MakoloMarkPrimaryNavigation extends StatelessWidget {
+  const MakoloMarkPrimaryNavigation({
+    super.key,
+    required this.actor,
+    required this.onDestination,
+    this.asRail = false,
+  });
+
+  final ActorContext actor;
+  final ValueChanged<MakoloDestination> onDestination;
+  final bool asRail;
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = MakoloDestination.primaryForActor(actor);
+    return asRail
+        ? _MakoloNavigationRail(
+            destinations: destinations,
+            selectedDoor: null,
+            onDestination: onDestination,
+            onMark: () {},
+            markSelected: true,
+          )
+        : _MakoloBottomNavigation(
+            destinations: destinations,
+            selectedDoor: null,
+            onDestination: onDestination,
+            onMark: () {},
+            markSelected: true,
+          );
+  }
+}
+
 class _MakoloBottomNavigation extends StatelessWidget {
   const _MakoloBottomNavigation({
     required this.destinations,
     required this.selectedDoor,
     required this.onDestination,
     required this.onMark,
+    this.markSelected = false,
   });
 
+  final bool markSelected;
   final List<MakoloDestination> destinations;
-  final MakoloPrimaryDoor selectedDoor;
+  final MakoloPrimaryDoor? selectedDoor;
   final ValueChanged<MakoloDestination> onDestination;
   final VoidCallback onMark;
 
@@ -405,7 +442,7 @@ class _MakoloBottomNavigation extends StatelessWidget {
                 selected: selectedDoor == destinations[1].door,
                 onTap: () => onDestination(destinations[1]),
               ),
-              Expanded(child: _MarkButton(onTap: onMark)),
+              Expanded(child: _MarkButton(onTap: onMark, selected: markSelected)),
               _NavButton(
                 destination: destinations[2],
                 selected: selectedDoor == destinations[2].door,
@@ -430,10 +467,12 @@ class _MakoloNavigationRail extends StatelessWidget {
     required this.selectedDoor,
     required this.onDestination,
     required this.onMark,
+    this.markSelected = false,
   });
 
+  final bool markSelected;
   final List<MakoloDestination> destinations;
-  final MakoloPrimaryDoor selectedDoor;
+  final MakoloPrimaryDoor? selectedDoor;
   final ValueChanged<MakoloDestination> onDestination;
   final VoidCallback onMark;
 
@@ -462,7 +501,7 @@ class _MakoloNavigationRail extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-                child: _MarkButton(onTap: onMark),
+                child: _MarkButton(onTap: onMark, selected: markSelected),
               ),
               _RailButton(
                 destination: destinations[2],
@@ -483,9 +522,10 @@ class _MakoloNavigationRail extends StatelessWidget {
 }
 
 class _MarkButton extends StatelessWidget {
-  const _MarkButton({required this.onTap});
+  const _MarkButton({required this.onTap, this.selected = false});
 
   final VoidCallback onTap;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -495,7 +535,9 @@ class _MarkButton extends StatelessWidget {
       child: Tooltip(
         message: 'Makolo Mark',
         child: Material(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
+          color: selected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
           shape: CircleBorder(
             side: BorderSide(
               color: Theme.of(context).colorScheme.primary,
@@ -508,12 +550,13 @@ class _MarkButton extends StatelessWidget {
               MakoloHaptics.selection();
               onTap();
             },
-            child: const SizedBox(
+            child: SizedBox(
               width: 56,
               height: 56,
               child: Center(
                 child: MakoloMark(
                   size: 32,
+                  white: selected,
                   semantics: MakoloMarkSemantics.decorative,
                 ),
               ),
