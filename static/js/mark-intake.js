@@ -4,7 +4,6 @@
   const MAX_TEXT = 600;
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
   const MAX_FILES = 10;
-  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   const initialized = new WeakSet();
 
   function init(root) {
@@ -30,7 +29,6 @@
     let attachments = [];
     let consent = false;
     let submission = null;
-    let recognizer = null;
     let previousFocus = null;
     let mode = 'inline';
     let previewUrl = null;
@@ -408,102 +406,169 @@
       input.focus();
     });
 
-    // SpeechRecognition may delegate recognition outside this browser/device.
-    // The person is asked once before microphone capture; the only Mark
-    // mutation is their explicitly accepted editable text.
+    // A single browser recording session, not an OS dictation loop.
+    // Transcription from a *recorded file* is not exposed without a real
+    // configured audio-transcription owner. Never fake a transcript.
     const voiceButton = $('[data-mk-mark-voice]');
     const speechPanel = $('[data-mk-mark-dictation]');
     const status = $('[data-mk-mark-speech-status]');
-    const start = $('[data-mk-mark-speech-start]');
+    const pause = $('[data-mk-mark-speech-pause]');
     const stop = $('[data-mk-mark-speech-stop]');
-    const useSpeech = $('[data-mk-mark-speech-use]');
-    let dictationBase = '';
-    let spoken = '';
-    let speechConsent = false;
+    const attachAudio = $('[data-mk-mark-speech-use]');
+    const supportsRecording = typeof window.MediaRecorder === 'function' &&
+      Boolean(navigator.mediaDevices?.getUserMedia);
+    let stream = null;
+    let recorder = null;
+    let audioTimer = null;
+    let seconds = 0;
+    let chunks = [];
+    let readyAudio = null;
+    let discardOnStop = false;
 
-    function closeDictation(keep = false) {
-      try { recognizer?.abort(); } catch (_) {}
-      recognizer = null;
-      if (!keep) input.value = dictationBase;
-      if (speechPanel) speechPanel.hidden = true;
-      if (start) start.disabled = false;
-      if (stop) stop.disabled = true;
-      if (useSpeech) useSpeech.disabled = true;
-      spoken = '';
-      resetConsent();
-      renderReferences();
-      updateComposer();
-      if (keep) persist();
-      input.focus();
+    function audioClock() {
+      return String(Math.floor(seconds / 60)).padStart(2, '0') +
+        ':' + String(seconds % 60).padStart(2, '0');
     }
-
-    function startDictation() {
-      if (!Speech || recognizer) return;
-      if (!speechConsent) {
-        if (!window.confirm(
-          'La dictée peut utiliser un service de reconnaissance du navigateur. Continuer ?',
-        )) return;
-        speechConsent = true;
+    function audioStatus(text) {
+      if (status) status.textContent = text;
+    }
+    function releaseMicrophone() {
+      if (audioTimer) clearInterval(audioTimer);
+      audioTimer = null;
+      stream?.getTracks().forEach((track) => track.stop());
+      stream = null;
+    }
+    function closeDictation(keep = false) {
+      discardOnStop = !keep;
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch (_) {}
       }
-      dictationBase = input.value;
-      spoken = '';
-      if (speechPanel) speechPanel.hidden = false;
-      updateComposer();
-      if (useSpeech) useSpeech.disabled = true;
-      if (status) status.textContent = 'J’écoute…';
+      releaseMicrophone();
+      recorder = null;
+      readyAudio = null;
+      chunks = [];
+      if (speechPanel) speechPanel.hidden = true;
+      if (attachAudio) attachAudio.hidden = true;
+      if (stop) stop.disabled = true;
+      if (pause) pause.disabled = true;
+      alignFocusedComposer();
+    }
+    function finalizeRecording(active) {
+      if (recorder !== active) return;
+      releaseMicrophone();
+      recorder = null;
+      if (discardOnStop) {
+        chunks = [];
+        readyAudio = null;
+        return;
+      }
+      const mime = active.mimeType || 'audio/webm';
+      const blob = new Blob(chunks, { type: mime });
+      chunks = [];
+      if (!blob.size || blob.size > MAX_FILE_BYTES) {
+        readyAudio = null;
+        audioStatus('Enregistrement indisponible');
+        return;
+      }
+      const ext = mime.includes('mp4') ? 'm4a' : 'webm';
+      readyAudio = new File(
+        [blob], 'Audio-Mark-' + Date.now() + '.' + ext,
+        { type: mime },
+      );
+      audioStatus('Audio · ' + audioClock());
+      if (pause) pause.hidden = true;
+      if (stop) stop.hidden = true;
+      if (attachAudio) attachAudio.hidden = false;
+    }
+    async function startRecording() {
+      if (!supportsRecording || recorder || !speechPanel) return;
+      discardOnStop = false;
+      chunks = [];
+      readyAudio = null;
+      seconds = 0;
+      speechPanel.hidden = false;
+      if (attachAudio) attachAudio.hidden = true;
+      if (stop) {
+        stop.hidden = false;
+        stop.disabled = true;
+      }
+      if (pause) {
+        pause.hidden = false;
+        pause.disabled = true;
+      }
+      audioStatus('Microphone…');
       try {
-        const active = new Speech();
-        recognizer = active;
-        active.lang = document.documentElement.lang || 'fr-FR';
-        active.interimResults = true;
-        active.continuous = false;
-        active.maxAlternatives = 1;
-        active.onresult = (event) => {
-          if (recognizer !== active) return;
-          let combined = '';
-          for (let i = 0; i < event.results.length; i++) {
-            combined += event.results[i][0]?.transcript || '';
-          }
-          spoken = combined;
-          input.value = [dictationBase.trim(), spoken.trim()].filter(Boolean).join(' ');
-          renderReferences();
-          updateComposer();
-          if (status) status.textContent = 'J’écoute…';
+        const acquired = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: false,
+        });
+        if (!root.isConnected || document.hidden || speechPanel.hidden) {
+          acquired.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        stream = acquired;
+        const mime = ['audio/webm;codecs=opus', 'audio/mp4']
+          .find((type) => window.MediaRecorder.isTypeSupported(type));
+        const active = mime
+          ? new window.MediaRecorder(acquired, { mimeType: mime })
+          : new window.MediaRecorder(acquired);
+        recorder = active;
+        active.ondataavailable = (event) => {
+          if (event.data?.size) chunks.push(event.data);
         };
+        active.onstop = () => finalizeRecording(active);
         active.onerror = () => {
-          if (status) status.textContent = 'Dictée interrompue. Réessayez.';
+          audioStatus('Enregistrement interrompu');
+          releaseMicrophone();
         };
-        active.onend = () => {
-          if (recognizer !== active) return;
-          recognizer = null;
-          if (start) start.disabled = false;
-          if (stop) stop.disabled = true;
-          if (useSpeech) useSpeech.disabled = !spoken.trim();
-          if (status && spoken.trim()) status.textContent = 'Vous pouvez corriger le texte';
-        };
-        active.start();
-        if (start) start.disabled = true;
+        active.start(1000);
+        if (pause) pause.disabled = false;
         if (stop) stop.disabled = false;
+        audioStatus('En cours · ' + audioClock());
+        audioTimer = setInterval(() => {
+          if (active.state !== 'recording') return;
+          seconds += 1;
+          audioStatus('En cours · ' + audioClock());
+          if (seconds >= 600) active.stop();
+        }, 1000);
       } catch (_) {
-        recognizer = null;
-        if (status) status.textContent = 'Dictée indisponible';
-        if (start) start.disabled = false;
+        releaseMicrophone();
+        recorder = null;
+        audioStatus('Microphone indisponible');
+        if (pause) pause.disabled = true;
         if (stop) stop.disabled = true;
       }
+      alignFocusedComposer();
     }
-
-    if (Speech && voiceButton && speechPanel) {
+    if (supportsRecording && voiceButton && speechPanel) {
       voiceButton.hidden = false;
-      voiceButton.addEventListener('click', startDictation);
-      start?.addEventListener('click', startDictation);
-      stop?.addEventListener('click', () => recognizer?.stop());
-      useSpeech?.addEventListener('click', () => {
-        if (recognizer || !spoken.trim()) return;
-        closeDictation(true);
+      voiceButton.addEventListener('click', startRecording);
+      pause?.addEventListener('click', () => {
+        if (!recorder) return;
+        if (recorder.state === 'recording') {
+          recorder.pause();
+          audioStatus('En pause · ' + audioClock());
+          pause.title = 'Reprendre';
+          pause.setAttribute('aria-label', 'Reprendre');
+        } else if (recorder.state === 'paused') {
+          recorder.resume();
+          audioStatus('En cours · ' + audioClock());
+          pause.title = 'Pause';
+          pause.setAttribute('aria-label', 'Pause');
+        }
       });
-      $('[data-mk-mark-speech-cancel]')?.addEventListener(
-        'click', () => closeDictation(false),
-      );
+      stop?.addEventListener('click', () => {
+        if (recorder && recorder.state !== 'inactive') recorder.stop();
+      });
+      attachAudio?.addEventListener('click', () => {
+        if (!readyAudio) return;
+        const countBefore = attachments.length;
+        addFiles([readyAudio]);
+        if (attachments.length > countBefore) closeDictation(true);
+      });
+      $('[data-mk-mark-speech-cancel]')?.addEventListener('click', () => {
+        closeDictation(false);
+      });
     }
 
     function proceedWithText() {
@@ -558,7 +623,6 @@
       closePreview();
       closeAssetForm();
       if (speechPanel && !speechPanel.hidden) closeDictation(false);
-      else if (recognizer) recognizer.abort();
       input.value = '';
       links = [];
       attachments = [];
@@ -602,8 +666,7 @@
       document.removeEventListener('visibilitychange', stopHiddenDictation);
       document.removeEventListener('htmx:beforeSwap', beforeSwap);
       window.removeEventListener('pagehide', teardown);
-      try { recognizer?.abort(); } catch (_) {}
-      recognizer = null;
+      closeDictation(false);
       closePreview();
       for (const url of thumbnailUrls.values()) URL.revokeObjectURL(url);
       thumbnailUrls.clear();
