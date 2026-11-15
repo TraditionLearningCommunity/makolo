@@ -58,7 +58,7 @@ void main() {
     );
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     expect(find.text('Sessions de ce programme'), findsOneWidget);
-    expect(find.text('Inscriptions visibles'), findsOneWidget);
+    expect(find.text('Inscriptions'), findsOneWidget);
     expect(find.text('Session du mardi'), findsOneWidget);
     await tester.tap(find.text('Session du mardi'));
     await tester.pumpAndSettle();
@@ -96,7 +96,7 @@ void main() {
     expect(find.text('Réalisations liées'), findsOneWidget);
     expect(find.text('Dossiers de cette prestation'), findsOneWidget);
     expect(
-      find.text('Aucun dossier visible dans votre périmètre.'),
+      find.text('Aucun dossier accessible.'),
       findsOneWidget,
     );
   });

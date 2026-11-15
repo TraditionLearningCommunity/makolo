@@ -55,7 +55,7 @@ void main() {
       expect(find.textContaining('Total commandé'), findsOneWidget);
       expect(find.text('Ancien kit acheté'), findsOneWidget);
       expect(
-        find.textContaining('Commande confirmée ne signifie'),
+        find.textContaining('Une commande confirmée ne confirme'),
         findsOneWidget,
       );
       expect(find.textContaining('Payé'), findsNothing);
@@ -95,7 +95,7 @@ void main() {
       await render(false);
       expect(find.text('Modifier l’offre'), findsNothing);
       expect(
-        find.textContaining('Non disponible selon le propriétaire'),
+        find.text('Disponibilité maintenant : Non disponible'),
         findsOneWidget,
       );
       await render(true);
@@ -158,7 +158,15 @@ void main() {
       await tester.pumpWidget(MaterialApp.router(routerConfig: router));
       expect(find.text('Départ passé'), findsOneWidget);
       expect(find.text('Départ futur'), findsOneWidget);
-      expect(find.textContaining('carte n’est affichée'), findsOneWidget);
+      expect(
+        tester.widget<ListTile>(
+          find.ancestor(
+            of: find.text('Départ passé'),
+            matching: find.byType(ListTile),
+          ),
+        ).onTap,
+        isNull,
+      );
       expect(find.text('Précédents'), findsOneWidget);
       await tester.ensureVisible(find.text('Voir les suivants'));
       await tester.tap(find.text('Voir les suivants'));
@@ -228,7 +236,7 @@ void main() {
       ),
     );
     expect(find.textContaining('Places physiques : 40'), findsOneWidget);
-    expect(find.textContaining('ne sont ni une réservation'), findsOneWidget);
+    expect(find.textContaining('ne correspond pas forcément aux places à vendre'), findsOneWidget);
     expect(find.textContaining('Places vendables : 40'), findsNothing);
   });
 }

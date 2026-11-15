@@ -35,7 +35,7 @@ void main() {
     );
     expect(find.text('Œuvre en préparation'), findsOneWidget);
     expect(find.text('Présentations et réalisations'), findsOneWidget);
-    expect(find.textContaining('Aucune présentation datée'), findsOneWidget);
+    expect(find.text('Aucune présentation prévue.'), findsOneWidget);
     expect(find.text('Publier'), findsNothing);
     expect(find.text('Acheter'), findsNothing);
   });
