@@ -155,7 +155,10 @@ class MT5CommerceTransportTests(TestCase):
         web = self.client.get(self.depth("commerce_order", order.pk))
         self.assertEqual(web.status_code, 200)
         self.assertContains(web, "Kit acheté au prix ancien")
-        self.assertContains(web, "Commande confirmée")
+        self.assertContains(web, "Confirmée")
+        self.assertContains(
+            web, "La confirmation de commande ne confirme ni le paiement ni la remise.",
+        )
         self.assertNotContains(web, self.buyer.email)
 
     def test_commerce_order_many_lines_paginated_without_buyer_leak(self):

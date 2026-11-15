@@ -118,7 +118,7 @@ class MT4SpaceEducationServicesTests(TestCase):
         )
         detail = self.client.get(entry["url"])
         self.assertEqual(detail.status_code, 200)
-        self.assertContains(detail, "Examiner l'inscription")
+        self.assertContains(detail, "Examiner l&#x27;inscription")
         self.assertNotContains(detail, self.learner.email)
         session_url = n2.context["work_g2"]["related"][0]["url"]
         self.assertEqual(self.client.get(session_url).status_code, 200)

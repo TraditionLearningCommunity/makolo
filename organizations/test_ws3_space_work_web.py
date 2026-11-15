@@ -241,10 +241,15 @@ class WS3SpaceWorkWebTests(TestCase):
         self.assertEqual(
             activity_item["owner_url"],
             reverse(
-                "organizations:console-activity-detail",
-                kwargs={"slug": self.space.slug, "activity_id": activity.pk},
-            ),
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug,
+                    "kind": "activity",
+                    "owner_id": activity.pk,
+                },
+            ) + "?responsibility=all&from=activities",
         )
+        self.assertEqual(self.client.get(activity_item["owner_url"]).status_code, 200)
         self.assertIsNone(route_item["owner_url"])
         self.assertIsNone(vehicle_item["owner_url"])
 

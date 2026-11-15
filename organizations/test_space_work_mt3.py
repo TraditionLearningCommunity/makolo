@@ -112,7 +112,7 @@ class SpaceWorkG1DepthTests(TestCase):
         )
         response = self.client.get(self.depth_url("activity", initiative.pk))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aucune action datée pour le moment.")
+        self.assertContains(response, "Aucune action programmée.")
         self.assertNotContains(response, "Bénévoles du quartier")
         self.assertEqual(response.context["work_depth"]["related"], [])
         self.assertNotIn("funding", str(response.context["work_depth"]))
