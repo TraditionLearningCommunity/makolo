@@ -11,12 +11,15 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_shell.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../design/makolo_mark.dart';
+import '../../design/makolo_theme.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../navigation/avatar_sheet.dart';
 import '../../navigation/destination.dart';
 import '../../navigation/shell_header.dart';
@@ -1329,6 +1332,24 @@ class _MarkScreenState extends State<MarkScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _leaveMark(MakoloDestination destination) async {
+    if (_voiceCapture || _dictating) {
+      _show('Terminez ou annulez la voix avant de changer d’écran.');
+      return;
+    }
+    if (_busy || _restoring) return;
+    final actor = _actor;
+    final revision = _draftRevision;
+    try {
+      await _saveDraft();
+    } on Object {
+      _show('Votre brouillon n’a pas pu être enregistré. Réessayez.');
+      return;
+    }
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
+    context.go(destination.path);
+  }
+
   void _openAvatar() {
     showMakoloAvatarSheet(
       context,
@@ -1350,7 +1371,15 @@ class _MarkScreenState extends State<MarkScreen> {
   @override
   Widget build(BuildContext context) {
     final actor = _actor;
+    final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      bottomNavigationBar: useRail || keyboardOpen
+          ? null
+          : MakoloMarkPrimaryNavigation(
+              actor: actor,
+              onDestination: (destination) => unawaited(_leaveMark(destination)),
+            ),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(64),
         child: StreamBuilder<StoredProjection?>(
@@ -1382,9 +1411,18 @@ class _MarkScreenState extends State<MarkScreen> {
           },
         ),
       ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
+      body: Row(
+        children: [
+          if (useRail)
+            MakoloMarkPrimaryNavigation(
+              actor: actor,
+              asRail: true,
+              onDestination: (destination) => unawaited(_leaveMark(destination)),
+            ),
+          Expanded(
+            child: SafeArea(
+              top: false,
+              child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
           children: [
             if (actor is SpaceActorContext)
@@ -1724,7 +1762,10 @@ class _MarkScreenState extends State<MarkScreen> {
               ),
             ),
           ],
-        ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
