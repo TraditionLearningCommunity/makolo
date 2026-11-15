@@ -224,7 +224,7 @@ class WS3SpaceWorkWebTests(TestCase):
         self.assertNotContains(response, beneficiary.email)
         self.assertNotContains(response, "Pièce indispensable")
 
-    def test_owner_handoff_exists_only_when_projection_exposes_activity_owner(self):
+    def test_owner_handoff_points_to_existing_authorized_depths(self):
         activity = self._activity("Programme owner-backed", ActivityStatus.PUBLISHED)
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -250,8 +250,21 @@ class WS3SpaceWorkWebTests(TestCase):
             ) + "?responsibility=all&from=activities",
         )
         self.assertEqual(self.client.get(activity_item["owner_url"]).status_code, 200)
-        self.assertIsNone(route_item["owner_url"])
-        self.assertIsNone(vehicle_item["owner_url"])
+        for kind, source, item, section in (
+            ("transport_route", route, route_item, "routes"),
+            ("vehicle", vehicle, vehicle_item, "vehicles"),
+        ):
+            owner_url = reverse(
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug,
+                    "kind": kind,
+                    "owner_id": source.pk,
+                },
+            ) + f"?responsibility=all&from={section}"
+            self.assertEqual(item["owner_url"], owner_url)
+            # A projected link must also be authorized by the actual owner read.
+            self.assertEqual(self.client.get(owner_url).status_code, 200)
 
     def test_responsibility_filters_reading_and_foreign_or_revoked_keys_are_404(self):
         allowed = self._activity("Programme autorisé", ActivityStatus.PUBLISHED)
