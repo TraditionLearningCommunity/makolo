@@ -17,11 +17,14 @@ class MarkVoiceCapture extends StatefulWidget {
     required this.owner,
     required this.onCaptured,
     required this.onClose,
+    this.onTranscribe,
   });
 
   final ProfileFileStore store;
   final String owner;
   final Future<void> Function(StoredLocalFile file) onCaptured;
+  /// Only supply this callback when a real file-audio recognizer is available.
+  final Future<void> Function(StoredLocalFile file)? onTranscribe;
   final VoidCallback onClose;
 
   @override
@@ -30,7 +33,7 @@ class MarkVoiceCapture extends StatefulWidget {
 
 class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
     with WidgetsBindingObserver {
-  static const maxSeconds = 120;
+  static const maxSeconds = 600;
   final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _player = AudioPlayer();
 
@@ -192,7 +195,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
     }
   }
 
-  Future<void> _keep() async {
+  Future<void> _addAudio() async {
     final file = _staged;
     if (file == null || _busy) return;
     setState(() => _busy = true);
@@ -326,10 +329,18 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                   onPressed: _busy ? null : () => unawaited(_play()),
                   icon: const Icon(Icons.play_arrow_rounded),
                 ),
+                if (widget.onTranscribe != null)
+                  IconButton(
+                    tooltip: 'Transcrire',
+                    onPressed: _busy
+                        ? null
+                        : () => unawaited(widget.onTranscribe!(_staged!)),
+                    icon: const Icon(Icons.text_fields_rounded),
+                  ),
                 IconButton.filledTonal(
-                  tooltip: 'Garder l’audio',
-                  onPressed: _busy ? null : () => unawaited(_keep()),
-                  icon: const Icon(Icons.check_rounded),
+                  tooltip: 'Ajouter l’audio à la demande',
+                  onPressed: _busy ? null : () => unawaited(_addAudio()),
+                  icon: const Icon(Icons.audio_file_rounded),
                 ),
               ],
               IconButton(
