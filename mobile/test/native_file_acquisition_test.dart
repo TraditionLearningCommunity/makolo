@@ -55,6 +55,20 @@ class FakeFilePicker implements SystemFilePicker {
   }) async => files;
 }
 
+class FakeMultiMediaPicker extends FakeMediaPicker
+    implements SystemMultiImagePicker {
+  FakeMultiMediaPicker(this.images);
+
+  final List<SystemPickedMedia> images;
+  int? requestedLimit;
+
+  @override
+  Future<List<SystemPickedMedia>> pickImages({int? limit}) async {
+    requestedLimit = limit;
+    return images;
+  }
+}
+
 void main() {
   test('camera denial does not invoke the media picker', () async {
     final root = await Directory.systemTemp.createTemp('makolo-nc-denied-');
@@ -214,4 +228,86 @@ void main() {
       isEmpty,
     );
   });
+  test('multi-file selection refuses excess pieces before copying', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-nc-limit-');
+    final database = MakoloDatabase.memory();
+    addTearDown(() async {
+      await database.close();
+      await root.delete(recursive: true);
+    });
+    var writes = 0;
+    final coordinator = NativeFileAcquisitionCoordinator(
+      store: ProfileFileStore(
+        database: database,
+        profileId: 'profile-a',
+        privateDirectory: Directory('${root.path}/private'),
+        stagingDirectory: Directory('${root.path}/staging'),
+      ),
+      permissions: FakePermissions(PermissionDecision.granted),
+      mediaPicker: FakeMediaPicker(),
+      filePicker: FakeFilePicker([
+        for (var i = 0; i < 2; i++)
+          PickedSystemFile(
+            name: 'item-$i.pdf',
+            byteLength: 1,
+            copyTo: (path) async {
+              writes++;
+              await File(path).writeAsBytes([i]);
+            },
+          ),
+      ]),
+    );
+    final result = await coordinator.pickFiles(
+      owner: 'profile',
+      purpose: 'mark_intake',
+      maxFiles: 1,
+      fileIdFor: (index, _) => 'item-$index',
+    );
+    expect(result.status, FileAcquisitionStatus.limitExceeded);
+    expect(writes, 0);
+  });
+
+  test('multi-gallery stages all chosen images within its limit', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-nc-gallery-');
+    final database = MakoloDatabase.memory();
+    addTearDown(() async {
+      await database.close();
+      await root.delete(recursive: true);
+    });
+    final first = File('${root.path}/image-a.jpg')..writeAsBytesSync([1, 2]);
+    final second = File('${root.path}/image-b.jpg')..writeAsBytesSync([3, 4]);
+    final mediaPicker = FakeMultiMediaPicker([
+      SystemPickedMedia(
+        path: first.path,
+        name: 'image-a.jpg',
+        kind: PickedMediaKind.image,
+      ),
+      SystemPickedMedia(
+        path: second.path,
+        name: 'image-b.jpg',
+        kind: PickedMediaKind.image,
+      ),
+    ]);
+    final coordinator = NativeFileAcquisitionCoordinator(
+      store: ProfileFileStore(
+        database: database,
+        profileId: 'profile-a',
+        privateDirectory: Directory('${root.path}/private'),
+        stagingDirectory: Directory('${root.path}/staging'),
+      ),
+      permissions: FakePermissions(PermissionDecision.granted),
+      mediaPicker: mediaPicker,
+      filePicker: FakeFilePicker(const []),
+    );
+    final result = await coordinator.pickPhotos(
+      owner: 'profile',
+      purpose: 'mark_intake',
+      maxFiles: 3,
+      fileIdFor: (index, _) => 'image-$index',
+    );
+    expect(result.files, hasLength(2));
+    expect(mediaPicker.requestedLimit, 3);
+    expect(result.files.every((file) => file.owner == 'profile'), isTrue);
+  });
+
 }
