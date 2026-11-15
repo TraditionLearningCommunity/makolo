@@ -1212,6 +1212,10 @@ class _MeStreamRepository extends PersonalRepository {
 }
 
 class _NeverUsedStore implements ProfileStore {
+  // MeScreen forwards this identity to the avatar; the stream test has no DB.
+  @override
+  String get profileId => 'profile-1';
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
