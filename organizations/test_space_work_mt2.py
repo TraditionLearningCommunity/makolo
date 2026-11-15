@@ -225,7 +225,8 @@ class SpaceWorkMT2ContractTests(TestCase):
         self.assertEqual(first.status_code, 200, first.data)
         section = first.data["sections"]["preparation"]
         self.assertTrue(section["has_more"])
-        self.assertEqual(section["coverage_state"], "established")
+        # A bounded preview with continuation must never claim full coverage.
+        self.assertEqual(section["coverage_state"], "partial")
         continuation = section["links"]["continuation"]
         params = parse_qs(urlparse(continuation).query)
         self.assertEqual(params["section"], ["preparation"])
