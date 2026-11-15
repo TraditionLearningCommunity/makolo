@@ -22,10 +22,11 @@
     <textarea id="mark-value" name="value" maxlength="600" rows="5" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
     {% include 'partials/mark_input_tools.html' with mark_scope='space' %}
+    {% include 'partials/mark_orbit_save.html' %}
     <span class="mk-mark-count" data-mk-mark-count hidden aria-live="off"></span>
     {% if mark_result.state != "needs_confirmation" %}
     <button type="submit" class="mk-mark-send" data-mk-mark-send
-      title="Continuer" aria-label="Continuer avec votre demande">
+      title="Envoyer" aria-label="Envoyer votre demande">
       <i data-lucide="arrow-up" aria-hidden="true"></i>
     </button>
     {% endif %}
