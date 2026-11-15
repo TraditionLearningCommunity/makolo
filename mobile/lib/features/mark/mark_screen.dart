@@ -82,6 +82,8 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _processingShare = false;
   bool _textOnlyConsent = false;
   bool _editing = false;
+  bool _draftSaved = false;
+  int _draftSaveToken = 0;
 
   @override
   void initState() {
@@ -134,6 +136,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _attachments = const [];
       _links = const [];
       _textOnlyConsent = false;
+      _draftSaved = false;
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
@@ -178,6 +181,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _attachments = const [];
       _links = const [];
       _textOnlyConsent = false;
+      _draftSaved = false;
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
@@ -243,7 +247,13 @@ class _MarkScreenState extends State<MarkScreen> {
         ];
       }
     }
-    setState(() => _restoring = false);
+    setState(() {
+      _restoring = false;
+      _draftSaved = draft != null &&
+          (_input.text.trim().isNotEmpty ||
+              _attachments.isNotEmpty ||
+              _links.isNotEmpty);
+    });
     unawaited(_drainSharedInputs());
   }
 
@@ -1110,17 +1120,42 @@ class _MarkScreenState extends State<MarkScreen> {
     SpaceActorContext(:final space) => 'space:${space.slug}',
   };
 
-  Future<void> _saveDraft() => _repository.saveDraft(
-    actor: _actor,
-    input: _input.text,
-    inputKind: _attachments.isEmpty ? 'text' : 'document',
-    attachments: _attachments,
-    links: _links,
-    selected: _selectedContext,
-    teamMember: _teamMember,
-    pendingConfirmationCode: _pendingConfirmationCode,
-    pendingConfirmationKey: _pendingConfirmationKey,
-  );
+  Future<void> _saveDraft() async {
+    final token = ++_draftSaveToken;
+    final actor = _actor;
+    final revision = _draftRevision;
+    if (mounted && _draftSaved) setState(() => _draftSaved = false);
+    await _repository.saveDraft(
+      actor: actor,
+      input: _input.text,
+      inputKind: _attachments.isEmpty ? 'text' : 'document',
+      attachments: List<Map<String, dynamic>>.of(_attachments),
+      links: List<String>.of(_links),
+      selected: _selectedContext,
+      teamMember: _teamMember,
+      pendingConfirmationCode: _pendingConfirmationCode,
+      pendingConfirmationKey: _pendingConfirmationKey,
+    );
+    if (mounted &&
+        token == _draftSaveToken &&
+        actor == _actor &&
+        revision == _draftRevision) {
+      setState(() {
+        _draftSaved = _input.text.trim().isNotEmpty ||
+            _attachments.isNotEmpty ||
+            _links.isNotEmpty;
+      });
+    }
+  }
+
+  Future<void> _saveIntent() async {
+    if (_busy || _restoring) return;
+    try {
+      await _saveDraft();
+    } on Object {
+      _show('Impossible d’enregistrer cette demande. Réessayez.');
+    }
+  }
 
   String _newIdempotencyKey() {
     final random = Random.secure();
@@ -1488,6 +1523,7 @@ class _MarkScreenState extends State<MarkScreen> {
                             ),
                             onChanged: (_) {
                               setState(() {
+                                _draftSaved = false;
                                 _result = null;
                                 _pendingConfirmationCode = null;
                                 _pendingConfirmationKey = null;
@@ -1657,6 +1693,25 @@ class _MarkScreenState extends State<MarkScreen> {
                                     : _openVoiceInput,
                               ),
                               const Spacer(),
+                              IconButton(
+                                key: const ValueKey('mark-save'),
+                                tooltip: _draftSaved ? 'Enregistré' : 'Enregistrer',
+                                onPressed: _busy || _restoring ||
+                                        (_input.text.trim().isEmpty &&
+                                            _attachments.isEmpty &&
+                                            _links.isEmpty)
+                                    ? null
+                                    : () => unawaited(_saveIntent()),
+                                icon: DiscoveryOrbitIcon(
+                                  saved: _draftSaved,
+                                  size: 23,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 44,
+                                  minHeight: 44,
+                                ),
+                              ),
                               if (_input.text.length >= 500)
                                 Padding(
                                   padding: const EdgeInsets.only(right: 6),
