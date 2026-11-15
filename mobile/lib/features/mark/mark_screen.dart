@@ -1051,7 +1051,8 @@ class _MarkScreenState extends State<MarkScreen> {
         actor == _actor &&
         revision == _draftRevision) {
       setState(() {
-        _draftSaved = widget.runtime.drafts != null &&
+        _draftSaved =
+            widget.runtime.drafts != null &&
             (_input.text.trim().isNotEmpty ||
                 _attachments.isNotEmpty ||
                 _links.isNotEmpty);
