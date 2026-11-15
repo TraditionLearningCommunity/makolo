@@ -1501,10 +1501,13 @@ class _MarkScreenState extends State<MarkScreen> {
                                         ),
                                       ),
                                     const SizedBox(height: 12),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxHeight: 210),
+                                      child: SingleChildScrollView(
+                                        child: Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
                                         for (final detected in _typedLinks)
                                           Tooltip(
                                             message:
@@ -1626,6 +1629,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                             ),
                                         ],
                                       ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                   if (_attachments.isNotEmpty ||
@@ -1956,7 +1961,7 @@ class _MarkDocumentThumbnail extends StatelessWidget {
           Positioned(
             top: 0,
             right: 0,
-            child: IconButton.filledTonal(
+            child: IconButton(
               tooltip: 'Retirer $filename',
               onPressed: onRemove,
               icon: const Icon(Icons.close_rounded, size: 16),
@@ -2049,13 +2054,16 @@ class _MarkImageThumbnailState extends State<_MarkImageThumbnail> {
           Positioned(
             top: 0,
             right: 0,
-            child: IconButton.filledTonal(
+            child: IconButton(
               tooltip: 'Retirer ${widget.name}',
               onPressed: widget.onRemove,
-              icon: const Icon(Icons.close_rounded, size: 16),
-              iconSize: 16,
+              icon: CircleAvatar(
+                radius: 13,
+                backgroundColor: scheme.surface,
+                child: const Icon(Icons.close_rounded, size: 16),
+              ),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             ),
           ),
         ],
