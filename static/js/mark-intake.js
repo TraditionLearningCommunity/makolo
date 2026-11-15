@@ -38,12 +38,27 @@
 
     // Only the active browser tab may keep a text/link draft. No File, media,
     // Profile cache or credential is written to browser storage.
+    function setSaved(saved) {
+      const action = $('[data-mk-mark-save]');
+      if (!action) return;
+      action.title = saved ? 'Enregistré' : 'Enregistrer';
+      action.setAttribute('aria-label', action.title);
+      const available = action.querySelector('[data-mk-orbit-available]');
+      const retained = action.querySelector('[data-mk-orbit-saved]');
+      if (available) available.hidden = saved;
+      if (retained) retained.hidden = !saved;
+    }
+
     function persist() {
       try {
         const snapshot = { text: input.value.slice(0, 12000), links };
         window.sessionStorage.setItem(draftKey, JSON.stringify(snapshot));
+        setSaved(Boolean(input.value.trim() || links.length));
+        return true;
       } catch (_) {
-        // Private browsing and disabled storage still allow in-memory editing.
+        setSaved(false);
+        // Browsers without session storage retain the in-memory editor.
+        return false;
       }
     }
 
@@ -53,6 +68,7 @@
         if (!raw) return;
         const saved = JSON.parse(raw);
         if (!input.value && typeof saved.text === 'string') input.value = saved.text;
+        setSaved(Boolean(input.value.trim() || saved.links?.length));
         if (Array.isArray(saved.links)) {
           links = saved.links.filter((url) => typeof url === 'string' && isSafeUrl(url)).slice(0, 8);
         }
@@ -268,6 +284,8 @@
         }
         target.appendChild(item);
       });
+      const choice = $('[data-mk-mark-text-consent]');
+      if (choice && !consent) choice.hidden = !hasLocalReferences();
     }
 
     function addFiles(list) {
@@ -531,6 +549,10 @@
       input.focus();
     });
 
+    $('[data-mk-mark-save]')?.addEventListener('click', () => {
+      if (!persist()) announce('Impossible d’enregistrer le brouillon ici.');
+    });
+
     $('[data-mk-mark-clear]')?.addEventListener('click', () => {
       if (!window.confirm('Effacer votre brouillon de cet onglet ? Cette action ne revient pas sur les décisions déjà confirmées.')) return;
       closePreview();
@@ -542,6 +564,7 @@
       attachments = [];
       resetConsent();
       try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
+      setSaved(false);
       renderReferences();
       announce('');
       updateComposer();
