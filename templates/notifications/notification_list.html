@@ -56,7 +56,7 @@
                     <p class="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">{{ notification.message }}</p>
                 </div>
                 <div class="flex shrink-0 flex-wrap gap-2">
-                    {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="mk-action-button" data-variant="primary">Ouvrir</a>{% endif %}
+                    {% if notification.can_open %}<a href="{% url 'notifications:open' notification.pk %}" class="mk-action-button" data-variant="primary">Ouvrir</a>{% endif %}
                     {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="secondary">Marquer comme lue</button></form>{% endif %}
                 </div>
                 </div>
