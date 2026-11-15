@@ -1247,35 +1247,14 @@ class _MarkScreenState extends State<MarkScreen> {
     final repository = _repository;
     final attachments = List<Map<String, dynamic>>.of(_attachments);
     final links = List<String>.of(_links);
-    var allowTextOnly = false;
+    // Mark's owner APIs accept text only; this choice is explicit, not a modal.
     if ((attachments.isNotEmpty || links.isNotEmpty) &&
-        input.isNotEmpty &&
-        !_textOnlyConsent) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Continuer avec le texte seulement ?'),
-          content: const Text(
-            'Les pièces et liens restent dans le brouillon local. '
-            'Ils ne seront ni envoyés ni analysés par Makolo.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Garder mon brouillon'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Continuer avec le texte'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || revision != _draftRevision || actor != _actor) return;
-      if (confirmed != true) return;
-      _textOnlyConsent = true;
+        (input.isEmpty || !_textOnlyConsent)) {
+      _show('Ces pièces ne peuvent pas être envoyées ici. '
+          'Choisissez « Texte seul » pour continuer sans elles.');
+      return;
     }
-    allowTextOnly =
+    final allowTextOnly =
         _textOnlyConsent && (attachments.isNotEmpty || links.isNotEmpty);
     setState(() => _busy = true);
     final result = await repository.submit(
@@ -1647,6 +1626,31 @@ class _MarkScreenState extends State<MarkScreen> {
                                     ],
                                   ),
                                 ],
+                                if (_attachments.isNotEmpty ||
+                                    _links.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, size: 17),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Pièces non incluses',
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                      ),
+                                      ChoiceChip(
+                                        label: const Text('Texte seul'),
+                                        selected: _textOnlyConsent,
+                                        onSelected: _busy
+                                            ? null
+                                            : (selected) => setState(() {
+                                                _textOnlyConsent = selected;
+                                              }),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
@@ -1704,13 +1708,16 @@ class _MarkScreenState extends State<MarkScreen> {
                                       ),
                                     IconButton.filled(
                                       key: const ValueKey('mark-submit'),
-                                      tooltip: 'Continuer avec cette demande',
+                                      tooltip: 'Envoyer la demande',
                                       onPressed:
                                           _busy ||
                                               _restoring ||
                                               _voiceCapture ||
                                               _dictating ||
-                                              _input.text.trim().isEmpty
+                                              _input.text.trim().isEmpty ||
+                                              ((_attachments.isNotEmpty ||
+                                                      _links.isNotEmpty) &&
+                                                  !_textOnlyConsent)
                                           ? null
                                           : _submit,
                                       icon: _busy
@@ -1763,7 +1770,34 @@ class _MarkScreenState extends State<MarkScreen> {
                               },
                             ),
                           ],
-                          if (_result != null) ...[
+                          if (_result?.state == 'offline_draft')
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 18,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('Non envoyé'),
+                                  TextButton(
+                                    onPressed: _busy
+                                        ? null
+                                        : () => unawaited(_submit()),
+                                    child: const Text('Réessayer'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (_result != null &&
+                              !const {
+                                'offline_draft',
+                                'local_attachments_only',
+                                'local_references_only',
+                              }.contains(_result!.state)) ...[
                             const SizedBox(height: 24),
                             _MarkResultView(
                               result: _result!,
