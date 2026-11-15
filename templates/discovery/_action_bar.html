@@ -2,6 +2,11 @@
   {% if not discovery_space %}
   {% if not detail or card.actions.save and card.actions.save.url or card.actions.share and card.actions.share.url %}
   <div class="mt-5 flex flex-wrap gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Actions pour cette opportunité">
+    {% if not detail %}{% if not nearby_active or not map_items %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
+      <button type="button" class="mk-action-button min-h-[48px] w-full justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="ghost" data-discovery-preview-open aria-label="Aperçu" aria-controls="discover-preview-body"><i data-lucide="panel-right-open" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Aperçu</span></button>
+    </div>
+    {% endif %}{% endif %}
     {% if card.actions.save and card.actions.save.url %}
     <div class="min-w-0 flex-1" style="min-width:64px">
         {% if request.user.is_authenticated %}
