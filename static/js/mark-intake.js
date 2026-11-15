@@ -508,7 +508,7 @@
         }
         stream = acquired;
         const mime = ['audio/webm;codecs=opus', 'audio/mp4']
-          .find((type) => window.MediaRecorder.isTypeSupported(type));
+          .find((type) => window.MediaRecorder.isTypeSupported?.(type) === true);
         const active = mime
           ? new window.MediaRecorder(acquired, { mimeType: mime })
           : new window.MediaRecorder(acquired);
