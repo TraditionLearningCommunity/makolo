@@ -21,6 +21,12 @@ class TypedConversationMediaTests(TestCase):
         attachment = SimpleNamespace(kind="image", content_hash="digest")
         patches = [
             patch("conversations.rich_services.can_view_conversation", return_value=True),
+            # The integration replay lookup is outside these typed-publishing unit tests.
+            # A fake actor/conversation cannot be bound to real ORM foreign keys.
+            patch(
+                "conversations.rich_services.PointExchangeEntry.objects",
+                **{"select_related.return_value.filter.return_value.first.return_value": None},
+            ),
             patch("conversations.rich_services._validate_represented_context"),
             patch("conversations.rich_services.validate_conversation_upload",
                   return_value=(b"png-data", "image/png", "digest")),
