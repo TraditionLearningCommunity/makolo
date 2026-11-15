@@ -305,6 +305,17 @@ void main() {
     await tester.tap(find.byTooltip('Makolo Mark'));
     await tester.pumpAndSettle();
     expect(find.text('Qu’est-ce que vous avez en tête ?'), findsOneWidget);
+    expect(
+      find.byKey(const Key('makolo-bottom-navigation')),
+      findsOneWidget,
+    );
+    final mark = tester.widget<MakoloMark>(
+      find.descendant(
+        of: find.byTooltip('Makolo Mark'),
+        matching: find.byType(MakoloMark),
+      ),
+    );
+    expect(mark.white, isTrue);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
