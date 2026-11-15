@@ -147,3 +147,42 @@ Les **18 points de conception examinés** ont reçu un traitement source côté 
 - Propriétaires : aucun média transmis via une API Mark textuelle, aucun document considéré comme Proof/Requirement/Readiness automatiquement, aucune permission créée par l'interface, aucune déduction de succès sur une réponse ambiguë.
 
 **Tests adaptés/écrits mais non exécutés** : `mobile/test/mark_mature_test.dart`, `mobile/test/mark_dictation_capture_test.dart`, `core/test_mature_personal_experience.py`, `organizations/test_ws5_space_day_of_live_scanner_mark_web.py`. Aucun formatage canonique Dart, `flutter analyze`, golden, build Android, `manage.py check`, test Django ou exercice sur navigateur/appareil n'a été prétendu exécuté dans cette passe GitHub. Aucune opération sur les workflows CI ni fusion.
+
+## Mise à niveau UX/UI et multimodale — 15 novembre 2026 (PR #522)
+
+**Ce chapitre décrit l'état source le plus récent.** Les paragraphes datés du 12 et du 14 novembre ci-dessus sont les historiques des passes antérieures et ne représentent pas tous le comportement courant après les changements suivants.
+
+### Navigation et identité — lots A/B
+
+- La barre primaire Flutter existante est **réutilisée**, pas reconstruite comme une navigation parallèle : `MakoloMarkPrimaryNavigation` enveloppe les composants `_MakoloBottomNavigation` / `_MakoloNavigationRail`, avec les quatre destinations de l'acteur courant. Le bouton central actif remplit son cercle en violet et affiche l'asset officiel `MakoloMark(white: true)`, sans création ni retouche de logo. La navigation conserve le brouillon de l'acteur avant sortie ; une capture voix active demande d'abord à l'utilisateur de la terminer.
+- `mark_screen.dart` introduit une atmosphère légère basée sur le thème (dégradé, ombre douce, vignette du symbole officiel) sans fond externe imposé ni duplication de composants de présentation. L'entrée continue de se contracter avec le focus et conserve le champ courant.
+- Pour « Enregistrer », `DiscoveryOrbitIcon` est réutilisé **directement** depuis `mobile/lib/presentation/possibilities/discovery_save_icon.dart`. L'état « Enregistré » ne s'active pas sans `DraftRepository` disponible et écriture retournée. **Enregistrer** et **Envoyer** sont des décisions différentes.
+- Le Web réutilise exactement la géométrie SVG déjà définie pour Découvrir, via `templates/partials/mark_orbit_save.html`, avec état sessionStorage propre à l'onglet, sans formulaire fictif d'enregistrement serveur. L'apparence reste une adaptation de la même palette sur Web personnel et Space.
+
+### Pièces, caméra et liens — lot C
+
+- Sélection de plusieurs images via `ImagePickerSystemMediaPicker.pickImages(limit: ...)` et de plusieurs fichiers via `NativeSystemFilePicker(allowMultiple: true)` **seulement pour Mark**. Le plafonnement est commun : **10 pièces par demande**, y compris celles déjà préparées ; le coordinateur refuse un lot hors budget avant la copie. Les copies locales restent privées par Profil/acteur et ne deviennent pas des Ressources officielles.
+- Les photos/captures rejoignent les vignettes ; le retrait est moins imposant et une zone de hauteur bornée évite de pousser indéfiniment les commandes. `PrivatePdfView` reste le lecteur du format pris en charge.
+- La caméra native décide déjà du cadrage et de l'approbation : Mark n'impose plus une deuxième fenêtre « Garder / Reprendre » après validation de la caméra. **Orientation : non certifiée** sans essai Samsung et examen des métadonnées réelles. Aucune rotation à l'aveugle.
+- Sur le Web, la limite passe également à 10 et les liens HTTP(S) restent reconnus dans le texte sans récupération ni prétendue analyse de page.
+
+### Voix — lot D
+
+- Le bouton micro de Flutter démarre désormais **une unique capture audio** via le composant `MarkVoiceCapture`, sans boîte initiale « Dicter / Enregistrer ». Le silence dans la parole ne termine pas le `AudioRecorder`; pause, reprise, fin, écoute et choix **Ajouter l'audio à la demande** restent explicites. Le budget de capture devient 600 secondes au lieu de 120 secondes.
+- La fonction `onTranscribe` du composant audio est facultative et **n'est pas fournie** en l'absence d'un vrai propriétaire de transcription de fichiers. Elle n'affiche donc pas un bouton « Transcrire » inopérant. Le vieux composant `MarkDictationCapture` et son API Android existent toujours mais ne sont plus la voie primaire du microphone Mark.
+- Le Web conditionne la capture à `MediaRecorder` et `getUserMedia`, stoppe réellement les pistes, offre pause/reprise/fin, puis ajoute le fichier audio **local** après action explicite. Il ne prétend ni transmettre ce fichier à l'API Mark textuelle ni le convertir en texte.
+- **Bloquant non résolu :** aucun moteur propriétaire confirmé de transcription **après** enregistrement d'un fichier, et aucune API universelle autorisée de réception audio/photo par Mark. Il faut un vrai contrat/owner pour lever cette limite ; ne pas créer de contenu imaginaire ni de réussite fictive.
+
+### Brouillons, envois, états — lot E
+
+- La grande boîte Flutter « Continuer avec le texte seulement ? » est remplacée par un choix compact **Pièces non incluses / Texte seul**. L'envoi reste bloqué si les pièces ne peuvent pas suivre et que la personne n'a pas explicitement accepté la conséquence. La même indication est intégrée à la composition Web.
+- « Brouillon local » n'occupe plus une carte de résultat : en cas d'envoi explicitement échoué, une ligne **Non envoyé / Réessayer** apparaît. Ne jamais appeler une intention en attente « Envoyé ».
+- Les API Mark restent **texte seulement**. Le Web personnel garde le passage explicite et propriétaire vers PersonalAsset pour les types qu'il accepte ; cela ne signifie ni transcription multimodale, ni publication, ni satisfaction de Requirement/Proof.
+
+### Tests et validations — lot F
+
+- Tests sources adaptés : `mobile/test/mark_mature_test.dart`, `mobile/test/app_shell_test.dart`, `mobile/test/native_file_acquisition_test.dart`, `core/test_mature_personal_experience.py` et `organizations/test_ws5_space_day_of_live_scanner_mark_web.py`.
+- **Non exécutés par ce connecteur GitHub** : formatage canonique après le dernier commit Dart, `flutter analyze`, tests Flutter/Django, build Android, captures comparatives Samsung, navigateur Web, accessibilité instrumentée et essais d'orientation photo. Le workflow `Mobile Format` existant est l'unique solution de repli officielle si Flutter/Dart ne sont pas disponibles dans l'environnement ; ne pas créer un workflow spécial et ne pas annoncer son succès sans résultat.
+- La PR #522 reste ouverte ; pas de fusion, pas de modification directe de `main`, pas d'annulation/désactivation des workflows existants.
+
+**Conclusion :** les corrections de présentation et de préparation sont **écrites dans le code**, mais la demande d'une « expérience multimodale de bout en bout » ne peut pas être certifiée tant que les propriétaires média/transcription et l'exécution sur appareils réels manquent. Le résultat correct est « source avancée, validation et capacités propriétaires restantes », et non « 100 % livré ».
