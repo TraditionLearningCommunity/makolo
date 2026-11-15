@@ -12,7 +12,7 @@ from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceSt
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from capacity.models import CapacityPool
-from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
+from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus, PaymentMode
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype
 from transport.models import TransportDeparture, TransportRoute, TransportService, Vehicle
@@ -62,6 +62,7 @@ class SpaceWorkGroup3Tests(TestCase):
         offer = Offer.objects.create(
             activity=activity, name="Kit principal",
             status=OfferStatus.ACTIVE, unit_price=Decimal("14.50"),
+            payment_mode=PaymentMode.UPFRONT,
             capacity_pool=pool,
         )
         journey = Journey.objects.create(
