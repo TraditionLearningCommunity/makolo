@@ -123,6 +123,7 @@ void main() {
       expect(find.byTooltip('Prendre une photo'), findsNothing);
       expect(find.byTooltip('Choisir une image'), findsNothing);
       expect(find.byKey(const ValueKey('mark-submit')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mark-save')), findsOneWidget);
       expect(
         find.textContaining(
           'Pièces et liens conservés dans le brouillon local',
@@ -146,9 +147,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.byTooltip('Dicter ou enregistrer'));
       await tester.pumpAndSettle();
-      expect(find.text('Enregistrer un audio'), findsOneWidget);
-      await tester.tap(find.text('Enregistrer un audio'));
-      await tester.pumpAndSettle();
+      expect(find.text('Enregistrer un audio'), findsNothing);
       expect(
         find.text('L’enregistrement n’est pas disponible dans cette session.'),
         findsOneWidget,
