@@ -547,7 +547,8 @@ GoRoute meDemarchesRoute(AppRuntime runtime) => GoRoute(
   builder: (context, state) => runtime.objectives == null
       ? const MakoloSecondaryScreen(
           title: 'Mes démarches',
-          message: 'Vos démarches ne sont pas encore disponibles sur cet appareil.',
+          message:
+              'Vos démarches ne sont pas encore disponibles sur cet appareil.',
         )
       : ObjectiveOrganizerScreen(
           repository: runtime.objectives!,
@@ -561,8 +562,7 @@ GoRoute meDemarchesRoute(AppRuntime runtime) => GoRoute(
               context.push('/journeys/$id');
             }
           },
-          onCreate: (kind) =>
-              context.push('/me/demarches/new?kind=$kind'),
+          onCreate: (kind) => context.push('/me/demarches/new?kind=$kind'),
           onOpenInvitations: () => context.push('/project-invitations'),
         ),
   routes: [
@@ -582,8 +582,7 @@ GoRoute meDemarchesRoute(AppRuntime runtime) => GoRoute(
         final spaceSlug = state.uri.queryParameters['space'];
         final actor = runtime.actorContext?.value;
         if (spaceSlug != null &&
-            (actor is! SpaceActorContext ||
-                actor.space.slug != spaceSlug)) {
+            (actor is! SpaceActorContext || actor.space.slug != spaceSlug)) {
           return const MakoloSecondaryScreen(
             title: 'Créer',
             message: 'Revenez à l’Espace autorisé pour créer.',
