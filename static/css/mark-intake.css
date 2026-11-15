@@ -600,3 +600,61 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-mark-page .mk-mark-composer { transition: none; }
 }
+
+/* Same save orbit as Discover; saving and sending are distinct actions. */
+.mk-mark-page .mk-mark-composer {
+  padding-right: 112px;
+}
+.mk-mark-page .mk-mark-save {
+  position: absolute;
+  right: 62px;
+  bottom: 13px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: var(--mk-brand);
+  background: transparent;
+  cursor: pointer;
+}
+.mk-mark-page .mk-mark-save:hover,
+.mk-mark-page .mk-mark-save:focus-visible {
+  background: color-mix(in srgb, var(--mk-brand) 9%, transparent);
+}
+.mk-mark-page .mk-mark-count {
+  bottom: 64px;
+  right: 13px;
+}
+.mk-mark-page .mk-mark-inline-choice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  align-self: start;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: .79rem;
+  color: var(--mk-muted);
+}
+.mk-mark-page .mk-mark-inline-choice > svg { width: 17px; height: 17px; }
+.mk-mark-page .mk-mark-inline-choice button {
+  border: 1px solid var(--mk-border);
+  min-height: 38px;
+  border-radius: 999px;
+  padding: 5px 12px;
+  color: var(--mk-brand);
+  background: var(--mk-surface-solid);
+  cursor: pointer;
+  font-weight: 650;
+}
+.mk-mark-page .mk-mark-inline-choice button:last-child {
+  min-width: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 5px;
+}
+.mk-mark-page .mk-mark-inline-choice button svg { width: 15px; height: 15px; }
+@media (max-width: 767px) {
+  .mk-mark-page .mk-mark-composer { padding-right: 112px; }
+}
