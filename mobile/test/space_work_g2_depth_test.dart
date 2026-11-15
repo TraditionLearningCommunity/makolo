@@ -95,10 +95,7 @@ void main() {
     );
     expect(find.text('Réalisations liées'), findsOneWidget);
     expect(find.text('Dossiers de cette prestation'), findsOneWidget);
-    expect(
-      find.text('Aucun dossier accessible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Aucun dossier accessible.'), findsOneWidget);
   });
 
   testWidgets('MT4 bounded pagination and elapsed realization do not lie', (

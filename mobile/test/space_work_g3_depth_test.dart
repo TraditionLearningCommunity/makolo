@@ -159,12 +159,14 @@ void main() {
       expect(find.text('Départ passé'), findsOneWidget);
       expect(find.text('Départ futur'), findsOneWidget);
       expect(
-        tester.widget<ListTile>(
-          find.ancestor(
-            of: find.text('Départ passé'),
-            matching: find.byType(ListTile),
-          ),
-        ).onTap,
+        tester
+            .widget<ListTile>(
+              find.ancestor(
+                of: find.text('Départ passé'),
+                matching: find.byType(ListTile),
+              ),
+            )
+            .onTap,
         isNull,
       );
       expect(find.text('Précédents'), findsOneWidget);
@@ -236,7 +238,10 @@ void main() {
       ),
     );
     expect(find.textContaining('Places physiques : 40'), findsOneWidget);
-    expect(find.textContaining('ne correspond pas forcément aux places à vendre'), findsOneWidget);
+    expect(
+      find.textContaining('ne correspond pas forcément aux places à vendre'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Places vendables : 40'), findsNothing);
   });
 }
