@@ -42,6 +42,33 @@
 
   }
 
+  // In-place previews reuse text and links already visible in the owner-backed card.
+  // Never fetch a detail or introduce another authorization path.
+  const previewPanel = document.getElementById('discover-preview-wrapper');
+  const previewBody = document.getElementById('discover-preview-body');
+  if (previewPanel && previewBody) {
+    document.querySelectorAll('[data-discovery-preview-open]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const card = button.closest('article[data-discovery-result]');
+        const detailLink = card?.querySelector('h3 a[href]');
+        if (!detailLink) return;
+        const title = document.createElement('h3');
+        title.className = 'break-words text-lg font-bold';
+        title.textContent = detailLink.textContent.trim();
+        const link = document.createElement('a');
+        link.className = 'mk-action-button mt-3';
+        link.dataset.variant = 'secondary';
+        link.href = detailLink.href;
+        link.textContent = 'Voir le détail';
+        previewBody.replaceChildren(title, link);
+        previewPanel.classList.remove('hidden');
+        if (!window.matchMedia('(min-width: 1024px)').matches) {
+          previewPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      });
+    });
+  }
+
   // Only reflect which view is selected; the map controller keeps owning
   // list/map visibility, camera and selection.
   const listControl = document.getElementById('discovery-show-list');
