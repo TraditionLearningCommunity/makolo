@@ -1300,6 +1300,7 @@ class _MarkScreenState extends State<MarkScreen> {
     final actor = _actor;
     final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       bottomNavigationBar: useRail || keyboardOpen
           ? null
@@ -1339,8 +1340,20 @@ class _MarkScreenState extends State<MarkScreen> {
           },
         ),
       ),
-      body: Row(
-        children: [
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              scheme.surface,
+              Color.lerp(scheme.surface, scheme.primary, 0.065)!,
+              scheme.surfaceContainerLow,
+            ],
+          ),
+        ),
+        child: Row(
+          children: [
           if (useRail)
             MakoloMarkPrimaryNavigation(
               actor: actor,
@@ -1359,15 +1372,27 @@ class _MarkScreenState extends State<MarkScreen> {
                       runtime: widget.runtime,
                       actor: actor,
                     ),
-                  Visibility(
-                    visible: !_editing && !_dictating && !_voiceCapture,
-                    maintainState: true,
-                    child: const Column(
-                      children: [
-                        SizedBox(height: 18),
-                        Center(child: MakoloMark(size: 56)),
-                        SizedBox(height: 24),
-                      ],
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    child: Visibility(
+                      visible: !_editing && !_dictating && !_voiceCapture,
+                      maintainState: true,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        child: Center(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: scheme.primary.withValues(alpha: 0.07),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(18),
+                              child: MakoloMark(size: 54),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   Center(
@@ -1394,13 +1419,18 @@ class _MarkScreenState extends State<MarkScreen> {
                           ),
                           Container(
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(24),
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(28),
                               border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .outlineVariant,
+                                color: scheme.outlineVariant.withValues(alpha: 0.65),
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: scheme.shadow.withValues(alpha: 0.10),
+                                  blurRadius: 26,
+                                  offset: const Offset(0, 9),
+                                ),
+                              ],
                             ),
                             padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                             child: Column(
@@ -1802,7 +1832,8 @@ class _MarkScreenState extends State<MarkScreen> {
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
