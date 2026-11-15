@@ -32,19 +32,24 @@ No attachment or guessed entitlement is submitted to the Mark text endpoint.
     capture="environment" accept="image/*">
   <input id="mark-gallery-{{ mark_scope|default:'personal' }}" type="file" data-mk-mark-gallery hidden
     accept="image/*" multiple>
-  <div class="mk-mark-dictation" data-mk-mark-dictation hidden>
-    <i data-lucide="mic" aria-hidden="true"></i>
-    <span data-mk-mark-speech-status role="status">Dictée</span>
-    <button type="button" data-mk-mark-speech-start title="Recommencer" aria-label="Recommencer la dictée">
-      <i data-lucide="mic" aria-hidden="true"></i>
+  <div class="mk-mark-dictation" data-mk-mark-dictation hidden
+    role="group" aria-label="Enregistrement vocal">
+    <i data-lucide="audio-lines" aria-hidden="true"></i>
+    <span data-mk-mark-speech-status role="status">Audio · 00:00</span>
+    <button type="button" data-mk-mark-speech-pause
+      title="Pause" aria-label="Pause">
+      <i data-lucide="pause" aria-hidden="true"></i>
     </button>
-    <button type="button" data-mk-mark-speech-stop title="Terminer" aria-label="Terminer la dictée" disabled>
+    <button type="button" data-mk-mark-speech-stop
+      title="Terminer" aria-label="Terminer">
       <i data-lucide="square" aria-hidden="true"></i>
     </button>
-    <button type="button" data-mk-mark-speech-use title="Garder" aria-label="Garder le texte dicté" disabled>
-      <i data-lucide="check" aria-hidden="true"></i>
+    <button type="button" data-mk-mark-speech-use hidden
+      title="Ajouter l'audio" aria-label="Ajouter l'audio">
+      <i data-lucide="audio-lines" aria-hidden="true"></i>
     </button>
-    <button type="button" data-mk-mark-speech-cancel title="Annuler" aria-label="Annuler la dictée">
+    <button type="button" data-mk-mark-speech-cancel
+      title="Annuler" aria-label="Annuler">
       <i data-lucide="x" aria-hidden="true"></i>
     </button>
   </div>
