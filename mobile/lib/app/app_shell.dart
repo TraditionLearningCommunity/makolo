@@ -442,7 +442,9 @@ class _MakoloBottomNavigation extends StatelessWidget {
                 selected: selectedDoor == destinations[1].door,
                 onTap: () => onDestination(destinations[1]),
               ),
-              Expanded(child: _MarkButton(onTap: onMark, selected: markSelected)),
+              Expanded(
+                child: _MarkButton(onTap: onMark, selected: markSelected),
+              ),
               _NavButton(
                 destination: destinations[2],
                 selected: selectedDoor == destinations[2].door,
