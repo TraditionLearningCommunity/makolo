@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart'
-    show mapEquals, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -513,52 +511,13 @@ class _MarkScreenState extends State<MarkScreen> {
 
   Future<void> _openVoiceInput() async {
     if (_busy || _restoring || _voiceCapture || _dictating) return;
-    final revision = _draftRevision;
+    if (_attachments.length >= 10) {
+      _show('10 pièces maximum pour une demande.');
+      return;
+    }
     _inputFocus.unfocus();
-    var canDictate = false;
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      try {
-        canDictate =
-            await const MethodChannel('makolo/native_dictation')
-                .invokeMethod<bool>('available') ==
-            true;
-      } on Object {
-        // No installed system recognition service is a valid configuration.
-      }
-    }
-    if (!mounted || revision != _draftRevision) return;
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (canDictate)
-              ListTile(
-                leading: const Icon(Icons.mic_outlined),
-                title: const Text('Dicter une demande'),
-
-                onTap: () => Navigator.pop(sheetContext, 'dictation'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.graphic_eq),
-              title: const Text('Enregistrer un audio'),
-
-              onTap: () => Navigator.pop(sheetContext, 'audio'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (!mounted || revision != _draftRevision) return;
-    if (choice == 'dictation') {
-      setState(() {
-        _dictationBase = _input.text.trim();
-        _dictating = true;
-      });
-    } else if (choice == 'audio') {
-      await _openVoiceCapture();
-    }
+    // One microphone entry: a silence never finishes the recording.
+    await _openVoiceCapture();
   }
 
   void _previewDictation(String value) {
