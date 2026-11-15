@@ -9,6 +9,7 @@ enum FileAcquisitionStatus {
   permissionDenied,
   settingsRequired,
   restricted,
+  limitExceeded,
   failed,
 }
 
@@ -89,14 +90,71 @@ class NativeFileAcquisitionCoordinator {
     );
   }
 
+  Future<FileAcquisitionResult> pickPhotos({
+    required String owner,
+    required String purpose,
+    required String Function(int index, SystemPickedMedia media) fileIdFor,
+    int maxFiles = 10,
+    String sensitivity = 'private',
+  }) async {
+    final picker = mediaPicker;
+    final List<SystemPickedMedia> picked;
+    if (picker is SystemMultiImagePicker) {
+      picked = await picker.pickImages(limit: maxFiles);
+    } else {
+      final single = await picker.pickImage();
+      picked = single == null ? const [] : [single];
+    }
+    if (picked.isEmpty) {
+      return const FileAcquisitionResult(
+        status: FileAcquisitionStatus.cancelled,
+      );
+    }
+    if (picked.length > maxFiles) {
+      return const FileAcquisitionResult(
+        status: FileAcquisitionStatus.limitExceeded,
+      );
+    }
+    final staged = <StoredLocalFile>[];
+    try {
+      for (var i = 0; i < picked.length; i++) {
+        final image = picked[i];
+        final result = await _stageMedia(
+          fileId: fileIdFor(i, image),
+          owner: owner,
+          purpose: purpose,
+          sensitivity: sensitivity,
+          media: image,
+        );
+        if (!result.acquired) throw StateError('Image cannot be staged');
+        staged.add(result.files.single);
+      }
+      return FileAcquisitionResult(
+        status: FileAcquisitionStatus.acquired,
+        files: staged,
+      );
+    } on Object {
+      for (final file in staged) {
+        await store.remove(file.fileId);
+      }
+      return const FileAcquisitionResult(status: FileAcquisitionStatus.failed);
+    }
+  }
+
   Future<FileAcquisitionResult> pickFiles({
     required String owner,
     required String purpose,
     required String Function(int index, PickedSystemFile file) fileIdFor,
     String sensitivity = 'private',
     List<String>? allowedExtensions,
+    int? maxFiles,
   }) async {
     final picked = await filePicker.pick(allowedExtensions: allowedExtensions);
+    if (maxFiles != null && picked.length > maxFiles) {
+      return const FileAcquisitionResult(
+        status: FileAcquisitionStatus.limitExceeded,
+      );
+    }
     if (picked.isEmpty) {
       return const FileAcquisitionResult(
         status: FileAcquisitionStatus.cancelled,
