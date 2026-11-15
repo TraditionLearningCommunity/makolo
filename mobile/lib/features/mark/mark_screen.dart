@@ -1051,16 +1051,20 @@ class _MarkScreenState extends State<MarkScreen> {
         actor == _actor &&
         revision == _draftRevision) {
       setState(() {
-        _draftSaved =
-            _input.text.trim().isNotEmpty ||
-            _attachments.isNotEmpty ||
-            _links.isNotEmpty;
+        _draftSaved = widget.runtime.drafts != null &&
+            (_input.text.trim().isNotEmpty ||
+                _attachments.isNotEmpty ||
+                _links.isNotEmpty);
       });
     }
   }
 
   Future<void> _saveIntent() async {
     if (_busy || _restoring) return;
+    if (widget.runtime.drafts == null) {
+      _show('Impossible d’enregistrer cette demande.');
+      return;
+    }
     try {
       await _saveDraft();
     } on Object {
@@ -1274,6 +1278,11 @@ class _MarkScreenState extends State<MarkScreen> {
       return;
     }
     if (!mounted || revision != _draftRevision || actor != _actor) return;
+    if ((_input.text.trim().isNotEmpty || _attachments.isNotEmpty) &&
+        widget.runtime.drafts == null) {
+      _show('Impossible de conserver cette demande pour le moment.');
+      return;
+    }
     context.go(destination.path);
   }
 
