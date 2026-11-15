@@ -22,7 +22,14 @@ abstract interface class SystemMediaPicker {
   Future<List<SystemPickedMedia>> recoverInterruptedPick();
 }
 
-class ImagePickerSystemMediaPicker implements SystemMediaPicker {
+/// Optional multi-selection contract; existing native mock pickers keep
+/// their single-photo contract unchanged.
+abstract interface class SystemMultiImagePicker {
+  Future<List<SystemPickedMedia>> pickImages({int? limit});
+}
+
+class ImagePickerSystemMediaPicker
+    implements SystemMediaPicker, SystemMultiImagePicker {
   ImagePickerSystemMediaPicker({ImagePicker? picker})
     : _picker = picker ?? ImagePicker();
 
@@ -34,6 +41,12 @@ class ImagePickerSystemMediaPicker implements SystemMediaPicker {
       source: capture ? ImageSource.camera : ImageSource.gallery,
     );
     return file == null ? null : _media(file, PickedMediaKind.image);
+  }
+
+  @override
+  Future<List<SystemPickedMedia>> pickImages({int? limit}) async {
+    final files = await _picker.pickMultiImage(limit: limit);
+    return files.map((file) => _media(file, PickedMediaKind.image)).toList();
   }
 
   @override
