@@ -3,7 +3,7 @@
 
   const MAX_TEXT = 600;
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
-  const MAX_FILES = 4;
+  const MAX_FILES = 10;
   const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
   const initialized = new WeakSet();
 
@@ -274,7 +274,7 @@
       if (!list?.length) return;
       const files = Array.from(list);
       if (files.length + attachments.length > MAX_FILES) {
-        announce('Ajoutez au maximum quatre pièces à cette demande.');
+        announce('10 pièces maximum pour une demande.');
         return;
       }
       if (files.some((file) => !file.size || file.size > MAX_FILE_BYTES)) {
