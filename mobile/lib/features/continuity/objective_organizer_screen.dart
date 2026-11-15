@@ -856,7 +856,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 : Text(
                     widget.spaceSlug == null
                         ? 'Mes démarches'
-                        : 'Projets et dossiers',
+                        : 'Nos démarches',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium
