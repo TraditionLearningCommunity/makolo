@@ -565,3 +565,38 @@
     bottom: calc(100% + 8px);
   }
 }
+
+/* Makolo Mark atmosphere: distinct from a chat thread or an empty form. */
+.mk-mark-page[data-mk-mark-root] {
+  padding: clamp(16px, 3vw, 28px);
+  border-radius: clamp(20px, 3vw, 36px);
+  background:
+    radial-gradient(ellipse at 85% 9%,
+      color-mix(in srgb, #5232DB 12%, transparent), transparent 49%),
+    radial-gradient(ellipse at 7% 84%,
+      color-mix(in srgb, #FF704D 10%, transparent), transparent 46%),
+    linear-gradient(150deg,
+      color-mix(in srgb, var(--mk-surface-solid) 92%, #FAF7F5),
+      color-mix(in srgb, var(--mk-surface-solid) 94%, #5232DB));
+}
+.mk-mark-page .mk-mark-composer {
+  box-shadow: 0 16px 44px color-mix(in srgb, #2B176E 11%, transparent);
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+.mk-mark-page .mk-mark-composer:focus-within {
+  box-shadow: 0 12px 36px color-mix(in srgb, #5232DB 12%, transparent);
+}
+.mk-mark-page .mk-mark-composer .mk-mark-references {
+  max-height: 205px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.mk-mark-page .mk-mark-file-remove {
+  width: 28px;
+  height: 28px;
+  background: var(--mk-surface-solid);
+  box-shadow: 0 2px 7px color-mix(in srgb, #2B176E 12%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-mark-page .mk-mark-composer { transition: none; }
+}
