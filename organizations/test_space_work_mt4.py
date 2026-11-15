@@ -194,10 +194,12 @@ class MT4SpaceEducationServicesTests(TestCase):
         self.assertEqual(self.client.get(self.depth_url(
             "activity", hidden.pk, responsibility=responsibility,
         )).status_code, 404)
-        self.assertEqual(self.client.get(self.work_url, {
+        denied = self.client.get(self.work_url, {
             "kind": "activity", "id": str(hidden.pk),
             "responsibility": responsibility,
-        }).json()["selection"], None)
+        })
+        self.assertEqual(denied.status_code, 404)
+        self.assertNotIn(hidden.title, denied.content.decode("utf-8"))
         self.assertEqual(self.client.get(self.create_url).status_code, 405)
         self.assertEqual(self.client.post(self.create_url, {
             "title": "Programme forgé",

@@ -116,7 +116,7 @@ class SpaceWorkMT2ContractTests(TestCase):
             "responsibility": responsibility,
             "kind": "activity", "id": str(hidden.pk),
         })
-        self.assertIsNone(denied.data["selection"])
+        self.assertEqual(denied.status_code, 404, denied.data)
         self.assertNotIn(hidden.title, str(denied.data))
         revoke_mandate(mandate=mandate, actor=self.owner)
         self.assertEqual(self.client.get(item["links"]["selection"]).status_code, 404)

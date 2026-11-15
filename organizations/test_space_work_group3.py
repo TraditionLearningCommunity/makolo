@@ -381,8 +381,7 @@ class SpaceWorkGroup3Tests(TestCase):
         result = self.client.get(
             self.url, {"kind": "transport_route", "id": str(route.pk)}
         )
-        self.assertEqual(result.status_code, 200, result.data)
-        self.assertIsNone(result.data["selection"])
+        self.assertEqual(result.status_code, 404, result.data)
         self.assertNotIn("Foreign route", str(result.data))
 
     def test_media_composition_does_not_inherit_commerce_or_transport_groups(self):

@@ -344,8 +344,8 @@ class SpaceWorkG1DepthTests(TestCase):
         self.assertIn("Réalisation autorisée", str(yes.json()))
         self.assertNotIn("Réalisation interdite", str(yes.json()))
         no = self.client.get(url, {**params, "id": str(foreign.pk)})
-        self.assertEqual(no.status_code, 200)
-        self.assertIsNone(no.json()["selection"])
+        self.assertEqual(no.status_code, 404)
+        self.assertNotIn("Action privée", no.content.decode("utf-8"))
         for invalid in ("-1", "not-a-number", "10001"):
             self.assertEqual(
                 self.client.get(url, {**params, "related_offset": invalid}).status_code,

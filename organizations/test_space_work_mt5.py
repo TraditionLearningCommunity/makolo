@@ -291,7 +291,9 @@ class MT5CommerceTransportTests(TestCase):
         foreign_offer = Offer.objects.create(
             activity=foreign_activity, name="Offre étrangère",
         )
-        self.assertEqual(self.selected("offer", foreign_offer.pk).json()["selection"], None)
+        foreign_response = self.selected("offer", foreign_offer.pk)
+        self.assertEqual(foreign_response.status_code, 404)
+        self.assertNotIn("Offre étrangère", foreign_response.content.decode("utf-8"))
         self.assertEqual(self.client.get(
             self.depth("offer", foreign_offer.pk),
         ).status_code, 404)
@@ -570,7 +572,7 @@ class MT5CommerceTransportTests(TestCase):
         lens = f"mandate:{mandate.pk}"
         self.assertEqual(self.selected(
             "transport_route", route.pk, responsibility=lens,
-        ).json()["selection"], None)
+        ).status_code, 404)
         self.assertEqual(self.client.get(
             self.depth("vehicle", vehicle.pk, responsibility=lens),
         ).status_code, 404)

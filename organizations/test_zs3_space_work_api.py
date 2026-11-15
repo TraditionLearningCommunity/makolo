@@ -85,7 +85,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         hidden = Activity.objects.create(title="Hidden", space=foreign, created_by=self.owner)
         for kind, identity in (("activity", hidden.pk), ("activity", "bad-id"), ("unknown", selected.pk)):
             denied = self.client.get(self.url, {"kind": kind, "id": str(identity)})
-            self.assertIsNone(denied.data["selection"])
+            self.assertEqual(denied.status_code, 404, denied.data)
             self.assertNotIn("Hidden", str(denied.data))
 
     def test_work_section_continuation_does_not_repeat_preview_or_cross_owner(self):
@@ -121,7 +121,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertNotIn("routes", response.data["sections"])
         for kind, identity in (("transport_route", route.pk), ("activity", hidden.pk)):
             selected = self.client.get(self.url, {**params, "kind": kind, "id": str(identity)})
-            self.assertIsNone(selected.data["selection"])
+            self.assertEqual(selected.status_code, 404, selected.data)
 
     def test_operational_footprint_does_not_reveal_other_domains(self):
         actual = SpaceOperationalFootprint(
@@ -507,8 +507,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         selected = self.client.get(
             self.url, {"kind": "activity", "id": str(sensitive.pk)}
         )
-        self.assertEqual(selected.status_code, 200, selected.data)
-        self.assertIsNone(selected.data["selection"])
+        self.assertEqual(selected.status_code, 404, selected.data)
         self.assertNotIn(sensitive.title, str(selected.data))
         revoke_mandate(mandate=scanner_mandate, actor=self.owner)
         self.assertEqual(self.client.get(self.url).status_code, 404)
