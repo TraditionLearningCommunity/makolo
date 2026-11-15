@@ -32,7 +32,12 @@ class ConversationDetailPresentationTests(SimpleTestCase):
         with patch("conversations.detail_presentation.can_manage_conversation",
                    return_value=False):
             data = conversation_members_for_profile(viewer, conversation)
-        self.assertEqual(data, {"scope": "restricted", "people": []})
+        self.assertEqual(data["scope"], "restricted")
+        self.assertEqual(data["people"], [])
+        self.assertIs(data["can_manage"], False)
+        self.assertNotIn("total_count", data)
+        self.assertNotIn("invitations", data)
+        self.assertNotIn("collectives", data)
 
     def test_direct_avatar_obeys_profile_visibility(self):
         viewer = SimpleNamespace(pk="viewer")
@@ -87,7 +92,7 @@ class ConversationDetailPresentationTests(SimpleTestCase):
 
     def test_group_count_is_only_returned_to_a_manager(self):
         viewer = SimpleNamespace(pk="owner")
-        group = SimpleNamespace(pk="group-1")
+        group = SimpleNamespace(pk="group-1", slug="group-1", name="Groupe 1")
         conversation = SimpleNamespace(context=SimpleNamespace(
             kind="group", group=group,
         ))
@@ -96,13 +101,28 @@ class ConversationDetailPresentationTests(SimpleTestCase):
         with (
             patch("conversations.detail_presentation.can_manage_conversation",
                   return_value=True),
+            patch("conversations.detail_presentation.ConversationParticipation.objects") as participants,
+            patch("conversations.core_models.ConversationInvitation.objects") as invitations,
+            patch("conversations.participant_services.conversation_collectives_for_manager",
+                  return_value=[]),
+            patch("groups.services.has_group_permission", return_value=True),
             patch("groups.models.GroupMembership.objects") as memberships,
         ):
+            participants.filter.return_value.select_related.return_value.order_by.return_value.__getitem__ = Mock(
+                return_value=[],
+            )
+            invitations.filter.return_value.select_related.return_value.order_by.return_value.__getitem__ = Mock(
+                return_value=[],
+            )
             memberships.filter.return_value.count.return_value = 247
             memberships.filter.return_value.select_related.return_value.order_by.return_value.__getitem__ = Mock(
                 return_value=[row],
             )
             data = conversation_members_for_profile(viewer, conversation)
         self.assertEqual(data["scope"], "group")
-        self.assertEqual(data["total_count"], 247)
-        self.assertEqual(data["people"], [{"label": "Marie", "is_me": False}])
+        self.assertTrue(data["can_manage"])
+        self.assertEqual(data["people"], [])
+        self.assertEqual(data["derived"]["count"], 247)
+        self.assertEqual(data["derived"]["people"], [
+            {"identifier": "marie", "label": "Marie", "is_me": False},
+        ])
