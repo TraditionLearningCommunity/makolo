@@ -533,6 +533,7 @@ class _MarkButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      selected: selected,
       label: 'Makolo Mark',
       child: Tooltip(
         message: 'Makolo Mark',
