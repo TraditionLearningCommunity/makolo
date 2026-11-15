@@ -543,75 +543,76 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
 
 /// Secondary destination above the primary shell, with its own back top bar.
 GoRoute meDemarchesRoute(AppRuntime runtime) => GoRoute(
-    path: '/me/demarches',
-    builder: (context, state) => runtime.objectives == null
-        ? const MakoloSecondaryScreen(
-            title: 'Mes démarches',
-            message: 'Vos démarches ne sont pas encore disponibles sur cet appareil.',
-          )
-        : ObjectiveOrganizerScreen(
-            repository: runtime.objectives!,
-            drafts: runtime.drafts,
-            onOpenItem: (kind, id) {
-              if (kind == 'project') {
-                context.push('/projects/$id');
-              } else if (kind == 'dossier') {
-                context.push('/dossiers/$id');
-              } else if (kind == 'journey') {
-                context.push('/journeys/$id');
-              }
-            },
-            onCreate: (kind) =>
-                context.push('/me/demarches/new?kind=$kind'),
-            onOpenInvitations: () => context.push('/project-invitations'),
-          ),
-    routes: [
-      GoRoute(
-        path: 'new',
-        builder: (context, state) {
-          final kind = state.uri.queryParameters['kind'];
-          if (runtime.objectives == null ||
-              runtime.api == null ||
-              runtime.drafts == null ||
-              (kind != 'project' && kind != 'dossier')) {
-            return const MakoloSecondaryScreen(
-              title: 'Créer',
-              message: 'Création momentanément indisponible.',
-            );
-          }
-          final spaceSlug = state.uri.queryParameters['space'];
-          final actor = runtime.actorContext?.value;
-          if (spaceSlug != null &&
-              (actor is! SpaceActorContext ||
-                  actor.space.slug != spaceSlug)) {
-            return const MakoloSecondaryScreen(
-              title: 'Créer',
-              message: 'Revenez à l’Espace autorisé pour créer.',
-            );
-          }
-          return ObjectiveCreateScreen(
-            key: ValueKey(
-              'objective-create:${runtime.objectives!.profileId}:'
-              '$kind:${spaceSlug ?? 'personal'}',
-            ),
-            kind: kind!,
-            repository: runtime.objectives!,
-            drafts: runtime.drafts!,
-            api: runtime.api!,
-            onReview: () => context.push(
-              spaceSlug == null
-                  ? '/me/demarches'
-                  : '/space/${Uri.encodeComponent(spaceSlug)}/objectives',
-            ),
-            spaceActor: spaceSlug != null && actor is SpaceActorContext
-                ? actor.space
-                : null,
-            actorContext: runtime.actorContext,
-            onCreated: (id) => context.pushReplacement(
-              kind == 'project' ? '/projects/$id' : '/dossiers/$id',
-            ),
+  path: '/me/demarches',
+  builder: (context, state) => runtime.objectives == null
+      ? const MakoloSecondaryScreen(
+          title: 'Mes démarches',
+          message: 'Vos démarches ne sont pas encore disponibles sur cet appareil.',
+        )
+      : ObjectiveOrganizerScreen(
+          repository: runtime.objectives!,
+          drafts: runtime.drafts,
+          onOpenItem: (kind, id) {
+            if (kind == 'project') {
+              context.push('/projects/$id');
+            } else if (kind == 'dossier') {
+              context.push('/dossiers/$id');
+            } else if (kind == 'journey') {
+              context.push('/journeys/$id');
+            }
+          },
+          onCreate: (kind) =>
+              context.push('/me/demarches/new?kind=$kind'),
+          onOpenInvitations: () => context.push('/project-invitations'),
+        ),
+  routes: [
+    GoRoute(
+      path: 'new',
+      builder: (context, state) {
+        final kind = state.uri.queryParameters['kind'];
+        if (runtime.objectives == null ||
+            runtime.api == null ||
+            runtime.drafts == null ||
+            (kind != 'project' && kind != 'dossier')) {
+          return const MakoloSecondaryScreen(
+            title: 'Créer',
+            message: 'Création momentanément indisponible.',
           );
-        },
-      ),
-    ],
-  ),
+        }
+        final spaceSlug = state.uri.queryParameters['space'];
+        final actor = runtime.actorContext?.value;
+        if (spaceSlug != null &&
+            (actor is! SpaceActorContext ||
+                actor.space.slug != spaceSlug)) {
+          return const MakoloSecondaryScreen(
+            title: 'Créer',
+            message: 'Revenez à l’Espace autorisé pour créer.',
+          );
+        }
+        return ObjectiveCreateScreen(
+          key: ValueKey(
+            'objective-create:${runtime.objectives!.profileId}:'
+            '$kind:${spaceSlug ?? 'personal'}',
+          ),
+          kind: kind!,
+          repository: runtime.objectives!,
+          drafts: runtime.drafts!,
+          api: runtime.api!,
+          onReview: () => context.push(
+            spaceSlug == null
+                ? '/me/demarches'
+                : '/space/${Uri.encodeComponent(spaceSlug)}/objectives',
+          ),
+          spaceActor: spaceSlug != null && actor is SpaceActorContext
+              ? actor.space
+              : null,
+          actorContext: runtime.actorContext,
+          onCreated: (id) => context.pushReplacement(
+            kind == 'project' ? '/projects/$id' : '/dossiers/$id',
+          ),
+        );
+      },
+    ),
+  ],
+
+);
