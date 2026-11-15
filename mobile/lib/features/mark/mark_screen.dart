@@ -1354,484 +1354,499 @@ class _MarkScreenState extends State<MarkScreen> {
         ),
         child: Row(
           children: [
-          if (useRail)
-            MakoloMarkPrimaryNavigation(
-              actor: actor,
-              asRail: true,
-              onDestination: (destination) =>
-                  unawaited(_leaveMark(destination)),
-            ),
-          Expanded(
-            child: SafeArea(
-              top: false,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-                children: [
-                  if (actor is SpaceActorContext)
-                    MakoloSpaceContextBar(
-                      runtime: widget.runtime,
-                      actor: actor,
-                    ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 240),
-                    curve: Curves.easeOutCubic,
-                    child: Visibility(
-                      visible: !_editing && !_dictating && !_voiceCapture,
-                      maintainState: true,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        child: Center(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: scheme.primary.withValues(alpha: 0.07),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Padding(
-                              padding: EdgeInsets.all(18),
-                              child: MakoloMark(size: 54),
+            if (useRail)
+              MakoloMarkPrimaryNavigation(
+                actor: actor,
+                asRail: true,
+                onDestination: (destination) =>
+                    unawaited(_leaveMark(destination)),
+              ),
+            Expanded(
+              child: SafeArea(
+                top: false,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+                  children: [
+                    if (actor is SpaceActorContext)
+                      MakoloSpaceContextBar(
+                        runtime: widget.runtime,
+                        actor: actor,
+                      ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOutCubic,
+                      child: Visibility(
+                        visible: !_editing && !_dictating && !_voiceCapture,
+                        maintainState: true,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          child: Center(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withValues(alpha: 0.07),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Padding(
+                                padding: EdgeInsets.all(18),
+                                child: MakoloMark(size: 54),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Visibility(
-                            visible: !_editing && !_dictating && !_voiceCapture,
-                            maintainState: true,
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Qu’est-ce que vous avez en tête ?',
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall,
-                                ),
-                                const SizedBox(height: 22),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: scheme.surface,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: scheme.outlineVariant.withValues(alpha: 0.65),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: scheme.shadow.withValues(alpha: 0.10),
-                                  blurRadius: 26,
-                                  offset: const Offset(0, 9),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                TextField(
-                                  controller: _input,
-                                  focusNode: _inputFocus,
-                                  readOnly: _busy || _restoring || _dictating,
-                                  minLines: 1,
-                                  maxLines: 7,
-                                  maxLength: 600,
-                                  textInputAction: TextInputAction.newline,
-                                  decoration: const InputDecoration(
-                                    hintText:
-                                        'Décrivez ce que vous souhaitez faire…',
-                                    alignLabelWithHint: true,
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    counterText: '',
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Visibility(
+                              visible:
+                                  !_editing && !_dictating && !_voiceCapture,
+                              maintainState: true,
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Qu’est-ce que vous avez en tête ?',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall,
                                   ),
-                                  onChanged: (_) {
-                                    setState(() {
-                                      _draftSaved = false;
-                                      _result = null;
-                                      _pendingConfirmationCode = null;
-                                      _pendingConfirmationKey = null;
-                                      _teamMember = null;
-                                      _textOnlyConsent = false;
-                                    });
-                                    unawaited(_saveDraft());
-                                  },
+                                  const SizedBox(height: 22),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: scheme.surface,
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: scheme.outlineVariant.withValues(
+                                    alpha: 0.65,
+                                  ),
                                 ),
-                                if (_selectedContext != null ||
-                                    _attachments.isNotEmpty ||
-                                    _links.isNotEmpty ||
-                                    _typedLinks.isNotEmpty) ...[
-                                  if (_selectedContext != null)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              'Élément sélectionné pour cette demande',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: scheme.shadow.withValues(
+                                      alpha: 0.10,
+                                    ),
+                                    blurRadius: 26,
+                                    offset: const Offset(0, 9),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: _input,
+                                    focusNode: _inputFocus,
+                                    readOnly: _busy || _restoring || _dictating,
+                                    minLines: 1,
+                                    maxLines: 7,
+                                    maxLength: 600,
+                                    textInputAction: TextInputAction.newline,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Décrivez ce que vous souhaitez faire…',
+                                      alignLabelWithHint: true,
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      counterText: '',
+                                    ),
+                                    onChanged: (_) {
+                                      setState(() {
+                                        _draftSaved = false;
+                                        _result = null;
+                                        _pendingConfirmationCode = null;
+                                        _pendingConfirmationKey = null;
+                                        _teamMember = null;
+                                        _textOnlyConsent = false;
+                                      });
+                                      unawaited(_saveDraft());
+                                    },
+                                  ),
+                                  if (_selectedContext != null ||
+                                      _attachments.isNotEmpty ||
+                                      _links.isNotEmpty ||
+                                      _typedLinks.isNotEmpty) ...[
+                                    if (_selectedContext != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Élément sélectionné pour cette demande',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall,
+                                              ),
+                                            ),
+                                            MakoloIconActionButton(
+                                              icon: Icons.close,
+                                              tooltip: 'Retirer le contexte sélectionné',
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _removeSelectedContext(),
+                                                    ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final detected in _typedLinks)
+                                          Tooltip(
+                                            message:
+                                                'Lien reconnu dans votre texte',
+                                            child: Chip(
+                                              avatar: const Icon(
+                                                Icons.link,
+                                                size: 18,
+                                              ),
+                                              label: ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      maxWidth: 200,
+                                                    ),
+                                                child: Text(
+                                                  detected,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ),
                                             ),
                                           ),
-                                          MakoloIconActionButton(
-                                            icon: Icons.close,
-                                            tooltip: 'Retirer le contexte sélectionné',
-                                            onPressed: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _removeSelectedContext(),
-                                                  ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      for (final detected in _typedLinks)
-                                        Tooltip(
-                                          message:
-                                              'Lien reconnu dans votre texte',
-                                          child: Chip(
+                                        for (final link in _links)
+                                          Chip(
                                             avatar: const Icon(
                                               Icons.link,
                                               size: 18,
                                             ),
                                             label: ConstrainedBox(
                                               constraints: const BoxConstraints(
-                                                maxWidth: 200,
+                                                maxWidth: 280,
                                               ),
                                               child: Text(
-                                                detected,
-                                                overflow: TextOverflow.ellipsis,
+                                                link,
                                                 maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      for (final link in _links)
-                                        Chip(
-                                          avatar: const Icon(
-                                            Icons.link,
-                                            size: 18,
-                                          ),
-                                          label: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 280,
-                                            ),
-                                            child: Text(
-                                              link,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          onDeleted: _busy
-                                              ? null
-                                              : () => unawaited(
-                                                  _removeLink(link),
-                                                ),
-                                          deleteButtonTooltipMessage:
-                                              'Retirer ce lien',
-                                        ),
-                                      for (final item in _attachments) ...[
-                                        if (_isVisualAttachment(item))
-                                          _MarkImageThumbnail(
-                                            key: ValueKey(
-                                              'mark-thumb:$_draftRevision:${item['file_id']}',
-                                            ),
-                                            loadPath: () => _localThumbnailPath(
-                                              item['file_id']?.toString() ?? '',
-                                            ),
-                                            name:
-                                                item['name']?.toString() ??
-                                                'Image',
-                                            onOpen: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _previewAttachment(item),
-                                                  ),
-                                            onRemove: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _removeAttachment(item),
-                                                  ),
-                                          )
-                                        else if (item['kind'] != 'audio')
-                                          _MarkDocumentThumbnail(
-                                            key: ValueKey(
-                                              'mark-file:$_draftRevision:${item['file_id']}',
-                                            ),
-                                            filename:
-                                                item['name']?.toString() ??
-                                                'Document',
-                                            onOpen: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _previewAttachment(item),
-                                                  ),
-                                            onRemove: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _removeAttachment(item),
-                                                  ),
-                                          )
-                                        else
-                                          InputChip(
-                                            avatar: Icon(
-                                              item['kind'] == 'audio'
-                                                  ? Icons.mic_none
-                                                  : item['kind'] == 'photo'
-                                                  ? Icons.image_outlined
-                                                  : Icons.attach_file,
-                                              size: 18,
-                                            ),
-                                            label: Text(
-                                              '${item['name']?.toString() ?? 'Pièce'}'
-                                              '${item['saved_asset_id'] != null ? ' ✓' : ''}',
-                                            ),
-                                            onPressed: _busy
-                                                ? null
-                                                : () => unawaited(
-                                                    _previewAttachment(item),
-                                                  ),
                                             onDeleted: _busy
                                                 ? null
                                                 : () => unawaited(
-                                                    _removeAttachment(item),
+                                                    _removeLink(link),
                                                   ),
                                             deleteButtonTooltipMessage:
-                                                'Retirer cette pièce',
+                                                'Retirer ce lien',
                                           ),
+                                        for (final item in _attachments) ...[
+                                          if (_isVisualAttachment(item))
+                                            _MarkImageThumbnail(
+                                              key: ValueKey(
+                                                'mark-thumb:$_draftRevision:${item['file_id']}',
+                                              ),
+                                              loadPath: () =>
+                                                  _localThumbnailPath(
+                                                    item['file_id']
+                                                            ?.toString() ??
+                                                        '',
+                                                  ),
+                                              name:
+                                                  item['name']?.toString() ??
+                                                  'Image',
+                                              onOpen: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _previewAttachment(item),
+                                                    ),
+                                              onRemove: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _removeAttachment(item),
+                                                    ),
+                                            )
+                                          else if (item['kind'] != 'audio')
+                                            _MarkDocumentThumbnail(
+                                              key: ValueKey(
+                                                'mark-file:$_draftRevision:${item['file_id']}',
+                                              ),
+                                              filename:
+                                                  item['name']?.toString() ??
+                                                  'Document',
+                                              onOpen: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _previewAttachment(item),
+                                                    ),
+                                              onRemove: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _removeAttachment(item),
+                                                    ),
+                                            )
+                                          else
+                                            InputChip(
+                                              avatar: Icon(
+                                                item['kind'] == 'audio'
+                                                    ? Icons.mic_none
+                                                    : item['kind'] == 'photo'
+                                                    ? Icons.image_outlined
+                                                    : Icons.attach_file,
+                                                size: 18,
+                                              ),
+                                              label: Text(
+                                                '${item['name']?.toString() ?? 'Pièce'}'
+                                                '${item['saved_asset_id'] != null ? ' ✓' : ''}',
+                                              ),
+                                              onPressed: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _previewAttachment(item),
+                                                    ),
+                                              onDeleted: _busy
+                                                  ? null
+                                                  : () => unawaited(
+                                                      _removeAttachment(item),
+                                                    ),
+                                              deleteButtonTooltipMessage:
+                                                  'Retirer cette pièce',
+                                            ),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                                ],
-                                if (_attachments.isNotEmpty ||
-                                    _links.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
+                                    ),
+                                  ],
+                                  if (_attachments.isNotEmpty ||
+                                      _links.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.info_outline_rounded,
+                                          size: 17,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Pièces non incluses',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ),
+                                        ChoiceChip(
+                                          label: const Text('Texte seul'),
+                                          selected: _textOnlyConsent,
+                                          onSelected: _busy
+                                              ? null
+                                              : (selected) => setState(() {
+                                                  _textOnlyConsent = selected;
+                                                }),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      const Icon(
-                                        Icons.info_outline_rounded,
-                                        size: 17,
+                                      MakoloIconActionButton(
+                                        tooltip: 'Ajouter une pièce',
+                                        icon: Icons.add_rounded,
+                                        onPressed: _busy || _restoring
+                                            ? null
+                                            : _openAttachmentPicker,
                                       ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          'Pièces non incluses',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
+                                      MakoloIconActionButton(
+                                        tooltip: 'Dicter ou enregistrer',
+                                        icon: Icons.mic_none_rounded,
+                                        onPressed: _busy || _restoring
+                                            ? null
+                                            : _openVoiceInput,
+                                      ),
+                                      const Spacer(),
+                                      IconButton(
+                                        key: const ValueKey('mark-save'),
+                                        tooltip: _draftSaved
+                                            ? 'Enregistré'
+                                            : 'Enregistrer',
+                                        onPressed:
+                                            _busy ||
+                                                _restoring ||
+                                                (_input.text.trim().isEmpty &&
+                                                    _attachments.isEmpty &&
+                                                    _links.isEmpty)
+                                            ? null
+                                            : () => unawaited(_saveIntent()),
+                                        icon: DiscoveryOrbitIcon(
+                                          saved: _draftSaved,
+                                          size: 23,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 44,
+                                          minHeight: 44,
                                         ),
                                       ),
-                                      ChoiceChip(
-                                        label: const Text('Texte seul'),
-                                        selected: _textOnlyConsent,
-                                        onSelected: _busy
+                                      if (_input.text.length >= 500)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 6,
+                                          ),
+                                          child: Text(
+                                            '${_input.text.length}/600',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .labelSmall,
+                                          ),
+                                        ),
+                                      IconButton.filled(
+                                        key: const ValueKey('mark-submit'),
+                                        tooltip: 'Envoyer la demande',
+                                        onPressed:
+                                            _busy ||
+                                                _restoring ||
+                                                _voiceCapture ||
+                                                _dictating ||
+                                                _input.text.trim().isEmpty ||
+                                                ((_attachments.isNotEmpty ||
+                                                        _links.isNotEmpty) &&
+                                                    !_textOnlyConsent)
                                             ? null
-                                            : (selected) => setState(() {
-                                                _textOnlyConsent = selected;
-                                              }),
+                                            : _submit,
+                                        icon: _busy
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.arrow_upward_rounded,
+                                              ),
+                                        style: IconButton.styleFrom(
+                                          minimumSize: const Size(48, 48),
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 8),
-                                Row(
+                              ),
+                            ),
+                            if (_dictating) ...[
+                              const SizedBox(height: 12),
+                              MarkDictationCapture(
+                                key: ValueKey(
+                                  'dictation:${widget.runtime.session?.profileId}:$_owner',
+                                ),
+                                onText: _acceptDictation,
+                                onPreview: _previewDictation,
+                                onClose: _cancelDictation,
+                              ),
+                            ],
+                            if (_voiceCapture && _voiceStore != null) ...[
+                              const SizedBox(height: 12),
+                              MarkVoiceCapture(
+                                key: ValueKey(
+                                  'voice:${widget.runtime.session?.profileId}:$_owner',
+                                ),
+                                store: _voiceStore!,
+                                owner: _owner,
+                                onCaptured: _acceptVoiceFile,
+                                onClose: () {
+                                  if (mounted) {
+                                    setState(() {
+                                      _voiceCapture = false;
+                                      _voiceStore = null;
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                            if (_result?.state == 'offline_draft')
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    MakoloIconActionButton(
-                                      tooltip: 'Ajouter une pièce',
-                                      icon: Icons.add_rounded,
-                                      onPressed: _busy || _restoring
-                                          ? null
-                                          : _openAttachmentPicker,
+                                    Icon(
+                                      Icons.error_outline_rounded,
+                                      size: 18,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error,
                                     ),
-                                    MakoloIconActionButton(
-                                      tooltip: 'Dicter ou enregistrer',
-                                      icon: Icons.mic_none_rounded,
-                                      onPressed: _busy || _restoring
+                                    const SizedBox(width: 6),
+                                    const Text('Non envoyé'),
+                                    TextButton(
+                                      onPressed: _busy
                                           ? null
-                                          : _openVoiceInput,
-                                    ),
-                                    const Spacer(),
-                                    IconButton(
-                                      key: const ValueKey('mark-save'),
-                                      tooltip: _draftSaved
-                                          ? 'Enregistré'
-                                          : 'Enregistrer',
-                                      onPressed:
-                                          _busy ||
-                                              _restoring ||
-                                              (_input.text.trim().isEmpty &&
-                                                  _attachments.isEmpty &&
-                                                  _links.isEmpty)
-                                          ? null
-                                          : () => unawaited(_saveIntent()),
-                                      icon: DiscoveryOrbitIcon(
-                                        saved: _draftSaved,
-                                        size: 23,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 44,
-                                        minHeight: 44,
-                                      ),
-                                    ),
-                                    if (_input.text.length >= 500)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 6,
-                                        ),
-                                        child: Text(
-                                          '${_input.text.length}/600',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall,
-                                        ),
-                                      ),
-                                    IconButton.filled(
-                                      key: const ValueKey('mark-submit'),
-                                      tooltip: 'Envoyer la demande',
-                                      onPressed:
-                                          _busy ||
-                                              _restoring ||
-                                              _voiceCapture ||
-                                              _dictating ||
-                                              _input.text.trim().isEmpty ||
-                                              ((_attachments.isNotEmpty ||
-                                                      _links.isNotEmpty) &&
-                                                  !_textOnlyConsent)
-                                          ? null
-                                          : _submit,
-                                      icon: _busy
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Icon(
-                                              Icons.arrow_upward_rounded,
-                                            ),
-                                      style: IconButton.styleFrom(
-                                        minimumSize: const Size(48, 48),
-                                      ),
+                                          : () => unawaited(_submit()),
+                                      child: const Text('Réessayer'),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          if (_dictating) ...[
-                            const SizedBox(height: 12),
-                            MarkDictationCapture(
-                              key: ValueKey(
-                                'dictation:${widget.runtime.session?.profileId}:$_owner',
                               ),
-                              onText: _acceptDictation,
-                              onPreview: _previewDictation,
-                              onClose: _cancelDictation,
-                            ),
-                          ],
-                          if (_voiceCapture && _voiceStore != null) ...[
-                            const SizedBox(height: 12),
-                            MarkVoiceCapture(
-                              key: ValueKey(
-                                'voice:${widget.runtime.session?.profileId}:$_owner',
+                            if (_result != null &&
+                                !const {
+                                  'offline_draft',
+                                  'local_attachments_only',
+                                  'local_references_only',
+                                }.contains(_result!.state)) ...[
+                              const SizedBox(height: 24),
+                              _MarkResultView(
+                                result: _result!,
+                                onChooseOption: (option) =>
+                                    unawaited(_chooseOption(option)),
+                                onTeamMember: (email, role) =>
+                                    unawaited(_submitTeamMember(email, role)),
+                                onEdit: () => _inputFocus.requestFocus(),
+                                onCancel: _result!.state == 'needs_confirmation'
+                                    ? _cancelConfirmation
+                                    : null,
+                                onConfirm:
+                                    _result!.state == 'needs_confirmation' &&
+                                        ((_result!.action?['code'] ==
+                                                    'redeem_recognition' &&
+                                                actor
+                                                    is PersonalActorContext) ||
+                                            (_result!.action?['code'] ==
+                                                    'add_team_member' &&
+                                                actor is SpaceActorContext))
+                                    ? () => unawaited(_confirmAction())
+                                    : null,
+                                onOpenHandoff: switch (markHandoffRoute(
+                                  _result!,
+                                  actor,
+                                )) {
+                                  final String path => () => context.push(path),
+                                  null => null,
+                                },
                               ),
-                              store: _voiceStore!,
-                              owner: _owner,
-                              onCaptured: _acceptVoiceFile,
-                              onClose: () {
-                                if (mounted) {
-                                  setState(() {
-                                    _voiceCapture = false;
-                                    _voiceStore = null;
-                                  });
-                                }
-                              },
-                            ),
+                            ],
                           ],
-                          if (_result?.state == 'offline_draft')
-                            Padding(
-                              padding: const EdgeInsets.only(top: 10),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Icon(
-                                    Icons.error_outline_rounded,
-                                    size: 18,
-                                    color: Theme.of(context).colorScheme.error,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  const Text('Non envoyé'),
-                                  TextButton(
-                                    onPressed: _busy
-                                        ? null
-                                        : () => unawaited(_submit()),
-                                    child: const Text('Réessayer'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (_result != null &&
-                              !const {
-                                'offline_draft',
-                                'local_attachments_only',
-                                'local_references_only',
-                              }.contains(_result!.state)) ...[
-                            const SizedBox(height: 24),
-                            _MarkResultView(
-                              result: _result!,
-                              onChooseOption: (option) =>
-                                  unawaited(_chooseOption(option)),
-                              onTeamMember: (email, role) =>
-                                  unawaited(_submitTeamMember(email, role)),
-                              onEdit: () => _inputFocus.requestFocus(),
-                              onCancel: _result!.state == 'needs_confirmation'
-                                  ? _cancelConfirmation
-                                  : null,
-                              onConfirm:
-                                  _result!.state == 'needs_confirmation' &&
-                                      ((_result!.action?['code'] ==
-                                                  'redeem_recognition' &&
-                                              actor is PersonalActorContext) ||
-                                          (_result!.action?['code'] ==
-                                                  'add_team_member' &&
-                                              actor is SpaceActorContext))
-                                  ? () => unawaited(_confirmAction())
-                                  : null,
-                              onOpenHandoff: switch (markHandoffRoute(
-                                _result!,
-                                actor,
-                              )) {
-                                final String path => () => context.push(path),
-                                null => null,
-                              },
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           ],
         ),
       ),
