@@ -34,6 +34,7 @@ import '../../runtime/runtime_providers.dart';
 import 'mark_dictation_capture.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
+import 'mark_recorded_audio_transcriber.dart';
 import 'mark_team_member_clarification.dart';
 import 'mark_transcript_composition.dart';
 import 'mark_voice_capture.dart';
@@ -70,6 +71,8 @@ class _MarkScreenState extends State<MarkScreen> {
   Map<String, String>? _teamMember;
   NativeFileAcquisitionCoordinator? _files;
   ProfileFileStore? _voiceStore;
+  MarkRecordedAudioTranscriber? _audioTranscriber;
+  bool _canTranscribeAudio = false;
   bool _voiceCapture = false;
   bool _dictating = false;
   String? _dictationBase;
@@ -90,11 +93,15 @@ class _MarkScreenState extends State<MarkScreen> {
     _input = TextEditingController();
     _inputFocus.addListener(_onInputFocus);
     _repository = MarkRepository(widget.runtime);
+    _audioTranscriber = widget.runtime.api == null
+        ? null
+        : MarkRecordedAudioTranscriber(widget.runtime.api!);
     _meStream = widget.runtime.personal?.watchMe();
     widget.runtime.actorContext?.addListener(_onActorChanged);
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
     _selectedContext = widget.selectedContext;
     _restoreDraft();
+    unawaited(_refreshAudioTranscriptionCapability());
   }
 
   void _onInputFocus() {
@@ -128,6 +135,10 @@ class _MarkScreenState extends State<MarkScreen> {
       widget.runtime.actorContext?.addListener(_onActorChanged);
       _draftRevision++;
       _repository = MarkRepository(widget.runtime);
+      _audioTranscriber = widget.runtime.api == null
+          ? null
+          : MarkRecordedAudioTranscriber(widget.runtime.api!);
+      _canTranscribeAudio = false;
       _files = null;
       _actor =
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
@@ -139,6 +150,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
+      _canTranscribeAudio = false;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
@@ -148,6 +160,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _input.clear();
       _meStream = widget.runtime.personal?.watchMe();
       unawaited(_restoreDraft());
+      unawaited(_refreshAudioTranscriptionCapability());
     } else {
       if (oldWidget.runtime.personal != widget.runtime.personal) {
         _meStream = widget.runtime.personal?.watchMe();
@@ -184,6 +197,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
+      _canTranscribeAudio = false;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
@@ -193,6 +207,65 @@ class _MarkScreenState extends State<MarkScreen> {
     });
     _input.clear();
     _restoreDraft();
+    unawaited(_refreshAudioTranscriptionCapability());
+  }
+
+  Future<void> _refreshAudioTranscriptionCapability() async {
+    final actor = _actor;
+    final revision = _draftRevision;
+    final transcriber = _audioTranscriber;
+    final available = actor is PersonalActorContext &&
+        transcriber != null &&
+        await transcriber.available();
+    if (!mounted ||
+        revision != _draftRevision ||
+        actor != _actor ||
+        transcriber != _audioTranscriber) {
+      return;
+    }
+    if (_canTranscribeAudio != available) {
+      setState(() => _canTranscribeAudio = available);
+    }
+  }
+
+  Future<void> _transcribeVoiceFile(StoredLocalFile file) async {
+    final transcriber = _audioTranscriber;
+    final revision = _draftRevision;
+    final actor = _actor;
+    final profileId = widget.runtime.session?.profileId;
+    if (actor is! PersonalActorContext ||
+        transcriber == null ||
+        !_canTranscribeAudio ||
+        !_voiceCapture ||
+        profileId == null) {
+      throw StateError('Transcription unavailable for this Profile.');
+    }
+    final recognized = await transcriber.transcribe(
+      file,
+      activeProfileId: profileId,
+    );
+    if (!mounted ||
+        revision != _draftRevision ||
+        actor != _actor ||
+        !_voiceCapture ||
+        transcriber != _audioTranscriber) {
+      throw StateError('Mark context changed during transcription.');
+    }
+    // Read the current draft AFTER the request, never a stale before snapshot.
+    final combined = appendMarkTranscript(_input.text, recognized);
+    setState(() {
+      _input.value = TextEditingValue(
+        text: combined,
+        selection: TextSelection.collapsed(offset: combined.length),
+      );
+      _draftSaved = false;
+      _result = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
+      _voiceCapture = false;
+      _voiceStore = null;
+    });
+    await _saveDraft();
   }
 
   Future<void> _restoreDraft() async {
@@ -590,6 +663,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _voiceStore = files.store;
       _voiceCapture = true;
     });
+    unawaited(_refreshAudioTranscriptionCapability());
   }
 
   Future<void> _acceptVoiceFile(StoredLocalFile file) async {
@@ -1706,6 +1780,10 @@ class _MarkScreenState extends State<MarkScreen> {
                                       store: _voiceStore!,
                                       owner: _owner,
                                       onCaptured: _acceptVoiceFile,
+                                      onTranscribe: _canTranscribeAudio &&
+                                              actor is PersonalActorContext
+                                          ? _transcribeVoiceFile
+                                          : null,
                                       onClose: () {
                                         if (mounted) {
                                           setState(() {
