@@ -4,9 +4,6 @@ String appendMarkTranscript(String existing, String recognized) {
   final addition = recognized.trim();
   if (addition.isEmpty) return existing;
   if (existing.isEmpty) return addition;
-  final separator = RegExp(r'\s).hasMatch(existing) ? '' : '\n';
-  return '$existing$separator$addition';
-}
-).hasMatch(existing) ? '' : '\n';
+  final separator = RegExp(r'\s$').hasMatch(existing) ? '' : '\n';
   return '$existing$separator$addition';
 }
