@@ -26,11 +26,20 @@ class NativeSystemFilePicker implements SystemFilePicker {
 
   @override
   Future<List<PickedSystemFile>> pick({List<String>? allowedExtensions}) async {
-    final files = await FilePicker.pickFiles(
-      type: allowedExtensions == null ? FileType.any : FileType.custom,
-      allowedExtensions: allowedExtensions,
-      allowMultiple: allowMultiple,
-    );
+    final type = allowedExtensions == null ? FileType.any : FileType.custom;
+    final List<PlatformFile> files;
+    if (allowMultiple) {
+      files = await FilePicker.pickFiles(
+        type: type,
+        allowedExtensions: allowedExtensions,
+      );
+    } else {
+      final file = await FilePicker.pickFile(
+        type: type,
+        allowedExtensions: allowedExtensions,
+      );
+      files = file == null ? <PlatformFile>[] : <PlatformFile>[file];
+    }
     final results = <PickedSystemFile>[];
     for (final file in files) {
       final length = file.lengthSync() ?? await file.length();
