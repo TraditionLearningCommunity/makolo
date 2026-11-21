@@ -216,6 +216,29 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
     }
   }
 
+  Future<void> _transcribe() async {
+    final file = _staged;
+    final transcribe = widget.onTranscribe;
+    if (file == null || transcribe == null || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await transcribe(file);
+      // A successful transcription can remove this recorder from its parent.
+      // Its staged original is kept until the parent has saved the text.
+      if (mounted) setState(() => _busy = false);
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = 'Transcription impossible. Vous pouvez réessayer ou garder l’audio.';
+        });
+      }
+    }
+  }
+
   Future<void> _removeTemporaryFile() async {
     final path = _recordingPath;
     _recordingPath = null;
@@ -336,7 +359,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                     tooltip: 'Transcrire',
                     onPressed: _busy
                         ? null
-                        : () => unawaited(widget.onTranscribe!(_staged!)),
+                        : () => unawaited(_transcribe()),
                     icon: const Icon(Icons.text_fields_rounded),
                   ),
                 IconButton.filledTonal(
