@@ -55,6 +55,7 @@ import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_passport_screen.dart';
 import '../features/space/space_documents_screen.dart';
 import '../features/space/space_resource_family_screen.dart';
+import '../features/space/space_resource_item_screen.dart';
 import '../features/space/space_document_detail_screen.dart';
 import '../features/space/space_passport_visibility_screen.dart';
 import '../features/space/space_insight_screen.dart';
@@ -1055,6 +1056,17 @@ GoRouter createMakoloRouter(
           slug: state.pathParameters['slug']!,
           kind: state.pathParameters['kind']!,
         ),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) => SpaceResourceItemScreen(
+              runtime: runtime,
+              slug: state.pathParameters['slug']!,
+              kind: state.pathParameters['kind']!,
+              id: state.pathParameters['id']!,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/space/:slug/us/settings',
