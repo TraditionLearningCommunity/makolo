@@ -612,7 +612,7 @@
           // truncate what was typed while transcription was running.
           const text = transcript.trim();
           const existing = input.value;
-          const separator = existing && !/\\s$/.test(existing) ? '\n' : '';
+          const separator = existing && !/\s$/.test(existing) ? '\n' : '';
           input.value = existing + separator + text;
           input.dispatchEvent(new Event('input', { bubbles: true }));
           persist();
