@@ -35,6 +35,7 @@ import 'mark_dictation_capture.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
 import 'mark_team_member_clarification.dart';
+import 'mark_transcript_composition.dart';
 import 'mark_voice_capture.dart';
 
 class MarkScreen extends StatefulWidget {
@@ -537,10 +538,17 @@ class _MarkScreenState extends State<MarkScreen> {
 
   void _acceptDictation(String value) {
     if (!mounted || !_dictating || value.trim().isEmpty) return;
-    _previewDictation(value);
+    // A preview is transient. Commit against the original draft so the same
+    // recognized words are not duplicated and no existing text is replaced.
+    final composed = appendMarkTranscript(_dictationBase ?? '', value);
     setState(() {
+      _input.value = TextEditingValue(
+        text: composed,
+        selection: TextSelection.collapsed(offset: composed.length),
+      );
       _dictating = false;
       _dictationBase = null;
+      _draftSaved = false;
       _result = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
@@ -548,8 +556,8 @@ class _MarkScreenState extends State<MarkScreen> {
     });
     unawaited(_saveDraft());
     _inputFocus.requestFocus();
-    if (_input.text.length > 600) {
-      _show('Raccourcissez votre demande avant de continuer.');
+    if (composed.length > 600) {
+      _show('Votre texte est conservé. Raccourcissez-le pour l’envoi.');
     }
     unawaited(_drainSharedInputs());
   }
@@ -1456,7 +1464,6 @@ class _MarkScreenState extends State<MarkScreen> {
                                     readOnly: _busy || _restoring || _dictating,
                                     minLines: 1,
                                     maxLines: 7,
-                                    maxLength: 600,
                                     textInputAction: TextInputAction.newline,
                                     decoration: const InputDecoration(
                                       hintText: 'Décrivez ce que vous souhaitez faire…',
@@ -1464,7 +1471,6 @@ class _MarkScreenState extends State<MarkScreen> {
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
                                       focusedBorder: InputBorder.none,
-                                      counterText: '',
                                     ),
                                     onChanged: (_) {
                                       setState(() {
