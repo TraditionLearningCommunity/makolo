@@ -49,7 +49,7 @@
 
     function persist() {
       try {
-        const snapshot = { text: input.value.slice(0, 12000), links };
+        const snapshot = { text: input.value, links };
         window.sessionStorage.setItem(draftKey, JSON.stringify(snapshot));
         setSaved(Boolean(input.value.trim() || links.length));
         return true;
@@ -438,6 +438,7 @@
     let seconds = 0;
     let chunks = [];
     let readyAudio = null;
+    let audioRevision = 0;
     let discardOnStop = false;
 
     function audioClock() {
@@ -454,6 +455,7 @@
       stream = null;
     }
     function closeDictation(keep = false) {
+      audioRevision += 1;
       discardOnStop = !keep;
       if (recorder && recorder.state !== 'inactive') {
         try { recorder.stop(); } catch (_) {}
@@ -499,6 +501,7 @@
     }
     async function startRecording() {
       if (!supportsRecording || recorder || !speechPanel) return;
+      audioRevision += 1;
       discardOnStop = false;
       chunks = [];
       readyAudio = null;
@@ -587,6 +590,7 @@
       transcribeAudio?.addEventListener('click', async () => {
         if (!readyAudio || !canTranscribeAudio || transcribeAudio.disabled) return;
         const audio = readyAudio;
+        const revision = audioRevision;
         transcribeAudio.disabled = true;
         audioStatus('Transcription…');
         try {
@@ -608,6 +612,8 @@
           if (typeof transcript !== 'string' || !transcript.trim()) {
             throw new Error('Empty transcription');
           }
+          if (revision !== audioRevision || readyAudio !== audio ||
+              !root.isConnected) return;
           // Read the latest editor after the request. Never replace or
           // truncate what was typed while transcription was running.
           const text = transcript.trim();
