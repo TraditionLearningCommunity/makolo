@@ -24,7 +24,7 @@ class MarkVoiceCapture extends StatefulWidget {
   final String owner;
   final Future<void> Function(StoredLocalFile file) onCaptured;
 
-  /// Only supply this callback when a real file-audio recognizer is available.
+  /// Only supply this callback when an actual recorded-file recognizer is available.
   final Future<void> Function(StoredLocalFile file)? onTranscribe;
   final VoidCallback onClose;
 
@@ -275,10 +275,11 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
         '${(_seconds % 60).toString().padLeft(2, '0')}';
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.only(top: 6),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
+        border: Border(
+          top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.55)),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -341,7 +342,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                 IconButton.filledTonal(
                   tooltip: 'Ajouter l’audio à la demande',
                   onPressed: _busy ? null : () => unawaited(_addAudio()),
-                  icon: const Icon(Icons.audio_file_rounded),
+                  icon: const Icon(Icons.graphic_eq_rounded),
                 ),
               ],
               IconButton(
