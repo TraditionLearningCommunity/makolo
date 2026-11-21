@@ -336,6 +336,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertContains(response, 'data-mk-mark-speech-pause')
         self.assertContains(response, 'data-mk-mark-speech-stop')
         self.assertContains(response, 'data-mk-mark-speech-use')
+        self.assertContains(response, 'data-mk-mark-speech-transcribe')
         self.assertContains(response, 'mk-mark-composer')
         self.assertNotContains(response, 'data-mk-mark-link-input')
         self.assertNotContains(response, '>Continuer</button>')
