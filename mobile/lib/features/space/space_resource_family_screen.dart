@@ -186,15 +186,22 @@ class _SpaceResourceFamilyScreenState extends State<SpaceResourceFamilyScreen> {
                         subtitle: _text(row['detail']) == null
                             ? null
                             : Text(_text(row['detail'])!),
-                        trailing: _documentId(row) == null
-                            ? null
-                            : const Icon(Icons.chevron_right_rounded),
-                        onTap: _documentId(row) == null
-                            ? null
-                            : () => context.push(
-                                '/space/${widget.slug}/us/documents/'
-                                '${_documentId(row)!}',
-                              ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          final documentId = _documentId(row);
+                          if (documentId != null) {
+                            context.push(
+                              '/space/${widget.slug}/us/documents/$documentId',
+                            );
+                            return;
+                          }
+                          final id = _text(row['id']);
+                          if (id == null) return;
+                          context.push(
+                            '/space/${widget.slug}/us/resources/'
+                            '${widget.kind}/$id',
+                          );
+                        },
                       ),
                     ),
                   ),
