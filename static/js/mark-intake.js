@@ -415,6 +415,21 @@
     const pause = $('[data-mk-mark-speech-pause]');
     const stop = $('[data-mk-mark-speech-stop]');
     const attachAudio = $('[data-mk-mark-speech-use]');
+    const transcribeAudio = $('[data-mk-mark-speech-transcribe]');
+    const transcriptionEndpoint = '/api/v1/me/mark/transcription/';
+    let canTranscribeAudio = false;
+    if (root.dataset.mkMarkContext !== 'space') {
+      fetch(transcriptionEndpoint, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      }).then((response) => response.ok ? response.json() : null)
+        .then((payload) => {
+          canTranscribeAudio = payload?.data?.available === true;
+          if (transcribeAudio && readyAudio) {
+            transcribeAudio.hidden = !canTranscribeAudio;
+          }
+        }).catch(() => { canTranscribeAudio = false; });
+    }
     const supportsRecording = typeof window.MediaRecorder === 'function' &&
       Boolean(navigator.mediaDevices?.getUserMedia);
     let stream = null;
@@ -449,6 +464,7 @@
       chunks = [];
       if (speechPanel) speechPanel.hidden = true;
       if (attachAudio) attachAudio.hidden = true;
+      if (transcribeAudio) transcribeAudio.hidden = true;
       if (stop) stop.disabled = true;
       if (pause) pause.disabled = true;
       alignFocusedComposer();
@@ -479,6 +495,7 @@
       if (pause) pause.hidden = true;
       if (stop) stop.hidden = true;
       if (attachAudio) attachAudio.hidden = false;
+      if (transcribeAudio) transcribeAudio.hidden = !canTranscribeAudio;
     }
     async function startRecording() {
       if (!supportsRecording || recorder || !speechPanel) return;
@@ -488,6 +505,7 @@
       seconds = 0;
       speechPanel.hidden = false;
       if (attachAudio) attachAudio.hidden = true;
+      if (transcribeAudio) transcribeAudio.hidden = true;
       if (stop) {
         stop.hidden = false;
         stop.disabled = true;
@@ -565,6 +583,46 @@
         const countBefore = attachments.length;
         addFiles([readyAudio]);
         if (attachments.length > countBefore) closeDictation(true);
+      });
+      transcribeAudio?.addEventListener('click', async () => {
+        if (!readyAudio || !canTranscribeAudio || transcribeAudio.disabled) return;
+        const audio = readyAudio;
+        transcribeAudio.disabled = true;
+        audioStatus('Transcription…');
+        try {
+          const formData = new FormData();
+          formData.append('audio', audio);
+          const token = form.querySelector('[name="csrfmiddlewaretoken"]')?.value;
+          const response = await fetch(transcriptionEndpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              Accept: 'application/json',
+              ...(token ? { 'X-CSRFToken': token } : {}),
+            },
+            body: formData,
+          });
+          if (!response.ok) throw new Error('No available transcription');
+          const payload = await response.json();
+          const transcript = payload?.data?.text;
+          if (typeof transcript !== 'string' || !transcript.trim()) {
+            throw new Error('Empty transcription');
+          }
+          // Read the latest editor after the request. Never replace or
+          // truncate what was typed while transcription was running.
+          const text = transcript.trim();
+          const existing = input.value;
+          const separator = existing && !/\\s$/.test(existing) ? '\n' : '';
+          input.value = existing + separator + text;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          persist();
+          closeDictation(true);
+          input.focus();
+        } catch (_) {
+          audioStatus('Transcription indisponible. Réessayez.');
+        } finally {
+          transcribeAudio.disabled = false;
+        }
       });
       $('[data-mk-mark-speech-cancel]')?.addEventListener('click', () => {
         closeDictation(false);
