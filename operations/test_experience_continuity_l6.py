@@ -12,6 +12,7 @@ from django.utils import timezone
 from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
 
 
@@ -88,6 +89,32 @@ class OccurrenceContinuityL6Tests(TestCase):
         self.assertEqual(
             self.client.get(f"{self.url}/day-of/?actor_space={self.space.pk}").status_code,
             404,
+        )
+
+    def test_space_actor_does_not_inherit_personal_participant_access(self):
+        Journey.objects.create(
+            initiated_by=self.agent,
+            beneficiary=self.agent,
+            activity=self.activity,
+            occurrence=self.occurrence,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        self.client.force_login(self.agent)
+        personal = self.client.get(f"{self.url}/day-of/")
+        self.assertEqual(personal.status_code, 200)
+        self.assertIn("participant", personal.json()["data"]["sections"])
+
+        space = self.client.get(
+            f"{self.url}/day-of/?actor_space={self.space.pk}"
+        )
+        self.assertEqual(space.status_code, 200)
+        data = space.json()["data"]
+        self.assertEqual(data["context"]["actor_space_id"], str(self.space.pk))
+        self.assertNotIn("participant", data["sections"])
+        self.assertFalse(data["relations"]["participant"])
+        self.assertFalse(
+            any(action["territory"] == "participant" for action in data["actions"])
         )
 
     def test_revoke_is_authoritative_for_day_of_live_and_web(self):
