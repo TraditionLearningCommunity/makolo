@@ -218,6 +218,7 @@ class _MarkScreenState extends State<MarkScreen> {
     final revision = _draftRevision;
     final transcriber = _audioTranscriber;
     final available = actor is PersonalActorContext &&
+        widget.runtime.drafts != null &&
         transcriber != null &&
         await transcriber.available();
     if (!mounted ||
