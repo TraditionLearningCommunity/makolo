@@ -94,6 +94,11 @@ def _item(kind, row, *, slug):
             "issued_at": row.created_at.isoformat(),
             "owner": "presentations",
             "handoff": None,
+            "metadata": {
+                "mime_type": row.mime_type,
+                "size": row.size,
+                "created_at": row.created_at.isoformat(),
+            },
         }
     if kind == "received_title":
         return {
@@ -114,6 +119,13 @@ def _item(kind, row, *, slug):
             "issued_at": row.issued_at.isoformat(),
             "owner": "trust",
             "handoff": None,
+            "metadata": {
+                "credential_type": row.credential_type,
+                "status": row.status,
+                "public_id": str(row.public_id),
+                "issued_at": row.issued_at.isoformat(),
+                "revoked_at": row.revoked_at.isoformat() if row.revoked_at else None,
+            },
         }
     subject = row.template if kind == "template" else row.theme
     return {
@@ -126,9 +138,15 @@ def _item(kind, row, *, slug):
         ) + f" · version {row.version_number}",
         "issued_at": row.published_at.isoformat() if row.published_at else None,
         "owner": "presentations",
-        # The Presentation library is Web-owner-backed. Do not invent a
-        # mobile route to it or hand back arbitrary storage locations.
+        # Flutter owns the local detail presentation; Presentation remains the
+        # owner of the version itself.
         "handoff": None,
+        "metadata": {
+            "version_number": row.version_number,
+            "status": row.status,
+            "visibility": subject.visibility,
+            "provenance": subject.provenance,
+        },
     }
 
 
