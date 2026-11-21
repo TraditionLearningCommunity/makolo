@@ -600,7 +600,7 @@ class _MarkScreenState extends State<MarkScreen> {
 
   Future<void> _openVoiceInput() async {
     if (_busy || _restoring || _voiceCapture || _dictating) return;
-    if (_attachments.length >= 10) {
+    if (_attachments.length >= 10 && !_canTranscribeAudio) {
       _show('10 pièces maximum pour une demande.');
       return;
     }
@@ -685,6 +685,10 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _acceptVoiceFile(StoredLocalFile file) async {
     final revision = _draftRevision;
     final actor = _actor;
+    if (_attachments.length >= 10) {
+      _show('10 pièces maximum pour une demande.');
+      throw StateError('Mark attachment limit reached.');
+    }
     if (!mounted ||
         !_voiceCapture ||
         widget.runtime.session?.profileId != file.profileId) {
