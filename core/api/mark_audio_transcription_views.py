@@ -6,6 +6,7 @@ A transcription engine must be configured explicitly by deployment.
 from django.utils import timezone
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from core.api.me_views import PersonalProjectionAPIView
 from core.mark_audio_transcription import (
@@ -16,9 +17,19 @@ from core.mark_audio_transcription import (
 )
 
 
+class MarkAudioTranscriptionThrottle(UserRateThrottle):
+    rate = "12/hour"
+
+
 class PersonalMarkAudioTranscriptionAPIView(PersonalProjectionAPIView):
     projection_code = "personal.mark.audio_transcription"
     parser_classes = [MultiPartParser, FormParser]
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        if self.request.method == "POST":
+            throttles.append(MarkAudioTranscriptionThrottle())
+        return throttles
 
     def get(self, request):
         self._guard_personal_scope(request)
