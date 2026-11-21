@@ -86,6 +86,7 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _editing = false;
   bool _draftSaved = false;
   int _draftSaveToken = 0;
+  String? _appliedTranscriptFileId;
 
   @override
   void initState() {
@@ -151,6 +152,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _dictating = false;
       _voiceStore = null;
       _canTranscribeAudio = false;
+      _appliedTranscriptFileId = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
@@ -198,6 +200,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _dictating = false;
       _voiceStore = null;
       _canTranscribeAudio = false;
+      _appliedTranscriptFileId = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
@@ -237,35 +240,46 @@ class _MarkScreenState extends State<MarkScreen> {
         transcriber == null ||
         !_canTranscribeAudio ||
         !_voiceCapture ||
-        profileId == null) {
+        profileId == null ||
+        widget.runtime.drafts == null) {
       throw StateError('Transcription unavailable for this Profile.');
     }
-    final recognized = await transcriber.transcribe(
-      file,
-      activeProfileId: profileId,
-    );
-    if (!mounted ||
-        revision != _draftRevision ||
-        actor != _actor ||
-        !_voiceCapture ||
-        transcriber != _audioTranscriber) {
-      throw StateError('Mark context changed during transcription.');
-    }
-    // Read the current draft AFTER the request, never a stale before snapshot.
-    final combined = appendMarkTranscript(_input.text, recognized);
-    setState(() {
-      _input.value = TextEditingValue(
-        text: combined,
-        selection: TextSelection.collapsed(offset: combined.length),
+    // Only request transcription once per staged recording. When a local
+    // save fails, the next tap retries the save without duplicating the text.
+    if (_appliedTranscriptFileId != file.fileId) {
+      final recognized = await transcriber.transcribe(
+        file,
+        activeProfileId: profileId,
       );
-      _draftSaved = false;
-      _result = null;
-      _pendingConfirmationCode = null;
-      _pendingConfirmationKey = null;
+      if (!mounted ||
+          revision != _draftRevision ||
+          actor != _actor ||
+          !_voiceCapture ||
+          transcriber != _audioTranscriber) {
+        throw StateError('Mark context changed during transcription.');
+      }
+      // Append to the latest user edit AFTER the remote request.
+      final combined = appendMarkTranscript(_input.text, recognized);
+      setState(() {
+        _input.value = TextEditingValue(
+          text: combined,
+          selection: TextSelection.collapsed(offset: combined.length),
+        );
+        _appliedTranscriptFileId = file.fileId;
+        _draftSaved = false;
+        _result = null;
+        _pendingConfirmationCode = null;
+        _pendingConfirmationKey = null;
+      });
+    }
+    // Do not dispose the original recording until the new draft is durable.
+    await _saveDraft();
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
+    setState(() {
       _voiceCapture = false;
       _voiceStore = null;
+      _appliedTranscriptFileId = null;
     });
-    await _saveDraft();
   }
 
   Future<void> _restoreDraft() async {
@@ -662,6 +676,7 @@ class _MarkScreenState extends State<MarkScreen> {
     setState(() {
       _voiceStore = files.store;
       _voiceCapture = true;
+      _appliedTranscriptFileId = null;
     });
     unawaited(_refreshAudioTranscriptionCapability());
   }
