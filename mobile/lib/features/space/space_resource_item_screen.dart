@@ -10,13 +10,20 @@ import '../../sync/owner_source_state.dart';
 import '../resources/resource_presentation.dart';
 
 class SpaceResourceItemScreen extends StatefulWidget {
-  const SpaceResourceItemScreen({super.key, required this.runtime, required this.slug, required this.kind, required this.id});
+  const SpaceResourceItemScreen({
+    super.key,
+    required this.runtime,
+    required this.slug,
+    required this.kind,
+    required this.id,
+  });
   final AppRuntime runtime;
   final String slug;
   final String kind;
   final String id;
   @override
-  State<SpaceResourceItemScreen> createState() => _SpaceResourceItemScreenState();
+  State<SpaceResourceItemScreen> createState() =>
+      _SpaceResourceItemScreenState();
 }
 
 class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
@@ -24,20 +31,26 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
 
   SpaceActorContext? get _actor {
     final actor = widget.runtime.actorContext?.value;
-    return actor is SpaceActorContext && actor.space.slug == widget.slug ? actor : null;
+    return actor is SpaceActorContext && actor.space.slug == widget.slug
+        ? actor
+        : null;
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) unawaited(_ensure()); });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_ensure());
+    });
   }
 
   Future<void> _ensure() async {
     final actor = _actor;
     final repository = widget.runtime.space;
     if (actor == null || repository == null || repository.sync == null) return;
-    try { await repository.ensureResourceFamily(actor.space, widget.kind); } on Object {}
+    try {
+      await repository.ensureResourceFamily(actor.space, widget.kind);
+    } on Object {}
   }
 
   Future<void> _refresh() async {
@@ -47,8 +60,13 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
     if (actor == null || repository == null || repository.sync == null) return;
     final expected = actor.space.id;
     setState(() => _refreshing = true);
-    try { await repository.refreshResourceFamily(actor.space, widget.kind); } on Object {}
-    finally { if (mounted && _actor?.space.id == expected) setState(() => _refreshing = false); }
+    try {
+      await repository.refreshResourceFamily(actor.space, widget.kind);
+    } on Object {
+    } finally {
+      if (mounted && _actor?.space.id == expected)
+        setState(() => _refreshing = false);
+    }
   }
 
   @override
@@ -56,7 +74,9 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
     final actor = _actor;
     final repository = widget.runtime.space;
     if (actor == null || repository == null) {
-      return const Scaffold(body: Center(child: Text('Cette ressource n’est plus disponible.')));
+      return const Scaffold(
+        body: Center(child: Text('Cette ressource n’est plus disponible.')),
+      );
     }
     final source = repository.resourceFamilySource(actor.space, widget.kind);
     return StreamBuilder<OwnerSourceState>(
@@ -72,7 +92,9 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
             final title = _text(item?['title']) ?? _titleFor(widget.kind);
             final detail = _text(item?['detail']);
             final metadata = _map(item?['metadata']);
-            final rows = item == null ? const <(String, String)>[] : _detailRows(widget.kind, item, metadata);
+            final rows = item == null
+                ? const <(String, String)>[]
+                : _detailRows(widget.kind, item, metadata);
             return Scaffold(
               appBar: AppBar(
                 title: Text(_titleFor(widget.kind)),
@@ -81,19 +103,32 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refresh,
                     icon: _refreshing
-                        ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator.adaptive(strokeWidth: 2))
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator.adaptive(
+                              strokeWidth: 2,
+                            ),
+                          )
                         : const Icon(Icons.refresh_rounded),
                   ),
                 ],
               ),
               body: state.invalidated
-                  ? const Center(child: Text('Cette ressource n’est plus accessible dans ce contexte.', textAlign: TextAlign.center))
+                  ? const Center(
+                      child: Text(
+                        'Cette ressource n’est plus accessible dans ce contexte.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
                   : item == null
                   ? const Center(child: Text('Ressource indisponible.'))
                   : ListView(
                       padding: const EdgeInsets.all(MakoloSpacing.inner),
                       children: [
-                        ResourceDocumentHeader(title: title, subtitle: detail ?? _subtitleFor(widget.kind)),
+                        ResourceDocumentHeader(
+                          title: title,
+                          subtitle: detail ?? _subtitleFor(widget.kind),
+                        ),
                         const SizedBox(height: MakoloSpacing.lg),
                         Card(
                           child: Padding(
@@ -101,17 +136,34 @@ class _SpaceResourceItemScreenState extends State<SpaceResourceItemScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                for (var index = 0; index < rows.length; index++) ...[
-                                  _DetailRow(label: rows[index].$1, value: rows[index].$2),
-                                  if (index < rows.length - 1) const Divider(height: MakoloSpacing.lg),
+                                for (
+                                  var index = 0;
+                                  index < rows.length;
+                                  index++
+                                ) ...[
+                                  _DetailRow(
+                                    label: rows[index].$1,
+                                    value: rows[index].$2,
+                                  ),
+                                  if (index < rows.length - 1)
+                                    const Divider(height: MakoloSpacing.lg),
                                 ],
                               ],
                             ),
                           ),
                         ),
-                        if (state.lastErrorCode != null && !state.invalidated) ...[
+                        if (state.lastErrorCode != null &&
+                            !state.invalidated) ...[
                           const SizedBox(height: MakoloSpacing.md),
-                          Text('Dernières informations disponibles sur cet appareil.', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          Text(
+                            'Dernières informations disponibles sur cet appareil.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                          ),
                         ],
                       ],
                     ),
@@ -131,8 +183,17 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      SizedBox(width: 112, child: Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant))),
-      Expanded(child: Text(value, style: Theme.of(context).textTheme.bodyMedium)),
+      SizedBox(
+        width: 112,
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+      ),
+      Expanded(
+        child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+      ),
     ],
   );
 }
@@ -148,7 +209,8 @@ Map<String, dynamic>? _findItem(Object? value, String id) {
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;
-  if (value is Map) return value.map((key, value) => MapEntry(key.toString(), value));
+  if (value is Map)
+    return value.map((key, value) => MapEntry(key.toString(), value));
   return const {};
 }
 
@@ -173,11 +235,20 @@ String _subtitleFor(String kind) => switch (kind) {
   _ => 'Ressource de cet Espace',
 };
 
-List<(String, String)> _detailRows(String kind, Map<String, dynamic> item, Map<String, dynamic> metadata) {
+List<(String, String)> _detailRows(
+  String kind,
+  Map<String, dynamic> item,
+  Map<String, dynamic> metadata,
+) {
   final rows = <(String, String)>[];
   final owner = _text(item['owner']);
-  if (owner != null) rows.add(('Propriétaire', owner == 'trust' ? 'Confiance' : 'Présentation'));
-  void add(String label, Object? value) { final text = _text(value); if (text != null) rows.add((label, text)); }
+  if (owner != null)
+    rows.add(('Propriétaire', owner == 'trust' ? 'Confiance' : 'Présentation'));
+  void add(String label, Object? value) {
+    final text = _text(value);
+    if (text != null) rows.add((label, text));
+  }
+
   switch (kind) {
     case 'asset':
       add('Format', metadata['mime_type']);

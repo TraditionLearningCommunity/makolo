@@ -357,9 +357,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
                 if (widget.onTranscribe != null)
                   IconButton(
                     tooltip: 'Transcrire',
-                    onPressed: _busy
-                        ? null
-                        : () => unawaited(_transcribe()),
+                    onPressed: _busy ? null : () => unawaited(_transcribe()),
                     icon: const Icon(Icons.text_fields_rounded),
                   ),
                 IconButton.filledTonal(

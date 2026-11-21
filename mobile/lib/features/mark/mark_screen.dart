@@ -217,7 +217,8 @@ class _MarkScreenState extends State<MarkScreen> {
     final actor = _actor;
     final revision = _draftRevision;
     final transcriber = _audioTranscriber;
-    final available = actor is PersonalActorContext &&
+    final available =
+        actor is PersonalActorContext &&
         widget.runtime.drafts != null &&
         transcriber != null &&
         await transcriber.available();
@@ -1767,7 +1768,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: Tooltip(
-                                        message: 'Les pièces restent dans la demande. '
+                                        message:
+                                            'Les pièces restent dans la demande. '
                                             'Seul le texte sera envoyé.',
                                         child: FilterChip(
                                           avatar: const Icon(
@@ -1794,7 +1796,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                       store: _voiceStore!,
                                       owner: _owner,
                                       onCaptured: _acceptVoiceFile,
-                                      onTranscribe: _canTranscribeAudio &&
+                                      onTranscribe:
+                                          _canTranscribeAudio &&
                                               actor is PersonalActorContext
                                           ? _transcribeVoiceFile
                                           : null,

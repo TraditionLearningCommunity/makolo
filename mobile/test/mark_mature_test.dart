@@ -135,7 +135,9 @@ void main() {
     },
   );
 
-  testWidgets('long voice transcripts remain editable as drafts', (tester) async {
+  testWidgets('long voice transcripts remain editable as drafts', (
+    tester,
+  ) async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,

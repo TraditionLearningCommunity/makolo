@@ -144,9 +144,7 @@ void main() {
       store: _LocalActorStore(),
     );
     addTearDown(actor.dispose);
-    await actor.selectSpace(
-      SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
-    );
+    await actor.selectSpace(SpaceActorIdentity(id: 'space-a', slug: 'atelier'));
     final repository = WorkspaceContextRepository(
       database: database,
       store: store,

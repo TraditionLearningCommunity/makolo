@@ -11,8 +11,10 @@ void main() {
 
   test('a new transcription does not remove the previous transcription', () {
     final first = appendMarkTranscript('Début', 'Première idée.');
-    expect(appendMarkTranscript(first, 'Seconde idée.'), 
-        'Début\nPremière idée.\nSeconde idée.');
+    expect(
+      appendMarkTranscript(first, 'Seconde idée.'),
+      'Début\nPremière idée.\nSeconde idée.',
+    );
   });
 
   test('blank recognition preserves the exact draft', () {
@@ -26,7 +28,10 @@ void main() {
     expect(merged.length, greaterThan(600));
   });
 
-  test('existing whitespace is preserved without inserting extra separator', () {
-    expect(appendMarkTranscript('Début\n', 'Suite'), 'Début\nSuite');
-  });
+  test(
+    'existing whitespace is preserved without inserting extra separator',
+    () {
+      expect(appendMarkTranscript('Début\n', 'Suite'), 'Début\nSuite');
+    },
+  );
 }

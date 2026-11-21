@@ -8,10 +8,11 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'fakes.dart';
 
 class _FakeMarkApi extends MakoloApiClient {
-  _FakeMarkApi() : super(
-    baseUri: Uri.parse('https://makolo.invalid/'),
-    tokenStore: MemoryTokenStore(),
-  );
+  _FakeMarkApi()
+    : super(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(),
+      );
 
   bool enabled = false;
   String transcript = 'Préparer une salle.';
@@ -76,20 +77,29 @@ void main() {
         createdAt: DateTime.now(),
       );
 
-  test('unconfigured server capability never advertises transcription', () async {
-    expect(await gateway.available(), isFalse);
-    api.enabled = true;
-    expect(await gateway.available(), isTrue);
-  });
+  test(
+    'unconfigured server capability never advertises transcription',
+    () async {
+      expect(await gateway.available(), isFalse);
+      api.enabled = true;
+      expect(await gateway.available(), isTrue);
+    },
+  );
 
-  test('recorded file is uploaded only after explicit transcription call', () async {
-    api.enabled = true;
-    final file = fileFor('profile-a');
-    expect(api.uploads, 0);
-    final result = await gateway.transcribe(file, activeProfileId: 'profile-a');
-    expect(result, 'Préparer une salle.');
-    expect(api.uploads, 1);
-  });
+  test(
+    'recorded file is uploaded only after explicit transcription call',
+    () async {
+      api.enabled = true;
+      final file = fileFor('profile-a');
+      expect(api.uploads, 0);
+      final result = await gateway.transcribe(
+        file,
+        activeProfileId: 'profile-a',
+      );
+      expect(result, 'Préparer une salle.');
+      expect(api.uploads, 1);
+    },
+  );
 
   test('cannot transcribe another Profile or Space file', () async {
     await expectLater(
