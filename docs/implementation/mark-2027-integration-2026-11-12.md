@@ -186,3 +186,28 @@ Les **18 points de conception examinés** ont reçu un traitement source côté 
 - La PR #522 reste ouverte ; pas de fusion, pas de modification directe de `main`, pas d'annulation/désactivation des workflows existants.
 
 **Conclusion :** les corrections de présentation et de préparation sont **écrites dans le code**, mais la demande d'une « expérience multimodale de bout en bout » ne peut pas être certifiée tant que les propriétaires média/transcription et l'exécution sur appareils réels manquent. Le résultat correct est « source avancée, validation et capacités propriétaires restantes », et non « 100 % livré ».
+
+
+## Correction de recette — 21 novembre 2026
+
+La recette Samsung/émulateur a confirmé que la navigation principale et le cercle Mark rempli, les miniatures, la capture, la pause et l'enregistrement audio sont visibles. Cette section décrit les corrections **appliquées au code** après ces captures ; elle ne constitue pas une recette exécutée sur l'appareil.
+
+### Corrections supplémentaires appliquées
+
+- La barre d'enregistrement Flutter est intégrée **dans le composeur** (plus de deuxième carte flottante), avec séparateur discret, commandes Pause/Reprendre/Terminer, écoute et ajout de l'audio. La navigation principale reste accessible pendant la saisie.
+- Le texte des brouillons n'est plus coupé par `TextField.maxLength = 600` ou par le `maxlength` HTML. **L'API Mark garde sa limite d'envoi à 600 caractères** ; les demandes longues peuvent donc être préparées mais doivent être réduites pour cette soumission.
+- `appendMarkTranscript` ajoute les mots reconnus à la suite de la saisie courante, sans remplacer le texte existant. Les tests unitaires couvrent plusieurs ajouts, les espaces et les textes longs.
+- Pour **une transcription à partir du fichier audio terminé** (anomalie 45), un adaptateur serveur propriétaire neutre est disponible dans `core/mark_audio_transcription.py` et `core/api/mark_audio_transcription_views.py`, sous `/api/v1/me/mark/transcription/`. Un `GET` authentifié expose `data.available` ; un `POST` multipart authentifié, borné à 25 Mio, est déclenché seulement lorsque la personne choisit « Transcrire ». Réponses privées sans cache, blocage du contexte Profile client forgé, throttling de 12 requêtes par heure.
+- L'adaptateur **n'est pas un nouveau domaine propriétaire** et ne crée ni Resource, ni Proof, ni Access. Il reçoit temporairement le fichier dans le cadre de la requête et invoque le callable configuré. Il ne publie aucun document et ne confirme aucune action métier.
+- Activation serveur volontaire : `MAKOLO_MARK_AUDIO_TRANSCRIBER=module.python.fonction`. Ce callable reçoit le fichier uploadé et doit retourner la chaîne de transcription réelle. **Aucun callable/modèle n'est fourni par défaut**, ce qui laisse `available=false` et masque l'action inutilisable. La configuration d'une vraie capacité doit précéder son activation.
+- Flutter : `MarkRecordedAudioTranscriber` utilise l'authentification existante, exige `Profile` et un fichier `mark_intake` privé de ce Profile ; le callback lit la **dernière saisie** seulement après le retour du serveur, ajoute le résultat sans écraser, puis attend la persistance du brouillon avant de fermer la capture. Le même fichier ne peut pas être réajouté une deuxième fois après échec de sauvegarde. L'audio original reste présent pendant une erreur de transcription.
+- Web personnel : une action « Transcrire » apparaît après la capture **uniquement si** le serveur annonce la capacité. `fetch` session/CSRF explicite, ajout au texte courant sans remplacement, conservation du fichier en cas d'échec et rejet des résultats asynchrones d'une session audio déjà annulée. Le contexte Web Space n'utilise pas implicitement une capacité personnelle : il faudra un propriétaire Space distinct pour le cas collectif.
+- Tests écrits : `mobile/test/mark_transcript_composition_test.dart`, `mobile/test/mark_recorded_audio_transcriber_test.dart`, `core/test_mark_audio_transcription.py`, assertions de route et de rendu Web et test de rédaction longue.
+
+### Restes explicitement non certifiés
+
+- L'activation de « Transcrire » exige l'installation/configuration d'un moteur de reconnaissance audio vérifié. L'application et le serveur ne proposent pas une transcription fictive en son absence.
+- Les API Mark restent principalement textuelles ; les images et sons du brouillon ne sont pas encore soumis comme actions métier complètes par Mark. Ne jamais qualifier une pièce préparée localement de fichier transmis.
+- La rotation/correction EXIF d'une photo dépend du chemin d'acquisition natif et reste à vérifier sur Samsung. Aucune rotation systématique n'est introduite pour ne pas détériorer les images déjà orientées correctement.
+- Le plafond serveur de 600 caractères est toujours la limite d'envoi de demande Mark, et ne doit pas être confondu avec la capacité du brouillon à conserver une longue transcription.
+- **Non exécutés depuis cette session GitHub :** analyse statique, formatage Flutter après ces commits, tests Flutter/Django, build Android, recettes Samsung/Web et vérification réelle avec un modèle STT. Aucun workflow CI n'a été modifié, désactivé ou annulé. #522 reste ouverte sans fusion.
