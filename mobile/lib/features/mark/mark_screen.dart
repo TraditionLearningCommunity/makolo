@@ -1309,10 +1309,9 @@ class _MarkScreenState extends State<MarkScreen> {
   Widget build(BuildContext context) {
     final actor = _actor;
     final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      bottomNavigationBar: useRail || keyboardOpen
+      bottomNavigationBar: useRail
           ? null
           : MakoloMarkPrimaryNavigation(
               actor: actor,
@@ -1692,6 +1691,25 @@ class _MarkScreenState extends State<MarkScreen> {
                                       ],
                                     ),
                                   ],
+                                  if (_voiceCapture && _voiceStore != null) ...[
+                                    const SizedBox(height: 8),
+                                    MarkVoiceCapture(
+                                      key: ValueKey(
+                                        'voice:${widget.runtime.session?.profileId}:$_owner',
+                                      ),
+                                      store: _voiceStore!,
+                                      owner: _owner,
+                                      onCaptured: _acceptVoiceFile,
+                                      onClose: () {
+                                        if (mounted) {
+                                          setState(() {
+                                            _voiceCapture = false;
+                                            _voiceStore = null;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ],
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -1791,25 +1809,6 @@ class _MarkScreenState extends State<MarkScreen> {
                                 onText: _acceptDictation,
                                 onPreview: _previewDictation,
                                 onClose: _cancelDictation,
-                              ),
-                            ],
-                            if (_voiceCapture && _voiceStore != null) ...[
-                              const SizedBox(height: 12),
-                              MarkVoiceCapture(
-                                key: ValueKey(
-                                  'voice:${widget.runtime.session?.profileId}:$_owner',
-                                ),
-                                store: _voiceStore!,
-                                owner: _owner,
-                                onCaptured: _acceptVoiceFile,
-                                onClose: () {
-                                  if (mounted) {
-                                    setState(() {
-                                      _voiceCapture = false;
-                                      _voiceStore = null;
-                                    });
-                                  }
-                                },
                               ),
                             ],
                             if (_result?.state == 'offline_draft')
