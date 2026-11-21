@@ -135,6 +135,23 @@ void main() {
     },
   );
 
+  testWidgets('long voice transcripts remain editable as drafts', (tester) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    final field = find.byType(TextField);
+    expect(tester.widget<TextField>(field).maxLength, isNull);
+    final longText = List.filled(125, 'parole').join(' ');
+    await tester.enterText(field, longText);
+    await tester.pump();
+    expect(tester.widget<TextField>(field).controller!.text, longText);
+    expect(find.byKey(const ValueKey('mark-save')), findsOneWidget);
+  });
+
   testWidgets(
     'microphone is never presented as a successful capture without storage',
     (tester) async {
