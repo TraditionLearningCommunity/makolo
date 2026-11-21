@@ -100,7 +100,8 @@ class NativeFileAcquisitionCoordinator {
     final picker = mediaPicker;
     final List<SystemPickedMedia> picked;
     if (picker is SystemMultiImagePicker) {
-      picked = await picker.pickImages(limit: maxFiles);
+      final multiPicker = picker as SystemMultiImagePicker;
+      picked = await multiPicker.pickImages(limit: maxFiles);
     } else {
       final single = await picker.pickImage();
       picked = single == null ? const [] : [single];
