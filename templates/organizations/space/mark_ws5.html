@@ -19,7 +19,7 @@
     {% csrf_token %}
     <label for="mark-value" class="sr-only">Votre demande</label>
     <div class="mk-mark-composer">
-    <textarea id="mark-value" name="value" maxlength="600" rows="5" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
+    <textarea id="mark-value" name="value" rows="5" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
     {% include 'partials/mark_input_tools.html' with mark_scope='space' %}
     {% include 'partials/mark_orbit_save.html' %}
