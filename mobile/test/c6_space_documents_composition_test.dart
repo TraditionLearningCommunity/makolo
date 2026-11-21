@@ -13,6 +13,8 @@ import 'package:makolo_mobile/features/resources/resource_presentation.dart';
 import 'package:makolo_mobile/features/space/space_document_detail_screen.dart';
 import 'package:makolo_mobile/features/space/space_documents_screen.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/features/space/space_resource_family_screen.dart';
+import 'package:makolo_mobile/features/space/space_resource_item_screen.dart';
 import 'package:makolo_mobile/features/space/space_us_resources_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
@@ -128,6 +130,109 @@ void main() {
     expect(find.text('Ressources de cet Espace'), findsNothing);
     expect(find.byType(ChoiceChip), findsNothing);
     expect(find.byTooltip('Actualiser'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Space resource rows expose a detail action and detail screen', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final actor = await ActorContextController.restore(
+      profileId: 'profile-a',
+      store: _LocalActorStore(),
+    );
+    addTearDown(actor.dispose);
+    await actor.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
+    );
+    final repository = WorkspaceContextRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      actorContext: actor,
+    );
+    await store.putProjection(
+      kind: SpaceSyncKeys.resourceFamilyProjectionKind,
+      resourceKey: SpaceSyncKeys.resourceFamilyResourceKey('space-a', 'asset'),
+      schemaVersion: 1,
+      payload: {
+        'space_id': 'space-a',
+        'visibility': 'visible',
+        'kind': 'asset',
+        'count': 1,
+        'counts': const <String, int>{'asset': 1},
+        'total_count': 1,
+        'items': [
+          {
+            'kind': 'asset',
+            'id': '42',
+            'title': 'Média de présentation',
+            'detail': 'Image appartenant à cet Espace',
+            'owner': 'presentations',
+            'metadata': {
+              'mime_type': 'image/png',
+              'size': 2048,
+              'created_at': '2026-11-21T10:00:00Z',
+            },
+          },
+        ],
+        'has_more': false,
+        'next_offset': 1,
+      },
+    );
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+      recovery: SessionRecoveryController(),
+      actorContext: actor,
+      database: database,
+      store: store,
+      space: repository,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SpaceResourceFamilyScreen(
+          runtime: runtime,
+          slug: 'atelier',
+          kind: 'asset',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final tile = tester.widget<ListTile>(find.byType(ListTile).first);
+    expect(tile.onTap, isNotNull);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SpaceResourceItemScreen(
+          runtime: runtime,
+          slug: 'atelier',
+          kind: 'asset',
+          id: '42',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Média de présentation'), findsOneWidget);
+    expect(find.text('image/png'), findsOneWidget);
+    expect(find.text('2.0 Ko'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
