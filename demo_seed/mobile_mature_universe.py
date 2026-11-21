@@ -378,24 +378,46 @@ def _occurrence_status(spec: dict) -> str:
     return OccurrenceStatus.SCHEDULED
 
 
+def _demo_title(title: str) -> str:
+    """Restore natural titles from older seed snapshots without changing identity."""
+    return title.removeprefix("Exemple — ").strip()
+
+
 def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
-    place = spec.get("geo") or "lieu à confirmer"
-    relation = RELATION_LABELS.get(spec.get("relation"), spec.get("relation", "à suivre"))
-    state = STATE_LABELS.get(spec.get("state"), spec.get("state", "à suivre"))
-    intros = {
-        "event": "Un rendez-vous culturel, professionnel ou communautaire",
-        "transport": "Un déplacement inscrit dans les habitudes de mobilité d’Alain",
-        "service": "Un service utile à une démarche personnelle ou professionnelle",
-        "funding": "Une possibilité de financement ou de prise en charge",
+    """Contextual editorial copy; the seed's technical provenance remains separate."""
+    title = _demo_title(spec["title"])
+    place = spec.get("geo")
+    short_labels = {
+        "event": "Dates et repères de participation",
+        "transport": "Parcours et informations de départ",
+        "service": "Étapes et ressources de la démarche",
+        "funding": "Objectif et modalités du financement",
     }
-    intro = intros.get(vertical, "Une possibilité utile")
-    short = f"{intro}, à {place}. Situation actuelle : {state}."
-    description = (
-        f"{spec['title']} fait partie du parcours d’Alain Kabeya. "
-        f"Cette réalité est localisée ou rattachée à {place} et apparaît comme {relation}. "
-        f"Les dates, accès, ressources et prochaines étapes associés sont disponibles dans Makolo."
+    short = short_labels.get(vertical, "Informations et modalités pratiques")
+    if place:
+        short = f"{short} · {place}"
+    descriptions = {
+        "event": (
+            f"Pour « {title} », prenez connaissance des dates et des informations "
+            "pratiques disponibles afin de préparer votre participation."
+        ),
+        "transport": (
+            f"Pour préparer « {title} », retrouvez le parcours, le départ et les "
+            "indications de voyage lorsqu’elles sont précisées."
+        ),
+        "service": (
+            f"« {title} » rassemble les informations utiles pour comprendre cette "
+            "démarche, repérer les ressources associées et envisager la suite."
+        ),
+        "funding": (
+            f"Autour de « {title} », découvrez l’objectif de cette initiative et "
+            "examinez les modalités annoncées avant d’envisager une contribution."
+        ),
+    }
+    return short, descriptions.get(
+        vertical,
+        f"Retrouvez les informations et les ressources associées à « {title} ».",
     )
-    return short[:320], description
 
 
 def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) -> Activity:
@@ -406,7 +428,7 @@ def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) ->
         defaults={
             "space": space,
             "created_by": actor,
-            "title": spec["title"],
+            "title": _demo_title(spec["title"]),
             "slug": f"mobile-mature-{spec['id'].lower()}",
             "short_description": short_description,
             "description": description,
@@ -423,7 +445,7 @@ def _occurrence(ctx: SeedContext, spec: dict, *, activity: Activity, place: Plac
         f"mobile-mature-occ-{spec['id'].lower()}",
         defaults={
             "activity": activity,
-            "label": spec["title"][:180],
+            "label": _demo_title(spec["title"])[:180],
             "start_at": start,
             "end_at": start + timedelta(hours=2 + index % 4),
             "timezone": place.timezone if place else "Africa/Lubumbashi",
@@ -774,11 +796,21 @@ OPPORTUNITY_KINDS = (OpportunityKind.PROGRAM, OpportunityKind.SCHOLARSHIP, Oppor
 
 
 def _opportunity_summary(spec: dict) -> str:
-    relation = RELATION_LABELS.get(spec.get("relation"), "à explorer")
-    state = STATE_LABELS.get(spec.get("state"), "à suivre")
+    """Describe the synthetic scenario, not a real user's private journey."""
+    situation = {
+        "engaged": "Le scénario permet d’explorer les étapes d’un dossier déjà commencé.",
+        "saved": "Il montre comment conserver une piste et revenir examiner ses conditions.",
+        "watched": "Il illustre le suivi des changements avant de prendre une décision.",
+        "not_eligible": "Il invite à vérifier les critères avant de préparer une candidature.",
+        "rejected": "Il permet de comprendre les suites possibles après un refus.",
+        "planned": "Il aide à organiser les questions à résoudre avant une candidature.",
+        "draft": "Il permet de préparer les informations nécessaires sans les transmettre.",
+        "discover_only": "Il aide à explorer les informations avant de décider de se lancer.",
+    }.get(spec.get("relation"), "Il permet d’examiner les informations et de préparer une suite.")
     return (
-        f"{spec['title']} est une possibilité {relation} dans le parcours d’Alain. "
-        f"Elle est rattachée à {spec.get('geo') or 'un contexte à confirmer'} et apparaît actuellement comme {state}."
+        f"« {spec['title']} » fait partie des exemples de Makolo. {situation} "
+        "Les dates, les conditions et les résultats du scénario sont fictifs ; "
+        "aucune candidature réelle n’est ouverte par cette fiche."
     )
 
 
@@ -793,13 +825,13 @@ def _seed_opportunities(ctx, specs, *, curator, primary):
             defaults={
                 "opportunity": opportunity,
                 "version": 1,
-                "title": spec["title"],
+                "title": _demo_title(spec["title"]),
                 "summary": _opportunity_summary(spec),
                 "issuer_name": ISSUERS[index % len(ISSUERS)],
                 "opens_at": pivot - timedelta(days=30),
                 "deadline_at": pivot + (timedelta(days=90) if spec["state"] not in TERMINAL_STATES else timedelta(days=1)),
                 "timezone": "Africa/Lubumbashi",
-                "application_instructions": "Vérifier les conditions, préparer les pièces utiles et suivre la candidature depuis Makolo.",
+                "application_instructions": "Cet exemple vous permet de découvrir la préparation d’une candidature. Aucun dossier n’est transmis à un organisme réel.",
                 "remote_allowed": index % 3 == 0,
                 "created_by": curator,
             },
@@ -811,16 +843,16 @@ def _seed_opportunities(ctx, specs, *, curator, primary):
             f"mobile-mature-opportunity-source-{spec['id']}",
             defaults={
                 "opportunity": opportunity,
-                "source_type": OpportunitySourceType.OFFICIAL if public_url else OpportunitySourceType.AGGREGATOR,
-                "source_name": PUBLIC_SOURCE_LABELS.get(spec["provenance"], directory_name),
+                "source_type": OpportunitySourceType.USER_SUPPLIED,
+                "source_name": f"Référence indicative · {PUBLIC_SOURCE_LABELS.get(spec['provenance'], directory_name)}",
                 "url": public_url or directory_url,
                 "external_reference": f"mobile-mature:{spec['id']}",
                 "is_primary": True,
                 "status": OpportunitySourceStatus.ACTIVE,
                 "discovered_at": ctx.as_of - timedelta(days=30),
                 "last_checked_at": ctx.as_of - timedelta(days=1),
-                "verified_at": ctx.as_of - timedelta(days=1) if public_url else None,
-                "verified_by": curator if public_url else None,
+                "verified_at": None,
+                "verified_by": None,
             },
         )
         if revision.published_at is None:
@@ -842,11 +874,10 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
             existing = create_obtention(
                 actor=actor,
                 space=space,
-                title=spec["title"],
-                short_description=f"{spec['title']} — {RELATION_LABELS.get(spec.get('relation'), 'à suivre')}.",
+                title=_demo_title(spec["title"]),
+                short_description="Modalités de mise à disposition",
                 description=(
-                    f"{spec['title']} fait partie des choses qu’Alain souhaite acheter, louer, emprunter ou recevoir. "
-                    f"Makolo suit la remise effective ou le droit d’usage, indépendamment du paiement."
+                    "Consultez les conditions de mise à disposition et les étapes de la démarche."
                 ),
                 targets=[{"title": spec["title"], "quantity": "1", "unit": "unité"}],
                 modes=[MODE_CYCLE[index % len(MODE_CYCLE)]],
@@ -857,6 +888,12 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
             existing.activity.slug = f"mobile-mature-{spec['id'].lower()}"
             existing.activity.save(update_fields=["slug", "updated_at"])
         activity = existing.activity
+        # Existing seed-owned Obtention records must also regain the visible
+        # demonstration marker on a deterministic reseed. No real offer is touched.
+        expected_title = _demo_title(spec["title"])
+        if activity.title != expected_title:
+            activity.title = expected_title
+            activity.save(update_fields=["title", "updated_at"])
         # Keep Obtention enterable until the beneficiary Journey has been
         # created through the canonical service. Historical closure is applied
         # after personal relations are seeded.

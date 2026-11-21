@@ -1,0 +1,185 @@
+<section class="space-y-5" aria-labelledby="day-of-heading">
+  {% include 'occurrence/continuity_guard.html' %}
+  <header class="mk-panel p-5 sm:p-7">
+    <p class="mk-kicker">Jour J · {{ activity.title }}</p>
+    <h2 id="day-of-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      {% if projection.phase == "before" %}À préparer{% elif projection.phase == "arrival" %}Arrivée{% elif projection.phase == "live" %}En cours{% elif projection.phase == "after" %}Terminé{% elif projection.phase == "cancelled" %}Annulé{% else %}Situation à confirmer{% endif %}
+      · Les actions ci-dessous dépendent des droits effectivement accordés.
+    </p>
+    <div class="mt-5 flex flex-wrap gap-2">
+      {% if projection.live.available %}
+      <a class="mk-action-button" data-variant="secondary" href="{{ live_url }}">Consulter Makolo Live</a>
+      {% endif %}
+      {% if space_work_url %}<a class="mk-action-button" data-variant="secondary" href="{{ space_work_url }}">Retour au métier</a>{% endif %}
+    </div>
+  </header>
+
+  {% if projection.live.available and projection.knowledge.facts %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-live-synopsis">
+    <p class="mk-kicker">Suivi disponible · Couverture {{ projection.knowledge.coverage.state }}</p>
+    <h3 id="day-of-live-synopsis" class="mt-2 text-lg font-bold">{{ projection.knowledge.facts.0.label }}</h3>
+    <p class="mt-2 text-sm">{{ projection.knowledge.facts.0.value }}</p>
+    <p class="mt-2 text-xs" style="color:var(--mk-muted)">Source : {{ projection.knowledge.facts.0.source }} · Fait {{ projection.knowledge.facts.0.truth }}</p>
+    <a class="mk-action-button mt-3" data-variant="secondary" href="{{ live_url }}">Voir les faits Live</a>
+  </section>
+  {% endif %}
+
+  {% if projection.actions %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-actions">
+    <p class="mk-kicker">Mes actions utiles</p>
+    <h3 id="day-of-actions" class="mt-1 text-xl font-bold">Ce que je peux faire maintenant</h3>
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      {% for action in projection.actions %}
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <p class="text-xs font-semibold uppercase tracking-wide" style="color:var(--mk-muted)">
+          {% if action.territory == "participant" %}Mon accomplissement{% elif action.territory == "organizer" %}Organisation{% else %}Supervision autorisée{% endif %}
+        </p>
+        <p class="mt-2 font-semibold">{{ action.label|default:"Action à vérifier" }}</p>
+        {% if action.kind == "owner_handoff" and action.type == "scanner" %}
+        {% if scanner_url %}<a class="mk-action-button mt-3" data-variant="primary" href="{{ scanner_url }}">Ouvrir Scanner</a>{% endif %}
+        {% else %}
+        <p class="mt-2 text-xs" style="color:var(--mk-muted)">Instruction issue du domaine {{ action.source }}. Son exécution reste soumise aux autorisations du propriétaire.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if projection.sections.participant %}
+  {% with mine=projection.sections.participant %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-my-progress">
+    <h3 id="day-of-my-progress" class="text-xl font-bold">Mon accomplissement</h3>
+    {% if mine.situation.next.label %}<p class="mt-2">{{ mine.situation.next.label }}</p>{% endif %}
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      {% for access in mine.access %}
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <p class="font-semibold">Mon accès · {{ access.state }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{% if access.usable %}Accès utilisable{% else %}À vérifier{% endif %}</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          {% if access.links.detail %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-access-detail' access.identity.id %}">
+            {% if access.credential.presentable %}Présenter mon QR{% else %}Voir mon accès{% endif %}
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">Aucun droit d'accès individuel établi ici.</div>
+      {% endfor %}
+    </div>
+    {% if mine.queue %}
+    <h4 class="mt-5 font-bold">Ma file</h4>
+    <ul class="mt-2 space-y-2">{% for item in mine.queue %}
+      <li class="rounded-xl border p-3" style="border-color:var(--mk-border)">{{ item.label }} · {{ item.state }}{% if item.position != None %} · Position {{ item.position }}{% endif %}</li>
+    {% endfor %}</ul>
+    {% endif %}
+    {% if mine.placement %}
+    <h4 class="mt-5 font-bold">Mon placement</h4>
+    <ul class="mt-2 space-y-2">{% for item in mine.placement %}<li>{{ item.plan }} · {{ item.unit }}</li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+  {% endwith %}
+  {% endif %}
+
+  {% if projection.sections.institutional %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-institutional">
+    <h3 id="day-of-institutional" class="text-xl font-bold">Démarches de l'Espace</h3>
+    <p class="mt-1 text-sm" style="color:var(--mk-muted)">Une démarche commune, consultée selon les mandats actifs ; elle ne crée pas d'accès personnel.</p>
+    <ul class="mt-4 space-y-2">
+      {% for journey in projection.sections.institutional %}
+      <li class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <p class="font-semibold">{{ journey.beneficiary.name }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ journey.workflow }} · {{ journey.status }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if projection.sections.organizer or projection.sections.platform %}
+  {% with operator=projection.sections.organizer|default:projection.sections.platform %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-operator">
+    <h3 id="day-of-operator" class="text-xl font-bold">{% if projection.sections.organizer %}Conduite de l'Occurrence{% else %}Supervision autorisée{% endif %}</h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Préparation : {{ operator.operational_readiness.state|default:"à vérifier" }}</p>
+    {% if operator.operational_readiness.contributors %}
+    <ul class="mt-3 space-y-2">{% for check in operator.operational_readiness.contributors %}
+      {% if check.state == "blocking" or check.state == "action_required" or check.state == "waiting" %}
+      <li class="rounded-xl border p-3" style="border-color:var(--mk-border)">{{ check.message }} · {{ check.state }}</li>
+      {% endif %}
+    {% endfor %}</ul>
+    {% endif %}
+    <div class="mt-4 grid gap-4 md:grid-cols-2">
+      {% if operator.queue %}
+      <div><h4 class="font-bold">Files opérationnelles</h4><ul class="mt-2 space-y-2">{% for item in operator.queue %}<li>{{ item.label }} · {{ item.status }}{% if item.counts %} · {{ item.counts }}{% endif %}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if operator.capacity %}
+      <div><h4 class="font-bold">Disponibilités</h4><ul class="mt-2 space-y-2">{% for item in operator.capacity %}<li>{{ item.label }} : {% if item.unlimited %}sans limite configurée{% else %}{{ item.available|default_if_none:"à vérifier" }} disponible(s){% endif %}</li>{% endfor %}</ul></div>
+      {% endif %}
+    </div>
+  </section>
+  {% endwith %}
+  {% endif %}
+
+  {% if projection.capabilities %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-capabilities">
+    <h3 id="day-of-capabilities" class="text-lg font-bold">Autres responsabilités autorisées</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for name, capability in projection.capabilities.items %}
+      <span class="rounded-full border px-3 py-2 text-sm" style="border-color:var(--mk-border)">{{ name|cut:"_view"|cut:"_manage" }}</span>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if projection.depths %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-owner-depths">
+    <h3 id="day-of-owner-depths" class="text-xl font-bold">Mes outils et approfondissements</h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Chaque ouverture vérifie de nouveau votre autorisation. Plusieurs responsabilités peuvent coexister.</p>
+    <div class="mt-4 flex flex-wrap gap-2">
+      {% for depth in projection.depths %}
+        {% if depth.kind == "scanner" %}
+          {% if projection.context.actor_space_id and scanner_url %}
+            <a class="mk-action-button" data-variant="primary" href="{{ scanner_url }}">Scanner les accès</a>
+          {% elif not projection.context.actor_space_id %}
+            <a class="mk-action-button" data-variant="primary" href="{% url 'core:participant-occurrence-scanner' occurrence.pk %}">Scanner les accès</a>
+          {% endif %}
+        {% elif projection.context.actor_space_id %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-occurrence-depth' space.slug occurrence.pk depth.kind %}">{{ depth.label }}</a>
+        {% else %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-occurrence-depth' occurrence.pk depth.kind %}">{{ depth.label }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if projection.phase == "after" %}
+  <nav class="mk-panel p-5" aria-label="Suites et historique">
+    {% if projection.context.actor_space_id %}
+    <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-history' space.slug %}">Historique de l'Espace</a>
+    {% else %}
+    <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-history' %}">Mon historique</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% if can_configure_live %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-live-settings">
+    <h3 id="day-of-live-settings" class="text-lg font-bold">Publication Makolo Live</h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Live est facultatif pour chaque Occurrence. L'activer rend sa lecture possible uniquement pendant la fenêtre admissible ; cela ne crée aucun fait observé.</p>
+    <form method="post" data-sensitive-action="true" class="mt-4">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="configure_live">
+      {% if occurrence.live_enabled %}
+      <input type="hidden" name="enabled" value="0">
+      <button type="submit" class="mk-action-button" data-variant="secondary">Désactiver Makolo Live</button>
+      {% else %}
+      <input type="hidden" name="enabled" value="1">
+      <button type="submit" class="mk-action-button" data-variant="secondary">Activer Makolo Live</button>
+      {% endif %}
+    </form>
+  </section>
+  {% endif %}
+</section>

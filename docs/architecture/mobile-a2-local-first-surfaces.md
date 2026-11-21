@@ -366,3 +366,33 @@ logout/relogin autre Profile
 ~~~
 
 Le résultat attendu est la continuité, pas un écran d'erreur global.
+
+
+## 13. Découvrir — consolidation acquisition / présentation (#522, novembre 2026)
+
+**Runtime de la branche #522 ; les politiques métier restent celles des owners.**
+
+L'ouverture d'un niveau visuel n'est pas une nouvelle requête par principe :
+
+~~~text
+GET discovery.items/?include_spatial_index=1  (premier lot, même contexte viewer)
+    → collection N1 paginée, ordonnée par le serveur
+    → spatial_index : candidats cartographiables du même champ,
+      composés depuis les lieux publiables et les faits Discovery détaillés
+    → ProfileStore local, même périmètre viewer
+       ├── N1 : liste et pagination signée
+       ├── Carte : ancres géographiques, sélection, caméra locale
+       ├── N2 : détail déjà acquis, matérialisé à la demande
+       └── N3 : aperçu read-only d'Activity/Occurrence si suffisant
+~~~
+
+- `include_spatial_index=1` est une option de lecture pour le premier lot mobile, pas un nouveau propriétaire ni un nouveau moteur de classement. Les clients qui ne la demandent pas gardent la pagination existante. Une recherche qui change ses critères renouvelle le champ ; une nouvelle page conserve le curseur signé serveur.
+- Le serveur fournit le **maximum de faits utiles et autorisés pour cette exploration**. La projection géographique publique est composée avec `project_rows` pour enrichir le N2 ; elle n'infère ni Place, ni prix, ni capacité, ni Permission. Ce mode enrichi peut être volumineux : surveiller le temps de composition et la taille du payload avant toute généralisation à un corpus supérieur.
+- Le client ne copie pas le catalogue en modèles métier. `DiscoveryRepository` retrouve l'item dans les snapshots déjà possédés et matérialise uniquement le N2 consulté, en conservant la date/fraîcheur du lot d'origine. Une donnée propriétaire plus récente (dont un Saved confirmé) ne peut être écrasée par un ancien lot.
+- Une vue Carte ouverte après un N1 récent se nourrit du même champ. Les marqueurs et regroupements restent des représentations du client ; aucune décision de pertinence ou de disponibilité n'est recalculée.
+- Les N3 Activity/Occurrence peuvent réutiliser des faits ou aperçus acquis. Si la vue profonde exige plus d'informations, une lecture propriétaire supplémentaire reste légitime.
+- Les actions `Saved`, `Sharing`, Journey, Commerce, Payment, Access, Capacity et Jour J ne sont **jamais** confirmées par le cache : l'appel actionnel, l'autorisation serveur et la réponse d'owner restent nécessaires. Le Jour J demande une vérification fraîche de l'Occurrence.
+- Source révoquée (403/404), identité viewer non concordante, snapshot expiré ou fil incompatible : ne jamais ressusciter le fait depuis une autre vue. Afficher les informations locales encore valides selon leur politique de divulgation, sans permettre une action sensible sur un état périmé.
+- Le retour N3 → N2 → Carte conserve la sélection et la caméra locales, sans rafraîchir tout le champ. Les changements effectifs d'autorité sont réconciliés depuis la réponse du propriétaire.
+
+Critère de sortie : **zéro GET de détail redondant pour une possibilité déjà acquise et suffisamment fraîche**, une requête lorsque la donnée manque ou doit être revalidée, et aucune mutation/autorité créée par Flutter.

@@ -1,1 +1,28 @@
-{% extends 'base/public.html' %}{% block title %}Vérification d’attestation | Makolo{% endblock %}{% block content %}<main class="mx-auto max-w-2xl px-4 py-10"><section class="mk-panel p-6"><span class="mk-kicker">Attestation Makolo</span><h1 class="mk-page-title mt-2">Vérification</h1><p class="mt-4"><strong>Type :</strong> {{ proof.get_proof_type_display }}</p><p class="mt-2"><strong>Statut :</strong> {{ proof.get_status_display }}</p><p class="mt-2"><strong>Activité :</strong> {{ proof.journey.activity.title }}</p><p class="mt-2"><strong>Émise le :</strong> {{ proof.issued_at|date:'d/m/Y H:i' }}</p>{% if proof.status == 'revoked' %}<p class="mt-4 font-bold">Cette attestation a été révoquée.</p>{% endif %}</section></main>{% endblock %}
+{% extends 'base/public.html' %}
+{% block title %}Vérification | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+  <section class="mk-panel overflow-hidden">
+    <div class="p-6 sm:p-8" {% if proof.status == 'active' %}style="background:var(--mk-brand-soft)"{% endif %}>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <span class="mk-kicker">Makolo</span>
+          <h1 class="mt-2 text-2xl font-extrabold">{% if proof.status == 'active' %}Preuve valide{% else %}Preuve révoquée{% endif %}</h1>
+        </div>
+        <i data-lucide="{% if proof.status == 'active' %}circle-check{% else %}circle-alert{% endif %}" class="h-8 w-8" aria-hidden="true"></i>
+      </div>
+    </div>
+    <div class="p-6 sm:p-8">
+      <div class="flex flex-wrap gap-2">
+        <span class="mk-badge {% if proof.status == 'active' %}mk-badge-brand{% endif %}">{{ proof.get_status_display }}</span>
+        <span class="mk-badge">{{ proof.get_proof_type_display }}</span>
+      </div>
+      <dl class="mt-6 grid gap-4 sm:grid-cols-2 text-sm">
+        <div><dt class="text-xs" style="color:var(--mk-muted)">Activité</dt><dd class="mt-1 font-bold">{{ proof.journey.activity.title }}</dd></div>
+        <div><dt class="text-xs" style="color:var(--mk-muted)">Établie le</dt><dd class="mt-1 font-bold">{{ proof.issued_at|date:'d/m/Y H:i' }}</dd></div>
+      </dl>
+      {% if proof.status == 'revoked' %}<p class="mt-6 font-bold">Cette preuve a été révoquée.</p>{% endif %}
+    </div>
+  </section>
+</main>
+{% endblock %}

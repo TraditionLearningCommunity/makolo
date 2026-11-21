@@ -20,14 +20,26 @@ abstract interface class SystemFilePicker {
 }
 
 class NativeSystemFilePicker implements SystemFilePicker {
-  const NativeSystemFilePicker();
+  const NativeSystemFilePicker({this.allowMultiple = false});
+
+  final bool allowMultiple;
 
   @override
   Future<List<PickedSystemFile>> pick({List<String>? allowedExtensions}) async {
-    final files = await FilePicker.pickFiles(
-      type: allowedExtensions == null ? FileType.any : FileType.custom,
-      allowedExtensions: allowedExtensions,
-    );
+    final type = allowedExtensions == null ? FileType.any : FileType.custom;
+    final List<PlatformFile> files;
+    if (allowMultiple) {
+      files = await FilePicker.pickFiles(
+        type: type,
+        allowedExtensions: allowedExtensions,
+      );
+    } else {
+      final file = await FilePicker.pickFile(
+        type: type,
+        allowedExtensions: allowedExtensions,
+      );
+      files = file == null ? <PlatformFile>[] : <PlatformFile>[file];
+    }
     final results = <PickedSystemFile>[];
     for (final file in files) {
       final length = file.lengthSync() ?? await file.length();

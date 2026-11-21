@@ -1,6 +1,7 @@
 {% extends surface_base_template %}
 {% block title %}{{ organization.name }} | Makolo{% endblock %}
 {% block content %}
+{% load conversation_tags %}
 <div class="mx-auto max-w-7xl space-y-9 px-4 py-8 sm:px-6 lg:space-y-11 lg:px-8 lg:py-10">
   <a href="{% url 'organizer_public:list' %}" class="mk-btn mk-btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4"></i>Espaces</a>
   <section class="relative overflow-hidden rounded-[30px] border p-6 sm:p-8 lg:p-10" style="border-color:var(--mk-border);background:linear-gradient(145deg,color-mix(in srgb,var(--mk-surface-solid) 94%,var(--mk-brand-soft)),var(--mk-surface-solid));box-shadow:var(--mk-shadow-sm)">
@@ -13,6 +14,8 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <a href="{% url 'discovery:home' %}?q={{ organization.name|urlencode }}" class="mk-btn mk-btn-primary"><i data-lucide="compass" class="h-4 w-4"></i>Découvrir ses possibilités</a>
+        {% conversation_context_entry request.user 'space' organization.pk as space_conversation %}
+        {% if space_conversation %}<a class="mk-btn mk-btn-secondary" href="{% url 'conversations:by-context' 'space' organization.pk %}">Échanger</a>{% else %}{% conversation_context_can_ensure request.user 'space' organization.pk as can_open_space_conversation %}{% if can_open_space_conversation %}<form method="post" action="{% url 'conversations:context-ensure' 'space' organization.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">Échanger</button></form>{% endif %}{% endif %}
         {% if organization.website %}<a href="{{ organization.website }}" rel="noopener noreferrer" target="_blank" class="mk-btn mk-btn-secondary">Site officiel<i data-lucide="external-link" class="h-4 w-4"></i></a>{% endif %}
       </div>
     </div>

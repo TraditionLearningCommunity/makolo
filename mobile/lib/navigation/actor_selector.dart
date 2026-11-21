@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../app/providers.dart';
 import '../app/runtime/actor_context.dart';
@@ -11,10 +12,14 @@ import '../features/space/space_repository.dart';
 Future<void> showMakoloActorPicker(
   BuildContext context, {
   required AppRuntime runtime,
+  String? preferredSpaceId,
 }) async {
   await showMakoloBottomSheet<void>(
     context,
-    builder: (_) => _MakoloActorPicker(runtime: runtime),
+    builder: (_) => _MakoloActorPicker(
+      runtime: runtime,
+      preferredSpaceId: preferredSpaceId,
+    ),
   );
 }
 
@@ -32,7 +37,7 @@ class MakoloActorSelectorTile extends StatelessWidget {
       return const ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.person_pin_circle_outlined),
-        title: Text('Agir comme'),
+        title: Text('Agir en tant que'),
         subtitle: Text('Moi'),
       );
     }
@@ -47,14 +52,12 @@ class MakoloActorSelectorTile extends StatelessWidget {
           final label = _actorLabel(actor, spaces);
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            minVerticalPadding: MakoloSpacing.sm,
+            minVerticalPadding: MakoloSpacing.xs,
             leading: const Icon(Icons.person_pin_circle_outlined),
-            title: const Text('Agir comme'),
+            title: const Text('Agir en tant que'),
             subtitle: Text(
-              actor is SpaceActorContext
-                  ? 'Agit actuellement pour $label'
-                  : 'Moi',
-              maxLines: 1,
+              actor is SpaceActorContext ? label : 'Moi',
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             trailing: const Icon(Icons.chevron_right),
@@ -68,67 +71,98 @@ class MakoloActorSelectorTile extends StatelessWidget {
 }
 
 class _MakoloActorPicker extends StatefulWidget {
-  const _MakoloActorPicker({required this.runtime});
+  const _MakoloActorPicker({required this.runtime, this.preferredSpaceId});
 
   final AppRuntime runtime;
+  final String? preferredSpaceId;
 
   @override
   State<_MakoloActorPicker> createState() => _MakoloActorPickerState();
 }
 
 class _MakoloActorPickerState extends State<_MakoloActorPicker> {
-  @override
-  void initState() {
-    super.initState();
-    final repository = widget.runtime.space;
-    if (repository?.sync != null) {
-      unawaited(_refreshInventory());
-    }
-  }
-
-  Future<void> _refreshInventory() async {
-    try {
-      await widget.runtime.space?.refreshInventory();
-    } on Object {
-      // Cached actor contexts remain usable when refresh is unavailable.
-    }
-  }
+  bool _switching = false;
+  String? _error;
 
   Future<void> _selectPersonal() async {
+    if (_switching) return;
     final controller = widget.runtime.actorContext;
     if (controller == null) return;
-    await controller.selectPersonal();
-    if (mounted) Navigator.of(context).pop();
+    setState(() {
+      _switching = true;
+      _error = null;
+    });
+    try {
+      await controller.selectPersonal();
+      if (mounted) Navigator.of(context).pop();
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'Le retour à Moi n’a pas été enregistré.');
+      }
+    } finally {
+      if (mounted) setState(() => _switching = false);
+    }
   }
 
   Future<void> _selectSpace(SpaceSummary summary) async {
+    if (_switching) return;
     final controller = widget.runtime.actorContext;
-    if (controller == null) return;
-
-    final current = controller.value;
-    if (current is SpaceActorContext &&
-        current.space.id == summary.identity.id) {
-      await controller.selectSpace(
-        summary.identity,
-        perspective: current.perspective,
-      );
-    } else {
-      await controller.selectSpace(summary.identity);
-    }
-
     final repository = widget.runtime.space;
-    if (repository?.sync != null) {
-      unawaited(_refreshWorkspace(summary.identity));
+    if (controller == null || repository == null) return;
+    setState(() {
+      _switching = true;
+      _error = null;
+    });
+    try {
+      // Local-first: a previously acquired and non-invalidated Space is a
+      // selectable reading context, not a new grant of authority.
+      var available = await repository.hasAcquiredSpaceContext(
+        summary.identity,
+      );
+      if (!available && repository.sync != null) {
+        // Only first-time or invalidated contexts require a server decision.
+        await repository.refreshInventory();
+        final verified = (await repository.readInventory()).any(
+          (space) => space.identity == summary.identity,
+        );
+        if (verified) {
+          await repository.refreshWorkspace(summary.identity);
+          available = await repository.hasAcquiredSpaceContext(
+            summary.identity,
+          );
+        }
+      }
+      if (!available) {
+        // The actor is unchanged: never infer a role or grant from a title.
+        if (mounted) {
+          setState(
+            () => _error = 'Cet Espace n’est pas disponible pour le moment.',
+          );
+        }
+        return;
+      }
+      // Switching a view never selects one Mandate over the others.
+      await controller.selectSpace(summary.identity);
+      if (mounted) Navigator.of(context).pop();
+    } on Object {
+      // If a remote refresh failed after a valid local acquisition, the
+      // previously acquired view is still allowed; permissions are not.
+      if (mounted) {
+        setState(
+          () => _error = 'Cet Espace n’est pas disponible pour le moment.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _switching = false);
     }
-    if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _refreshWorkspace(SpaceActorIdentity space) async {
-    try {
-      await widget.runtime.space?.refreshWorkspace(space);
-    } on Object {
-      // The shell keeps local context; server revalidation remains authoritative.
-    }
+  void _openCreateSpace() {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.push('/space/create');
+    });
   }
 
   @override
@@ -148,48 +182,69 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
         listenable: controller,
         builder: (context, _) {
           final actor = controller.value;
-          final spaces = snapshot.data ?? const <SpaceSummary>[];
+          final inventory = snapshot.data ?? const <SpaceSummary>[];
+          // An action from Mes collectifs selects only its own Space from
+          // the owner-backed inventory, not another similarly named Space.
+          final spaces = widget.preferredSpaceId == null
+              ? inventory
+              : inventory
+                    .where(
+                      (space) => space.identity.id == widget.preferredSpaceId,
+                    )
+                    .toList(growable: false);
           return SafeArea(
             top: false,
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 MakoloSpacing.lg,
-                MakoloSpacing.sm,
+                MakoloSpacing.xs,
                 MakoloSpacing.lg,
-                MakoloSpacing.lg,
+                MakoloSpacing.md,
               ),
               child: Semantics(
                 container: true,
-                label: 'Choisir pour qui Makolo travaille',
+                label: 'Choisir pour qui agir',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Agir comme',
+                      'Agir en tant que',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: MakoloSpacing.md),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      minVerticalPadding: MakoloSpacing.sm,
+                      minVerticalPadding: MakoloSpacing.xs,
                       leading: const Icon(Icons.person_outline),
                       title: const Text('Moi'),
                       trailing: actor is PersonalActorContext
                           ? const Icon(Icons.check)
                           : null,
                       selected: actor is PersonalActorContext,
-                      onTap: _selectPersonal,
+                      onTap: _switching ? null : _selectPersonal,
                     ),
+                    if (widget.preferredSpaceId != null && spaces.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.sm,
+                        ),
+                        child: Text(
+                          'Cet Espace n’est pas disponible dans vos contextes.',
+                        ),
+                      ),
                     for (final space in spaces)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        minVerticalPadding: MakoloSpacing.sm,
+                        minVerticalPadding: MakoloSpacing.xs,
                         leading: const Icon(Icons.groups_outlined),
                         title: Text(
                           space.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        subtitle: space.limitedToActivities
+                            ? const Text('Accès limité aux activités')
+                            : null,
                         trailing:
                             actor is SpaceActorContext &&
                                 actor.space.id == space.identity.id
@@ -198,7 +253,27 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         selected:
                             actor is SpaceActorContext &&
                             actor.space.id == space.identity.id,
-                        onTap: () => _selectSpace(space),
+                        onTap: _switching ? null : () => _selectSpace(space),
+                      ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.sm,
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    if (_switching) const LinearProgressIndicator(),
+                    const SizedBox(height: MakoloSpacing.md),
+                    if (widget.runtime.api != null && repository.sync != null)
+                      OutlinedButton.icon(
+                        onPressed: _switching ? null : _openCreateSpace,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Créer un nouvel Espace'),
                       ),
                   ],
                 ),

@@ -129,6 +129,15 @@ class FormQuestion(models.Model):
                 errors["choices"] = "Les choix doivent être uniques."
         elif self.choices:
             errors["choices"] = "Seules les questions à choix acceptent des options."
+        if self.pk and not self._state.adding:
+            previous_choices = FormQuestion.objects.filter(pk=self.pk).values_list(
+                "choices", flat=True,
+            ).first()
+            if (previous_choices is not None and previous_choices != self.choices
+                    and self.media.filter(choice_index__isnull=False).exists()):
+                errors["choices"] = (
+                    "Retirez les médias des choix avant de modifier leurs assertions."
+                )
         if errors:
             raise ValidationError(errors)
 
@@ -224,9 +233,17 @@ class FormResponse(models.Model):
         if self.request_id and self.form_version_id and self.request.form_version_id != self.form_version_id:
             errors["form_version"] = "La réponse doit rester liée à la version demandée."
         if self.request_id and self.respondent_id:
-            expected_id = self.request.target_profile_id or (self.request.journey.beneficiary_id if self.request.journey_id else None)
-            if expected_id != self.respondent_id:
-                errors["respondent"] = "Le répondant doit être le Profile ciblé par la demande."
+            journey = self.request.journey if self.request.journey_id else None
+            if journey is not None and journey.beneficiary_space_id:
+                from services.space_beneficiary import can_act_for_space_service_journey
+                if not can_act_for_space_service_journey(self.respondent, journey):
+                    errors["respondent"] = "Le répondant doit posséder un mandat actuel de cet Espace."
+            else:
+                expected_id = self.request.target_profile_id or (
+                    journey.beneficiary_id if journey else None
+                )
+                if expected_id != self.respondent_id:
+                    errors["respondent"] = "Le répondant doit être le Profile ciblé par la demande."
         if errors:
             raise ValidationError(errors)
 
@@ -254,3 +271,7 @@ class FormAnswer(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+# Imported after the canonical owners to register private questionnaire media.
+from .media_models import QuestionnaireMedia  # noqa: E402,F401

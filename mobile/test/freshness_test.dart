@@ -76,6 +76,29 @@ void main() {
     );
   });
 
+  test('timezone conversion is stable and a clock rollback is not fresh', () {
+    const swr = FreshnessPolicy(
+      id: 'clock-swr',
+      refreshRecommendedAfter: Duration(minutes: 30),
+    );
+    const critical = FreshnessPolicy(
+      id: 'clock-critical',
+      revalidateAfterFreshUntil: true,
+    );
+    final stored = projection();
+    final nowInOtherZone = DateTime.parse('2026-09-30T08:10:00+02:00');
+    expect(swr.evaluate(stored, now: nowInOtherZone), FreshnessState.fresh);
+    final rolledBack = observedAt.subtract(const Duration(minutes: 5));
+    expect(
+      swr.evaluate(stored, now: rolledBack),
+      FreshnessState.refreshRecommended,
+    );
+    expect(
+      critical.evaluate(stored, now: rolledBack),
+      FreshnessState.revalidationRequired,
+    );
+  });
+
   test('reachability is independent from freshness', () {
     expect(
       reachabilityFromSource(lastSuccessAt: null, lastErrorCode: null),

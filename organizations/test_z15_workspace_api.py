@@ -50,6 +50,29 @@ class Z15WorkspaceContractTests(TestCase):
         )
         self.client = APIClient()
 
+    def test_created_space_is_public_and_searchable_by_default(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Espace public par défaut"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        space = Organization.objects.get(name="Espace public par défaut")
+        self.assertTrue(space.public_profile)
+        self.assertTrue(space.searchable)
+
+    def test_space_creation_can_explicitly_keep_presentation_private(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Espace privé", "public_profile": False},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        space = Organization.objects.get(name="Espace privé")
+        self.assertFalse(space.public_profile)
+
     def test_space_workspace_is_mandate_scoped_and_excludes_platform(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get("/api/v1/organizations/workspaces/z15-space/")
@@ -232,9 +255,26 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         created = Organization.objects.get(pk=response.data["space"]["id"])
         self.assertEqual(created.lifecycle, SpaceLifecycle.ACTIVE)
+        self.assertTrue(created.public_profile)
         self.assertEqual(created.archetype, SpaceArchetype.COMMERCE)
         self.assertTrue(can(user, PermissionCode.SPACE_OWNERSHIP_MANAGE, created))
 
+
+    def test_workspace_creation_respects_explicit_private_presentation(self):
+        user = User.objects.create_user(
+            username="z15-create-private",
+            email="z15-create-private@test.local",
+            password="x",
+        )
+        self.client.force_authenticate(user)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Private Presentation Space", "public_profile": False},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Organization.objects.get(pk=response.data["space"]["id"])
+        self.assertFalse(created.public_profile)
 
     def test_team_api_requires_team_permission_and_updates_canonical_responsibility(self):
         target = User.objects.create_user(
@@ -257,7 +297,12 @@ class Z15WorkspaceContractTests(TestCase):
         )
         self.assertEqual(updated.status_code, 200, updated.data)
         self.assertTrue(can(target, PermissionCode.MARKETING_MANAGE, self.space))
-        self.assertFalse(can(target, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(target, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertEqual(
+            {row["code"] for row in updated.data["roles"]},
+            {SystemRoleCode.FINANCE, SystemRoleCode.MARKETING},
+        )
+        self.assertEqual(updated.data["responsibility"], SystemRoleCode.MARKETING)
 
         self.client.force_authenticate(self.member)
         self.assertEqual(

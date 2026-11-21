@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 from .base_settings import *  # noqa: F401,F403
 
 INSTALLED_APPS = [
+    "channels",
     *INSTALLED_APPS,
     "topics.apps.TopicsConfig",
     "transport.apps.TransportConfig",
@@ -30,6 +31,7 @@ INSTALLED_APPS = [
     "intelligence.apps.IntelligenceConfig",
     "objectives.apps.ObjectivesConfig",
     "personal_assets.apps.PersonalAssetsConfig",
+    "space_assets.apps.SpaceAssetsConfig",
     "conversations.apps.ConversationsConfig",
     "recognition.apps.RecognitionConfig",
     "funding.apps.FundingConfig",
@@ -80,3 +82,7 @@ MAKOLO_CONTENT_SECURITY_POLICY = "; ".join(
     ]
 )
 MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=(self)"
+
+# Optional callable for opt-in recorded-audio transcription in Mark.
+# Leave unset until a real provider is installed and evaluated.
+MAKOLO_MARK_AUDIO_TRANSCRIBER = os.environ.get("MAKOLO_MARK_AUDIO_TRANSCRIBER", "").strip()

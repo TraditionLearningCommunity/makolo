@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../auth/token_store.dart';
 import '../../design/makolo_theme.dart';
+import '../access/access_credential_vault.dart';
 import 'auth_entry_frame.dart';
 
 class DeviceAccountsScreen extends ConsumerStatefulWidget {
@@ -13,11 +14,13 @@ class DeviceAccountsScreen extends ConsumerStatefulWidget {
     required this.runtime,
     required this.onUsePassword,
     required this.onAddAccount,
+    this.onClose,
   });
 
   final AppRuntime runtime;
   final ValueChanged<String> onUsePassword;
   final VoidCallback onAddAccount;
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<DeviceAccountsScreen> createState() =>
@@ -76,6 +79,24 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
     );
     if (remove != true) return;
     final wasActive = widget.runtime.session?.profileId == account.profileId;
+    // Removing a device account must also revoke its locally retained
+    // presentation secrets. Removing a session alone need not erase the
+    // Profile's durable nonsecret local-first history.
+    try {
+      await SecureAccessCredentialVault().clearProfile(account.profileId);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Impossible de retirer les justificatifs protégés '
+              'de cet appareil. Réessayez.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     await widget.runtime.tokens.removeAccount(account.profileId);
     final actorContextStore = widget.runtime.launchPreferences;
     if (actorContextStore is ActorContextStore) {
@@ -95,8 +116,10 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
   Widget build(BuildContext context) {
     return AuthEntryFrame(
       title: 'Choisir un compte',
-      subtitle: 'Reprenez Makolo avec un compte déjà utilisé sur cet appareil.',
+      subtitle: 'Sélectionnez un compte pour continuer.',
+      compactIdentity: true,
       footer: '',
+      onClose: widget.onClose,
       child: FutureBuilder<List<DeviceAccount>>(
         future: _accounts,
         builder: (context, snapshot) {
@@ -134,26 +157,27 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
             children: [
               ...accounts.map(
                 (account) => Padding(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.compact),
                   child: Material(
-                    color: Colors.white.withValues(alpha: 0.96),
-                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white,
+                    elevation: 2,
+                    shadowColor: MakoloColors.deep.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(MakoloRadii.large),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(MakoloRadii.large),
                       onTap: _busyProfileId == null
                           ? () => _activate(account)
                           : null,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: MakoloSpacing.md,
-                          vertical: MakoloSpacing.sm,
+                          vertical: MakoloSpacing.md,
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
-                              backgroundColor: MakoloColors.indigo.withValues(
-                                alpha: 0.12,
-                              ),
+                              radius: 24,
+                              backgroundColor: const Color(0xFFEEE9FF),
                               foregroundColor: MakoloColors.indigo,
                               child: Text(
                                 account.avatarLetter,
@@ -162,7 +186,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: MakoloSpacing.md),
+                            const SizedBox(width: MakoloSpacing.compact),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,7 +210,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: MakoloSpacing.xs),
                                   Text(
                                     account.hasQuickAccess
                                         ? 'Accès rapide disponible'
@@ -194,7 +218,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                                     style: const TextStyle(
                                       color: MakoloColors.indigo,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
@@ -230,15 +254,18 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: MakoloSpacing.md),
+              const SizedBox(height: MakoloSpacing.sm),
               OutlinedButton.icon(
                 onPressed: widget.onAddAccount,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.68)),
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    width: 1.25,
+                  ),
                   minimumSize: const Size.fromHeight(54),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(MakoloRadii.card),
                   ),
                 ),
                 icon: const Icon(Icons.add),

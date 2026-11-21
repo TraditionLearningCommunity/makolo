@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from objectives.models import Dossier
 
 from .models import DiscoveryWatch
-from .watches import normalize_watch_criteria
+from .watches import normalize_watch_criteria, ensure_discovery_watch
 
 WHEN_CHOICES = [("", "À venir"), ("today", "Aujourd’hui"), ("tomorrow", "Demain"), ("weekend", "Ce week-end"), ("week", "Cette semaine")]
 PERIOD_CHOICES = [("", "Toute la journée"), ("morning", "Matin"), ("afternoon", "Après-midi"), ("evening", "Soir")]
@@ -33,7 +33,15 @@ class DiscoveryWatchCreateForm(OwnerDossierFormMixin, forms.Form):
         return normalize_watch_criteria(self.cleaned_data["criteria"])
 
     def save(self):
-        return DiscoveryWatch.objects.create(owner=self.user, name=self.cleaned_data["name"], dossier=self.cleaned_data.get("dossier"), criteria=self.cleaned_data["criteria"])
+        # The Web form follows the same idempotent Discovery-owner transition
+        # as the mobile API, including concurrent double-submit protection.
+        watch, _created = ensure_discovery_watch(
+            owner=self.user,
+            name=self.cleaned_data["name"],
+            dossier=self.cleaned_data.get("dossier"),
+            criteria=self.cleaned_data["criteria"],
+        )
+        return watch
 
 
 class DiscoveryWatchEditForm(OwnerDossierFormMixin, forms.Form):

@@ -34,6 +34,29 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Only the configured HTTPS Sharing host can open a public token.
+                 Android verifies it against /.well-known/assetlinks.json. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/s/" />
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/shares/" />
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/passport/shared/" />
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/passport/verify/" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
                 <action android:name="android.intent.action.SEND_MULTIPLE"/>
@@ -54,11 +77,18 @@
         </receiver>
 
         <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="makolo_alerts" />
+        <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
     <queries>
+        <!-- Android 11+ package visibility for conditional system dictation. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

@@ -12,7 +12,10 @@ class InterestSelectionForm(forms.Form):
         super().__init__(*args, **kwargs)
         active = Topic.objects.filter(is_active=True).order_by("label", "code")
         self.fields["topics"].queryset = active
-        self.fields["public_topics"].queryset = active.filter(profile_interests__profile=profile).distinct() if profile else Topic.objects.none()
+        # The same submission must let an owner keep a newly selected
+        # Interest private. Restricting this list to previously saved rows
+        # made the first-save privacy checkbox impossible to use.
+        self.fields["public_topics"].queryset = active if profile else Topic.objects.none()
 
     def clean(self):
         cleaned = super().clean()

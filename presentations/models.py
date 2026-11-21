@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .asset_models import PresentationAsset  # noqa: F401
+from .media_models import PresentationMediaUse  # noqa: F401
 from .enums import PresentationPurpose, PresentationState, Provenance, VersionStatus, Visibility
 
 

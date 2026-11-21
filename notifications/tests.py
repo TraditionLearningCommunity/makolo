@@ -108,7 +108,7 @@ class NotificationServiceTests(TestCase):
         self.assertEqual(Notification.objects.count(), 1)
 
     def test_dispatch_pending_sends_email(self):
-        notification = self.create_one(action_url="/notifications/")
+        notification = self.create_one(action_url="/notifications/", category=NotificationCategory.SECURITY)
         result = dispatch_pending()
         delivery = notification.deliveries.get()
         delivery.refresh_from_db()
@@ -130,7 +130,7 @@ class NotificationServiceTests(TestCase):
                 "quiet_hours_end": end,
             },
         )
-        notification = self.create_one(dedup_key="test:quiet")
+        notification = self.create_one(dedup_key="test:quiet", category=NotificationCategory.SECURITY)
         delivery = notification.deliveries.get()
         self.assertEqual(delivery.status, DeliveryStatus.QUEUED)
         self.assertGreater(delivery.scheduled_for, timezone.now())

@@ -101,7 +101,7 @@ class WatchStatusView(OwnedWatchMixin, View):
             watch.save(update_fields=["status", "updated_at"])
             messages.success(request, "Veille réactivée.")
         else:
-            messages.error(request, "Action de Veille invalide.")
+            messages.error(request, "Impossible de modifier cette veille.")
         return redirect("discovery:watch-detail", watch_id=watch.pk)
 
 

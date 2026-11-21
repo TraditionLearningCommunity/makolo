@@ -58,6 +58,7 @@ def _emit_journey_event(journey, *, previous_status, status):
             "occurrence_id": _string_id(journey.occurrence_id),
             "initiated_by_id": _string_id(journey.initiated_by_id),
             "beneficiary_id": _string_id(journey.beneficiary_id),
+            "beneficiary_space_id": _string_id(journey.beneficiary_space_id),
             "workflow": journey.workflow,
             "previous_status": previous_status or None,
             "status": status,
@@ -81,6 +82,7 @@ def _emit_request_event(request, journey, event_type):
             "occurrence_id": _string_id(journey.occurrence_id),
             "requester_id": _string_id(request.requester_id),
             "beneficiary_id": _string_id(journey.beneficiary_id),
+            "beneficiary_space_id": _string_id(journey.beneficiary_space_id),
             "purpose": request.purpose,
             "status": request.status,
         },
@@ -95,17 +97,31 @@ def _check_occurrence(activity, occurrence):
 def create_journey(
     *,
     initiated_by,
-    beneficiary,
+    beneficiary=None,
     activity,
     workflow,
     occurrence=None,
     expires_at=None,
     status=JourneyStatus.DRAFT,
+    external_beneficiary=None,
+    beneficiary_space=None,
 ) -> Journey:
     _check_occurrence(activity, occurrence)
+    if beneficiary_space is not None:
+        # The applicant acts for this Space, not for the provider's Activity.
+        # A Space membership alone does not authorize creating its Journey.
+        if not (
+            can(initiated_by, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                beneficiary_space, include_platform=False)
+            or can(initiated_by, PermissionCode.SPACE_MANAGE,
+                   beneficiary_space, include_platform=False)
+        ):
+            raise PermissionDenied("Mandat Espace insuffisant pour créer cette Démarche.")
     journey = Journey(
         initiated_by=initiated_by,
         beneficiary=beneficiary,
+        external_beneficiary=external_beneficiary,
+        beneficiary_space=beneficiary_space,
         activity=activity,
         occurrence=occurrence,
         workflow=workflow,

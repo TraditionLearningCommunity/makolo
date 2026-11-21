@@ -1,0 +1,181 @@
+<div class="mk-mature-page mk-cx" data-mk-surface="connections">
+  <header class="mk-cx-header">
+    <p class="mk-eyebrow">{{ connections_context_label|default:"Moi" }}</p>
+    <h1>Connexions</h1>
+  </header>
+
+  {% if selected_connection_offer %}
+  <div class="mk-cx-detail">
+    <a class="mk-cx-back mk-action-button" data-variant="link" href="?tab=discover{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">← Tous les services</a>
+    <div class="mk-cx-hero">
+      <span class="mk-cx-symbol" aria-hidden="true">{{ selected_connection_offer.label|slice:":1" }}</span>
+      <div>
+        <h2>{{ selected_connection_offer.label }}</h2>
+        <p>{{ selected_connection_offer.description }}</p>
+      </div>
+    </div>
+    {% if selected_connection_offer.capability_labels %}
+    <section aria-labelledby="mk-cx-capabilities">
+      <h3 id="mk-cx-capabilities">Ce que ce service permet</h3>
+      <div class="mk-cx-chips">
+        {% for capability in selected_connection_offer.capability_labels %}
+          <span class="mk-cx-chip">{{ capability }}</span>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% if selected_connection_offer.can_connect %}
+    <section class="mk-cx-form-section" aria-labelledby="mk-cx-connect-title">
+      <h3 id="mk-cx-connect-title">Relier ce service</h3>
+      <form method="post" autocomplete="off" class="mk-cx-form">
+        {% csrf_token %}
+        <input type="hidden" name="operation" value="create">
+        <input type="hidden" name="provider" value="{{ selected_connection_offer.code }}">
+        <label for="mk-cx-connection-name">Nom de la connexion</label>
+        <input id="mk-cx-connection-name" class="mk-interaction-field" name="name" maxlength="120" required value="{{ selected_connection_offer.label }}">
+        {% if selected_connection_offer.requires_model %}
+          <label for="mk-cx-model">Identifiant du modèle</label>
+          <input id="mk-cx-model" class="mk-interaction-field" name="model" maxlength="160" autocomplete="off" required>
+        {% endif %}
+        <label for="mk-cx-secret">Clé API</label>
+        <input id="mk-cx-secret" class="mk-interaction-field" name="api_key" type="password" maxlength="4096" autocomplete="new-password" required>
+        <p class="mk-cx-hint">Votre clé sera chiffrée côté serveur. Les frais éventuels dépendent du fournisseur externe.</p>
+        <label class="mk-cx-consent">
+          <input type="checkbox" name="consent" value="yes" required>
+          <span>J'autorise Makolo à utiliser cette clé pour les capacités présentées.</span>
+        </label>
+        <button class="mk-action-button" data-variant="primary" type="submit">Connecter</button>
+      </form>
+    </section>
+    {% else %}
+      <p class="mk-cx-notice">Ce service ne peut pas être connecté pour le moment.</p>
+    {% endif %}
+  </div>
+
+  {% elif selected_personal_connection %}
+  <div class="mk-cx-detail">
+    <a class="mk-cx-back mk-action-button" data-variant="link" href="?tab=mine{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">← Mes connexions</a>
+    <div class="mk-cx-hero">
+      <span class="mk-cx-symbol" aria-hidden="true">{{ selected_personal_connection.display_name|slice:":1" }}</span>
+      <div>
+        <h2>{{ selected_personal_connection.display_name }}</h2>
+        <p>{{ selected_personal_connection.status_label }}</p>
+      </div>
+    </div>
+    <p>{{ selected_personal_connection.experience_message }}</p>
+    {% if selected_personal_connection.owner == 'intelligence' and selected_personal_connection.enabled and selected_personal_connection.usable %}
+      {% if 'web_research' in selected_personal_connection.capabilities or 'structured_generate' in selected_personal_connection.capabilities %}
+        <a class="mk-cx-use mk-action-button" data-variant="secondary" href="{% url 'discovery:home' %}">Explorer dans Découvrir</a>
+      {% endif %}
+    {% endif %}
+    {% if selected_personal_connection.capability_labels %}
+    <section aria-labelledby="mk-cx-connected-capabilities">
+      <h3 id="mk-cx-connected-capabilities">Capacités</h3>
+      <div class="mk-cx-chips">
+        {% for capability in selected_personal_connection.capability_labels %}
+          <span class="mk-cx-chip">{{ capability }}</span>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% if selected_personal_connection.manageable and selected_personal_connection.owner == 'intelligence' %}
+    <section class="mk-cx-form-section" aria-labelledby="mk-cx-manage-title">
+      <h3 id="mk-cx-manage-title">Gérer la connexion</h3>
+      <form method="post" class="mk-cx-form">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ selected_personal_connection.id }}">
+        <button class="mk-action-button" data-variant="secondary" name="operation" value="{% if selected_personal_connection.enabled %}disable{% else %}enable{% endif %}" type="submit">
+          {% if selected_personal_connection.enabled %}Désactiver{% else %}Réactiver{% endif %}
+        </button>
+      </form>
+      {% if connection_can_connect %}
+      <form method="post" autocomplete="off" class="mk-cx-form mk-cx-separated">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ selected_personal_connection.id }}">
+        <label for="mk-cx-rotate-key">Nouvelle clé API</label>
+        <input id="mk-cx-rotate-key" class="mk-interaction-field" name="api_key" type="password" maxlength="4096" autocomplete="new-password" required>
+        <button class="mk-action-button" data-variant="secondary" name="operation" value="rotate" type="submit">Remplacer la clé</button>
+      </form>
+      {% endif %}
+      <form method="post" class="mk-cx-form mk-cx-separated">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ selected_personal_connection.id }}">
+        <label class="mk-cx-consent">
+          <input type="checkbox" name="confirm" value="yes" required>
+          <span>Je confirme le retrait de cette connexion. La clé du fournisseur externe doit être révoquée séparément.</span>
+        </label>
+        <button class="mk-action-button" data-variant="danger" name="operation" value="disconnect" type="submit">Retirer de Makolo</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <nav class="mk-cx-tabs mk-interaction-tabs" aria-label="Explorer ou gérer ses connexions">
+    <a href="?tab=discover{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if connections_tab == 'discover' %}is-active{% endif %}" {% if connections_tab == 'discover' %}aria-current="page"{% endif %}>Découvrir</a>
+    <a href="?tab=mine{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if connections_tab == 'mine' %}is-active{% endif %}" {% if connections_tab == 'mine' %}aria-current="page"{% endif %}>Mes connexions</a>
+  </nav>
+
+  {% if connections_tab == 'discover' %}
+    <section aria-labelledby="mk-cx-discover-heading">
+      <h2 id="mk-cx-discover-heading">Services à découvrir</h2>
+      <form method="get" class="mk-cx-search" role="search">
+        <input type="hidden" name="tab" value="discover">
+        {% if selected_responsibility.key and selected_responsibility.key != 'all' %}<input type="hidden" name="responsibility" value="{{ selected_responsibility.key }}">{% endif %}
+        {% if catalog_category %}<input type="hidden" name="cap" value="{{ catalog_category }}">{% endif %}
+        <label class="sr-only" for="mk-cx-search-input">Rechercher un service</label>
+        <input id="mk-cx-search-input" class="mk-interaction-field" name="q" value="{{ catalog_query }}" maxlength="80" placeholder="Rechercher un service">
+        <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
+      </form>
+      {% if capability_options %}
+      <div class="mk-cx-filters mk-interaction-tabs" aria-label="Filtrer par capacité">
+        <a href="?tab=discover{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if not catalog_category %}is-active{% endif %}">Tous</a>
+        {% for option in capability_options %}
+          <a href="?tab=discover&amp;cap={{ option.code|urlencode }}{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if catalog_category == option.code %}is-active{% endif %}">{{ option.label }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if visible_connection_offers %}
+        <div class="mk-cx-list">
+          {% for offer in visible_connection_offers %}
+          <a class="mk-cx-row" href="?offer={{ offer.code|urlencode }}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">
+            <span class="mk-cx-symbol" aria-hidden="true">{{ offer.label|slice:":1" }}</span>
+            <span class="mk-cx-row-text">
+              <strong>{{ offer.label }}</strong>
+              <span>{{ offer.description }}</span>
+            </span>
+            <span class="mk-cx-chevron" aria-hidden="true">›</span>
+          </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="mk-cx-empty">Aucun service ne correspond à votre recherche.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section aria-labelledby="mk-cx-mine-heading">
+      <h2 id="mk-cx-mine-heading">Mes services connectés</h2>
+      {% if connections %}
+        <div class="mk-cx-list">
+          {% for connection in connections %}
+          <a class="mk-cx-row" href="?connection={{ connection.id|urlencode }}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">
+            <span class="mk-cx-symbol" aria-hidden="true">{{ connection.display_name|slice:":1" }}</span>
+            <span class="mk-cx-row-text">
+              <strong>{{ connection.display_name }}</strong>
+              <span>{{ connection.status_label }}</span>
+            </span>
+            <span class="mk-cx-chevron" aria-hidden="true">›</span>
+          </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="mk-cx-empty">Aucun service connecté.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+  {% endif %}
+
+  <div class="mk-cx-return">
+    <a href="{{ connections_return_url }}" class="mk-action-button" data-variant="link">{{ connections_return_label }}</a>
+  </div>
+</div>

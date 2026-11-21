@@ -21,13 +21,15 @@ def dossier_from_activity(request, activity_id):
     }
     form = DossierCreateForm(request.POST or None, actor=request.user, initial=initial)
     if request.method == "POST" and form.is_valid():
-        space = form.cleaned_data["owning_space"]
+        # The public Activity entry creates a personal Dossier. A Space
+        # cannot be chosen through this form; Space creation has its own
+        # explicit, server-authorized actor route.
         dossier = create_dossier(
             actor=request.user,
             title=form.cleaned_data["title"],
             description=form.cleaned_data["description"],
-            owner_profile=None if space else request.user,
-            owning_space=space,
+            owner_profile=request.user,
+            owning_space=None,
             deadline=form.cleaned_data["deadline"],
         )
         return redirect("objectives:dossier-detail", dossier_id=dossier.pk)

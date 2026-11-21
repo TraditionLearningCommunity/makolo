@@ -130,6 +130,7 @@ class SyncSourceDefinition {
     required this.applier,
     this.resourceKey = '',
     this.actorScope = const SyncActorScope.personal(),
+    this.indexedResourceKind,
   });
 
   final String sourceKey;
@@ -138,6 +139,9 @@ class SyncSourceDefinition {
   final String projectionKind;
   final String resourceKey;
   final SyncActorScope actorScope;
+
+  /// Opt-in pointer for a keyed, owner-confirmed resource detail.
+  final String? indexedResourceKind;
   final SyncSourceCategory category;
   final FreshnessPolicy freshnessPolicy;
   final SyncSourceParser parser;
@@ -158,6 +162,11 @@ class SyncSourceDefinition {
     SyncSourceCategory category = SyncSourceCategory.root,
     FreshnessPolicy freshnessPolicy = const FreshnessPolicy(id: 'contextual'),
     SyncActorScope actorScope = const SyncActorScope.personal(),
+    String? indexedResourceKind,
+    String? expectedOccurrenceId,
+    String? expectedActorSpaceId,
+    String? expectedViewerProfileId,
+    String? expectedSurface,
   }) {
     return SyncSourceDefinition(
       sourceKey: sourceKey,
@@ -166,6 +175,7 @@ class SyncSourceDefinition {
       projectionKind: projectionKind,
       resourceKey: resourceKey,
       actorScope: actorScope,
+      indexedResourceKind: indexedResourceKind,
       category: category,
       freshnessPolicy: freshnessPolicy,
       parser: (response) {
@@ -174,6 +184,27 @@ class SyncSourceDefinition {
           throw FormatException(
             'Expected $projectionKind, got ${envelope.projection}',
           );
+        }
+        if (expectedOccurrenceId != null) {
+          final identity = envelope.data['identity'];
+          final context = envelope.data['context'];
+          if (identity is! Map ||
+              identity['kind'] != 'occurrence' ||
+              identity['id']?.toString() != expectedOccurrenceId ||
+              context is! Map ||
+              (context['occurrence'] is! Map ||
+                  (context['occurrence'] as Map)['id']?.toString() !=
+                      expectedOccurrenceId) ||
+              context['actor_space_id']?.toString() != expectedActorSpaceId ||
+              (expectedViewerProfileId != null &&
+                  context['viewer_profile_id']?.toString() !=
+                      expectedViewerProfileId) ||
+              (expectedSurface != null &&
+                  envelope.data['surface'] != expectedSurface)) {
+            throw const FormatException(
+              'Occurrence projection has a mismatched actor, identity or surface',
+            );
+          }
         }
         return AcquiredProjection(
           schemaVersion: envelope.schemaVersion,
@@ -189,16 +220,41 @@ class SyncSourceDefinition {
 Future<void> applyProjectionSnapshot(
   SyncApplyContext context,
   AcquiredProjection projection,
-) {
-  return context.store.putProjection(
-    kind: context.source.projectionKind,
-    resourceKey: context.source.resourceKey,
+) async {
+  final source = context.source;
+  final resourceKind = source.indexedResourceKind;
+  if (resourceKind != null) {
+    if (!source.actorScope.isPersonal ||
+        source.category != SyncSourceCategory.keyedDetail ||
+        source.resourceKey.isEmpty) {
+      throw const FormatException(
+        'Only personal keyed owner details are indexed',
+      );
+    }
+    // Reject a mismatched identity before storing any data or index pointer.
+    final observedId = projection.payload['id'];
+    if (observedId != null && observedId.toString() != source.resourceKey) {
+      throw const FormatException('Owner resource identity mismatch');
+    }
+  }
+  await context.store.putProjection(
+    kind: source.projectionKind,
+    resourceKey: source.resourceKey,
     schemaVersion: projection.schemaVersion,
     payload: projection.payload,
     sourceGeneratedAt: projection.sourceGeneratedAt,
     sourceUpdatedAt: projection.sourceUpdatedAt,
     freshUntil: projection.freshUntil,
     expiresAt: projection.expiresAt,
-    freshnessPolicyId: context.source.freshnessPolicy.id,
+    freshnessPolicyId: source.freshnessPolicy.id,
   );
+  if (resourceKind != null) {
+    final title = projection.payload['title'];
+    await context.store.putResourceReference(
+      resourceKind: resourceKind,
+      resourceId: source.resourceKey,
+      projectionKind: source.projectionKind,
+      label: title is String ? title : null,
+    );
+  }
 }

@@ -12,14 +12,18 @@ class AuthEntryFrame extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.onBack,
+    this.onClose,
     this.footer = '',
+    this.compactIdentity = false,
   });
 
   final String title;
   final String? subtitle;
   final Widget child;
   final VoidCallback? onBack;
+  final VoidCallback? onClose;
   final String footer;
+  final bool compactIdentity;
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +45,12 @@ class AuthEntryFrame extends StatelessWidget {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              const horizontal = MakoloSpacing.lg;
+              final horizontal = constraints.maxWidth < 360
+                  ? MakoloSpacing.md
+                  : MakoloSpacing.lg;
               final vertical = compact ? MakoloSpacing.sm : MakoloSpacing.lg;
 
-              return SingleChildScrollView(
+              final content = SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(
@@ -57,35 +63,59 @@ class AuthEntryFrame extends StatelessWidget {
                         ? constraints.maxHeight - vertical * 2
                         : 0.0,
                   ),
-                  child: Center(
+                  child: Align(
+                    alignment: compactIdentity
+                        ? Alignment.topCenter
+                        : Alignment.center,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (onBack != null)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: IconButton(
-                                tooltip: 'Retour',
-                                onPressed: onBack,
-                                color: Colors.white,
-                                icon: const Icon(Icons.arrow_back_rounded),
-                              ),
+                          if (!compactIdentity &&
+                              (onBack != null || onClose != null))
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (onBack != null)
+                                  IconButton(
+                                    tooltip: 'Retour',
+                                    onPressed: onBack,
+                                    color: Colors.white,
+                                    icon: const Icon(Icons.arrow_back_rounded),
+                                  )
+                                else
+                                  const SizedBox(width: 48),
+                                if (onClose != null)
+                                  IconButton(
+                                    tooltip: 'Fermer',
+                                    onPressed: onClose,
+                                    color: Colors.white,
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                              ],
                             ),
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? (compact ? MakoloSpacing.strong : 88.0)
+                                : compact
                                 ? MakoloSpacing.xs
                                 : MakoloSpacing.md,
                           ),
                           Center(
                             child: MakoloMark(
-                              size: compact ? 52 : 64,
+                              size: compactIdentity
+                                  ? 42
+                                  : compact
+                                  ? 52
+                                  : 64,
                               white: true,
                             ),
                           ),
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? MakoloSpacing.md
+                                : compact
                                 ? MakoloSpacing.md
                                 : MakoloSpacing.lg,
                           ),
@@ -111,7 +141,9 @@ class AuthEntryFrame extends StatelessWidget {
                             ),
                           ],
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? MakoloSpacing.lg
+                                : compact
                                 ? MakoloSpacing.lg
                                 : MakoloSpacing.xl,
                           ),
@@ -132,6 +164,43 @@ class AuthEntryFrame extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+              );
+              if (!compactIdentity) return content;
+              return DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      MakoloColors.indigo,
+                      Color(0xFF4727C4),
+                      MakoloColors.deep,
+                    ],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: content),
+                    if (onClose != null)
+                      Positioned(
+                        top: MakoloSpacing.xs,
+                        right: MakoloSpacing.sm,
+                        child: IconButton.filledTonal(
+                          key: const Key('account-chooser-close'),
+                          tooltip: 'Fermer',
+                          onPressed: onClose,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(48, 48),
+                          ),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ),
+                  ],
                 ),
               );
             },

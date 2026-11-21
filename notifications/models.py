@@ -167,6 +167,7 @@ class PushEndpoint(models.Model):
     encrypted_token = models.TextField()
     token_hint = models.CharField(max_length=24, blank=True)
     app_version = models.CharField(max_length=64, blank=True)
+    device_name = models.CharField(max_length=80, blank=True)
     active = models.BooleanField(default=True)
     last_seen_at = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)

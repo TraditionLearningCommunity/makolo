@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.api.privacy import PrivateNoStoreMixin
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,6 +17,7 @@ from intelligence.interoperability import (
 from organizations.models import Organization
 
 from .profile_projection import build_profile_interoperability_payload
+from .domain_integrations import space_domain_integrations, platform_domain_integrations
 from .projections import build_interoperability_payload
 
 
@@ -25,14 +27,14 @@ def _private_response(payload):
     return response
 
 
-class PersonalInteroperabilityAPIView(APIView):
+class PersonalInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return _private_response(build_profile_interoperability_payload(request.user))
 
 
-class SpaceInteroperabilityAPIView(APIView):
+class SpaceInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, slug):
@@ -53,11 +55,12 @@ class SpaceInteroperabilityAPIView(APIView):
                 self_link=f"/api/v1/organizations/workspaces/{space.slug}/interoperability/",
                 actor=request.user,
                 authority_context=space,
+                domain_integrations=space_domain_integrations(request.user, space),
             )
         )
 
 
-class PlatformInteroperabilityAPIView(APIView):
+class PlatformInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -74,6 +77,7 @@ class PlatformInteroperabilityAPIView(APIView):
             self_link="/api/v1/platform/interoperability/",
             actor=request.user,
             authority_context="platform",
+            domain_integrations=platform_domain_integrations(request.user),
         )
         payload["space_modules_included"] = False
         payload["personal_modules_included"] = False

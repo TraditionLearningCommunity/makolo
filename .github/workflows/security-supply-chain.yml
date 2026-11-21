@@ -68,6 +68,8 @@ jobs:
         run: |
           python -m pip_audit -r requirements.txt
           python -m pip_audit -r requirements-agents.txt
+      - name: Verify SQLite identifier escaping against adversarial names
+        run: python -m unittest scripts.test_migrate_sqlite_identifiers
       - name: Bandit medium/high first-party runtime findings
         shell: bash
         run: |

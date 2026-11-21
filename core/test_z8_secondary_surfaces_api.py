@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 from datetime import date
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -276,6 +279,55 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
             404,
         )
 
+    def test_docx_resource_exposes_bounded_private_text_reader(self):
+        asset = create_personal_asset(
+            controller=self.user,
+            subject_profile=self.user,
+            title="Compte rendu Z8",
+        )
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as document:
+            document.writestr(
+                "word/document.xml",
+                (
+                    '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                    'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'
+                    'Lecture DOCX dans Makolo'
+                    '</w:t></w:r></w:p></w:body></w:document>'
+                ),
+            )
+        version = create_personal_asset_version(
+            actor=self.user,
+            asset=asset,
+            uploaded_file=SimpleUploadedFile(
+                "compte-rendu.docx",
+                buffer.getvalue(),
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+            ),
+        )
+
+        response = self.client.get(
+            f"/api/v1/me/resources/versions/{version.pk}/download/?view=text"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["Content-Type"].startswith("text/plain"))
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(
+            response["Content-Security-Policy"],
+            "default-src 'none'; sandbox",
+        )
+        self.assertContains(response, "Lecture DOCX dans Makolo")
+
+        _, _, pdf_version = self._asset_with_versions(title="PDF Z8")
+        rejected = self.client.get(
+            f"/api/v1/me/resources/versions/{pdf_version.pk}/download/?view=text"
+        )
+        self.assertEqual(rejected.status_code, 404)
+
     def test_archived_resource_remains_inspectable_but_not_downloadable(self):
         asset, _, current = self._asset_with_versions(title="Archive Z8")
         archive_personal_asset(actor=self.user, asset=asset)
@@ -310,6 +362,42 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
         self.assertEqual(data["source"]["id"], str(current.pk))
         self.assertEqual(data["result"]["kind"], "journey_artifact")
         self.assertFalse(data["requirement"]["satisfied_by_reuse"])
+
+    def test_me_collectives_portrait_uses_only_authorized_space_identity(self):
+        from authorization.services import grant_space_role
+
+        allowed = Organization.objects.create(
+            name="Espace collectif Z8",
+            slug="espace-collectif-z8",
+            description="Initiatives de proximité",
+            created_by=self.other,
+        )
+        hidden = Organization.objects.create(
+            name="Espace privé Z8",
+            slug="espace-prive-z8",
+            description="Description qui ne doit pas apparaître",
+            created_by=self.other,
+        )
+        grant_space_role(
+            profile=self.user,
+            space=allowed,
+            role=SystemRoleCode.SPACE_OWNER,
+            source="z8-collectives-portrait",
+        )
+
+        response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["data"]["collectives"]["authorized_spaces"]["items"]
+        by_id = {row["id"]: row for row in rows}
+        self.assertIn(str(allowed.pk), by_id)
+        self.assertNotIn(str(hidden.pk), by_id)
+        item = by_id[str(allowed.pk)]
+        self.assertEqual(
+            item["archetype_label"], allowed.get_archetype_display()
+        )
+        self.assertEqual(item["description"], "Initiatives de proximité")
+        self.assertNotIn("logo_url", item)
+        self.assertNotIn("media_bindings", item)
 
     def test_group_membership_is_relationship_not_authority(self):
         group = create_group(actor=self.other, name="Groupe membre Z8")

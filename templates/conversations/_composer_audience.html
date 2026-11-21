@@ -1,0 +1,16 @@
+{% if composer.audience_selection_required %}
+  <label class="block text-xs font-semibold">Destinataires
+    <select name="audience_id" required class="mk-input mt-1 w-full">
+      <option value="" selected disabled>Choisir</option>
+      {% for audience in composer.audiences %}
+        <option value="{{ audience.id }}" {% if compose_draft.audience_id == audience.id|stringformat:'s' %}selected{% endif %}>{{ audience.label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+{% elif composer.default_audience_id %}
+  <input type="hidden" name="audience_id" value="{{ composer.default_audience_id }}">
+{% endif %}
+
+{% if composer.representable_space_id %}
+  <label class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)"><input type="checkbox" name="represented_space_id" value="{{ composer.representable_space_id }}"> Au nom de cet Espace</label>
+{% endif %}

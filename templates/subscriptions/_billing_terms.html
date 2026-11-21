@@ -1,0 +1,11 @@
+{% if terms %}
+<p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">
+  {% if terms.amount == '0.00' %}
+  Gratuit
+  {% else %}
+  {{ terms.amount }} {{ terms.currency }} /
+  {% if terms.period_count != 1 %}{{ terms.period_count }} {% endif %}
+  {% if terms.period_unit == 'day' %}jour{% elif terms.period_unit == 'week' %}semaine{% elif terms.period_unit == 'month' %}mois{% elif terms.period_unit == 'year' %}an{% else %}période{% endif %}
+  {% endif %}
+</p>
+{% endif %}

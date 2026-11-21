@@ -1,0 +1,13 @@
+<form class="ap-credit-reward" method="post" action="{{ self_url }}" data-credits-confirm="Utiliser {{ item.reward.points_cost }} crédits pour {{ item.reward.name }} ?">
+  {% csrf_token %}
+  <input type="hidden" name="reward_id" value="{{ item.reward.pk }}">
+  <input type="hidden" name="intent_key" value="{{ item.token }}">
+  <div class="ap-card-symbol"><i data-lucide="{% if item.presentation.category == 'feature' %}unlock-keyhole{% elif item.presentation.category == 'subscription' %}crown{% else %}gift{% endif %}" aria-hidden="true"></i></div>
+  <div class="ap-card-copy">
+    <strong>{{ item.reward.name }}</strong>
+    {% if item.reward.description %}<small>{{ item.reward.description }}</small>{% endif %}
+    {% if item.presentation.duration_days %}<small>{{ item.presentation.duration_days }} jours</small>{% endif %}
+    <em>{{ item.reward.points_cost }} crédits</em>
+  </div>
+  <button type="submit" {% if not can_spend %}disabled{% endif %}>{{ item.presentation.action }}</button>
+</form>

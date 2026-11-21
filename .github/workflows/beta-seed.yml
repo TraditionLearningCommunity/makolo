@@ -85,7 +85,11 @@ jobs:
           python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
           python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
           after="$(snapshot)"
-          test "$before" = "$after"
+          if [[ "$before" != "$after" ]]; then
+            echo "Beta seed is not idempotent; counts changed across identical runs:"
+            python -c 'import json,sys; a,b=map(json.loads,sys.argv[1:]); [print(f"{k}: before={a.get(k)} after={b.get(k)}") for k in sorted(a.keys() | b.keys()) if a.get(k)!=b.get(k)]' "$before" "$after"
+            exit 1
+          fi
       - name: Verify SQLite integrity
         run: |
           integrity="$(sqlite3 "$DJANGO_DB_PATH" 'PRAGMA integrity_check;')"
@@ -156,4 +160,8 @@ jobs:
           python manage.py seed_makolo_demo --scale beta --as-of "$BETA_AS_OF"
           python manage.py validate_makolo_demo --as-of "$BETA_AS_OF"
           after="$(snapshot)"
-          test "$before" = "$after"
+          if [[ "$before" != "$after" ]]; then
+            echo "Beta seed is not idempotent; counts changed across identical runs:"
+            python -c 'import json,sys; a,b=map(json.loads,sys.argv[1:]); [print(f"{k}: before={a.get(k)} after={b.get(k)}") for k in sorted(a.keys() | b.keys()) if a.get(k)!=b.get(k)]' "$before" "$after"
+            exit 1
+          fi

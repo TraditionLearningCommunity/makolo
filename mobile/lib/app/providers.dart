@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +10,7 @@ import '../platform/permissions/permission_gateway.dart';
 import 'environment.dart';
 import 'runtime/app_runtime.dart';
 import 'runtime/runtime_builder.dart';
+import 'runtime/runtime_close_barrier.dart';
 import 'session_recovery.dart';
 
 export 'runtime/app_runtime.dart';
@@ -38,15 +37,29 @@ final locationCapabilityFactoryProvider = Provider<LocationCapabilityFactory>(
       ),
 );
 
+// The public file is shared by guest and authenticated runtimes. Only the
+// close barrier serializes its lifetime; personal stores remain Profile-owned.
+final _runtimeCloseBarrier = RuntimeCloseBarrier();
+
 final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
-  final runtime = await buildAppRuntime(
-    tokens: ref.watch(tokenStoreProvider),
-    recovery: ref.watch(sessionRecoveryProvider),
-    config: ref.watch(runtimeConfigProvider),
-    locationFactory: ref.watch(locationCapabilityFactoryProvider),
+  final tokens = ref.watch(tokenStoreProvider);
+  final recovery = ref.watch(sessionRecoveryProvider);
+  final config = ref.watch(runtimeConfigProvider);
+  final locationFactory = ref.watch(locationCapabilityFactoryProvider);
+  final pending = _runtimeCloseBarrier.open(
+    () => buildAppRuntime(
+      tokens: tokens,
+      recovery: recovery,
+      config: config,
+      locationFactory: locationFactory,
+    ),
   );
-  ref.onDispose(() => unawaited(runtime.close()));
-  return runtime;
+  // Register before build completion: even a runtime that finishes after its
+  // provider was invalidated must close before the replacement opens.
+  ref.onDispose(
+    () => _runtimeCloseBarrier.release(pending, (runtime) => runtime.close()),
+  );
+  return pending;
 });
 
 final pushEndpointRegistrationProvider = FutureProvider.autoDispose<void>((

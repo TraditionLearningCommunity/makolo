@@ -143,6 +143,9 @@ Si oui, une structure locale peut être justifiée. Sinon, snapshot et référen
 | Passeport | personal.me.passport | snapshot protégé | Proof/Credential Trust refs | contextuel |
 | Ressources | personal.me.resources | collection bornée | ResourceIndex + PersonalAsset/version metadata | contextuel |
 | Resource detail | personal.resource.detail | snapshot détail | metadata/version/provenance | contextuel |
+| Nos ressources | space.resources | snapshot Space-scoped | compteurs/familles owner-backed du Space | lecture locale ; autorité viewer serveur |
+| Nos documents | space.documents | collection bornée Space-scoped | métadonnées SpaceDocument/version | lecture locale ; mutations revalidées owner |
+| Space document detail | space.document.detail | snapshot détail Space-scoped | métadonnées/version + partages autorisés | lecture locale ; capabilities non autoritatives |
 | Découvrir | discovery.items | query cache reconstructible | ResourceIndex si relation personnelle réelle | recherche globale serveur |
 | Activity | activity.detail | snapshot détail | ResourceIndex | contextuel |
 | Occurrence | occurrence.detail | snapshot détail | OccurrenceFactsIndex | contextuel |

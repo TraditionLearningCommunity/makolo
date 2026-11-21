@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
@@ -6,7 +7,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from organizations.models import Organization, OrganizationFollow, SpaceLifecycle
+from organizations.models import Organization, OrganizationFollow, ProfileFollow, SpaceLifecycle
+from organizations.profile_follow_services import follow_profile, unfollow_profile
 from organizations.services import follow_organization, unfollow_organization, update_follow_preferences
 
 from .serializers import (
@@ -85,3 +87,69 @@ class FollowDetailAPIView(APIView):
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _raise_service_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FollowTargetAPIView(APIView):
+    """Viewer-scoped follow of a public Profile or Space; never a public count."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _target(self, request, kind, target_id):
+        if kind == "space":
+            return get_object_or_404(
+                Organization.objects.filter(
+                    public_profile=True,
+                    searchable=True,
+                    lifecycle=SpaceLifecycle.ACTIVE,
+                ).exclude(verification_status="suspended"),
+                pk=target_id,
+            )
+        if kind == "profile":
+            return get_object_or_404(
+                get_user_model().objects.filter(
+                    is_active=True,
+                    profile__public_profile=True,
+                    profile__searchable=True,
+                ).exclude(pk=request.user.pk),
+                pk=target_id,
+            )
+        from rest_framework.exceptions import NotFound
+        raise NotFound()
+
+    def _follow(self, request, kind, target):
+        if kind == "space":
+            return OrganizationFollow.objects.filter(
+                user=request.user, organization=target
+            ).first()
+        return ProfileFollow.objects.filter(
+            user=request.user, organizer_profile=target
+        ).first()
+
+    def get(self, request, kind, target_id):
+        target = self._target(request, kind, target_id)
+        return Response({"followed": self._follow(request, kind, target) is not None})
+
+    def post(self, request, kind, target_id):
+        target = self._target(request, kind, target_id)
+        if self._follow(request, kind, target) is None:
+            try:
+                if kind == "space":
+                    follow_organization(user=request.user, organization=target)
+                else:
+                    follow_profile(user=request.user, organizer_profile=target)
+            except (DjangoPermissionDenied, DjangoValidationError) as exc:
+                _raise_service_error(exc)
+        return Response({"followed": True})
+
+    def delete(self, request, kind, target_id):
+        target = self._target(request, kind, target_id)
+        follow = self._follow(request, kind, target)
+        if follow is not None:
+            try:
+                if kind == "space":
+                    unfollow_organization(follow=follow, user=request.user)
+                else:
+                    unfollow_profile(follow=follow, user=request.user)
+            except (DjangoPermissionDenied, DjangoValidationError) as exc:
+                _raise_service_error(exc)
+        return Response({"followed": False})

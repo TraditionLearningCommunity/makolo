@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     PaymentConfigurationAPIView,
+    PaymentObligationAPIView,
     PaymentEventViewSet,
     PaymentViewSet,
     SandboxWebhookAPIView,
@@ -15,6 +16,7 @@ router.register("events", PaymentEventViewSet, basename="payment-event")
 
 urlpatterns = [
     path("configuration/", PaymentConfigurationAPIView.as_view(), name="configuration"),
+    path("obligations/<uuid:pk>/", PaymentObligationAPIView.as_view(), name="obligation"),
     path("webhooks/sandbox/", SandboxWebhookAPIView.as_view(), name="sandbox-webhook"),
     path("", include(router.urls)),
 ]

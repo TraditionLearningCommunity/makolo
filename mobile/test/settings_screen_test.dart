@@ -119,4 +119,92 @@ void main() {
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Langue'), findsNothing);
   });
+
+  testWidgets('privacy settings hand off to the existing Profile owner', (
+    tester,
+  ) async {
+    final controller = AppPreferencesController(
+      store: FileLaunchPreferencesStore.forFile(File('unused-privacy')),
+      initial: const LaunchPreferencesSnapshot(),
+    );
+    addTearDown(controller.dispose);
+    var privacyOpened = false;
+    var notificationsOpened = false;
+    var securityOpened = false;
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      preferences: controller,
+      config: MakoloRuntimeConfig.fromValues(const {}),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          onPrivacy: () => privacyOpened = true,
+          onNotifications: () => notificationsOpened = true,
+          onSecurity: () => securityOpened = true,
+          packageInfo: Future.value(
+            PackageInfo(
+              appName: 'Makolo',
+              packageName: 'com.makolo.mobile',
+              version: '1.0.0',
+              buildNumber: '1',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Confidentialité du Profil'),
+      200,
+    );
+    await tester.tap(find.text('Confidentialité du Profil'));
+    expect(privacyOpened, isTrue);
+    await tester.ensureVisible(find.text('Notifications'));
+    await tester.tap(find.text('Notifications'));
+    expect(notificationsOpened, isTrue);
+    await tester.ensureVisible(find.text('Sécurité et appareils'));
+    await tester.tap(find.text('Sécurité et appareils'));
+    expect(securityOpened, isTrue);
+    expect(find.text('Données hors ligne'), findsNothing);
+    expect(find.text('Compte'), findsNothing);
+  });
+
+  testWidgets(
+    'account settings remain available without appearance preferences',
+    (tester) async {
+      var securityOpened = false;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AppSettingsScreen(
+            runtime: runtime,
+            onSecurity: () => securityOpened = true,
+            packageInfo: Future.value(
+              PackageInfo(
+                appName: 'Makolo',
+                packageName: 'com.makolo.mobile',
+                version: '1.0.0',
+                buildNumber: '1',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Impossible de modifier l’apparence'), findsOneWidget);
+      expect(find.text('Réduire les animations'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Sécurité et appareils'), 200);
+      await tester.tap(find.text('Sécurité et appareils'));
+      expect(securityOpened, isTrue);
+    },
+  );
 }

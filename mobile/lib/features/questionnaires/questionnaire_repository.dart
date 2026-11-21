@@ -1,3 +1,8 @@
+import 'dart:io';
+import 'dart:math';
+
+import '../../data/files/questionnaire_download_destination.dart';
+
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
@@ -38,6 +43,57 @@ class QuestionnaireOwnerLinks {
   bool get canSubmit => save != null && submit != null;
 }
 
+class QuestionnaireMedia {
+  const QuestionnaireMedia({
+    required this.id,
+    required this.kind,
+    required this.name,
+    required this.mimeType,
+    required this.caption,
+    required this.downloadPath,
+    required this.position,
+  });
+
+  final String id;
+  final String kind;
+  final String name;
+  final String mimeType;
+  final String caption;
+  final String downloadPath;
+  final int position;
+
+  factory QuestionnaireMedia.fromMap(Map<String, dynamic> row) =>
+      QuestionnaireMedia(
+        id: row['id']?.toString() ?? '',
+        kind: row['kind']?.toString() ?? 'file',
+        name: row['name']?.toString() ?? 'Document',
+        mimeType: row['mime_type']?.toString() ?? 'application/octet-stream',
+        caption: row['caption']?.toString() ?? '',
+        downloadPath: row['download_path']?.toString() ?? '',
+        position: row['position'] is int ? row['position'] as int : 0,
+      );
+
+  Map<String, dynamic> toViewerMap() => {
+    'id': id,
+    'kind': kind,
+    'name': name,
+    'mime_type': mimeType,
+    'caption': caption,
+    'download_path': downloadPath,
+  };
+}
+
+List<QuestionnaireMedia> _parseQuestionnaireMedia(Object? raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final item in raw)
+      if (item is Map)
+        QuestionnaireMedia.fromMap(
+          item.map((key, value) => MapEntry(key.toString(), value)),
+        ),
+  ];
+}
+
 class QuestionnaireQuestion {
   const QuestionnaireQuestion({
     required this.key,
@@ -46,6 +102,8 @@ class QuestionnaireQuestion {
     required this.position,
     required this.required,
     required this.choices,
+    this.media = const [],
+    this.choiceMedia = const {},
     this.helpText,
     this.minLength,
     this.maxLength,
@@ -59,6 +117,8 @@ class QuestionnaireQuestion {
   final int position;
   final bool required;
   final List<String> choices;
+  final List<QuestionnaireMedia> media;
+  final Map<int, List<QuestionnaireMedia>> choiceMedia;
   final String? helpText;
   final int? minLength;
   final int? maxLength;
@@ -77,6 +137,7 @@ class QuestionnaireRequestDetail {
     required this.title,
     required this.questions,
     required this.answers,
+    this.media = const [],
     this.journeyId,
     this.opensAt,
     this.dueAt,
@@ -98,6 +159,7 @@ class QuestionnaireRequestDetail {
   final String title;
   final String? description;
   final List<QuestionnaireQuestion> questions;
+  final List<QuestionnaireMedia> media;
   final String? responseId;
   final String? responseStatus;
   final DateTime? submittedAt;
@@ -153,6 +215,17 @@ class QuestionnaireRequestDetail {
                 minValue: _optionalNum(question['min_value']),
                 maxValue: _optionalNum(question['max_value']),
                 choices: choices,
+                media: _parseQuestionnaireMedia(question['media']),
+                choiceMedia: {
+                  for (final entry
+                      in question['choice_media'] is List
+                          ? question['choice_media'] as List
+                          : const [])
+                    if (entry is Map && entry['index'] is int)
+                      entry['index'] as int: _parseQuestionnaireMedia(
+                        entry['media'],
+                      ),
+                },
               );
             })
             .toList(growable: false)
@@ -180,6 +253,7 @@ class QuestionnaireRequestDetail {
       title: requiredString(formVersion['title'], 'form_version.title'),
       description: _optionalString(formVersion['description']),
       questions: List.unmodifiable(questions),
+      media: _parseQuestionnaireMedia(formVersion['media']),
       responseId: _optionalString(response?['id']),
       responseStatus: _optionalString(response?['status']),
       submittedAt: _optionalDateTime(response?['submitted_at']),
@@ -307,6 +381,42 @@ class QuestionnaireRepository {
       lastVerifiedOnlineAt: DateTime.now().toUtc(),
       freshnessPolicyId: freshnessPolicy.id,
     );
+  }
+
+  Future<File> downloadMedia({
+    required String attachmentId,
+    required String filename,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Connexion nécessaire pour lire ce média de questionnaire.',
+      );
+    }
+    if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(attachmentId)) {
+      throw const FormatException('Identifiant de média invalide.');
+    }
+    final basename = filename.split(RegExp(r'[/\\]')).last;
+    final dot = basename.lastIndexOf('.');
+    final ext = dot > 0 ? basename.substring(dot) : '.bin';
+    final safeExt = RegExp(r'^\.[A-Za-z0-9]{1,9}$').hasMatch(ext)
+        ? ext
+        : '.bin';
+    final dir = await questionnaireDownloadDirectory(profileId);
+    final nonce = Random.secure().nextInt(0x7fffffff).toRadixString(16);
+    final file = File(
+      '${dir.path}/$attachmentId-${DateTime.now().microsecondsSinceEpoch}-$nonce$safeExt',
+    );
+    try {
+      await engine.api.download(
+        'api/v1/questionnaires/media/$attachmentId/download/',
+        destinationPath: file.path,
+      );
+      return file;
+    } on Object {
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
   }
 
   static String _relativeApiPath(String value) {

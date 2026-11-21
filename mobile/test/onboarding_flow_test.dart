@@ -19,25 +19,27 @@ void main() {
       ),
     );
 
-    expect(find.text('Découvrez ce qui compte vraiment.'), findsOneWidget);
+    expect(find.text('Makolo marche pour vous.'), findsOneWidget);
     expect(find.text('Continuer'), findsOneWidget);
     expect(find.text('1/3'), findsOneWidget);
-    expect(find.text('Se connecter'), findsNothing);
+    expect(find.text('J’ai un compte'), findsNothing);
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
-    expect(find.text('Préparez ce qui peut l’être.'), findsOneWidget);
+    expect(find.text('Découvrez ce qui vous entoure.'), findsOneWidget);
+    expect(find.text('Activer la localisation'), findsOneWidget);
+    expect(find.text('Passer'), findsOneWidget);
     expect(find.text('2/3'), findsOneWidget);
 
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Passer'));
     await tester.pumpAndSettle();
-    expect(find.text('Avancez dans l’action réelle.'), findsOneWidget);
+    expect(find.text('Tout commence par une découverte.'), findsOneWidget);
     expect(find.text('3/3'), findsOneWidget);
-    expect(find.text('Découvrir Makolo'), findsOneWidget);
-    expect(find.text('Se connecter'), findsOneWidget);
+    expect(find.text('Entrer dans Makolo'), findsOneWidget);
+    expect(find.text('J’ai un compte'), findsOneWidget);
     expect(find.text('Créer un compte'), findsOneWidget);
 
-    await tester.tap(find.text('Découvrir Makolo'));
+    await tester.tap(find.text('Entrer dans Makolo'));
     await tester.pump();
 
     expect(exit, OnboardingExit.continueGuest);
@@ -60,11 +62,11 @@ void main() {
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Passer'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ouvrir Makolo'), findsOneWidget);
-    expect(find.text('Se connecter'), findsNothing);
+    expect(find.text('J’ai un compte'), findsNothing);
     expect(find.text('Créer un compte'), findsNothing);
 
     await tester.tap(find.text('Ouvrir Makolo'));

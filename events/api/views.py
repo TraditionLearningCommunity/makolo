@@ -64,7 +64,10 @@ class EventViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         values = dict(serializer.validated_data)
         organization = values.pop("organization", None)
-        event = create_event(actor=self.request.user, organization=organization, **values)
+        try:
+            event = create_event(actor=self.request.user, organization=organization, **values)
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages) from exc
         ensure_policy(event)
         serializer.instance = event
 

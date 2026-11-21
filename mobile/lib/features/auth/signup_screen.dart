@@ -248,7 +248,8 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted || version != _usernameAvailabilityVersion) return;
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier cet identifiant.';
       });
       return;
     }
@@ -274,7 +275,7 @@ class _SignupScreenState extends State<SignupScreen> {
     } on Object catch (error) {
       final message = await resolvedAuthErrorMessage(
         error,
-        fallback: 'Impossible de vérifier pour le moment.',
+        fallback: 'Impossible de vérifier cet identifiant.',
       );
       if (!mounted ||
           version != _usernameAvailabilityVersion ||
@@ -307,7 +308,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error = 'La création de compte est indisponible sur cette installation pour le moment.';
+        _error = 'Création de compte indisponible.';
       });
       return;
     }

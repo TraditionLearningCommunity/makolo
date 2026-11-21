@@ -6,6 +6,23 @@
 
     {% if editable %}<section class="mk-panel p-5 sm:p-6"><h3 class="text-lg font-extrabold">Présentation du draft</h3><form method="post" action="{% url 'operations:subscription-version-edit' version.pk %}" class="mt-5 space-y-4">{% csrf_token %}{% include 'operations/_subscription_form_fields.html' with form=version_form %}<button class="mk-btn mk-btn-primary" type="submit">Enregistrer le draft</button></form></section>{% endif %}
 
+    <section class="mk-panel p-5 sm:p-6" aria-labelledby="coverage-billing-heading">
+        <h3 id="coverage-billing-heading" class="text-lg font-extrabold">Facturation et couvertures financées</h3>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">Prix et période de la version ; couverture de plusieurs bénéficiaires uniquement lorsqu'elle est explicitement activée. Le tarif publié est figé.</p>
+        {% if billing_terms %}
+            <p class="mt-3 text-sm"><strong>{{ billing_terms.amount }} {{ billing_terms.currency }}</strong>
+            / {{ billing_terms.billing_period_count }} {{ billing_terms.billing_period_unit }}.
+            {% if billing_terms.coverage_enabled %}Couvertures activées : {{ billing_terms.coverage_pricing_mode }}, plafond {{ billing_terms.coverage_max_quantity }}.{% else %}Couvertures tierces non proposées.{% endif %}</p>
+        {% endif %}
+        {% if editable %}
+            <form method="post" action="{% url 'operations:subscription-version-billing' version.pk %}" class="mt-4 space-y-4">
+                {% csrf_token %}
+                {% include 'operations/_subscription_form_fields.html' with form=billing_terms_form %}
+                <button type="submit" class="mk-btn mk-btn-primary">Enregistrer les conditions du draft</button>
+            </form>
+        {% endif %}
+    </section>
+
     <div class="grid gap-6 xl:grid-cols-2">
         <section class="mk-panel p-5 sm:p-6" aria-labelledby="benefits-heading"><h3 id="benefits-heading" class="text-lg font-extrabold">Benefits</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Présentation utilisateur uniquement ; les accès techniques restent portés par les Entitlements.</p><div class="mt-4 space-y-2">{% for benefit in version.benefits.all %}<div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><div class="flex items-start justify-between gap-3"><div><p class="text-sm font-bold">{{ benefit.title }}</p>{% if benefit.description %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ benefit.description }}</p>{% endif %}</div>{% if editable %}<form method="post" action="{% url 'operations:subscription-benefit-delete' version.pk benefit.pk %}">{% csrf_token %}<button class="text-xs font-bold" type="submit">Retirer</button></form>{% endif %}</div></div>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun Benefit.</p>{% endfor %}</div>{% if editable %}<details class="mt-5 rounded-2xl border p-4" style="border-color:var(--mk-border)"><summary class="cursor-pointer font-bold">Ajouter un Benefit</summary><form method="post" action="{% url 'operations:subscription-benefit-create' version.pk %}" class="mt-4 space-y-4">{% csrf_token %}{% include 'operations/_subscription_form_fields.html' with form=benefit_form %}<button class="mk-btn mk-btn-primary" type="submit">Ajouter</button></form></details>{% endif %}</section>
 

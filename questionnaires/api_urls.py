@@ -1,9 +1,12 @@
 from django.urls import path
 
-from .api_views import FormRequestDetailAPIView, FormRequestListAPIView, FormResponseSaveAPIView, FormResponseSubmitAPIView
+from .api_views import FormRequestDetailAPIView, FormRequestListAPIView, FormResponseSaveAPIView, FormResponseSubmitAPIView, QuestionnaireMediaUploadAPIView, QuestionnaireMediaDownloadAPIView, QuestionnaireMediaManageAPIView
 
 
 urlpatterns = [
+    path("versions/<uuid:version_pk>/media/", QuestionnaireMediaUploadAPIView.as_view(), name="questionnaire-media-upload"),
+    path("media/<uuid:media_pk>/", QuestionnaireMediaManageAPIView.as_view(), name="questionnaire-media-manage"),
+    path("media/<uuid:media_pk>/download/", QuestionnaireMediaDownloadAPIView.as_view(), name="questionnaire-media-download"),
     path("requests/", FormRequestListAPIView.as_view(), name="questionnaire-request-list"),
     path("requests/<uuid:pk>/", FormRequestDetailAPIView.as_view(), name="questionnaire-request-detail"),
     path("requests/<uuid:pk>/save/", FormResponseSaveAPIView.as_view(), name="questionnaire-response-save"),

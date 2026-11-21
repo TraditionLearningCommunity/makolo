@@ -40,7 +40,15 @@ def _request_recipient_id(request):
 
 
 def _require_request_recipient(actor, request):
-    if not getattr(actor, "is_authenticated", False) or _request_recipient_id(request) != actor.pk:
+    if not getattr(actor, "is_authenticated", False):
+        raise PermissionDenied("Ce formulaire ne vous est pas destiné.")
+    journey = request.journey if request.journey_id else None
+    if journey is not None and journey.beneficiary_space_id:
+        from services.space_beneficiary import require_space_service_action
+
+        require_space_service_action(actor, journey)
+        return
+    if _request_recipient_id(request) != actor.pk:
         raise PermissionDenied("Ce formulaire ne vous est pas destiné.")
 
 
@@ -237,8 +245,16 @@ def save_response(*, request, actor, answers):
         request=request,
         defaults={"form_version": request.form_version, "respondent": actor},
     )
-    if response.form_version_id != request.form_version_id or response.respondent_id != actor.pk:
+    if response.form_version_id != request.form_version_id:
         raise ValidationError("La réponse existante ne correspond pas à la demande.")
+    if response.respondent_id != actor.pk:
+        if request.journey_id and request.journey.beneficiary_space_id:
+            # The actual responding Profile can change when a Space mandate
+            # rotates. The FormRequest stays attached to the same Space Journey.
+            response.respondent = actor
+            response.save(update_fields=["respondent", "updated_at"])
+        else:
+            raise ValidationError("La réponse existante ne correspond pas à la demande.")
     questions = {question.key: question for question in request.form_version.questions.all()}
     unknown = set(answers) - set(questions)
     if unknown:
@@ -270,9 +286,14 @@ def submit_response(*, request, actor):
             errors[question.key] = exc.messages[0]
     if errors:
         raise ValidationError(errors)
+    if request.journey_id and request.journey.beneficiary_space_id:
+        response.respondent = actor
+        response_fields = ["respondent", "status", "submitted_at", "updated_at"]
+    else:
+        response_fields = ["status", "submitted_at", "updated_at"]
     response.status = FormResponseStatus.SUBMITTED
     response.submitted_at = now
-    response.save(update_fields=["status", "submitted_at", "updated_at"])
+    response.save(update_fields=response_fields)
     request.status = FormRequestStatus.COMPLETED
     request.completed_at = now
     request.save(update_fields=["status", "completed_at", "updated_at"])

@@ -33,7 +33,7 @@ class DayOfRepository {
     this.sync,
   });
 
-  static const projectionKind = 'personal.occurrence.day_of';
+  static const projectionKind = 'occurrence.experience.day_of';
 
   static const freshnessPolicy = FreshnessPolicy(
     id: 'day-of-volatile',
@@ -49,11 +49,14 @@ class DayOfRepository {
 
   SyncSourceDefinition sourceFor(String occurrenceId) {
     return SyncSourceDefinition.projectionEnvelope(
-      sourceKey: 'day-of:$occurrenceId',
+      sourceKey: 'day-of-experience:$occurrenceId',
       owner: 'Operations',
-      path: 'api/v1/me/occurrences/$occurrenceId/day-of/',
+      path: 'api/v1/operations/occurrences/$occurrenceId/experience/day-of/',
       projectionKind: projectionKind,
       resourceKey: occurrenceId,
+      expectedOccurrenceId: occurrenceId,
+      expectedViewerProfileId: profileId,
+      expectedSurface: 'day_of',
       category: SyncSourceCategory.boundedOperational,
       freshnessPolicy: freshnessPolicy,
     );

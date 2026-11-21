@@ -128,12 +128,117 @@ class ConversationFormsTests(TestCase):
 
         self.client.force_login(self.member)
         detail = self.client.get(reverse("conversations:detail", kwargs={"pk": conversation.pk}))
-        self.assertContains(detail, "Compléter le formulaire")
+        self.assertContains(detail, 'data-conversation-inline-form')
+        self.assertContains(detail, 'q_' + str(form_request.pk) + '_need')
 
         save_response(request=form_request, actor=self.member, answers={"need": "Un micro"})
         self.assertEqual(point_attention_reason(self.member, point), "form")
         submit_response(request=form_request, actor=self.member)
         self.assertIsNone(point_attention_reason(self.member, point))
+
+    def test_inline_form_submits_in_conversation_with_existing_owner(self):
+        conversation, point = self._form_point()
+        ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
+        form_request = form_request_for_profile(point, self.member)
+        self.client.force_login(self.member)
+        endpoint = reverse("conversations:point-form", kwargs={"point_pk": point.pk})
+        saved = self.client.post(
+            endpoint, {"action": "save", "q_need": "Un micro"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertIn("data-conversation-inline-form", saved.json()["html"])
+        form_request.refresh_from_db()
+        self.assertNotEqual(form_request.status, FormRequestStatus.COMPLETED)
+        submitted = self.client.post(
+            endpoint, {"action": "submit", "q_need": "Un micro"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(submitted.status_code, 200)
+        self.assertIn("Votre réponse", submitted.json()["html"])
+        form_request.refresh_from_db()
+        self.assertEqual(form_request.status, FormRequestStatus.COMPLETED)
+        self.assertIsNone(point_attention_reason(self.member, point))
+
+    def test_inline_form_rejects_a_profile_without_the_request(self):
+        _, point = self._form_point()
+        ensure_form_requests_for_point(actor=self.owner, point=point, form_version=self.version)
+        self.client.force_login(self.outsider)
+        endpoint = reverse("conversations:point-form", kwargs={"point_pk": point.pk})
+        response = self.client.post(endpoint, {
+            "action": "submit", "q_need": "Donnée interdite",
+        })
+        self.assertIn(response.status_code, (403, 404))
+        form_request = form_request_for_profile(point, self.member)
+        form_request.refresh_from_db()
+        self.assertNotEqual(form_request.status, FormRequestStatus.COMPLETED)
+
+    def test_primary_web_fil_has_no_attention_banner_or_separate_response_page(self):
+        conversation, point = self._form_point()
+        ensure_form_requests_for_point(
+            actor=self.owner, point=point, form_version=self.version,
+        )
+        self.client.force_login(self.member)
+        page = self.client.get(
+            reverse("conversations:detail", kwargs={"pk": conversation.pk}),
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-conversation-thread")
+        self.assertContains(page, 'data-conversation-inline-form')
+        self.assertNotContains(page, 'id="conversation-attention"')
+        self.assertNotContains(page, 'id="focused-point-heading"')
+
+    def test_older_web_window_loads_in_the_same_fil_and_keeps_profile_scope(self):
+        import re
+        conversation, source = self._form_point()
+        for i in range(45):
+            create_point(
+                actor=self.owner,
+                conversation=conversation,
+                kind=ConversationPointKind.INFORMATION,
+                response_mode=ConversationPointResponseMode.NONE,
+                title=f"Message ordinaire {i:02d}",
+                visibility_audience=source.visibility_audience,
+            )
+        self.client.force_login(self.member)
+        detail = self.client.get(
+            reverse("conversations:detail", kwargs={"pk": conversation.pk}),
+        )
+        self.assertEqual(detail.status_code, 200)
+        match = re.search(r'data-cursor="([^"]+)"', detail.content.decode())
+        self.assertIsNotNone(match)
+        url = reverse("conversations:timeline-older", kwargs={"pk": conversation.pk})
+        continuation = self.client.get(url, {"cursor": match.group(1)})
+        self.assertEqual(continuation.status_code, 200)
+        self.assertContains(continuation, "data-older-page")
+        self.assertContains(continuation, "data-thread-entry")
+        self.client.force_login(self.outsider)
+        forbidden = self.client.get(url, {"cursor": match.group(1)})
+        self.assertIn(forbidden.status_code, (403, 404))
+
+    def test_web_question_replies_inline_without_another_page(self):
+        conversation, source = self._form_point()
+        question = create_point(
+            actor=self.owner,
+            conversation=conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Quel équipement faut-il apporter ?",
+            visibility_audience=source.visibility_audience,
+            response_audience=source.visibility_audience,
+            expected_action_audience=source.visibility_audience,
+        )
+        self.client.force_login(self.member)
+        reply = self.client.post(
+            reverse("conversations:point-respond", kwargs={"point_pk": question.pk}),
+            {"value": "Une rallonge", "client_reference": "web-question-inline-1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(reply.status_code, 200)
+        html = reply.json()["html"]
+        self.assertIn("Une rallonge", html)
+        self.assertNotIn("data-conversation-point-response", html)
+        self.assertIn('data-thread-point', html)
 
     def test_form_bridge_is_idempotent_for_same_point_and_profile(self):
         _, point = self._form_point()

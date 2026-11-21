@@ -164,7 +164,22 @@ def install_service_authorization_policy():
             if journey is not None and _is_service(journey):
                 if actor is None:
                     raise PermissionDenied("Une mutation de dossier Services exige un acteur explicite.")
-                if not (beneficiary_safe and journey.beneficiary_id == _actor_id(actor)):
+                space_artifact_safe = (
+                    beneficiary_safe
+                    and name in {"create_artifact", "create_artifact_version"}
+                    and cs.can_write_space_beneficiary_artifact(
+                        actor, journey,
+                        restricted=(
+                            kwargs.get("sensitivity") == JourneyArtifactSensitivity.RESTRICTED
+                            or getattr(kwargs.get("artifact"), "sensitivity", None)
+                            == JourneyArtifactSensitivity.RESTRICTED
+                        ),
+                    )
+                )
+                if not (
+                    (beneficiary_safe and journey.beneficiary_id == _actor_id(actor))
+                    or space_artifact_safe
+                ):
                     _require_service_permission(
                         actor,
                         journey,
@@ -320,6 +335,13 @@ def install_service_authorization_policy():
                 journey=journey,
                 visibility=JourneyNoteVisibility.BENEFICIARY_VISIBLE,
             ).select_related("author", "step")
+        if journey.beneficiary_space_id:
+            from services.space_beneficiary import can_read_space_service_journey
+            if can_read_space_service_journey(actor, journey):
+                return JourneyNote.objects.filter(
+                    journey=journey,
+                    visibility=JourneyNoteVisibility.BENEFICIARY_VISIBLE,
+                ).select_related("author", "step")
         _require_operator_scope(actor, journey)
         queryset = JourneyNote.objects.filter(journey=journey).select_related("author", "step")
         if not can(actor, PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL, activity=journey.activity):
@@ -334,6 +356,17 @@ def install_service_authorization_policy():
         queryset = JourneyArtifact.objects.filter(journey=journey).select_related("step", "uploaded_by")
         if journey.beneficiary_id == _actor_id(actor):
             return queryset
+        if journey.beneficiary_space_id:
+            from services.space_beneficiary import (
+                can_act_for_space_service_journey,
+                can_read_space_service_journey,
+            )
+            if can_read_space_service_journey(actor, journey):
+                if not can_act_for_space_service_journey(actor, journey):
+                    return queryset.filter(sensitivity=JourneyArtifactSensitivity.NORMAL)
+                if not can(actor, PermissionCode.SPACE_MANAGE, journey.beneficiary_space, include_platform=False):
+                    return queryset.exclude(sensitivity=JourneyArtifactSensitivity.RESTRICTED)
+                return queryset
         _require_operator_scope(actor, journey)
         if not can(actor, PermissionCode.ACTIVITY_SERVICES_ARTIFACTS_VIEW, activity=journey.activity):
             return queryset.none()
@@ -353,6 +386,22 @@ def install_service_authorization_policy():
             return original_artifact_for_download(actor=actor, artifact_id=artifact_id)
         if artifact.journey.beneficiary_id == _actor_id(actor):
             return artifact
+        if artifact.journey.beneficiary_space_id:
+            from services.space_beneficiary import (
+                can_act_for_space_service_journey,
+                can_read_space_service_journey,
+            )
+            if can_read_space_service_journey(actor, artifact.journey):
+                if artifact.sensitivity == JourneyArtifactSensitivity.NORMAL:
+                    return artifact
+                if artifact.sensitivity == JourneyArtifactSensitivity.SENSITIVE and can_act_for_space_service_journey(actor, artifact.journey):
+                    return artifact
+                if artifact.sensitivity == JourneyArtifactSensitivity.RESTRICTED and can(
+                    actor, PermissionCode.SPACE_MANAGE,
+                    artifact.journey.beneficiary_space, include_platform=False,
+                ):
+                    return artifact
+                raise PermissionDenied("Sensibilité incompatible avec le mandat du Space.")
         _require_service_permission(
             actor,
             artifact.journey,

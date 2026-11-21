@@ -84,6 +84,7 @@ class ConversationExchangeModerationState(models.TextChoices):
 
 
 class ConversationPoint(models.Model):
+    exchange_stream_version = models.PositiveBigIntegerField(default=0)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="points")
     kind = models.CharField(max_length=24, choices=ConversationPointKind.choices)
@@ -283,6 +284,15 @@ class ConversationPointUserState(models.Model):
 
 
 class PointExchangeEntry(models.Model):
+    sequence = models.PositiveBigIntegerField()
+    last_change_version = models.PositiveBigIntegerField(default=0)
+    edit_version = models.PositiveIntegerField(default=1)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    origin_payload_hash = models.CharField(max_length=64, blank=True)
+    content_kind = models.CharField(max_length=16, default="text", choices=[
+        ("text", "Texte"), ("media", "Média"), ("reference", "Référence"), ("mixed", "Mixte"),
+    ])
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     point = models.ForeignKey(ConversationPoint, on_delete=models.PROTECT, related_name="exchange_entries")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="conversation_exchange_entries")
@@ -297,8 +307,15 @@ class PointExchangeEntry(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
-        constraints = [models.UniqueConstraint(fields=["client_reference"], condition=Q(client_reference__isnull=False), name="conv_exchange_client_ref_unique")]
-        indexes = [models.Index(fields=["point", "created_at"], name="conv_exchange_point_idx")]
+        constraints = [
+            models.UniqueConstraint(fields=["client_reference"], condition=Q(client_reference__isnull=False), name="conv_exchange_client_ref_unique"),
+            models.UniqueConstraint(fields=["point", "sequence"], name="conv_entry_sequence_unique"),
+        ]
+        indexes = [
+            models.Index(fields=["point", "created_at"], name="conv_exchange_point_idx"),
+            models.Index(fields=["point", "sequence"], name="conv_entry_sequence_idx"),
+            models.Index(fields=["point", "last_change_version"], name="conv_entry_delta_idx"),
+        ]
 
     def clean(self):
         super().clean()
@@ -306,7 +323,11 @@ class PointExchangeEntry(models.Model):
         self.client_reference = (self.client_reference or "").strip() or None
         if self.reply_to_id and self.reply_to.point_id != self.point_id:
             raise ValidationError({"reply_to": "Une réponse doit rester dans le même Point d’échange."})
-        if not self.body:
+        has_content = getattr(self, "_validated_entry_content", False) or (
+            not self._state.adding and self.content_kind in {"media", "reference", "mixed"}
+            and (self.attachments.exists() or self.references.exists())
+        )
+        if not self.body and self.moderation_state != ConversationExchangeModerationState.REMOVED and not has_content:
             raise ValidationError({"body": "Un échange texte ne peut pas être vide."})
 
     def save(self, *args, **kwargs):

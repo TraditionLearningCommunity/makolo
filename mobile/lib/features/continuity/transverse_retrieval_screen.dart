@@ -1,6 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/behavior_primitives.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
+
+import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -39,6 +45,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   bool _failed = false;
   bool _revoked = false;
   bool _invalidPeriod = false;
+  bool _editingSearch = false;
+  bool _ownerResultsKnown = false;
+  late final ProgressiveSearchCoordinator _searchCoordinator;
   int _offset = 0;
   bool _more = false;
   int _version = 0;
@@ -60,6 +69,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   void initState() {
     super.initState();
     _query = TextEditingController(text: widget.initialQuery);
+    _searchCoordinator = ProgressiveSearchCoordinator(
+      onSearch: (_) => _submit(),
+    );
     widget.runtime.actorContext?.addListener(_onActorChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_submit());
@@ -79,7 +91,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         oldWidget.initialQuery != widget.initialQuery ||
         oldWidget.runtime.session?.profileId !=
             widget.runtime.session?.profileId) {
+      _searchCoordinator.invalidate();
       _version++;
+      _editingSearch = false;
+      _ownerResultsKnown = false;
+      _loading = false;
       _local = [];
       _remote = [];
       _unavailableSources = [];
@@ -98,12 +114,15 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   void _onActorChanged() {
+    _searchCoordinator.invalidate();
     _version++;
     if (!mounted) return;
     final valid = _actorValid;
     setState(() {
       _local = [];
       _remote = [];
+      _editingSearch = false;
+      _ownerResultsKnown = false;
       _unavailableSources = [];
       _limitedSources = [];
       _revoked = !valid;
@@ -122,6 +141,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   void dispose() {
+    _searchCoordinator.dispose();
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     _query.dispose();
     super.dispose();
@@ -171,6 +191,38 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     final store = widget.runtime.store;
     if (store == null || !_actorValid) return [];
     final rows = <Map<String, dynamic>>[];
+
+    void addTrustRows(Object? raw, {required bool credentials}) {
+      if (raw is! Map || raw['items'] is! List) return;
+      for (final value in raw['items'] as List) {
+        if (value is! Map) continue;
+        final id = value['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+        final activity = value['activity'];
+        final issuer = value['issuer'];
+        final title = credentials
+            ? value['title']?.toString()
+            : value['proof_type_label']?.toString();
+        if (title == null || title.isEmpty) continue;
+        rows.add({
+          'source': {'kind': credentials ? 'credential' : 'proof', 'id': id},
+          'title': title,
+          'human_type': credentials ? 'Titre' : 'Preuve',
+          'relation': credentials ? 'Mon titre' : 'Ma preuve',
+          'historical': false,
+          'search_text': [
+            title,
+            if (activity is Map) activity['title']?.toString(),
+            if (issuer is Map)
+              issuer['name']?.toString() ?? issuer['display_name']?.toString(),
+            value['credential_type_label']?.toString(),
+            value['proof_type_label']?.toString(),
+            value['status_label']?.toString(),
+          ].whereType<String>().join(' '),
+        });
+      }
+    }
+
     if (!_isSpace) {
       if (widget.history) return [];
       final pages = await store.readProjections('personal.history');
@@ -201,6 +253,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         final data = snapshot.payload;
         final resources = data['resources'];
         if (resources is Map) {
+          addTrustRows(resources['proofs'], credentials: false);
+          addTrustRows(resources['credentials'], credentials: true);
           final documents = resources['documents'];
           if (documents is Map && documents['items'] is List) {
             for (final value in documents['items'] as List) {
@@ -241,6 +295,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       }
       final resources = await store.readProjections('personal.me.resources');
       for (final snapshot in resources) {
+        addTrustRows(snapshot.payload['proofs'], credentials: false);
+        addTrustRows(snapshot.payload['credentials'], credentials: true);
         final documents = snapshot.payload['documents'];
         if (documents is! Map || documents['items'] is! List) continue;
         for (final value in documents['items'] as List) {
@@ -256,6 +312,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
             'historical': false,
           });
         }
+      }
+      for (final snapshot in await store.readProjections('personal.proofs')) {
+        addTrustRows(snapshot.payload, credentials: false);
+      }
+      for (final snapshot in await store.readProjections('personal.titles')) {
+        addTrustRows(snapshot.payload, credentials: true);
       }
     } else {
       final actor = widget.spaceActor!;
@@ -383,7 +445,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     if (!widget.history && query.isEmpty) return [];
     final normalized = query.toLowerCase();
     final filtered = rows.where((row) {
-      final text = (row['title'] ?? '').toString().toLowerCase();
+      final text = (row['search_text'] ?? row['title'] ?? '')
+          .toString()
+          .toLowerCase();
       return normalized.isEmpty || text.contains(normalized);
     });
     return _deduplicate(filtered.toList());
@@ -402,7 +466,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   Future<void> _submit({bool more = false}) async {
+    _searchCoordinator.invalidate();
     if (!_actorValid) return;
+    if (_editingSearch && mounted) {
+      setState(() => _editingSearch = false);
+    }
     if (widget.history &&
         _isSpace &&
         _startDate != null &&
@@ -430,6 +498,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       setState(() {
         _local = local;
         _remote = [];
+        _ownerResultsKnown = false;
         _offset = 0;
         _more = false;
         _failed = false;
@@ -439,10 +508,20 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         _selected = null;
       });
     }
-    if (query.isEmpty && !widget.history) return;
+    if (query.isEmpty && !widget.history) {
+      if (mounted && version == _version) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
     final api = widget.runtime.api;
     if (api == null) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && version == _version) {
+        setState(() {
+          _failed = true;
+          _loading = false;
+        });
+      }
       return;
     }
     final nextOffset = more ? _offset : 0;
@@ -506,6 +585,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       if (!mounted || !_actorValid || version != _version) return;
       setState(() {
         _remote = _deduplicate(more ? [..._remote, ...items] : items);
+        // Partial owner coverage with no rows cannot erase a useful known
+        // local result. A complete empty response can show a true empty state.
+        _ownerResultsKnown = unavailable.isEmpty || _remote.isNotEmpty;
         // Full owner refresh supersedes local snippets. Partial owner
         // failures leave device data intact but do not reassert its authority.
         // It can be retrieved again only under the active actor's local scope.
@@ -553,6 +635,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
           _unavailableSources = [];
           _limitedSources = [];
           _revoked = true;
+          _ownerResultsKnown = false;
           _local = [];
           _remote = [];
         }
@@ -584,6 +667,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       'journey',
       'access',
       'personal_asset',
+      'proof',
+      'credential',
       'group',
       'commerce_order',
     }.contains(kind);
@@ -603,7 +688,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       final path = switch (kind) {
         'journey' => '/journeys/$id',
         'access' => '/accesses/$id',
-        'personal_asset' => '/me/resources/$id',
+        'personal_asset' => '/me/resources/documents/$id',
+        'proof' => '/me/resources/proofs/$id',
+        'credential' => '/me/resources/titles/$id',
         'group' => '/groups/$id',
         'commerce_order' => '/me/orders/$id',
         _ => null,
@@ -623,7 +710,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = _remote.isEmpty && (_failed || _loading) ? _local : _remote;
+    final rows = _ownerResultsKnown ? _remote : _local;
     final grouped = <String, List<int>>{};
     for (var i = 0; i < rows.length; i++) {
       grouped.putIfAbsent(_groupLabel(rows[i]), () => []).add(i);
@@ -656,7 +743,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                       'retrieval-${widget.runtime.session?.profileId ?? "personal"}'
                       '-${widget.spaceActor?.space.id ?? "profile"}'
                       '-${widget.spaceActor?.perspective.id ?? "all"}'
-                      '-${widget.history}-${_query.text.trim()}',
+                      '-${widget.history}',
                     ),
                     padding: const EdgeInsets.all(20),
                     children: [
@@ -665,26 +752,32 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         maxLength: 120,
                         textInputAction: TextInputAction.search,
                         onChanged: (_) {
+                          // Keep the last results identifiable until the new
+                          // query can present a local or owner-backed answer.
                           _version++;
                           setState(() {
-                            _remote = [];
-                            _local = [];
-                            _more = false;
-                            _offset = 0;
+                            _editingSearch = true;
+                            _loading = false;
                             _failed = false;
-                            _unavailableSources = [];
-                            _limitedSources = [];
                             _selected = null;
                           });
+                          _searchCoordinator.changed();
                         },
                         decoration: InputDecoration(
                           labelText: widget.history
                               ? 'Rechercher dans le passé'
                               : 'Retrouver une réalité connue',
-                          suffixIcon: IconButton(
+                          suffixIcon: MakoloIconActionButton(
                             tooltip: 'Lancer la recherche',
-                            icon: const Icon(Icons.search),
-                            onPressed: () => _submit(),
+                            icon: Icons.search,
+                            onPressed: _loading && !_editingSearch
+                                ? null
+                                : () => _submit(),
+                            phase: _loading && !_editingSearch
+                                ? MakoloActionPhase.processing
+                                : _failed
+                                ? MakoloActionPhase.failed
+                                : MakoloActionPhase.available,
                           ),
                         ),
                         onSubmitted: (_) => _submit(),
@@ -693,34 +786,43 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         const Text(
                           'La date de début doit précéder la date de fin.',
                         ),
-                      if (_failed)
-                        const Text(
-                          'Actualisation indisponible. Les résultats locaux, '
-                          's’ils existent, peuvent être incomplets.',
+                      if (_failed && rows.isEmpty)
+                        const Text('Recherche momentanément indisponible.'),
+                      if (_loading && rows.isNotEmpty)
+                        const LinearProgressIndicator(),
+                      if (_editingSearch && rows.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history_rounded, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Résultats précédents',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
                         ),
-                      if (_loading) const LinearProgressIndicator(),
+                      if (_loading && rows.isEmpty)
+                        const MakoloSkeleton(lines: 3),
                       if (_unavailableSources.isNotEmpty)
                         const Text(
-                          'Certaines sources ne peuvent pas être actualisées. '
-                          'Les autres résultats restent visibles.',
+                          'Certaines sources sont momentanément indisponibles. Les résultats déjà connus restent consultables.',
                         ),
                       if (_limitedSources.isNotEmpty)
                         const Text(
-                          'Certaines sources disposent de résultats supplémentaires '
-                          'dans leur recherche spécialisée.',
+                          'D’autres résultats peuvent être disponibles dans les recherches détaillées.',
                         ),
                       if (_isSpace)
-                        Text(
-                          'Contexte : ${widget.spaceActor!.space.slug}. '
-                          'Seules les sources autorisées et couvertes sont consultées.',
-                        ),
+                        Text('Espace : ${widget.spaceActor!.space.slug}'),
                       if (widget.history && _isSpace) ...[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           initialValue: _historyKind,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Type de passé',
+                            labelText: 'Type de résultat',
                           ),
                           items: const [
                             DropdownMenuItem(value: 'all', child: Text('Tout')),
@@ -744,7 +846,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            OutlinedButton(
+                            MakoloActionButton(
                               onPressed: () async {
                                 final date = await showDatePicker(
                                   context: context,
@@ -756,13 +858,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _startDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(
-                                _startDate == null
-                                    ? 'Depuis'
-                                    : 'Depuis ${_dateString(_startDate!)}',
-                              ),
+                              label: _startDate == null
+                                  ? 'Depuis'
+                                  : 'Depuis ${_dateString(_startDate!)}',
+                              appearance: MakoloActionAppearance.secondary,
                             ),
-                            OutlinedButton(
+                            MakoloActionButton(
                               onPressed: () async {
                                 final date = await showDatePicker(
                                   context: context,
@@ -774,14 +875,13 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _endDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(
-                                _endDate == null
-                                    ? 'Jusqu’au'
-                                    : 'Jusqu’au ${_dateString(_endDate!)}',
-                              ),
+                              label: _endDate == null
+                                  ? 'Jusqu’au'
+                                  : 'Jusqu’au ${_dateString(_endDate!)}',
+                              appearance: MakoloActionAppearance.secondary,
                             ),
                             if (_startDate != null || _endDate != null)
-                              TextButton(
+                              MakoloActionButton(
                                 onPressed: () {
                                   setState(() {
                                     _startDate = null;
@@ -789,13 +889,17 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                   });
                                   unawaited(_submit());
                                 },
-                                child: const Text('Effacer la période'),
+                                label: 'Effacer la période',
+                                appearance: MakoloActionAppearance.quiet,
                               ),
                           ],
                         ),
                       ],
                       const SizedBox(height: 12),
-                      if (rows.isEmpty && !_loading)
+                      if (rows.isEmpty &&
+                          !_loading &&
+                          !_failed &&
+                          !_editingSearch)
                         Text(
                           _query.text.trim().isEmpty && !widget.history
                               ? 'Saisissez ce que vous souhaitez retrouver.'
@@ -814,7 +918,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           ListTile(
                             key: ValueKey('retrieval-$index'),
                             leading: Icon(
-                              _retrievalIcon(rows[index]['kind']?.toString()),
+                              _retrievalIcon(_rowKind(rows[index])),
                               color: Theme.of(context).colorScheme.primary,
                             ),
                             title: Text(
@@ -838,19 +942,17 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 : null,
                           ),
                       ],
-                      if (_more)
-                        OutlinedButton(
+                      if (_more && !_editingSearch)
+                        MakoloActionButton(
+                          label: 'Afficher la suite',
                           onPressed: _loading
                               ? null
                               : () => _submit(more: true),
-                          child: const Text('Afficher la suite'),
+                          icon: Icons.expand_more_rounded,
+                          phase: _loading
+                              ? MakoloActionPhase.processing
+                              : MakoloActionPhase.available,
                         ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Couverture partielle. Hors connexion : seuls les '
-                        'éléments disponibles sur cet appareil sont consultables.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
                     ],
                   ),
                 ),
@@ -870,9 +972,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           const SizedBox(height: 12),
                           Text(selected['relation']?.toString() ?? ''),
                           if (_canOpen(selected))
-                            TextButton(
+                            MakoloActionButton(
+                              label: 'Voir les détails',
+                              appearance: MakoloActionAppearance.quiet,
                               onPressed: () => _open(selected),
-                              child: const Text('Ouvrir chez le propriétaire'),
                             ),
                         ],
                       ),
@@ -884,11 +987,21 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     );
   }
 
+  String? _rowKind(Map<String, dynamic> row) {
+    final explicit = row['kind']?.toString();
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+    final source = row['source'];
+    if (source is Map) return source['kind']?.toString();
+    return null;
+  }
+
   IconData _retrievalIcon(String? kind) {
     return switch (kind) {
       'journey' => Icons.timeline_outlined,
       'access' => Icons.badge_outlined,
       'personal_asset' || 'document' => Icons.folder_outlined,
+      'proof' => Icons.verified_outlined,
+      'credential' => Icons.workspace_premium_outlined,
       'group' || 'team' => Icons.group_outlined,
       'commerce_order' || 'order' => Icons.shopping_bag_outlined,
       'activity' || 'occurrence' => Icons.event_outlined,

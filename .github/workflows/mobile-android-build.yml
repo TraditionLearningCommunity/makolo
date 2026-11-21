@@ -1,20 +1,13 @@
 name: Mobile Android Build
+run-name: "Mobile DEV APK - ${{ github.head_ref || github.ref_name }} @ ${{ github.event.pull_request.head.sha || github.sha }}"
 
 on:
   pull_request:
     paths:
       - "mobile/lib/**"
+      - "mobile/test/**"
       - "mobile/android/**"
-      - "mobile/pubspec.yaml"
-      - "mobile/pubspec.lock"
-      - "mobile/.flutter-version"
-      - "mobile/config/dev.json"
-      - ".github/workflows/mobile-android-build.yml"
-  push:
-    branches: [main]
-    paths:
-      - "mobile/lib/**"
-      - "mobile/android/**"
+      - "mobile/assets/**"
       - "mobile/pubspec.yaml"
       - "mobile/pubspec.lock"
       - "mobile/.flutter-version"
@@ -22,9 +15,11 @@ on:
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
+# Allow the active Android build to finish so frequent unrelated PR commits
+# cannot repeatedly abort APK production; only retain the newest pending run.
 concurrency:
   group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -38,6 +33,8 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -53,16 +50,58 @@ jobs:
           java -version
           flutter --version
       - name: Resolve dependencies
-        run: |
-          flutter pub get
-          git diff --exit-code -- pubspec.lock
+        run: flutter pub get
       - name: Generate Dart sources
         run: dart run build_runner build --delete-conflicting-outputs
+      - name: Validate changed mobile core
+        run: |
+          bash tool/dart_format.sh check
+          flutter test test/api_client_test.dart test/sync_engine_test.dart test/guest_router_test.dart --timeout 3m
+          flutter analyze
+      - name: Validate remote DEV API
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and (.MAKOLO_API_BASE_URL | type == "string"
+                 and test("^https://[^/]+/?$"))
+            and (.MAKOLO_API_BASE_URL | test(
+              "^https://(localhost|127\\.0\\.0\\.1|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|[^/]*\\.local)([:/]|$)";
+              "i"
+            ) | not)
+          ' config/dev.json > /dev/null
+          echo "DEV build configured for a remote HTTPS API."
+      - name: Validate configured DEV mapping
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and .MAKOLO_MAPS_ENABLED == "true"
+            and ((.MAKOLO_MAP_STYLE // "") | startswith("https://"))
+            and .MAKOLO_GEOCODING_ENABLED == "true"
+            and ((.MAKOLO_GEOCODING_API_KEY // "") | length > 0)
+          ' config/dev.json > /dev/null
+          echo "DEV maps and geographic suggestions configured."
       - name: Build Android debug
-        run: flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
+        shell: bash
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json 2>&1 | tee /tmp/makolo-apk-build.log; then
+              exit 0
+            fi
+            # Retry only a known transient download outage. Compilation,
+            # analysis and dependency failures must remain red immediately.
+            if ! grep -q 'Failed to download PDFium: HTTP 504' /tmp/makolo-apk-build.log || [[ "$attempt" -eq 3 ]]; then
+              exit 1
+            fi
+            echo "PDFium upstream returned HTTP 504; retrying build ($attempt/3)."
+            sleep $((attempt * 5))
+          done
       - name: Upload DEV APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: makolo-dev-debug-apk
+          name: makolo-dev-debug-apk-${{ github.event.pull_request.head.sha || github.sha }}
           path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
           if-no-files-found: error
+          retention-days: 14

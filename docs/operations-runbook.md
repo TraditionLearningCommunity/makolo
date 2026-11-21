@@ -1355,3 +1355,21 @@ des données privées et les étapes de rollback sont décrits dans
 Django Admin reste réservé à l'inspection et la maintenance technique. Les
 mutations métier ordinaires doivent utiliser les services owner et les écrans
 autorisés, et non l'édition brute d'une ligne de modèle.
+
+
+## Conversations — transport et migrations Exchange (12 novembre 2026)
+
+Le transport Channels est opt-in et ne remplace pas REST. Son activation exige
+un Redis réel explicitement configuré et un serveur ASGI capable de servir WSS ;
+le flag ne prouve pas la disponibilité opérationnelle. Ne pas considérer un
+hébergement WSGI seul comme compatible avec les WebSockets.
+
+Les migrations Conversations 0009–0011 nécessitent une fenêtre sans écritures
+Exchange pour le backfill historique ; PostgreSQL conserve les verrous jusqu’au
+commit. Le rôle de migration doit disposer de `pg_trgm` ou pouvoir l’installer.
+La désactivation du temps réel conserve les lectures/mutations REST et le
+rattrapage périodique des clients ouverts.
+
+Les paramètres, gates manuels et limites non livrées sont détaillés dans
+[le relevé Conversations](implementation/conversations-realtime-2026-11-12.md).
+Aucun déploiement ni validation Redis/PostgreSQL n’est revendiqué par ce relevé.

@@ -10,7 +10,7 @@ from accounts.profile_activation import build_profile_activation_summary
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
-from organizations.console_context import authorized_spaces
+from organizations.console_context import authorized_spaces, has_space_authority
 from organizations.models import (
     OrganizationFollow,
     ProfileFollow,
@@ -68,18 +68,30 @@ def _display_name(profile):
     return _clean_text(profile.full_name) or _clean_text(profile.username) or str(profile.pk)
 
 
-def _bounded(queryset, serializer, *, limit):
-    rows = list(queryset[: limit + 1])
+def _bounded(queryset, serializer, *, limit, offset=0):
+    rows = list(queryset[offset : offset + limit + 1])
     has_more = len(rows) > limit
     if has_more:
         rows = rows[:limit]
-        total = queryset.count()
-    else:
-        total = len(rows)
+    total = queryset.count()
     return {
         "count": total,
         "items": [serializer(row) for row in rows],
         "has_more": has_more,
+        "next_offset": offset + len(rows),
+    }
+
+
+def _family_slice(sources, *, limit, offset, family):
+    """Keep the root preview unchanged while paging exactly one owner family."""
+    if family is not None:
+        if family not in sources:
+            raise ValueError("Famille inconnue.")
+        queryset, serializer = sources[family]
+        return {family: _bounded(queryset, serializer, limit=limit, offset=offset)}
+    return {
+        name: _bounded(queryset, serializer, limit=limit, offset=offset)
+        for name, (queryset, serializer) in sources.items()
     }
 
 
@@ -171,6 +183,10 @@ def _watch_item(row):
         "status_label": row.get_status_display(),
         "dossier": dossier,
         "updated_at": row.updated_at,
+        "links": {
+            "web": reverse("discovery:watch-detail",
+                kwargs={"watch_id": row.pk}),
+        },
     }
 
 
@@ -212,7 +228,78 @@ def _profile_follow_item(row):
     }
 
 
-def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT):
+def _decorate_saved_recognition_media(profile, bookmarks):
+    """Only re-use already-published Discovery RECOGNIZE media in Moi.
+
+    Media is representation, not ownership or permission to share. Keep the
+    normal private bookmark title even when a public image is inadmissible.
+    """
+    rows = bookmarks.get("items") if isinstance(bookmarks, dict) else None
+    if not rows:
+        return
+
+    from accounts.models import UserProfile
+    from activities.models import Activity, ActivityStatus, ActivityVisibility
+    from groups.selectors import eligible_activity_ids_for_profile
+    from organizations.models import SpaceLifecycle
+    from presentations.media_selectors import public_presentation_media_for_activities
+
+    ids = [row["activity"]["id"] for row in rows if row.get("activity")]
+    candidates = list(
+        Activity.objects.filter(
+            pk__in=ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space")
+    )
+    eligible = set(eligible_activity_ids_for_profile(profile, [a.pk for a in candidates]))
+    public_people = set(
+        UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in candidates if a.owner_profile_id],
+            public_profile=True,
+            searchable=True,
+            user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    admitted = [
+        activity for activity in candidates
+        if activity.pk in eligible and (
+            (activity.space_id is not None
+             and activity.space.public_profile and activity.space.searchable
+             and activity.space.lifecycle == SpaceLifecycle.ACTIVE
+             and activity.space.verification_status != "suspended")
+            or
+            (activity.space_id is None and activity.owner_profile_id in public_people)
+        )
+    ]
+    published = public_presentation_media_for_activities(admitted)
+    for row in rows:
+        activity_id = row["activity"]["id"]
+        available = published.get(activity_id) or []
+        media = next(
+            (use for use in available
+             if use.mime_type in {"image/jpeg", "image/png"}),
+            None,
+        )
+        if media is None:
+            continue
+        row["media_bindings"] = [{
+            "resource": {
+                "kind": "presentation_media_use",
+                "id": media.use_id,
+                "url": reverse(
+                    "presentations:published-media-file",
+                    kwargs={"use_id": media.use_id},
+                ),
+                "mime_type": media.mime_type,
+                "alt_text": media.alt_text,
+            },
+            "target": {"kind": "activity", "id": activity_id},
+            "purpose": "RECOGNIZE",
+        }]
+
+
+def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     """Private facts explicitly chosen by the Profile; no inferred preference."""
     interests = (
         ProfileInterest.objects.filter(profile=profile, topic__is_active=True)
@@ -244,22 +331,39 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT):
         .select_related("organizer_profile")
         .order_by("-followed_at", "id")
     )
-    return {
-        "interests": _bounded(interests, _interest_item, limit=limit),
-        "open_to": _bounded(open_to, _open_to_item, limit=limit),
-        "watches": _bounded(watches, _watch_item, limit=limit),
-        "bookmarks": _bounded(bookmarks, _bookmark_item, limit=limit),
-        "followed_spaces": _bounded(followed_spaces, _space_follow_item, limit=limit),
-        "followed_profiles": _bounded(followed_profiles, _profile_follow_item, limit=limit),
-    }
+    collections = _family_slice(
+        {
+            "interests": (interests, _interest_item),
+            "open_to": (open_to, _open_to_item),
+            "watches": (watches, _watch_item),
+            "bookmarks": (bookmarks, _bookmark_item),
+            "followed_spaces": (followed_spaces, _space_follow_item),
+            "followed_profiles": (followed_profiles, _profile_follow_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
+    # Same admission on initial 6 items and on every continuation page.
+    if "bookmarks" in collections:
+        _decorate_saved_recognition_media(profile, collections["bookmarks"])
+    return collections
 
-
-def _authorized_space_item(space):
+def _authorized_space_item(space, *, profile):
     return {
         "kind": "space",
         "id": str(space.pk),
         "name": space.name,
         "slug": space.slug,
+        # Owner-backed identity facts for the personal collective portrait.
+        # No inferred logo or Activity media is published here.
+        "archetype_label": space.get_archetype_display(),
+        # Activity-scoped authority alone does not disclose private Space bio.
+        "description": (
+            (space.description or "")
+            if space.public_profile or has_space_authority(profile, space)
+            else ""
+        ),
         "relationship": "authorized_context",
         "can_act": True,
     }
@@ -306,12 +410,13 @@ def _group_item(group):
             "detail": reverse(
                 "personal-projections:group-detail",
                 kwargs={"pk": group.pk},
-            )
+            ),
+            "web": reverse("groups:detail", kwargs={"slug": group.slug}),
         },
     }
 
 
-def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT):
+def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     """Compose relationships without treating membership as authority."""
     spaces = authorized_spaces(profile).order_by("name", "id")
     team_memberships = (
@@ -324,12 +429,16 @@ def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT):
         .order_by("team__organization__name", "team__name", "id")
     )
     groups = groups_for_profile(profile).order_by("name", "id")
-    return {
-        "authorized_spaces": _bounded(spaces, _authorized_space_item, limit=limit),
-        "teams": _bounded(team_memberships, _team_membership_item, limit=limit),
-        "groups": _bounded(groups, _group_item, limit=limit),
-    }
-
+    return _family_slice(
+        {
+            "authorized_spaces": (spaces, lambda space: _authorized_space_item(space, profile=profile)),
+            "teams": (team_memberships, _team_membership_item),
+            "groups": (groups, _group_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
 
 def _asset_item(asset):
     latest_payload = None
@@ -408,7 +517,7 @@ def _credential_item(credential):
     }
 
 
-def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT):
+def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     latest = PersonalAssetVersion.objects.filter(asset_id=OuterRef("pk")).order_by(
         "-version",
         "-created_at",
@@ -423,14 +532,18 @@ def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT):
         )
         .order_by("-updated_at", "id")
     )
-    proofs = proofs_for_profile(profile)
+    proofs = proofs_for_profile(profile).order_by('-issued_at', 'id')
     credentials = credentials_for_profile(profile)
-    return {
-        "documents": _bounded(assets, _asset_item, limit=limit),
-        "proofs": _bounded(proofs, _proof_item, limit=limit),
-        "credentials": _bounded(credentials, _credential_item, limit=limit),
-    }
-
+    return _family_slice(
+        {
+            "documents": (assets, _asset_item),
+            "proofs": (proofs, _proof_item),
+            "credentials": (credentials, _credential_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
 
 def _passport_interest(row):
     return {
@@ -455,22 +568,39 @@ def _passport_open_to(row):
     }
 
 
+def _passport_topic_codes(activity):
+    if activity is None:
+        return []
+    return [
+        link.topic.code for link in activity.topic_links.all()
+        if link.topic.is_active
+    ]
+
+
 def _passport_activity(activity):
     return {
         "kind": "activity",
         "id": str(activity.pk),
         "title": activity.title,
         "status": activity.status,
+        "status_label": activity.get_status_display(),
         "visibility": activity.visibility,
+        "topic_codes": _passport_topic_codes(activity),
     }
 
 
 def _passport_proof(proof):
-    return _proof_item(proof)
+    return {
+        **_proof_item(proof),
+        "topic_codes": _passport_topic_codes(proof.journey.activity),
+    }
 
 
 def _passport_credential(credential):
-    return _credential_item(credential)
+    return {
+        **_credential_item(credential),
+        "topic_codes": _passport_topic_codes(credential.activity),
+    }
 
 
 def build_personal_passport_data(
@@ -482,6 +612,10 @@ def build_personal_passport_data(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_proof_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -494,6 +628,10 @@ def build_personal_passport_data(
         selected_proof_ids=selected_proof_ids,
         selected_credential_ids=selected_credential_ids,
         selected_sections=selected_sections,
+        excluded_activity_ids=excluded_activity_ids,
+        excluded_proof_ids=excluded_proof_ids,
+        excluded_credential_ids=excluded_credential_ids,
+        excluded_sections=excluded_sections,
     )
     identity = dict(projection.identity)
     identity["links"] = [
@@ -507,7 +645,14 @@ def build_personal_passport_data(
             "interests": [_passport_interest(row) for row in projection.interests],
             "open_to": [_passport_open_to(row) for row in projection.open_to],
         },
+        "collectives": {
+            "team_affiliations": list(projection.team_affiliations),
+            "group_affiliations": list(projection.group_affiliations),
+            "authorized_space_affiliations": list(projection.authorized_space_affiliations),
+            "active_space_mandates": list(projection.active_space_mandates),
+        },
         "activities": [_passport_activity(row) for row in projection.activities],
+        "experiences": list(projection.activity_involvements),
         "established": {
             "proofs": [_passport_proof(row) for row in projection.proofs],
         },

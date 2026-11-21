@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 
@@ -11,6 +12,7 @@ abstract final class PresentationHarness {
     double textScale = 1,
     bool reduceMotion = false,
   }) async {
+    await initializeDateFormatting('fr');
     tester.view.physicalSize = viewport;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);

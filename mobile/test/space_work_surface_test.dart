@@ -3,6 +3,128 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/space/space_work_surface.dart';
 
 void main() {
+  testWidgets(
+    'MT5 Transport creator requires direct owner capability and all lens',
+    (tester) async {
+      Future<void> render({
+        required String archetype,
+        required bool allowed,
+        String responsibility = 'all',
+      }) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpaceWorkSurface(
+              payload: {
+                'primary_business_label': 'Métier',
+                'archetype': archetype,
+                'responsibility': responsibility,
+                'space': {'slug': 'mt5-space'},
+                'capabilities': {'create_transport': allowed},
+                'presentation': {'empty_message': 'Aucun départ.'},
+                'sections': <String, dynamic>{},
+              },
+            ),
+          ),
+        ),
+      );
+      await render(archetype: 'transport_operator', allowed: true);
+      expect(find.text('Planifier dans Transport'), findsOneWidget);
+      await render(archetype: 'transport_operator', allowed: false);
+      expect(find.text('Planifier dans Transport'), findsNothing);
+      await render(
+        archetype: 'transport_operator',
+        allowed: true,
+        responsibility: 'mandate:scoped',
+      );
+      expect(find.text('Planifier dans Transport'), findsNothing);
+      await render(archetype: 'commerce', allowed: true);
+      expect(find.text('Planifier dans Transport'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MT4 Programmes and Prestations create only with Space owner capability',
+    (tester) async {
+      Future<void> show({
+        required String archetype,
+        required bool permitted,
+        String responsibility = 'all',
+      }) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpaceWorkSurface(
+              payload: {
+                'primary_business_label': 'Métier',
+                'archetype': archetype,
+                'responsibility': responsibility,
+                'space': {'slug': 'mt4-space'},
+                'capabilities': {'create_g2': permitted},
+                'presentation': {'empty_message': 'Rien pour le moment.'},
+                'sections': <String, dynamic>{},
+              },
+            ),
+          ),
+        ),
+      );
+      await show(archetype: 'education', permitted: true);
+      expect(find.text('Nouveau programme'), findsOneWidget);
+      await show(archetype: 'service_provider', permitted: true);
+      expect(find.text('Nouvelle prestation'), findsOneWidget);
+      await show(archetype: 'service_provider', permitted: false);
+      expect(find.text('Nouvelle prestation'), findsNothing);
+      await show(
+        archetype: 'education',
+        permitted: true,
+        responsibility: 'mandate:restricted',
+      );
+      expect(find.text('Nouveau programme'), findsNothing);
+      await show(archetype: 'commerce', permitted: true);
+      expect(find.text('Nouvelle prestation'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'MT3 G1 native creation follows owner capability and perspective',
+    (tester) async {
+      Future<void> render({
+        required String archetype,
+        required bool allowed,
+        String responsibility = 'all',
+      }) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpaceWorkSurface(
+              payload: {
+                'primary_business_label': 'Métier',
+                'archetype': archetype,
+                'responsibility': responsibility,
+                'space': {'slug': 'mt3-space'},
+                'capabilities': {'create_activity': allowed},
+                'presentation': {'empty_message': 'Aucun élément.'},
+                'sections': <String, dynamic>{},
+              },
+            ),
+          ),
+        ),
+      );
+
+      await render(archetype: 'community', allowed: true);
+      expect(find.text('Nouvelle initiative'), findsOneWidget);
+      await render(archetype: 'generic', allowed: true);
+      expect(find.text('Nouvelle activité'), findsOneWidget);
+      await render(archetype: 'generic', allowed: false);
+      expect(find.text('Nouvelle activité'), findsNothing);
+      await render(
+        archetype: 'community',
+        allowed: true,
+        responsibility: 'mandate:limited',
+      );
+      expect(find.text('Nouvelle initiative'), findsNothing);
+      await render(archetype: 'education', allowed: true);
+      expect(find.text('Nouvelle activité'), findsNothing);
+    },
+  );
+
   testWidgets('generic work empty state stays honest and calm', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

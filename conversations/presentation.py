@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
+from django.core.exceptions import ValidationError
 from django.db.models import Prefetch, Q
+from rest_framework.exceptions import NotFound
 from django.utils import timezone
 
-from .attention import point_attention_reason
+from .attention import ACTION_REASONS, point_attention_reason
 from .core_models import (
     Conversation,
     ConversationContextKind,
@@ -13,9 +15,15 @@ from .core_models import (
     ConversationParticipationStatus,
     ConversationUserState,
 )
-from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle
-from .point_services import point_visible_to
-from .services import can_view_conversation
+from .point_models import (
+    ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
+    ConversationPointResponse, ConversationPointResponseStatus,
+    ConversationPointUserState, ConversationResponseVisibility,
+)
+from .media_models import ConversationPointAttachment
+from .list_presentation import conversation_list_card
+from .point_services import point_visible_to, point_resolution_visible_to
+from .services import can_manage_conversation, can_view_conversation
 
 
 @dataclass(frozen=True)
@@ -25,6 +33,7 @@ class ConversationRow:
     attention_count: int
     latest_result: str
     all_clear: bool
+    card: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +42,54 @@ class ConversationSearchRow:
     context_label: str
     point: ConversationPoint | None
     rank: int
+    card: dict | None = None
+
+
+def conversations_for_context(profile, kind, context_pk):
+    """Read-only contextual entry; never creates a Conversation or grants entry."""
+    if kind == ConversationContextKind.DIRECT:
+        filters = Q(context__direct_profile_a=profile, context__direct_profile_b_id=context_pk) | Q(
+            context__direct_profile_b=profile, context__direct_profile_a_id=context_pk
+        )
+    else:
+        field = {
+            ConversationContextKind.SPACE: "space",
+            ConversationContextKind.GROUP: "group",
+            ConversationContextKind.ACTIVITY: "activity",
+            ConversationContextKind.OCCURRENCE: "occurrence",
+            ConversationContextKind.DOSSIER: "dossier",
+            ConversationContextKind.PROJECT: "project",
+            ConversationContextKind.JOURNEY: "journey",
+            ConversationContextKind.ACTION_PROPOSAL: "action_proposal",
+        }.get(kind)
+        if field is None:
+            raise NotFound("Contexte introuvable.")
+        filters = Q(**{f"context__{field}_id": context_pk})
+    try:
+        candidates = list(
+            Conversation.objects.select_related("context").filter(
+                filters, context__kind=kind,
+            ).order_by("-updated_at", "pk")[:200]
+        )
+    except (ValidationError, ValueError, TypeError):
+        return []
+    return [conversation for conversation in candidates if can_view_conversation(profile, conversation)][:50]
+
+
+
+def visible_exchange_entries_for_profile(profile, point, *, limit=5):
+    """A Point's visibility never implies access to every author's raw text."""
+    if point.kind != ConversationPointKind.EXCHANGE or not point_visible_to(profile, point):
+        return []
+    entries = point.exchange_entries.filter(moderation_state="visible")
+    if not can_manage_conversation(profile, point.conversation):
+        if point.response_visibility == ConversationResponseVisibility.POINT_VIEWERS:
+            pass
+        elif point.response_visibility == ConversationResponseVisibility.RESPONDENT_AND_AUTHORITIES:
+            entries = entries.filter(author=profile)
+        else:
+            return []
+    return list(reversed(list(entries.order_by("-created_at", "-pk")[:limit])))
 
 
 def conversation_context_label(conversation, profile=None):
@@ -67,15 +124,38 @@ def conversation_context_label(conversation, profile=None):
 def _list_projection_queryset(profile):
     active_points = ConversationPoint.objects.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}
-    ).select_related("visibility_audience", "response_audience", "expected_action_audience", "resolution_audience")
+    ).select_related(
+        "conversation", "visibility_audience", "response_audience",
+        "expected_action_audience", "resolution_audience",
+    ).prefetch_related(
+        Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
+        Prefetch(
+            "responses",
+            queryset=ConversationPointResponse.objects.filter(
+                actor=profile, represented_space__isnull=True,
+                status=ConversationPointResponseStatus.ACTIVE,
+            ),
+            to_attr="_attention_profile_responses",
+        ),
+        Prefetch(
+            "user_states",
+            queryset=ConversationPointUserState.objects.filter(profile=profile),
+            to_attr="_attention_profile_states",
+        ),
+    )
     resolved_points = ConversationPoint.objects.filter(
         lifecycle=ConversationPointLifecycle.RESOLVED
-    ).select_related("resolution", "visibility_audience").order_by("-resolved_at")
+    ).select_related(
+        "conversation", "resolution", "visibility_audience", "resolution_audience",
+    ).prefetch_related(
+        Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
+    ).order_by("-resolved_at")[:20]
     return (
         Conversation.objects.select_related(
             "context__space", "context__group", "context__activity", "context__occurrence__activity",
             "context__dossier", "context__project", "context__journey__activity",
             "context__action_proposal__need", "context__direct_profile_a", "context__direct_profile_b",
+            "context__activity__event_vertical", "context__occurrence__activity__event_vertical",
         )
         .prefetch_related(
             Prefetch(
@@ -131,7 +211,7 @@ def _latest_resolution_summary(conversation, profile):
     if points is None:
         points = conversation.points.filter(lifecycle=ConversationPointLifecycle.RESOLVED).select_related("resolution", "visibility_audience").order_by("-resolved_at")[:20]
     for point in points[:20]:
-        if point_visible_to(profile, point):
+        if point_resolution_visible_to(profile, point):
             try:
                 return point.resolution.summary
             except Exception:
@@ -141,6 +221,10 @@ def _latest_resolution_summary(conversation, profile):
 
 def conversation_rows_for_profile(profile, *, archived=False, only_attention=False, limit=100):
     rows = []
+    at = timezone.now()
+    audience_membership_cache = {}
+    conversation_visibility_cache = {}
+    conversation_manage_cache = {}
     for conversation in _accessible_conversations(profile, include_archived=archived, limit=max(limit * 4, 100)):
         state = _profile_state(conversation)
         if archived and not (state and state.archived_at):
@@ -152,17 +236,29 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
                 "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
             )[:200]
         for point in points[:200]:
-            if point_attention_reason(profile, point):
+            reason = point_attention_reason(
+                profile, point, at=at,
+                audience_membership_cache=audience_membership_cache,
+                conversation_visibility_cache=conversation_visibility_cache,
+                conversation_manage_cache=conversation_manage_cache,
+            )
+            if reason in ACTION_REASONS:
                 attention += 1
         if only_attention and not attention:
             continue
+        context_label = conversation_context_label(conversation, profile)
+        latest_result = _latest_resolution_summary(conversation, profile)
         rows.append(
             ConversationRow(
                 conversation=conversation,
-                context_label=conversation_context_label(conversation, profile),
+                context_label=context_label,
                 attention_count=attention,
-                latest_result=_latest_resolution_summary(conversation, profile),
+                latest_result=latest_result,
                 all_clear=attention == 0,
+                card=conversation_list_card(
+                    profile, conversation, context_label=context_label,
+                    latest_result=latest_result, attention_count=attention,
+                ),
             )
         )
         if len(rows) >= limit:
@@ -171,25 +267,64 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
     return rows
 
 
-def now_points_for_profile(profile, conversation, *, limit=100):
+def now_points_for_profile(profile, conversation, *, limit=100, visibility_cache=None, audience_cache=None, history_cache=None, attention_caches=None):
     if not can_view_conversation(profile, conversation):
         return []
     now = timezone.now()
     rows = []
+    visibility_cache = visibility_cache if visibility_cache is not None else {}
+    audience_cache = audience_cache if audience_cache is not None else {}
+    history_cache = history_cache if history_cache is not None else {}
+    attention_caches = attention_caches if attention_caches is not None else ({}, {}, {})
     points = conversation.points.filter(lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}).select_related(
-        "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
-    ).prefetch_related("options").order_by("deadline_at", "-importance", "published_at")[: max(limit * 3, 100)]
+        "published_by", "represented_space", "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
+    ).prefetch_related("options", "responses").order_by("deadline_at", "-importance", "published_at")[: max(limit * 3, 100)]
     for point in points:
-        if not point_visible_to(profile, point, at=now):
+        if not point_visible_to(
+            profile, point, at=now, visibility_cache=visibility_cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ):
             continue
-        reason = point_attention_reason(profile, point, at=now)
+        reason = point_attention_reason(
+            profile, point, at=now,
+            audience_membership_cache=attention_caches[0],
+            conversation_visibility_cache=attention_caches[1],
+            conversation_manage_cache=attention_caches[2],
+        )
         if reason is None and point.kind != ConversationPointKind.INFORMATION:
             continue
-        section = "pour_moi" if reason in {"respond", "acknowledge", "form", "revisit"} else "a_regler" if reason == "resolve" else "a_savoir"
+        section = "pour_moi" if reason in {"respond", "acknowledge", "form"} else "a_regler" if reason == "resolve" else "a_savoir"
         rows.append({"point": point, "reason": reason, "section": section})
         if len(rows) >= limit:
             break
     return rows
+
+
+def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), limit=50, visibility_cache=None, audience_cache=None, history_cache=None):
+    """Visible open Points outside the owner's attention/essential selection."""
+    if not can_view_conversation(profile, conversation):
+        return []
+    excluded = set(excluded_ids)
+    visibility_cache = visibility_cache if visibility_cache is not None else {}
+    audience_cache = audience_cache if audience_cache is not None else {}
+    history_cache = history_cache if history_cache is not None else {}
+    candidates = conversation.points.filter(
+        lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED},
+    ).select_related(
+        "published_by", "represented_space", "visibility_audience", "response_audience", "expected_action_audience",
+        "resolution_audience",
+    ).prefetch_related("options", "responses").order_by("published_at", "pk")[: max(limit * 4, 100)]
+    result = []
+    for point in candidates:
+        if point.pk in excluded or not point_visible_to(
+            profile, point, visibility_cache=visibility_cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ):
+            continue
+        result.append(point)
+        if len(result) >= limit:
+            break
+    return result
 
 
 def essential_points_for_profile(profile, conversation, *, limit=50):
@@ -197,7 +332,7 @@ def essential_points_for_profile(profile, conversation, *, limit=50):
         return []
     candidates = conversation.points.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED, ConversationPointLifecycle.RESOLVED}
-    ).select_related("visibility_audience", "resolution").prefetch_related("options").order_by("-shared_pinned_at", "-resolved_at", "-published_at")[: max(limit * 3, 100)]
+    ).select_related("published_by", "represented_space", "visibility_audience", "resolution").prefetch_related("options", "responses").order_by("-shared_pinned_at", "-resolved_at", "-published_at")[: max(limit * 3, 100)]
     result = []
     for point in candidates:
         if not point_visible_to(profile, point):
@@ -224,11 +359,18 @@ def search_conversation(profile, conversation, query, *, limit=50):
         if not point_visible_to(profile, point):
             continue
         resolution_summary = ""
-        if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+        if (point.lifecycle == ConversationPointLifecycle.RESOLVED and
+                point_resolution_visible_to(profile, point)):
             try:
                 resolution_summary = point.resolution.summary or ""
             except Exception:
                 resolution_summary = ""
+        if not (
+            normalized in (point.title or "").casefold()
+            or normalized in (point.body or "").casefold()
+            or normalized in resolution_summary.casefold()
+        ):
+            continue
         if resolution_summary and normalized in resolution_summary.casefold():
             score = 0
         elif point.lifecycle in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
@@ -244,20 +386,25 @@ def search_conversation(profile, conversation, query, *, limit=50):
     return [row[2] for row in scored[:limit]]
 
 
-def search_conversations_for_profile(profile, query, *, limit=50):
+def search_conversations_for_profile(profile, query, *, limit=50, include_archived=False):
     """Privacy-safe global Conversation search with outcome/current-state precedence."""
     query = (query or "").strip()[:120]
     if not query or not getattr(profile, "is_authenticated", False):
         return []
     normalized = query.casefold()
     rows = []
-    for conversation in _accessible_conversations(profile, include_archived=False, limit=300):
+    for conversation in _accessible_conversations(profile, include_archived=include_archived, limit=300):
+        if include_archived:
+            state = _profile_state(conversation)
+            if not (state and state.archived_at):
+                continue
         context_label = conversation_context_label(conversation, profile)
         haystack = " ".join((conversation.title_override or "", conversation.purpose or "", context_label)).casefold()
         if normalized in haystack:
             rows.append(ConversationSearchRow(conversation=conversation, context_label=context_label, point=None, rank=2))
         for point in search_conversation(profile, conversation, query, limit=5):
-            if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+            if (point.lifecycle == ConversationPointLifecycle.RESOLVED and
+                    point_resolution_visible_to(profile, point)):
                 try:
                     summary = point.resolution.summary or ""
                 except Exception:
@@ -280,7 +427,16 @@ def search_conversations_for_profile(profile, query, *, limit=50):
             ),
         )
     )
-    return rows[:limit]
+    return [
+        replace(
+            row,
+            card=conversation_list_card(
+                profile, row.conversation, context_label=row.context_label,
+                latest_result="", attention_count=0,
+            ),
+        )
+        for row in rows[:limit]
+    ]
 
 
 def catch_up_summary(profile, conversation, *, since=None):

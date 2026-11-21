@@ -1,0 +1,101 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %} | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/appuis.css' %}">{% endblock %}
+{% block content %}
+<main data-mk-surface="appuis" data-appuis-actor="{% if is_space %}space{% else %}profile{% endif %}">
+  <a class="ap-back" href="{{ back_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i> Retour</a>
+  <header class="ap-intro"><h1>{% if is_space %}Nos appuis{% else %}Mes appuis{% endif %}</h1></header>
+  {% if appuis_available %}
+    {% if has_recognition_appuis %}
+    <section class="ap-recognition" aria-labelledby="ap-recognition-title" data-appuis-family="recognition">
+      <div class="ap-recognition-title">
+        <i data-lucide="coins" aria-hidden="true"></i>
+        <h2 id="ap-recognition-title">{% if is_space %}Notre reconnaissance{% else %}Ma reconnaissance{% endif %}</h2>
+      </div>
+      {% if recognition_credits %}
+      <strong class="ap-recognition-credits">{{ recognition_credits }} <span>crédits</span></strong>
+      {% endif %}
+      {% if recognition_pending_credits %}
+      <span class="ap-recognition-pending">{{ recognition_pending_credits }} crédits en attente</span>
+      {% endif %}
+      {% if recognition_credits and recognition_can_spend %}
+      <a class="ap-recognition-action" href="{% if is_space %}{% url 'organizations:space-us-appuis-use' space.slug %}{% else %}{% url 'core:participant-appuis-use' %}{% endif %}">
+        <i data-lucide="gift" aria-hidden="true"></i>
+        {% if is_space %}Utiliser nos crédits{% else %}Utiliser mes crédits{% endif %}
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </a>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if recognition_accomplishments or recognition_recent %}
+    <section class="ap-family" aria-labelledby="appuis-achievements">
+      <div class="ap-section-head">
+        <i data-lucide="medal" aria-hidden="true"></i>
+        <h2 id="appuis-achievements">{% if is_space %}Nos accomplissements{% else %}Mes accomplissements{% endif %}</h2>
+        {% if recognition_url %}<a class="ap-see-all" href="{{ recognition_url }}">Tout voir <span aria-hidden="true">→</span></a>{% endif %}
+      </div>
+      {% if recognition_accomplishments %}
+      <div class="ap-grid">
+        {% for item in recognition_accomplishments|slice:":3" %}
+        <a class="ap-card" href="{{ recognition_url }}">
+          <span class="ap-card-symbol"><i data-lucide="{{ item.symbol }}" aria-hidden="true"></i></span>
+          <span class="ap-card-copy"><strong>{{ item.title }}</strong><small>{{ item.subtitle }}</small></span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
+      </div>
+      {% elif recognition_recent and recognition_url %}
+      <a class="ap-card" href="{{ recognition_url }}">
+        <span class="ap-card-symbol"><i data-lucide="history" aria-hidden="true"></i></span>
+        <span class="ap-card-copy"><strong>Historique des crédits</strong></span>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </a>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if has_loyalty_appuis %}
+    <section class="ap-family" aria-labelledby="appuis-loyalty" data-appuis-family="loyalty">
+      <div class="ap-section-head"><i data-lucide="gift" aria-hidden="true"></i>
+        <h2 id="appuis-loyalty">{% if is_space %}Notre fidélité{% else %}Ma fidélité{% endif %}</h2>
+      </div>
+      {% if loyalty_url %}
+      <a class="ap-card" href="{{ loyalty_url }}">
+        <span class="ap-card-symbol"><i data-lucide="ticket-percent" aria-hidden="true"></i></span>
+        <span class="ap-card-copy">
+          <strong>{% if is_space %}Notre programme de fidélité{% else %}Mes avantages{% endif %}</strong>
+          <small>{% if is_space %}Niveaux, formules et avantages{% else %}Programmes et adhésions{% endif %}</small>
+        </span>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </a>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% if has_partner_appuis %}
+    <section class="ap-family" aria-labelledby="appuis-partners" data-appuis-family="partners">
+      <div class="ap-section-head">
+        <i data-lucide="handshake" aria-hidden="true"></i>
+        <h2 id="appuis-partners">{% if is_space %}Nos partenariats{% else %}Mes partenariats{% endif %}</h2>
+      </div>
+      <div class="ap-grid">
+      {% for partner in partner_cards %}
+        <a class="ap-card" href="{% if partner_is_personal %}{% url 'partners:my-detail' partner.pk %}{% else %}{% url 'partners:partner-detail' partner.pk %}{% endif %}" {% if forloop.counter > 3 %}data-appuis-more="partners" hidden{% endif %}>
+          <span class="ap-card-symbol"><i data-lucide="handshake" aria-hidden="true"></i></span>
+          <span class="ap-card-copy">
+            <strong>{{ partner.display_name }}</strong><small>{{ partner.organization.name }}</small>
+          </span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </a>
+      {% endfor %}
+      </div>
+      {% if partner_cards|length > 3 %}
+        <button class="ap-expand" type="button" data-appuis-expand="partners" aria-expanded="false">Tout voir</button>
+      {% endif %}
+    </section>
+    {% endif %}
+  {% else %}
+    <p class="ap-empty">Aucun appui à afficher.</p>
+  {% endif %}
+</main>
+<script src="{% static 'js/appuis.js' %}" defer></script>
+{% endblock %}

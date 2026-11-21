@@ -38,6 +38,76 @@ void main() {
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 
+  for (final kind in [MakoloHeaderKind.me, MakoloHeaderKind.us]) {
+    testWidgets('Conversations and Notifications match Now in $kind', (
+      tester,
+    ) async {
+      var conversations = 0;
+      var notifications = 0;
+      var avatars = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            appBar: MakoloPrimaryHeader(
+              kind: kind,
+              hasConversationAttention: true,
+              hasUnreadNotifications: true,
+              onConversations: () => conversations++,
+              onNotifications: () => notifications++,
+              onAvatar: () => avatars++,
+            ),
+          ),
+        ),
+      );
+      final conversationIcon = find.byTooltip(
+        'Conversations — quelque chose demande votre attention',
+      );
+      final notificationIcon = find.byTooltip(
+        'Notifications — nouveaux signaux disponibles',
+      );
+      expect(conversationIcon, findsOneWidget);
+      expect(notificationIcon, findsOneWidget);
+      expect(find.byTooltip('Échanger'), findsNothing);
+      expect(find.text('Contexte personnel'), findsNothing);
+      expect(find.textContaining('Contexte Espace'), findsNothing);
+      expect(find.bySemanticsLabel('Avatar'), findsOneWidget);
+      await tester.tap(conversationIcon);
+      await tester.tap(notificationIcon);
+      await tester.tap(find.byTooltip('Avatar'));
+      expect(conversations, 1);
+      expect(notifications, 1);
+      expect(avatars, 1);
+    });
+  }
+
+  testWidgets('Moi and Nous keep two actions and avatar on a narrow phone', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final kind in [MakoloHeaderKind.me, MakoloHeaderKind.us]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            appBar: MakoloPrimaryHeader(
+              kind: kind,
+              profileUsername: kind == MakoloHeaderKind.me ? 'amina' : null,
+              onConversations: () {},
+              onNotifications: () {},
+              onAvatar: () {},
+            ),
+          ),
+        ),
+      );
+      expect(find.byTooltip('Conversations'), findsOneWidget);
+      expect(find.byTooltip('Notifications'), findsOneWidget);
+      expect(find.byTooltip('Avatar'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('Découvrir is Mark plus title with Search and Map', (
     tester,
   ) async {

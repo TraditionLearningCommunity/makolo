@@ -4,7 +4,9 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../files/profile_paths.dart';
 import 'tables.dart';
+import 'encrypted_profile_database.dart';
 
 part 'makolo_database.g.dart';
 
@@ -23,15 +25,20 @@ class MakoloDatabase extends _$MakoloDatabase {
 
   factory MakoloDatabase.memory() => MakoloDatabase(NativeDatabase.memory());
 
+  static String profileDirectoryKey(String profileId) =>
+      ProfilePaths.safeProfileId(profileId);
+
   static Future<MakoloDatabase> openForProfile(String profileId) async {
     final base = await getApplicationSupportDirectory();
-    final safeProfile = profileId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    final safeProfile = profileDirectoryKey(profileId);
     final directory = Directory('${base.path}/profiles/$safeProfile');
     await directory.create(recursive: true);
+    final encrypted = await EncryptedProfileDatabase.prepare(
+      profileId: profileId,
+      directory: directory,
+    );
     return MakoloDatabase(
-      NativeDatabase.createInBackground(
-        File('${directory.path}/makolo.sqlite'),
-      ),
+      NativeDatabase.createInBackground(encrypted.file, setup: encrypted.setup),
     );
   }
 
@@ -49,6 +56,12 @@ class MakoloDatabase extends _$MakoloDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS conversation_entry_profile_sequence '
+        "ON projection_snapshots(profile_id, projection_kind, json_extract(payload_json, '\$.point_id'), "
+        "json_extract(payload_json, '\$.sequence')) "
+        "WHERE projection_kind = 'conversation.exchange.entry'",
+      );
       await customStatement(
         'CREATE INDEX IF NOT EXISTS outbox_profile_state '
         'ON outbox_operations(profile_id, state, observed_at)',

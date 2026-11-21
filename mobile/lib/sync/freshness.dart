@@ -60,6 +60,14 @@ class FreshnessPolicy {
         projection.sourceGeneratedAt?.toUtc() ??
         projection.lastVerifiedOnlineAt?.toUtc() ??
         projection.receivedAt.toUtc();
+    // A device clock rollback or future-dated owner observation must
+    // never make an old capability appear freshly validated indefinitely.
+    // Retain noncritical knowledge, but label it as requiring refresh.
+    if (basis.isAfter(instant)) {
+      return (forAction || revalidateBeforeAction || revalidateAfterFreshUntil)
+          ? FreshnessState.revalidationRequired
+          : FreshnessState.refreshRecommended;
+    }
     final age = instant.difference(basis);
     final oldAfter = usableButOldAfter;
     if (oldAfter != null && age >= oldAfter) {

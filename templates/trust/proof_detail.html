@@ -1,0 +1,41 @@
+{% extends 'base/app.html' %}
+{% block title %}{{ proof.get_proof_type_display }} | Mes preuves{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-4">
+  <header class="flex items-center justify-between gap-3">
+    <div class="flex min-w-0 items-center gap-2">
+      <a href="{{ return_url }}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes preuves"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
+      <div class="min-w-0">
+        <span class="mk-kicker">Mes preuves</span>
+        <h1 class="truncate text-2xl font-extrabold">{{ proof.get_proof_type_display }}</h1>
+      </div>
+    </div>
+    {% if proof.is_public %}
+    <div class="flex items-center gap-1" data-makolo-share data-public-url="{% url 'trust:proof-verify' proof.public_id %}" data-share-title="{{ proof.get_proof_type_display }}" data-share-text="Vérifier cette preuve Makolo.">
+      <a href="{% url 'trust:proof-verify' proof.public_id %}" class="mk-action-button" data-variant="secondary" aria-label="Vérifier publiquement"><i data-lucide="badge-check" class="h-4 w-4" aria-hidden="true"></i></a>
+      <button type="button" class="mk-action-button" data-variant="ghost" data-share-native aria-label="Partager la vérification" title="Partager"><i data-lucide="send" class="h-4 w-4" aria-hidden="true"></i></button>
+      <button type="button" class="mk-action-button" data-variant="ghost" data-share-copy aria-label="Copier le lien de vérification" title="Copier le lien"><i data-lucide="link" class="h-4 w-4" aria-hidden="true"></i></button>
+      <span class="sr-only" role="status" aria-live="polite" data-share-feedback></span>
+    </div>
+    {% endif %}
+  </header>
+
+  <section class="mk-panel p-5 sm:p-6">
+    <div class="flex flex-wrap gap-2">
+      <span class="mk-badge {% if proof.status == 'active' %}mk-badge-brand{% endif %}">{{ proof.get_status_display }}</span>
+      {% if proof.is_public %}<span class="mk-badge">Vérifiable</span>{% endif %}
+    </div>
+    <dl class="mt-5 grid gap-4 sm:grid-cols-2 text-sm">
+      <div><dt class="text-xs" style="color:var(--mk-muted)">Activité</dt><dd class="mt-1 font-bold">{{ proof.journey.activity.title }}</dd></div>
+      <div><dt class="text-xs" style="color:var(--mk-muted)">Établie le</dt><dd class="mt-1 font-bold">{{ proof.issued_at|date:'d/m/Y H:i' }}</dd></div>
+      {% if proof.occurrence %}<div><dt class="text-xs" style="color:var(--mk-muted)">Occurrence</dt><dd class="mt-1 font-bold">{{ proof.occurrence.label|default:'Occurrence liée' }}</dd></div>{% endif %}
+      {% if proof.revoked_at %}<div><dt class="text-xs" style="color:var(--mk-muted)">Révoquée le</dt><dd class="mt-1 font-bold">{{ proof.revoked_at|date:'d/m/Y H:i' }}</dd></div>{% endif %}
+    </dl>
+    {% if proof.status == 'revoked' and proof.revoke_reason %}<p class="mt-5 text-sm" style="color:var(--mk-muted)">{{ proof.revoke_reason }}</p>{% endif %}
+    <div class="mt-5 flex flex-wrap justify-end gap-2">
+      {% if proof.status == 'active' %}<a href="{% url 'sharing:passport-me' %}" class="mk-action-button" data-variant="ghost">Ouvrir mon Passeport</a>{% endif %}
+      <a href="{% url 'core:participant-journey-detail' proof.journey_id %}" class="mk-action-button" data-variant="ghost">Voir la démarche</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

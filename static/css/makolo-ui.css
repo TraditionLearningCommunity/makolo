@@ -196,6 +196,12 @@ body {
   letter-spacing: .025em;
 }
 .mk-badge-brand { background: var(--mk-brand-soft); border-color: rgba(99,102,241,.15); color: var(--mk-brand); }
+/* Shared positive status badge, rather than a per-screen success skin. */
+.mk-badge-positive {
+  color: var(--mk-positive);
+  border-color: color-mix(in srgb, var(--mk-positive) 28%, var(--mk-border));
+  background: color-mix(in srgb, var(--mk-positive) 10%, var(--mk-surface-solid));
+}
 
 .mk-stat-card {
   position: relative;

@@ -125,7 +125,7 @@ Une donnée optionnelle ne doit pas devenir obligatoire uniquement pour faire pr
 
 Principes :
 
-- nouveaux Interests privés par défaut ;
+- nouveaux Interests publiables publics par défaut ; les sélections privées existantes restent privées ;
 - la personnalisation privée et l’exposition publique sont séparées ;
 - un comportement observé peut devenir un signal de recommandation mais ne réécrit pas silencieusement « Mes centres d’intérêt » ;
 - Follow, Favorite, recherche et historique ne sont jamais automatiquement convertis en Interests ;
@@ -322,7 +322,7 @@ Cible forte :
 ### G2 — Topics & Interests ✅ intégré
 
 - `Topic` canonique ;
-- `ProfileInterest` explicite et privé par défaut ;
+- `ProfileInterest` explicite ; nouveau choix public par défaut, anciennes décisions privées préservées ;
 - `ActivityTopic` ;
 - première raison Discovery explicable ;
 - aucun Interest inféré depuis Follow/Favorite/historique.

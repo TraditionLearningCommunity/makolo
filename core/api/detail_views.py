@@ -7,6 +7,7 @@ from core.participant_selectors import (
     participant_journeys,
 )
 from operations.participant_occurrence_live import participant_occurrence_live_available
+from operations.occurrence_live import occurrence_live_phase
 from readiness import resolve_journey_readiness
 from readiness.selectors import participant_readiness_queryset
 from services.models import ServiceRequirementAssessment
@@ -28,10 +29,17 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             participant_readiness_queryset(
                 request.user,
                 participant_journeys(request.user),
+            ).select_related(
+                "service_context__opportunity",
+                "service_context__opportunity_revision",
             ).prefetch_related(
                 "payment_obligations__payments",
                 "commerce_orders__payments",
                 "service_context__requirement_assessments__evidence",
+                "steps__dependencies",
+                "transitions",
+                "form_requests__form_version",
+                "occurrence__place_links__place",
             ),
             pk=pk,
         )
@@ -40,9 +48,20 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             viewer=request.user,
             observed_at=observed_at,
         )
+        # Jour J is a separate, authorized Operations experience. An
+        # Occurrence link alone is never a participant admission.
+        day_of_available = (
+            journey.occurrence_id is not None
+            and participant_occurrence_live_available(
+                occurrence=journey.occurrence,
+                actor=request.user,
+            )
+        )
         live = (
             True
             if journey.occurrence_id
+            and journey.occurrence.live_enabled
+            and occurrence_live_phase(journey.occurrence) in {"arrival", "live"}
             and participant_occurrence_live_available(
                 occurrence=journey.occurrence,
                 actor=request.user,
@@ -54,6 +73,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
                 journey=journey,
                 readiness=readiness,
                 profile=request.user,
+                day_of_available=day_of_available,
                 live=live,
             ),
             observed_at=observed_at,
@@ -103,7 +123,9 @@ class PersonalAccessDetailAPIView(PersonalProjectionAPIView):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
         access = get_object_or_404(
-            participant_accesses_visible_to_buyer(request.user),
+            participant_accesses_visible_to_buyer(request.user)
+            .select_related("activity", "occurrence")
+            .prefetch_related("occurrence__place_links__place"),
             pk=pk,
         )
         return self._response(

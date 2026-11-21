@@ -1,0 +1,26 @@
+{% for media in items %}
+<div class="mt-2 rounded-xl border p-3" style="border-color:var(--mk-border)">
+  {% url 'questionnaire-media-download' media.pk as media_url %}
+  {% if media.kind == 'image' %}
+    <a href="{{ media_url }}" target="_blank" rel="noopener" aria-label="Voir l'image : {{ media.caption|default:media.original_name }}">
+      <img src="{{ media_url }}" alt="{{ media.caption|default:media.original_name }}" class="max-h-80 w-full rounded-lg object-contain" loading="lazy">
+    </a>
+  {% elif media.kind == 'voice' or media.kind == 'audio' %}
+    <audio class="w-full" controls preload="none" aria-label="{{ media.caption|default:'Lecture audio' }}"><source src="{{ media_url }}" type="{{ media.mime_type }}">Audio indisponible.</audio>
+  {% elif media.kind == 'video' %}
+    <video class="max-h-96 w-full rounded-lg" controls preload="metadata" playsinline aria-label="{{ media.caption|default:'Vidéo' }}"><source src="{{ media_url }}" type="{{ media.mime_type }}">Vidéo indisponible.</video>
+  {% elif media.mime_type == 'application/pdf' %}
+    <details><summary class="cursor-pointer font-semibold">Lire le PDF : {{ media.original_name }}</summary>
+      <iframe class="mt-2 h-96 w-full" src="{{ media_url }}" title="{{ media.caption|default:media.original_name }}" loading="lazy"></iframe>
+    </details>
+  {% elif media.mime_type == 'text/plain' %}
+    <details><summary class="cursor-pointer font-semibold">Lire le document : {{ media.original_name }}</summary>
+      <iframe class="mt-2 h-64 w-full" src="{{ media_url }}" title="{{ media.caption|default:media.original_name }}" loading="lazy"></iframe>
+    </details>
+  {% else %}
+    <a href="{{ media_url }}" class="underline" rel="nofollow">{{ media.original_name }}</a>
+  {% endif %}
+  {% if media.caption %}<p class="mt-2 whitespace-pre-wrap text-sm">{{ media.caption }}</p>{% endif %}
+  <a href="{{ media_url }}" target="_blank" rel="noopener" class="mt-2 inline-block text-xs underline">Ouvrir le média</a>
+</div>
+{% endfor %}

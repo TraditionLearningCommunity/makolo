@@ -2,24 +2,43 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
+import '../../network/makolo_api_client.dart';
+import '../../data/local/profile_store.dart';
+
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
-import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
+import '../continuity/conversation_context_screen.dart';
+import '../continuity/conversation_repository.dart';
+import '../preparation/preparation_repository.dart';
+import 'journey_composition.dart';
 import 'journey_repository.dart';
 import 'journey_selector.dart';
+import 'journey_time_presentation.dart';
+
+Color _journeyAccent(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? Theme.of(context).colorScheme.secondary
+    : MakoloColors.indigo;
 
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({
     super.key,
     required this.journeyId,
     required this.repository,
+    this.api,
+    this.resourcesRepository,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+    this.onOpenArtifacts,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -28,10 +47,19 @@ class JourneyDetailScreen extends StatefulWidget {
     required this.onOpenAccess,
     required this.onOpenDayOf,
     required this.onOpenLive,
+    this.conversations,
+    this.onOpenConversation,
   });
 
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
   final String journeyId;
   final JourneyRepository repository;
+  final MakoloApiClient? api;
+  final PreparationResourcesRepository? resourcesRepository;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+  final VoidCallback? onOpenArtifacts;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -50,11 +78,24 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
 
   bool _refreshing = false;
+  bool _respondingInvitation = false;
+  String? _invitationDecision;
+  MakoloActionPhase _invitationPhase = MakoloActionPhase.available;
+  String? _invitationNotice;
   bool _requestedInitialRefresh = false;
+  int _identityRevision = 0;
+  late Stream<StoredProjection?> _ongoingSummaryStream;
+
+  bool _isCurrent(int revision, String id, JourneyRepository repository) =>
+      mounted &&
+      revision == _identityRevision &&
+      id == widget.journeyId &&
+      identical(repository, widget.repository);
 
   @override
   void initState() {
     super.initState();
+    _ongoingSummaryStream = widget.repository.watchOngoingSummary();
     unawaited(_acquireOrRefresh());
   }
 
@@ -63,6 +104,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.journeyId != widget.journeyId ||
         oldWidget.repository != widget.repository) {
+      // Old owner responses must not change another Journey/Profile's page.
+      _ongoingSummaryStream = widget.repository.watchOngoingSummary();
+      _identityRevision++;
+      _refreshing = false;
+      _respondingInvitation = false;
+      _invitationDecision = null;
+      _invitationPhase = MakoloActionPhase.available;
+      _invitationNotice = null;
       _requestedInitialRefresh = false;
       unawaited(_acquireOrRefresh());
     }
@@ -71,16 +120,16 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-
-    final local = await widget.repository.readDetail(widget.journeyId);
-    final source = await widget.repository.readSource(widget.journeyId);
-    if (!mounted) return;
-
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    final local = await repository.readDetail(id);
+    final source = await repository.readSource(id);
+    if (!_isCurrent(revision, id, repository)) return;
     if (local == null) {
       await _refresh();
       return;
     }
-
     final presentation = _selector.select(
       projection: local,
       source: source,
@@ -94,19 +143,126 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
+    var ownerReadSucceeded = false;
     try {
-      await widget.repository.refreshDetail(widget.journeyId);
+      await repository.refreshDetail(id);
+      ownerReadSucceeded = true;
     } on Object {
-      // SyncSource records the failure while preserving usable local content.
+      // Local content stays available independently of a transport result.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (_isCurrent(revision, id, repository)) {
+        setState(() {
+          _refreshing = false;
+          if (ownerReadSucceeded &&
+              !_respondingInvitation &&
+              _invitationPhase == MakoloActionPhase.unavailable) {
+            // Only a new owner read can unlock a changed-capability decision.
+            _invitationPhase = MakoloActionPhase.available;
+            _invitationDecision = null;
+            _invitationNotice = null;
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _respondToInvitation(String decision) async {
+    final api = widget.api;
+    if (_respondingInvitation || api == null) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    setState(() {
+      _respondingInvitation = true;
+      _invitationDecision = decision;
+      _invitationPhase = MakoloActionPhase.processing;
+      _invitationNotice = null;
+    });
+    try {
+      final endpoint =
+          'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/';
+      final current = (await api.get(endpoint)).jsonObject();
+      if (!_isCurrent(revision, id, repository)) return;
+      final actions = current['capabilities'];
+      if (current['journey_id'] != id ||
+          actions is! List ||
+          !actions.contains(decision)) {
+        await _refresh();
+        if (_isCurrent(revision, id, repository)) {
+          setState(() {
+            _invitationPhase = MakoloActionPhase.unavailable;
+            _invitationNotice =
+                'Cette invitation a changé. Consultez son état actuel.';
+          });
+        }
+        return;
+      }
+      final result = (await api.post(
+        endpoint,
+        body: {'decision': decision},
+      )).jsonObject();
+      if (!_isCurrent(revision, id, repository)) return;
+      if (result['journey_id'] != id ||
+          (decision == 'accept' && result['status'] != 'confirmed') ||
+          (decision == 'decline' && result['status'] != 'cancelled')) {
+        throw const FormatException('Unconfirmed Journey invitation');
+      }
+      await _refresh();
+      if (_isCurrent(revision, id, repository)) {
+        setState(() {
+          _invitationPhase = MakoloActionPhase.confirmed;
+          _invitationNotice = decision == 'accept'
+              ? 'Invitation acceptée.'
+              : 'Invitation refusée.';
+        });
+      }
+    } on Object {
+      // A lost acknowledgement cannot be treated as failure or success.
+      if (!_isCurrent(revision, id, repository)) return;
+      try {
+        final current = (await api.get(
+          'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/',
+        )).jsonObject();
+        if (!_isCurrent(revision, id, repository)) return;
+        await _refresh();
+        if (_isCurrent(revision, id, repository)) {
+          final status = current['status'];
+          setState(() {
+            _invitationPhase = status == 'confirmed' || status == 'cancelled'
+                ? MakoloActionPhase.confirmed
+                : MakoloActionPhase.failed;
+            _invitationNotice = status == 'confirmed'
+                ? 'Invitation acceptée.'
+                : status == 'cancelled'
+                ? 'Invitation refusée.'
+                : 'Vérifiez votre invitation avant de réessayer.';
+          });
+        }
+      } on Object {
+        if (_isCurrent(revision, id, repository)) {
+          setState(() {
+            _invitationPhase = MakoloActionPhase.failed;
+            _invitationNotice = 'Aucune confirmation pour le moment. Vérifiez avant de réessayer.';
+          });
+        }
+      }
+    } finally {
+      if (_isCurrent(revision, id, repository)) {
+        setState(() => _respondingInvitation = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
+      key: ValueKey(
+        'journey:${widget.repository.profileId}:${widget.journeyId}',
+      ),
       stream: widget.repository.watchDetail(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<JourneySourceState>(
@@ -121,11 +277,15 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
               now: DateTime.now(),
             );
             final available = presentation.available;
-            final unavailableWithoutContent =
+            // A missing local detail is not a transport failure. Keep the
+            // page in its normal shell; only an explicit owner denial removes it.
+            final ownerDenied =
                 !available &&
-                (source.invalidated ||
-                    source.reachability == ReachabilityState.unreachable) &&
-                !_refreshing;
+                source.invalidated &&
+                const {
+                  'permission_denied',
+                  'not_found',
+                }.contains(source.lastErrorCode);
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -137,14 +297,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
               ),
               availability: available
                   ? MakoloAvailabilityCue.content
-                  : _refreshing
+                  : _refreshing ||
+                        projectionSnapshot.connectionState ==
+                            ConnectionState.waiting
                   ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
+                  : MakoloAvailabilityCue.empty,
               reachability: source.reachability,
-              failure: unavailableWithoutContent
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: ownerDenied
+                  ? MakoloFailureCue.permissionDenied
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -166,18 +326,65 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de la démarche…',
                   ),
-                  blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
+                  empty: StreamBuilder<StoredProjection?>(
+                    stream: _ongoingSummaryStream,
+                    builder: (context, ongoingSnapshot) {
+                      final summary = JourneyRepository.knownOngoingSummary(
+                        ongoingSnapshot.data,
+                        widget.journeyId,
+                      );
+                      return summary == null
+                          ? const MakoloEmptyState(
+                              title: 'Démarche',
+                              body:
+                                  'Les détails ne sont pas encore disponibles.',
+                            )
+                          : _JourneyPartialLocalSummary(summary: summary);
+                    },
+                  ),
                   onRetry: _refresh,
-                  content: _JourneyContent(
-                    presentation: presentation,
-                    onOpenForm: widget.onOpenForm,
-                    onOpenRequirement: widget.onOpenRequirement,
-                    onOpenResources: widget.onOpenResources,
-                    onOpenActivity: widget.onOpenActivity,
-                    onOpenOccurrence: widget.onOpenOccurrence,
-                    onOpenAccess: widget.onOpenAccess,
-                    onOpenDayOf: widget.onOpenDayOf,
-                    onOpenLive: widget.onOpenLive,
+                  content: StreamBuilder<StoredProjection?>(
+                    stream: widget.resourcesRepository?.watchResources(
+                      widget.journeyId,
+                    ),
+                    builder: (context, resourcesSnapshot) => _JourneyContent(
+                      presentation: presentation,
+                      resourcesPreview: JourneyResourcePreview.fromProjection(
+                        resourcesSnapshot.data,
+                      ),
+                      resourcesKnown: resourcesSnapshot.data != null,
+                      onOpenPaymentObligation: widget.onOpenPaymentObligation,
+                      onOpenCommerceOrder: widget.onOpenCommerceOrder,
+                      onOpenArtifacts: widget.onOpenArtifacts,
+                      invitationEnabled:
+                          widget.api != null &&
+                          !_respondingInvitation &&
+                          _invitationPhase != MakoloActionPhase.confirmed &&
+                          _invitationPhase != MakoloActionPhase.unavailable,
+                      invitationDecision: _invitationDecision,
+                      invitationPhase: _invitationPhase,
+                      invitationNotice: _invitationNotice,
+                      onInvitationDecision: _respondToInvitation,
+                      onOpenForm: widget.onOpenForm,
+                      onOpenRequirement: widget.onOpenRequirement,
+                      onOpenResources: widget.onOpenResources,
+                      onOpenActivity: widget.onOpenActivity,
+                      onOpenOccurrence: widget.onOpenOccurrence,
+                      onOpenAccess: widget.onOpenAccess,
+                      onOpenDayOf: widget.onOpenDayOf,
+                      onOpenLive: widget.onOpenLive,
+                      conversationEntry:
+                          widget.conversations != null &&
+                              widget.onOpenConversation != null
+                          ? ConversationContextAction(
+                              repository: widget.conversations!,
+                              kind: 'journey',
+                              contextId: widget.journeyId,
+                              onOpen: widget.onOpenConversation!,
+                              iconOnly: true,
+                            )
+                          : null,
+                    ),
                   ),
                 ),
               ),
@@ -189,9 +396,121 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   }
 }
 
+/// Previously acquired Ongoing facts can identify a Journey without a
+/// detail projection. This has no controls: Ongoing capabilities never grant
+/// actions in N3, and an explicit owner denial still takes precedence.
+class _JourneyPartialLocalSummary extends StatelessWidget {
+  const _JourneyPartialLocalSummary({required this.summary});
+
+  final Map<String, dynamic> summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final timing = summary['timing'];
+    final place = summary['place'];
+    final timeMap = timing is Map ? timing : const <String, dynamic>{};
+    final placeMap = place is Map ? place : const <String, dynamic>{};
+    final date = JourneyDayPresentation.civilDate(
+      timeMap['start_date']?.toString(),
+    );
+    final clock = JourneyDayPresentation.clock(
+      timeMap['start_time']?.toString(),
+    );
+    final title = summary['title'].toString();
+    final location = JourneyDayPresentation.place(
+      name: placeMap['name']?.toString(),
+      locality: placeMap['locality']?.toString(),
+    );
+    return ListView(
+      key: const Key('journey-partial-local'),
+      padding: const EdgeInsets.all(MakoloSpacing.md),
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.track_changes_rounded, color: scheme.primary, size: 27),
+            const SizedBox(width: MakoloSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'MON OBJECTIF',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (date != null || clock != null || location != null) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Wrap(
+            spacing: MakoloSpacing.md,
+            runSpacing: MakoloSpacing.sm,
+            children: [
+              if (date != null)
+                _JourneyHeroFact(
+                  icon: Icons.calendar_today_outlined,
+                  label: MaterialLocalizations.of(context)
+                      .formatMediumDate(date),
+                ),
+              if (clock != null)
+                _JourneyHeroFact(icon: Icons.schedule_outlined, label: clock),
+              if (location != null)
+                _JourneyHeroFact(icon: Icons.place_outlined, label: location),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+const double _journeyContentInset = MakoloSpacing.compact;
+
+/// The source description remains authoritative, but need not restate the
+/// exact objective before its useful explanation.
+String? _journeyDescription(JourneyDetailPresentation presentation) {
+  final description = presentation.summary?.trim();
+  if (description == null || description.isEmpty) return null;
+  final title = presentation.title.trim();
+  if (title.isEmpty) return description;
+  if (description.toLowerCase() == title.toLowerCase()) return null;
+  if (!description.toLowerCase().startsWith(title.toLowerCase())) {
+    return description;
+  }
+  final rest = description.substring(title.length).trimLeft();
+  if (rest.isEmpty) return null;
+  for (final separator in ['—', ':', '–', '-']) {
+    if (rest.startsWith(separator)) {
+      final explanation = rest.substring(separator.length).trim();
+      return explanation.isEmpty ? null : explanation;
+    }
+  }
+  return description;
+}
+
 class _JourneyContent extends StatelessWidget {
   const _JourneyContent({
     required this.presentation,
+    required this.resourcesPreview,
+    required this.resourcesKnown,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+    this.onOpenArtifacts,
+    required this.invitationEnabled,
+    required this.invitationDecision,
+    required this.invitationPhase,
+    required this.invitationNotice,
+    required this.onInvitationDecision,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -200,9 +519,21 @@ class _JourneyContent extends StatelessWidget {
     required this.onOpenAccess,
     required this.onOpenDayOf,
     required this.onOpenLive,
+    this.conversationEntry,
   });
 
+  final Widget? conversationEntry;
   final JourneyDetailPresentation presentation;
+  final List<JourneyResourcePreview> resourcesPreview;
+  final bool resourcesKnown;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+  final VoidCallback? onOpenArtifacts;
+  final bool invitationEnabled;
+  final String? invitationDecision;
+  final MakoloActionPhase invitationPhase;
+  final String? invitationNotice;
+  final void Function(String decision) onInvitationDecision;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -214,389 +545,1591 @@ class _JourneyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('journey-detail-content'),
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-      children: [
-        MakoloDetailHeader(
-          eyebrow: presentation.kindLabel,
-          title: presentation.title,
-          subtitle: presentation.summary,
-          status:
-              MakoloHumanization.presentationLabel(presentation.journeyState) ==
-                  null
-              ? null
-              : MakoloStatus(
-                  label: MakoloHumanization.presentationLabel(
-                    presentation.journeyState,
-                  )!,
+    final action = _nextActionButton();
+    final description = _journeyDescription(presentation);
+    final composition = JourneyComposition.from(
+      presentation,
+      resourcesKnown: resourcesKnown,
+      resourcesCount: resourcesPreview.length,
+    );
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: ListView(
+          key: const PageStorageKey<String>('journey-detail-content'),
+          padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+          children: [
+            _JourneyIdentity(
+              presentation: presentation,
+              conversationEntry: conversationEntry,
+              onOpenDayOf: onOpenDayOf,
+              onOpenLive: onOpenLive,
+            ),
+            if (description != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  _journeyContentInset,
+                  MakoloSpacing.sm,
+                  _journeyContentInset,
+                  0,
                 ),
+                child: Text(
+                  description,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            if (presentation.serviceRequest != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Votre demande',
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (presentation.serviceRequest!.objective != null)
+                        Text(presentation.serviceRequest!.objective!),
+                      if (presentation.serviceRequest!.opportunityTitle !=
+                          null) ...[
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          'Opportunité concernée',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        Text(
+                          presentation.serviceRequest!.opportunityTitle!,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        if (presentation.serviceRequest!.opportunityIssuer !=
+                            null)
+                          Text(presentation.serviceRequest!.opportunityIssuer!),
+                        if (presentation
+                                    .serviceRequest!
+                                    .opportunityPublicationState !=
+                                null &&
+                            presentation
+                                    .serviceRequest!
+                                    .opportunityPublicationState !=
+                                'published') ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          const Text(
+                            'Cette opportunité n’est plus publiée. Votre demande conserve sa référence.',
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (presentation.workflowKind == 'service' &&
+                onOpenArtifacts != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                child: MakoloActionButton(
+                  label: 'Pièces de ma démarche',
+                  icon: Icons.attach_file_rounded,
+                  onPressed: onOpenArtifacts,
+                ),
+              ),
+            ],
+            if (presentation.serviceResult != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Réponse de l’organisme',
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        presentation.serviceResult!.label,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      const Text(
+                        'Cette réponse est distincte de l’état de votre démarche Makolo.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (presentation.canRespondInvitation &&
+                !presentation.isTerminal) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                  vertical: MakoloSpacing.lg,
+                ),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(MakoloSpacing.inner),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Votre invitation',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: MakoloSpacing.md),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            MakoloActionButton(
+                              label: 'Accepter',
+                              icon: Icons.check_rounded,
+                              onPressed: invitationEnabled
+                                  ? () => onInvitationDecision('accept')
+                                  : null,
+                              appearance: MakoloActionAppearance.primary,
+                              phase: invitationDecision == 'accept'
+                                  ? invitationPhase
+                                  : invitationEnabled
+                                  ? MakoloActionPhase.available
+                                  : MakoloActionPhase.unavailable,
+                            ),
+                            MakoloActionButton(
+                              label: 'Refuser',
+                              icon: Icons.close_rounded,
+                              onPressed: invitationEnabled
+                                  ? () => onInvitationDecision('decline')
+                                  : null,
+                              appearance: MakoloActionAppearance.secondary,
+                              phase: invitationDecision == 'decline'
+                                  ? invitationPhase
+                                  : invitationEnabled
+                                  ? MakoloActionPhase.available
+                                  : MakoloActionPhase.unavailable,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (invitationNotice != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                child: Text(invitationNotice!),
+              ),
+            if (!presentation.isTerminal &&
+                !presentation.canRespondInvitation &&
+                composition.situation != JourneySituation.calm) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                child: _JourneySituationPanel(
+                  presentation: presentation,
+                  composition: composition,
+                  primaryAction: action,
+                  ownerAction: (label, link) =>
+                      _ownerActionForLink(label, link),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+            ],
+            if (composition.hasPreparation) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Ma préparation',
+                child: _JourneyPreparation(
+                  presentation: presentation,
+                  composition: composition,
+                  ownerAction: (label, link) =>
+                      _ownerActionForLink(label, link),
+                  onOpenForm: onOpenForm,
+                  onOpenRequirement: onOpenRequirement,
+                ),
+              ),
+            ],
+            if (composition.hasDocuments) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Documents et ressources',
+                child: resourcesPreview.isEmpty
+                    ? Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              onOpenResources(presentation.resourcesLink!),
+                          icon: const Icon(Icons.folder_open_outlined),
+                          label: const Text('Consulter les ressources'),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          SizedBox(
+                            height: 120,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final count = resourcesPreview.length > 4
+                                    ? 4
+                                    : resourcesPreview.length;
+                                final tileWidth =
+                                    (constraints.maxWidth - 12) /
+                                    (constraints.maxWidth >= 700 ? 4 : 2.15);
+                                return ListView.separated(
+                                  key: const Key('journey-resource-preview'),
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: count,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(width: 8),
+                                  itemBuilder: (context, index) => SizedBox(
+                                    width: tileWidth,
+                                    child: _JourneyResourceTile(
+                                      resource: resourcesPreview[index],
+                                      onOpen: () => onOpenResources(
+                                        presentation.resourcesLink!,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () =>
+                                  onOpenResources(presentation.resourcesLink!),
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              iconAlignment: IconAlignment.end,
+                              label: Text(
+                                resourcesKnown
+                                    ? 'Voir les ${resourcesPreview.length} ressources'
+                                    : 'Voir les ressources',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+            if (_hasAdditionalPracticalFacts(presentation.practical)) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Sur place',
+                child: _JourneyPracticalCard(facts: presentation.practical!),
+              ),
+            ],
+            if (composition.hasEngagements) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Mes engagements',
+                child: _JourneyEngagements(
+                  presentation: presentation,
+                  onOpenPaymentObligation: onOpenPaymentObligation,
+                  onOpenCommerceOrder: onOpenCommerceOrder,
+                  onOpenAccess: onOpenAccess,
+                ),
+              ),
+            ],
+            if (presentation.steps.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Mon parcours',
+                child: _JourneyPath(
+                  steps: presentation.steps,
+                  hasBranches: composition.hasBranches,
+                ),
+              ),
+            ],
+            if ((presentation.activity?.link != null &&
+                    presentation.activity!.label != presentation.title) ||
+                (presentation.occurrence?.link != null &&
+                    presentation.occurrence!.label.trim().isNotEmpty &&
+                    presentation.occurrence!.label != 'Occurrence' &&
+                    presentation.occurrence!.label != presentation.title)) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                child: MakoloCard(
+                  child: Column(
+                    children: [
+                      if (presentation.activity?.link != null &&
+                          presentation.activity!.label != presentation.title)
+                        _ReferenceCard(
+                          reference: presentation.activity!,
+                          contextLabel: 'Activité',
+                          onTap: () => onOpenActivity(presentation.activity!),
+                        ),
+                      if (presentation.occurrence?.link != null &&
+                          presentation.occurrence!.label.trim().isNotEmpty &&
+                          presentation.occurrence!.label != 'Occurrence' &&
+                          presentation.occurrence!.label != presentation.title)
+                        _ReferenceCard(
+                          reference: presentation.occurrence!,
+                          contextLabel: 'Occurrence',
+                          hideRepeatedTitle:
+                              presentation.occurrence!.label ==
+                              presentation.title,
+                          onTap: () =>
+                              onOpenOccurrence(presentation.occurrence!),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (presentation.history.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
+                title: 'Historique',
+                child: _JourneyHistory(entries: presentation.history),
+              ),
+            ],
+          ],
         ),
-        if (presentation.nextActionLabel != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
+      ),
+    );
+  }
+
+  Widget? _nextActionButton() => _ownerActionForLink(
+    presentation.nextActionLabel ?? 'Continuer',
+    presentation.nextActionLink,
+    primary: true,
+  );
+
+  /// Follow only links exposed by the actual owner projection. An unknown
+  /// next-action URL remains visible as information, never as a false CTA.
+  Widget? _ownerActionForLink(
+    String label,
+    String? link, {
+    bool primary = false,
+  }) {
+    if (link == null || link.isEmpty || presentation.isTerminal) return null;
+    final appearance = primary
+        ? MakoloActionAppearance.primary
+        : MakoloActionAppearance.secondary;
+
+    for (final form in presentation.forms) {
+      if (form.detailLink == link ||
+          (form.canComplete &&
+              (form.saveLink == link || form.submitLink == link))) {
+        return MakoloActionButton(
+          appearance: appearance,
+          label: label,
+          onPressed: () => onOpenForm(form),
+        );
+      }
+    }
+    for (final requirement in presentation.requirements) {
+      if (requirement.link == link) {
+        return MakoloActionButton(
+          appearance: appearance,
+          label: label,
+          onPressed: () => onOpenRequirement(requirement),
+        );
+      }
+    }
+    // A Readiness next-action may point to an owner's payment/commerce
+    // operation rather than its detail endpoint. Open the known local owner
+    // depth, never the raw URL and never a different obligation.
+    final segments = Uri.tryParse(link)?.pathSegments ?? const <String>[];
+    if (onOpenPaymentObligation != null && segments.contains('obligations')) {
+      for (final obligation in presentation.payments) {
+        final id = obligation.obligationId;
+        if (id != null && segments.contains(id)) {
+          return MakoloActionButton(
+            appearance: appearance,
+            label: label,
+            onPressed: () => onOpenPaymentObligation!(id),
+          );
+        }
+      }
+    }
+    final order = presentation.order;
+    if (onOpenCommerceOrder != null &&
+        order != null &&
+        segments.contains('orders') &&
+        segments.contains(order.id)) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenCommerceOrder!(order.id),
+      );
+    }
+    if (presentation.resourcesLink == link) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenResources(link),
+      );
+    }
+    if (presentation.activity?.link == link) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenActivity(presentation.activity!),
+      );
+    }
+    if (presentation.occurrence?.link == link) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenOccurrence(presentation.occurrence!),
+      );
+    }
+    if (presentation.access?.link == link) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenAccess(presentation.access!),
+      );
+    }
+    if (presentation.liveLink == link) {
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenLive(link),
+      );
+    }
+    if (presentation.dayOfLink == link) {
+      final facts = presentation.practical;
+      if (JourneyDayPresentation.dayOffset(
+            facts?.startDate,
+            DateTime.now(),
+            timezoneName: facts?.timezone,
+          ) !=
+          0) {
+        return null;
+      }
+      return MakoloActionButton(
+        appearance: appearance,
+        label: label,
+        onPressed: () => onOpenDayOf(link),
+      );
+    }
+    return null;
+  }
+}
+
+class _JourneyHistory extends StatelessWidget {
+  const _JourneyHistory({required this.entries});
+
+  final List<JourneyHistoryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    return MakoloCard(
+      child: Column(
+        children: [
+          for (final entry in entries.take(3)) _JourneyHistoryRow(entry: entry),
+          if (entries.length > 3)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text('Voir les ${entries.length - 3} autres changements'),
+              children: [
+                for (final entry in entries.skip(3))
+                  _JourneyHistoryRow(entry: entry),
+              ],
             ),
-            child: MakoloAttentionBlock(
-              title: 'À faire maintenant',
-              body: presentation.nextActionLabel!,
-              action: _nextActionButton(),
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
         ],
-        if (presentation.liveLink != null ||
-            presentation.dayOfLink != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: MakoloAttentionBlock(
-              title: presentation.liveLink != null
-                  ? 'Ce qui se passe maintenant'
-                  : 'Jour J',
-              body: presentation.liveLink != null
-                  ? 'Cette occurrence est en cours. Retrouvez uniquement ce qui aide à agir maintenant.'
-                  : 'Les informations utiles pour vivre cette occurrence sont disponibles.',
-              icon: presentation.liveLink != null
-                  ? Icons.bolt_rounded
-                  : Icons.today_rounded,
-              action: FilledButton.icon(
-                onPressed: presentation.liveLink != null
-                    ? () => onOpenLive(presentation.liveLink!)
-                    : () => onOpenDayOf(presentation.dayOfLink!),
-                icon: Icon(
-                  presentation.liveLink != null
-                      ? Icons.play_arrow_rounded
-                      : Icons.arrow_forward_rounded,
-                ),
-                label: Text(
-                  presentation.liveLink != null
-                      ? 'Ouvrir Makolo Live'
-                      : 'Ouvrir Jour J',
-                ),
+      ),
+    );
+  }
+}
+
+class _JourneyHistoryRow extends StatelessWidget {
+  const _JourneyHistoryRow({required this.entry});
+
+  final JourneyHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final when = MaterialLocalizations.of(context)
+        .formatMediumDate(entry.at.toLocal());
+    final time =
+        '${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
+        '${entry.at.toLocal().minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.history_rounded, size: 20, color: _journeyAccent(context)),
+          const SizedBox(width: MakoloSpacing.sm),
+          Expanded(child: Text(entry.label)),
+          const SizedBox(width: MakoloSpacing.sm),
+          Flexible(
+            child: Text(
+              '$when · $time',
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
-          const SizedBox(height: MakoloSpacing.xl),
         ],
-        MakoloSection(
-          title: 'Préparation',
-          child: _ReadinessGroups(presentation: presentation),
-        ),
-        if (presentation.resourcesLink != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Documents et instructions',
-            child: MakoloCard(
-              semanticLabel: 'Ouvrir les documents et instructions',
-              onTap: () => onOpenResources(presentation.resourcesLink!),
-              child: const MakoloStatusMetadataAction(
-                title: 'Ressources de préparation',
-                subtitle: 'Consultez ce que le propriétaire de la démarche a rendu disponible.',
-                action: Icon(Icons.chevron_right_rounded),
+      ),
+    );
+  }
+}
+
+class _JourneyEngagements extends StatelessWidget {
+  const _JourneyEngagements({
+    required this.presentation,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+    required this.onOpenAccess,
+  });
+
+  final JourneyDetailPresentation presentation;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+  final void Function(JourneyReference) onOpenAccess;
+
+  @override
+  Widget build(BuildContext context) {
+    final order = presentation.order;
+    return MakoloCard(
+      child: Column(
+        children: [
+          for (final obligation in presentation.payments) ...[
+            _JourneyPaymentCard(
+              payment: obligation,
+              onOpenPaymentObligation: onOpenPaymentObligation,
+              onOpenCommerceOrder: onOpenCommerceOrder,
+            ),
+            const Divider(height: 8),
+          ],
+          if (order != null)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.shopping_bag_outlined,
+                color: _journeyAccent(context),
               ),
+              title: const Text('Ma commande'),
+              subtitle: Text(
+                [
+                  if (presentation.payments.isEmpty &&
+                      order.total != null &&
+                      order.currency != null)
+                    '${order.total} ${order.currency}',
+                  MakoloHumanization.presentationLabel(order.state) ??
+                      order.state,
+                ].join(' · '),
+              ),
+              trailing: onOpenCommerceOrder == null
+                  ? null
+                  : const Icon(Icons.chevron_right_rounded),
+              onTap: onOpenCommerceOrder == null
+                  ? null
+                  : () => onOpenCommerceOrder!(order.id),
             ),
-          ),
-        ],
-        if (presentation.forms.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Formulaires',
-            child: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < presentation.forms.length;
-                  index++
-                ) ...[
-                  _FormCard(
-                    form: presentation.forms[index],
-                    onOpen: onOpenForm,
-                  ),
-                  if (index < presentation.forms.length - 1)
-                    const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-        ],
-        if (presentation.requirements.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Éléments nécessaires',
-            child: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < presentation.requirements.length;
-                  index++
-                ) ...[
-                  _ReferenceCard(
-                    reference: presentation.requirements[index],
-                    onTap: () =>
-                        onOpenRequirement(presentation.requirements[index]),
-                  ),
-                  if (index < presentation.requirements.length - 1)
-                    const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-        ],
-        if (presentation.activity != null ||
-            presentation.occurrence != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Contexte',
-            child: Column(
-              children: [
-                if (presentation.activity != null)
-                  _ReferenceCard(
-                    reference: presentation.activity!,
-                    onTap: presentation.activity!.link == null
-                        ? null
-                        : () => onOpenActivity(presentation.activity!),
-                  ),
-                if (presentation.activity != null &&
-                    presentation.occurrence != null)
-                  const SizedBox(height: MakoloSpacing.sm),
-                if (presentation.occurrence != null)
-                  _ReferenceCard(
-                    reference: presentation.occurrence!,
-                    onTap: presentation.occurrence!.link == null
-                        ? null
-                        : () => onOpenOccurrence(presentation.occurrence!),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        if (presentation.access != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Accès',
-            child: _ReferenceCard(
+          if (order != null && presentation.access != null)
+            const Divider(height: 8),
+          if (presentation.access != null)
+            _ReferenceCard(
               reference: presentation.access!,
               onTap: presentation.access!.link == null
                   ? null
                   : () => onOpenAccess(presentation.access!),
             ),
-          ),
         ],
-      ],
+      ),
     );
   }
+}
 
-  Widget? _nextActionButton() {
-    final link = presentation.nextActionLink;
-    if (link == null || link.isEmpty) return null;
+/// Terminal labels are solely the owner Journey state, never an invented
+/// success or a percentage computed from unrelated capabilities.
+/// One human-readable current situation. No synthetic task or owner state.
+class _JourneySituationPanel extends StatelessWidget {
+  const _JourneySituationPanel({
+    required this.presentation,
+    required this.composition,
+    required this.primaryAction,
+    required this.ownerAction,
+  });
 
-    JourneyFormSummary? form;
-    for (final item in presentation.forms) {
-      if (item.detailLink == link) {
-        form = item;
-        break;
-      }
-    }
-    final matchedForm = form;
-    if (matchedForm != null) {
-      return FilledButton(
-        onPressed: () => onOpenForm(matchedForm),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+  final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
+  final Widget? primaryAction;
+  final Widget? Function(String label, String? link) ownerAction;
 
-    JourneyReference? requirement;
-    for (final item in presentation.requirements) {
-      if (item.link == link) {
-        requirement = item;
-        break;
-      }
-    }
-    final matchedRequirement = requirement;
-    if (matchedRequirement != null) {
-      return FilledButton(
-        onPressed: () => onOpenRequirement(matchedRequirement),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    final situation = composition.situation;
+    final firstBlocker = presentation.blockers.isNotEmpty
+        ? presentation.blockers.first
+        : null;
+    final firstWaiting = presentation.waiting.isNotEmpty
+        ? presentation.waiting.first
+        : null;
+    final title = switch (situation) {
+      JourneySituation.blocked => 'Ce qui bloque',
+      JourneySituation.choices => 'Plusieurs possibilités',
+      JourneySituation.waiting => 'En attente',
+      JourneySituation.action => 'Pour avancer',
+      _ => '',
+    };
+    final icon = switch (situation) {
+      JourneySituation.blocked => Icons.report_problem_outlined,
+      JourneySituation.choices => Icons.alt_route_rounded,
+      JourneySituation.waiting => Icons.hourglass_top_rounded,
+      _ => Icons.arrow_outward_rounded,
+    };
+    final detail = switch (situation) {
+      JourneySituation.blocked =>
+        firstBlocker?.summary ?? 'Une demande a été refusée.',
+      JourneySituation.waiting =>
+        firstWaiting?.summary ?? 'Une réponse est attendue.',
+      JourneySituation.action || JourneySituation.choices =>
+        primaryAction == null ? presentation.nextActionLabel : null,
+      _ => null,
+    };
+    final color = situation == JourneySituation.blocked
+        ? Theme.of(context).colorScheme.error
+        : _journeyAccent(context);
+    final seen = <String>{
+      if (primaryAction != null && presentation.nextActionLink != null)
+        presentation.nextActionLink!,
+    };
+    return DecoratedBox(
+      key: const Key('journey-current-situation'),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 21),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            if (detail != null &&
+                detail.trim().isNotEmpty &&
+                detail.trim().toLowerCase() !=
+                    presentation.title.trim().toLowerCase()) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(detail),
+            ],
+            if (situation == JourneySituation.choices) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              ?primaryAction,
+              for (final item in presentation.actorInterventions)
+                if (item.nextLink != null &&
+                    item.nextLink!.isNotEmpty &&
+                    seen.add(item.nextLink!)) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                    child:
+                        ownerAction(
+                          item.nextLabel ?? item.summary,
+                          item.nextLink,
+                        ) ??
+                        Text(item.summary),
+                  ),
+                ],
+            ] else if (primaryAction != null &&
+                (situation == JourneySituation.action ||
+                    situation == JourneySituation.blocked)) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              primaryAction!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    if (presentation.resourcesLink == link) {
-      return FilledButton(
-        onPressed: () => onOpenResources(link),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+/// Full-width cover for the person's objective. Time, place and Journey
+/// status are presented once; details and authority remain with their owners.
+class _JourneyIdentity extends StatelessWidget {
+  const _JourneyIdentity({
+    required this.presentation,
+    this.conversationEntry,
+    required this.onOpenDayOf,
+    required this.onOpenLive,
+  });
 
-    if (presentation.activity?.link == link) {
-      return FilledButton(
-        onPressed: () => onOpenActivity(presentation.activity!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+  final JourneyDetailPresentation presentation;
+  final Widget? conversationEntry;
+  final ValueChanged<String> onOpenDayOf;
+  final ValueChanged<String> onOpenLive;
 
-    if (presentation.occurrence?.link == link) {
-      return FilledButton(
-        onPressed: () => onOpenOccurrence(presentation.occurrence!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    final facts = presentation.practical;
+    final date =
+        JourneyDayPresentation.civilDate(facts?.startDate) ??
+        facts?.startAt?.toLocal();
+    final endDate = JourneyDayPresentation.civilDate(facts?.endDate);
+    final locale = MaterialLocalizations.of(context);
+    final dateLabel = date == null ? null : locale.formatMediumDate(date);
+    final sameDay =
+        facts?.endDate == null || facts?.endDate == facts?.startDate;
+    final startTime =
+        JourneyDayPresentation.clock(facts?.startTime) ??
+        (facts?.startAt == null
+            ? null
+            : JourneyDayPresentation.clock(
+                '${facts!.startAt!.toLocal().hour.toString().padLeft(2, '0')}:'
+                '${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
+              ));
+    final endTime = JourneyDayPresentation.clock(facts?.endTime);
+    String compactTime(String value) =>
+        value.endsWith('h00') ? value.substring(0, value.length - 2) : value;
+    final timeLabel = startTime == null
+        ? null
+        : sameDay && endTime != null
+        ? '${compactTime(startTime)}–${compactTime(endTime)}'
+        : compactTime(startTime);
+    final endLabel = !sameDay && endDate != null
+        ? 'Jusqu’au ${locale.formatMediumDate(endDate)}'
+              '${endTime == null ? '' : ' · ${compactTime(endTime)}'}'
+        : null;
+    final place = JourneyDayPresentation.place(
+      name: facts?.placeName,
+      locality: facts?.placeLocality,
+    );
+    final placeDetail = JourneyDayPresentation.additionalPlace(
+      name: facts?.placeName,
+      locality: facts?.placeLocality,
+      address: facts?.placeAddress,
+    );
+    final status =
+        presentation.workflowKind == 'service' &&
+            presentation.stateCode == 'fulfilled'
+        ? 'Suivi terminé dans Makolo'
+        : MakoloHumanization.presentationLabel(presentation.journeyState);
+    final successful =
+        presentation.stateCode == 'fulfilled' &&
+        presentation.workflowKind != 'service';
+    final style = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
 
-    if (presentation.access?.link == link) {
-      return FilledButton(
-        onPressed: () => onOpenAccess(presentation.access!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
-      );
-    }
+    return Container(
+      key: const Key('journey-identity'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(22),
+          bottomRight: Radius.circular(22),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MakoloSpacing.md,
+        vertical: MakoloSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.track_changes_rounded,
+                color: scheme.primary,
+                size: 24,
+                semanticLabel: 'Objectif',
+              ),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Text(
+                  'MON OBJECTIF',
+                  style: style.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(
+            presentation.title,
+            style: style.headlineSmall?.copyWith(
+              color: scheme.onSurface,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          if (status != null ||
+              conversationEntry != null ||
+              presentation.liveLink != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Row(
+              children: [
+                if (status != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: successful
+                          ? MakoloColors.success.withValues(alpha: 0.14)
+                          : scheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Text(
+                      status,
+                      style: style.labelMedium?.copyWith(
+                        color: successful
+                            ? MakoloColors.success
+                            : scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (conversationEntry != null)
+                  IconTheme(
+                    data: IconThemeData(color: scheme.primary, size: 23),
+                    child: conversationEntry!,
+                  ),
+                if (presentation.liveLink != null)
+                  IconButton(
+                    tooltip: 'Ouvrir Makolo Live',
+                    color: scheme.primary,
+                    icon: const Icon(Icons.sensors_rounded),
+                    onPressed: () => onOpenLive(presentation.liveLink!),
+                  ),
+              ],
+            ),
+          ],
+          if (dateLabel != null ||
+              timeLabel != null ||
+              place != null ||
+              placeDetail != null ||
+              endLabel != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Divider(height: MakoloSpacing.md, color: scheme.outlineVariant),
+            Wrap(
+              spacing: MakoloSpacing.compact,
+              runSpacing: MakoloSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (dateLabel != null)
+                  _JourneyHeroFact(
+                    icon: Icons.calendar_today_outlined,
+                    label: dateLabel,
+                  ),
+                if (timeLabel != null)
+                  _JourneyHeroFact(
+                    icon: Icons.schedule_outlined,
+                    label: timeLabel,
+                  ),
+                if (place != null)
+                  _JourneyHeroFact(icon: Icons.place_outlined, label: place),
+                if (facts?.startDate != null)
+                  JourneyDayBadge(
+                    occurrenceDate: facts!.startDate!,
+                    timezoneName: facts.timezone,
+                    onOpenDayOf: presentation.dayOfLink == null
+                        ? null
+                        : () => onOpenDayOf(presentation.dayOfLink!),
+                  ),
+              ],
+            ),
+            if (placeDetail != null || endLabel != null) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Wrap(
+                spacing: MakoloSpacing.md,
+                runSpacing: MakoloSpacing.xs,
+                children: [
+                  if (placeDetail != null)
+                    _JourneyHeroFact(
+                      icon: Icons.directions_outlined,
+                      label: placeDetail,
+                      secondary: true,
+                    ),
+                  if (endLabel != null)
+                    _JourneyHeroFact(
+                      icon: Icons.event_available_outlined,
+                      label: endLabel,
+                      secondary: true,
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
 
-    if (presentation.liveLink == link) {
-      return FilledButton(
-        onPressed: () => onOpenLive(link),
-        child: Text(presentation.nextActionLabel ?? 'Ouvrir Makolo Live'),
-      );
-    }
+class _JourneyHeroFact extends StatelessWidget {
+  const _JourneyHeroFact({
+    required this.icon,
+    required this.label,
+    this.secondary = false,
+  });
 
-    if (presentation.dayOfLink == link) {
-      return FilledButton(
-        onPressed: () => onOpenDayOf(link),
-        child: Text(presentation.nextActionLabel ?? 'Ouvrir Jour J'),
-      );
-    }
+  final IconData icon;
+  final String label;
+  final bool secondary;
 
-    return null;
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = secondary ? scheme.onSurfaceVariant : scheme.onSurface;
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth:
+                (MediaQuery.sizeOf(context).width < 760
+                    ? MediaQuery.sizeOf(context).width
+                    : 760) -
+                2 * MakoloSpacing.md,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  softWrap: true,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: color,
+                    fontWeight: secondary ? FontWeight.w400 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// JourneySteps are shown as facts, not a locally computed percentage/timeline.
+/// Dependencies are named only when the owner supplied both linked steps.
+class _JourneyPath extends StatelessWidget {
+  const _JourneyPath({required this.steps, required this.hasBranches});
+
+  final List<JourneyStepSummary> steps;
+  final bool hasBranches;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = steps
+        .where((step) => !step.isTerminal && step.status != 'pending')
+        .toList();
+    final future = steps.where((step) => step.status == 'pending').toList();
+    final past = steps.where((step) => step.isTerminal).toList();
+    final shownFuture = hasBranches ? future : future.take(2).toList();
+    final hiddenFuture = hasBranches
+        ? <JourneyStepSummary>[]
+        : future.skip(2).toList();
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasBranches) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.alt_route_rounded,
+                  size: 18,
+                  color: _journeyAccent(context),
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
+                const Expanded(child: Text('Plusieurs chemins possibles')),
+              ],
+            ),
+            const Divider(height: 16),
+          ],
+          if (past.length <= 3)
+            for (final step in past)
+              _JourneyStepRow(step: step, allSteps: steps),
+          for (final step in active)
+            _JourneyStepRow(step: step, allSteps: steps),
+          for (final step in shownFuture)
+            _JourneyStepRow(step: step, allSteps: steps),
+          if (hiddenFuture.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text('Voir les ${hiddenFuture.length} étapes suivantes'),
+              children: [
+                for (final step in hiddenFuture)
+                  _JourneyStepRow(step: step, allSteps: steps),
+              ],
+            ),
+          if (past.length > 3)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.check_circle_outline_rounded,
+                color: _journeyAccent(context),
+              ),
+              title: Text(
+                '${past.length} étape${past.length > 1 ? 's' : ''} passée${past.length > 1 ? 's' : ''}',
+              ),
+              children: [
+                for (final step in past)
+                  _JourneyStepRow(step: step, allSteps: steps),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyStepRow extends StatelessWidget {
+  const _JourneyStepRow({required this.step, required this.allSteps});
+
+  final JourneyStepSummary step;
+  final List<JourneyStepSummary> allSteps;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (step.status) {
+      'completed' => 'Terminée',
+      'skipped' => 'Non retenue',
+      'cancelled' => 'Annulée',
+      'in_progress' => 'En cours',
+      'blocked' => 'Bloquée',
+      'ready' => 'Prête',
+      'pending' => 'En attente',
+      _ => null,
+    };
+    final icon = switch (step.status) {
+      'completed' => Icons.check_circle_outline_rounded,
+      'skipped' || 'cancelled' => Icons.remove_circle_outline_rounded,
+      'blocked' => Icons.error_outline_rounded,
+      'in_progress' => Icons.radio_button_checked_rounded,
+      'ready' => Icons.play_circle_outline_rounded,
+      _ => Icons.radio_button_unchecked_rounded,
+    };
+    final dependencies = [
+      for (final id in step.dependsOn)
+        for (final candidate in allSteps)
+          if (candidate.id == id) candidate.title,
+    ];
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: _journeyAccent(context)),
+      title: Text(step.title),
+      subtitle: label == null && dependencies.isEmpty
+          ? null
+          : Text(
+              [
+                ?label,
+                if (dependencies.isNotEmpty)
+                  'Après : ${dependencies.join(', ')}',
+              ].join(' · '),
+            ),
+    );
+  }
+}
+
+class _JourneyPreparation extends StatelessWidget {
+  const _JourneyPreparation({
+    required this.presentation,
+    required this.composition,
+    required this.ownerAction,
+    required this.onOpenForm,
+    required this.onOpenRequirement,
+  });
+
+  final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
+  final Widget? Function(String, String?) ownerAction;
+  final void Function(JourneyFormSummary) onOpenForm;
+  final void Function(JourneyReference) onOpenRequirement;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReadiness =
+        !presentation.isTerminal &&
+        (presentation.ready.isNotEmpty ||
+            presentation.waiting.isNotEmpty ||
+            presentation.blockers.isNotEmpty ||
+            composition.interventions.isNotEmpty);
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final form in presentation.forms) ...[
+            _FormCard(
+              form: form,
+              onOpen: onOpenForm,
+              isTerminal: presentation.isTerminal,
+            ),
+            const Divider(height: 8),
+          ],
+          for (final requirement in presentation.requirements) ...[
+            _JourneyRequirementRow(
+              reference: requirement,
+              onOpen: onOpenRequirement,
+            ),
+            const Divider(height: 8),
+          ],
+          if (hasReadiness)
+            _ReadinessGroups(
+              presentation: presentation,
+              composition: composition,
+              ownerAction: ownerAction,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyRequirementRow extends StatelessWidget {
+  const _JourneyRequirementRow({required this.reference, required this.onOpen});
+
+  final JourneyReference reference;
+  final void Function(JourneyReference) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MakoloHumanization.presentationLabel(reference.state);
+    final fulfilled = const {
+      'satisfied',
+      'accepted',
+      'approved',
+      'completed',
+    }.contains(reference.state);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        fulfilled
+            ? Icons.check_circle_outline_rounded
+            : Icons.assignment_turned_in_outlined,
+        color: _journeyAccent(context),
+      ),
+      title: Text(reference.label),
+      subtitle: Text(
+        [if (reference.isRequired) 'Obligatoire', ?state].join(' · '),
+      ),
+      trailing: reference.link == null
+          ? null
+          : const Icon(Icons.chevron_right_rounded),
+      onTap: reference.link == null ? null : () => onOpen(reference),
+    );
   }
 }
 
 class _ReadinessGroups extends StatelessWidget {
-  const _ReadinessGroups({required this.presentation});
+  const _ReadinessGroups({
+    required this.presentation,
+    required this.composition,
+    required this.ownerAction,
+  });
 
   final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
+  final Widget? Function(String label, String? link) ownerAction;
 
   @override
   Widget build(BuildContext context) {
-    final primary = presentation.nextActionLabel?.trim();
-    final actorInterventions = [
-      for (final item in presentation.actorInterventions)
-        if (primary == null || item.summary.trim() != primary) item,
-    ];
+    final situation = composition.situation;
+    final interventions = situation == JourneySituation.choices
+        ? <JourneyReadinessItem>[]
+        : composition.interventions
+              .where(
+                (item) =>
+                    item.nextLink == null ||
+                    item.nextLink != presentation.nextActionLink,
+              )
+              .toList();
+    final blockers =
+        situation == JourneySituation.blocked &&
+            presentation.blockers.isNotEmpty
+        ? presentation.blockers.skip(1).toList()
+        : presentation.blockers;
+    final waiting =
+        situation == JourneySituation.waiting && presentation.waiting.isNotEmpty
+        ? presentation.waiting.skip(1).toList()
+        : presentation.waiting;
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
-      ('Demande votre attention', actorInterventions, Icons.bolt_rounded),
-      ('Bloque la suite', presentation.blockers, Icons.block_rounded),
-      ('En attente', presentation.waiting, Icons.schedule_rounded),
-      ('En ordre', presentation.ready, Icons.check_circle_outline_rounded),
-    ];
-    final visible = groups.where((group) => group.$2.isNotEmpty).toList();
-
-    if (visible.isEmpty) {
-      final isCalm =
-          (presentation.readinessState == 'ready' ||
-              presentation.readinessState == 'complete') &&
-          presentation.freshness == FreshnessState.fresh;
-      return MakoloCard(
-        child: Text(
-          isCalm
-              ? 'Tout est en ordre pour le moment. ✓'
-              : 'Aucun détail de préparation supplémentaire.',
-        ),
-      );
-    }
-
+      ('Encore à résoudre', blockers, Icons.warning_amber_rounded),
+      ('De votre côté', interventions, Icons.touch_app_outlined),
+      ('En attente', waiting, Icons.hourglass_empty_rounded),
+    ].where((item) => item.$2.isNotEmpty).toList();
+    final readableReady = presentation.ready
+        .where((item) => journeyUsefulReadySummary(item.summary))
+        .toList();
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0; index < visible.length; index++) ...[
-          MakoloCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(visible[index].$3, size: 20),
-                    const SizedBox(width: MakoloSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        visible[index].$1,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                  ],
+        for (final group in groups) ...[
+          Row(
+            children: [
+              Icon(group.$3, size: 18, color: _journeyAccent(context)),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Text(
+                  group.$1,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: MakoloSpacing.sm),
-                for (final item in visible[index].$2)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                    child: Text('• ${item.summary}'),
-                  ),
-              ],
+              ),
+            ],
+          ),
+          for (final item in group.$2)
+            Padding(
+              padding: const EdgeInsets.only(left: 27, top: 5, bottom: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.summary),
+                  if (item.nextLabel != null &&
+                      item.nextLink != null &&
+                      item.nextLink != presentation.nextActionLink)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child:
+                          ownerAction(item.nextLabel!, item.nextLink) ??
+                          const SizedBox.shrink(),
+                    ),
+                ],
+              ),
+            ),
+          const Divider(height: 12),
+        ],
+        if (readableReady.isNotEmpty)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.check_circle_outline_rounded,
+              color: _journeyAccent(context),
+            ),
+            title: Text(
+              readableReady.length == 1
+                  ? '1 point vérifié'
+                  : '${readableReady.length} points vérifiés',
+            ),
+            children: [
+              for (final item in readableReady)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_rounded, size: 18),
+                  title: Text(item.summary),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+String? _additionalJourneyInstructions(JourneyPracticalFacts? facts) {
+  if (facts == null) return null;
+  final text = facts.accessInstructions?.trim();
+  if (text == null || text.isEmpty) return null;
+  final known = [
+    facts.placeName,
+    facts.placeLocality,
+    facts.placeAddress,
+    JourneyDayPresentation.additionalPlace(
+      name: facts.placeName,
+      locality: facts.placeLocality,
+      address: facts.placeAddress,
+    ),
+  ];
+  if (known.any((value) => value?.trim().toLowerCase() == text.toLowerCase())) {
+    return null;
+  }
+  return text;
+}
+
+bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) =>
+    _additionalJourneyInstructions(facts) != null;
+
+/// The hero already owns the main date, hour and location; show only genuinely
+/// additional practical information here.
+IconData _resourceIcon(JourneyResourcePreview resource) {
+  final mime = resource.mimeType?.toLowerCase() ?? '';
+  if (mime.startsWith('image/')) return Icons.image_outlined;
+  if (mime.startsWith('video/')) return Icons.videocam_outlined;
+  if (mime == 'application/pdf') return Icons.picture_as_pdf_outlined;
+  return switch (resource.kind) {
+    'url' => Icons.link_rounded,
+    'text' => Icons.notes_rounded,
+    'file' => Icons.description_outlined,
+    _ => Icons.folder_open_outlined,
+  };
+}
+
+class _JourneyResourceTile extends StatelessWidget {
+  const _JourneyResourceTile({required this.resource, required this.onOpen});
+
+  final JourneyResourcePreview resource;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: 'Consulter les ressources : ${resource.title}',
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(_resourceIcon(resource), size: 24, color: scheme.primary),
+              const SizedBox(height: 8),
+              Text(
+                resource.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The header already contains the calendar, complete time range and venue.
+/// Only distinct arrival instructions remain below it.
+class _JourneyPracticalCard extends StatelessWidget {
+  const _JourneyPracticalCard({required this.facts});
+
+  final JourneyPracticalFacts facts;
+
+  @override
+  Widget build(BuildContext context) {
+    final instructions = _additionalJourneyInstructions(facts);
+    if (instructions == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: _journeyAccent(context),
+            size: 20,
+          ),
+          const SizedBox(width: MakoloSpacing.sm),
+          Expanded(
+            child: Text(
+              instructions,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-          if (index < visible.length - 1)
-            const SizedBox(height: MakoloSpacing.sm),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+class _JourneyPaymentCard extends StatelessWidget {
+  const _JourneyPaymentCard({
+    required this.payment,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+  });
+
+  final JourneyPaymentSummary payment;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (payment.state) {
+      'paid' || 'succeeded' || 'completed' || 'settled' => 'Payé',
+      'pending' || 'pending_payment' => 'En attente',
+      'processing' => 'En cours',
+      'satisfied' => 'Réglé',
+      'waived' => 'Dispensé',
+      'refunded' => 'Remboursé',
+      'expired' => 'Expiré',
+      'failed' => 'Échec',
+      'cancelled' => 'Annulé',
+      _ => null,
+    };
+    VoidCallback? open;
+    if (payment.obligationId != null && onOpenPaymentObligation != null) {
+      open = () => onOpenPaymentObligation!(payment.obligationId!);
+    } else if (payment.orderId != null && onOpenCommerceOrder != null) {
+      open = () => onOpenCommerceOrder!(payment.orderId!);
+    }
+    return ListTile(
+      onTap: open,
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        Icons.account_balance_wallet_outlined,
+        color: _journeyAccent(context),
+      ),
+      title: Text('${payment.amount} ${payment.currency}'),
+      subtitle: label == null && payment.reason == null
+          ? null
+          : Text(
+              [
+                ?label,
+                if (payment.reason != null && payment.reason!.isNotEmpty)
+                  payment.reason!,
+              ].join(' · '),
+            ),
+      trailing: open == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }
 
 class _FormCard extends StatelessWidget {
-  const _FormCard({required this.form, required this.onOpen});
+  const _FormCard({
+    required this.form,
+    required this.onOpen,
+    this.isTerminal = false,
+  });
 
   final JourneyFormSummary form;
   final void Function(JourneyFormSummary form) onOpen;
+  final bool isTerminal;
 
   @override
   Widget build(BuildContext context) {
-    final metadata = <MakoloMetadataItem>[
-      if (form.required) const MakoloMetadataItem('Obligatoire'),
-      if (form.dueAt != null)
-        MakoloMetadataItem(
-          'Échéance ${MaterialLocalizations.of(context).formatCompactDate(form.dueAt!.toLocal())}',
-          icon: Icons.event_outlined,
-        ),
-    ];
-    return MakoloCard(
-      semanticLabel: 'Formulaire',
-      onTap: form.canComplete && form.detailLink.isNotEmpty
-          ? () => onOpen(form)
-          : null,
-      child: MakoloStatusMetadataAction(
-        title: 'Formulaire',
-        subtitle: form.canComplete
-            ? 'Une réponse est attendue.'
-            : 'Consultation uniquement pour le moment.',
-        status: MakoloHumanization.presentationLabel(form.state) == null
-            ? null
-            : MakoloStatus(
-                label: MakoloHumanization.presentationLabel(form.state)!,
-              ),
-        metadata: metadata,
-        action: form.canComplete && form.detailLink.isNotEmpty
-            ? const Icon(Icons.chevron_right_rounded)
-            : null,
+    final label = isTerminal
+        ? 'Consulter'
+        : form.canComplete
+        ? 'À compléter'
+        : MakoloHumanization.presentationLabel(form.state);
+    final deadline = form.dueAt == null
+        ? null
+        : MaterialLocalizations.of(context)
+              .formatMediumDate(form.dueAt!.toLocal());
+    return ListTile(
+      dense: true,
+      onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
+        color: _journeyAccent(context),
       ),
+      title: Text(form.title),
+      subtitle: Text(
+        [
+          ?label,
+          if (form.required) 'Obligatoire',
+          if (deadline != null) 'Avant le $deadline',
+        ].join(' · '),
+      ),
+      trailing: form.detailLink.isNotEmpty
+          ? const Icon(Icons.chevron_right_rounded)
+          : null,
     );
   }
 }
 
 class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({required this.reference, this.onTap});
+  const _ReferenceCard({
+    required this.reference,
+    this.onTap,
+    this.contextLabel,
+    this.hideRepeatedTitle = false,
+  });
 
   final JourneyReference reference;
   final VoidCallback? onTap;
+  final String? contextLabel;
+  final bool hideRepeatedTitle;
 
   @override
   Widget build(BuildContext context) {
-    return MakoloCard(
+    final title = switch (contextLabel) {
+      'Activité' => 'À propos de l’activité',
+      'Occurrence' => 'Date ou séance',
+      _ => reference.label == 'Accès' ? 'Mon accès' : reference.label,
+    };
+    final symbol = switch (contextLabel) {
+      'Activité' => Icons.info_outline_rounded,
+      'Occurrence' => Icons.calendar_today_outlined,
+      _ =>
+        reference.label == 'Accès'
+            ? Icons.badge_outlined
+            : Icons.fact_check_outlined,
+    };
+    final state = MakoloHumanization.presentationLabel(reference.state);
+    final subtitle = [
+      if (contextLabel != null &&
+          !hideRepeatedTitle &&
+          reference.label.trim().isNotEmpty &&
+          reference.label != contextLabel)
+        reference.label,
+      if (contextLabel == null && reference.isRequired) 'Obligatoire',
+      ?state,
+    ].join(' · ');
+    return ListTile(
+      dense: true,
       onTap: onTap,
-      child: MakoloStatusMetadataAction(
-        title: reference.label,
-        status: MakoloHumanization.presentationLabel(reference.state) == null
-            ? null
-            : MakoloStatus(
-                label: MakoloHumanization.presentationLabel(reference.state)!,
-              ),
-        action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
-      ),
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(symbol, color: _journeyAccent(context)),
+      title: Text(title),
+      subtitle: subtitle.isEmpty ? null : Text(subtitle),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }

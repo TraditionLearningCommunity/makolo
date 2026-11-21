@@ -2,20 +2,19 @@
 {% block space_content %}
 <section class="mk-ws4-stack" aria-labelledby="space-relationships-heading">
   <header class="mk-ws4-heading">
-    <a class="mk-ws4-back" href="{{ space_us_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i>Nous</a>
+    <a class="mk-action-button" data-variant="link" href="{{ space_us_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i>Nous</a>
     <span class="mk-kicker">{{ projection.label }}</span>
     <h2 id="space-relationships-heading">Avec qui avançons-nous ?</h2>
-    <p>Chaque relation garde son sens propre. Une même personne peut apparaître ici dans plusieurs relations légitimes.</p>
   </header>
 
-  <form method="get" role="search" aria-label="Rechercher les relations du Space" class="mk-ws4-card">
-    <label for="relationship-search">Rechercher une relation dans ce Space</label>
-    <input id="relationship-search" type="search" name="q" value="{{ projection.search.query|default:'' }}" maxlength="120" autocomplete="off" placeholder="Nom, groupe, partenaire…">
-    <button type="submit">Rechercher</button>
+  <form method="get" role="search" aria-label="Rechercher des relations" class="mk-ws4-card">
+    <label for="relationship-search">Rechercher une personne ou une relation</label>
+    <input id="relationship-search" type="search" name="q" value="{{ projection.search.query|default:'' }}" maxlength="120" autocomplete="off" placeholder="Nom, groupe, partenaire…" class="mk-interaction-field">
+    <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
   </form>
   {% if projection.search %}
   <section class="mk-ws4-card" aria-labelledby="relationship-results">
-    <h3 id="relationship-results">Relations visibles correspondant à « {{ projection.search.query }} »</h3>
+    <h3 id="relationship-results">Résultats pour « {{ projection.search.query }} »</h3>
     {% if projection.search.items %}
     <ul class="mk-ws4-list">
       {% for row in projection.search.items %}
@@ -39,16 +38,16 @@
   <section class="mk-ws4-card" id="relation-focus" aria-labelledby="relation-focus-title">
     <div class="mk-ws4-card-head"><h3 id="relation-focus-title">{% if projection.selection.profile %}{{ projection.selection.profile.name }}{% elif projection.selection.name %}{{ projection.selection.name }}{% else %}{{ projection.selection.label }}{% endif %}</h3></div>
     <p>{{ projection.selection.relation_type }}</p>
-    <p>Relation détenue par {{ projection.selection.owner_identity }}.</p>
+    <p>Relation suivie par {{ projection.selection.owner_identity }}.</p>
     {% if projection.selection.links.owner_web %}
-    <a class="mk-ws4-deep-link" href="{{ projection.selection.links.owner_web }}">Ouvrir dans le domaine propriétaire</a>
+    <a class="mk-action-button" data-variant="link" href="{{ projection.selection.links.owner_web }}">Voir le détail</a>
     {% elif projection.selection.links.owner_api %}
-    <p>La gestion de cette relation appartient à son domaine propriétaire.</p>
+
     {% endif %}
     <a href="?q={{ projection.search.query|default:''|urlencode }}#relationship-results">Revenir aux relations</a>
   </section>
   {% elif request.GET.kind and request.GET.id %}
-  <p role="status">Cette relation n’est pas visible dans l’autorité actuelle.</p>
+  <p role="status">Vous n’avez pas accès à cette relation.</p>
   {% endif %}
 
   {% if projection.sections %}
@@ -59,12 +58,12 @@
       {% if projection.sections.team.items %}
       <ul class="mk-ws4-list">
         {% for row in projection.sections.team.items %}
-        <li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="user-round"></i></span><div><strong>{{ row.profile.name }}</strong><small>Collaborateur · Équipe</small></div></li>
+        <li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="user-round"></i></span><div><strong>{{ row.profile.name }}</strong><small>Collaborateur · Équipe</small><a href="?kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a></div></li>
         {% endfor %}
       </ul>
       {% else %}<p class="mk-ws4-empty">Aucun membre visible dans cette collection.</p>{% endif %}
-      {% if projection.sections.team.has_more %}<p class="mk-ws4-note">Voir toutes les relations dans leur domaine propriétaire.</p>{% endif %}
-      {% if relationship_owner_links.team %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if projection.sections.team.has_more %}<p class="mk-ws4-note">D’autres relations sont disponibles.</p>{% endif %}
+      {% if relationship_owner_links.team %}<a class="mk-action-button" data-variant="link" href="{{ relationship_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -72,10 +71,10 @@
     <section class="mk-ws4-card" aria-labelledby="relations-groups">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Appartenance</span><h3 id="relations-groups">Groupes</h3></div></div>
       {% if projection.sections.groups.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.groups.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="users"></i></span><div><strong>{{ row.name }}</strong><small>Groupe</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.groups.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="users"></i></span><div><strong>{{ row.name }}</strong><small>Groupe</small><a href="?kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucun groupe visible dans ce contexte.</p>{% endif %}
-      {% if projection.sections.groups.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
-      {% if relationship_owner_links.groups %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.groups }}">Voir les groupes <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if projection.sections.groups.has_more %}<p class="mk-ws4-note">D’autres relations sont disponibles.</p>{% endif %}
+      {% if relationship_owner_links.groups %}<a class="mk-action-button" data-variant="link" href="{{ relationship_owner_links.groups }}">Voir les groupes <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -83,10 +82,10 @@
     <section class="mk-ws4-card" aria-labelledby="relations-crm">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Relation client</span><h3 id="relations-crm">Clients / contacts</h3></div></div>
       {% if projection.sections.crm_contacts.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.crm_contacts.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="contact-round"></i></span><div><strong>{% if row.profile %}{{ row.profile.name }}{% else %}{{ row.label }}{% endif %}</strong><small>Contact CRM{% if row.label and row.profile %} · {{ row.label }}{% endif %}</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.crm_contacts.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="contact-round"></i></span><div><strong>{% if row.profile %}{{ row.profile.name }}{% else %}{{ row.label }}{% endif %}</strong><small>Contact CRM{% if row.label and row.profile %} · {{ row.label }}{% endif %}</small><a href="?kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucun contact CRM visible dans cette collection.</p>{% endif %}
-      {% if projection.sections.crm_contacts.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
-      {% if relationship_owner_links.crm_contacts %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.crm_contacts }}">Ouvrir les contacts <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if projection.sections.crm_contacts.has_more %}<p class="mk-ws4-note">D’autres relations sont disponibles.</p>{% endif %}
+      {% if relationship_owner_links.crm_contacts %}<a class="mk-action-button" data-variant="link" href="{{ relationship_owner_links.crm_contacts }}">Ouvrir les contacts <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -94,10 +93,10 @@
     <section class="mk-ws4-card" aria-labelledby="relations-audiences">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Publics</span><h3 id="relations-audiences">Audiences</h3></div></div>
       {% if projection.sections.audiences.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.audiences.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="users"></i></span><div><strong>{{ row.name }}</strong><small>Audience</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.audiences.items %}<li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="users"></i></span><div><strong>{{ row.name }}</strong><small>Audience</small><a href="?kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucune audience visible dans cette collection.</p>{% endif %}
-      {% if projection.sections.audiences.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
-      {% if relationship_owner_links.audiences %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.audiences }}">Voir les audiences <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if projection.sections.audiences.has_more %}<p class="mk-ws4-note">D’autres relations sont disponibles.</p>{% endif %}
+      {% if relationship_owner_links.audiences %}<a class="mk-action-button" data-variant="link" href="{{ relationship_owner_links.audiences }}">Voir les audiences <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -105,17 +104,17 @@
     <section class="mk-ws4-card" aria-labelledby="relations-partners">
       <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Écosystème</span><h3 id="relations-partners">Partenaires</h3></div></div>
       {% if projection.sections.partners.items %}
-      <ul class="mk-ws4-list">{% for row in projection.sections.partners.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="heart-handshake"></i></span><div><strong>{{ row.name }}</strong><small>Partenaire{% if row.partner_kind %} · {{ row.partner_kind }}{% endif %}</small></div></li>{% endfor %}</ul>
+      <ul class="mk-ws4-list">{% for row in projection.sections.partners.items %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="heart-handshake"></i></span><div><strong>{{ row.name }}</strong><small>Partenaire{% if row.partner_kind %} · {{ row.partner_kind }}{% endif %}</small><a href="?kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a></div></li>{% endfor %}</ul>
       {% else %}<p class="mk-ws4-empty">Aucun partenaire visible dans cette collection.</p>{% endif %}
-      {% if projection.sections.partners.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
-      {% if relationship_owner_links.partners %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.partners }}">Voir les partenaires <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if projection.sections.partners.has_more %}<p class="mk-ws4-note">D’autres relations sont disponibles.</p>{% endif %}
+      {% if relationship_owner_links.partners %}<a class="mk-action-button" data-variant="link" href="{{ relationship_owner_links.partners }}">Voir les partenaires <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
   </div>
   {% elif projection.authority.scope == 'activity_limited' %}
-  <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Relations globales indisponibles dans cette responsabilité</strong><p>Votre contexte actuel est limité à une ou plusieurs activités. Makolo n’élargit pas cette autorité aux relations privées du Space.</p></div></div>
+  <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Accès limité aux relations de vos activités</strong><p>Vous n’avez pas accès aux autres relations de cet espace.</p></div></div>
   {% else %}
-  <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="users-round" aria-hidden="true"></i><div><strong>Aucune collection relationnelle visible</strong><p>Aucune section relationnelle n’est exposée avec l’autorité actuelle. Une section masquée n’est pas présentée comme une collection vide.</p></div></div>
+  <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="users-round" aria-hidden="true"></i><div><strong>Aucune relation accessible</strong><p>Les autres relations de cet espace ne sont pas accessibles avec vos droits actuels.</p></div></div>
   {% endif %}
 </section>
 {% endblock %}

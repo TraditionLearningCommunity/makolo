@@ -67,6 +67,35 @@ class SpaceConsoleAuthorityTests(TestCase):
         for expected in {"activities", "requests", "access", "offers", "orders", "payments", "groups", "crm", "audiences", "promotions", "places", "control", "operations", "analytics", "automation", "team", "settings"}:
             self.assertIn(expected, keys)
 
+    def test_operations_page_avoids_internal_platform_commentary(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("organizations:console-operations", kwargs={"slug": self.space_a.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Opérations")
+        self.assertNotContains(response, "cockpit plateforme Makolo")
+        self.assertNotContains(response, "sans exposer les opérations de la plateforme")
+
+    def test_space_console_copy_uses_business_terms_without_backend_names(self):
+        self.client.force_login(self.owner)
+        cases = (
+            ("console-control", "Choisissez l’activité dont vous souhaitez contrôler les accès.", "Choisissez l’Activity"),
+            ("console-offers", "Offres, tarifs et conditions proposés", "Source canonique : Offer"),
+            ("console-orders", "Une commande confirmée n’est pas nécessairement payée.", "CommerceOrder."),
+            ("console-requests", "Consultez et traitez les demandes", "JourneyRequest."),
+            ("console-groups", "L’appartenance à un groupe ne donne pas automatiquement", "GroupMembership"),
+            ("console-promotions", "Retrouvez les promotions proposées", "UUID techniques"),
+        )
+        for route, expected, forbidden in cases:
+            with self.subTest(route=route):
+                response = self.client.get(
+                    reverse("organizations:" + route, kwargs={"slug": self.space_a.slug})
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, expected)
+                self.assertNotContains(response, forbidden)
+
     def test_finance_isolated_from_activity_crm_and_scanner(self):
         keys = self._navigation_keys(self.finance)
         self.assertTrue({"orders", "payments", "analytics"}.issubset(keys))

@@ -1,0 +1,54 @@
+{% if coverage_received or coverage_financed %}
+<section class="mk-panel p-5 sm:p-6" aria-labelledby="funded-coverages-heading">
+  <h2 id="funded-coverages-heading" class="text-lg font-extrabold">Couvertures financées</h2>
+  <p class="mt-1 text-sm" style="color:var(--mk-muted)">Les droits sont attachés au bénéficiaire, pas au financeur. Une attribution à un Groupe ne vous donne aucune autorité supplémentaire.</p>
+  {% if coverage_received %}
+    <h3 class="mt-5 text-sm font-bold">Mes couvertures reçues</h3>
+    <div class="mt-3 space-y-3">
+      {% for allocation in coverage_received %}
+      <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p class="font-bold">{{ allocation.coverage.plan_version.name }}</p>
+            <p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ allocation.get_status_display }} · Fin prévue {{ allocation.ends_at|date:"d/m/Y" }}
+              {% if allocation.coverage.status != 'active' %} · Couverture {{ allocation.coverage.get_status_display }}{% endif %}
+            </p>
+          </div>
+          {% if not space_slug or product.can_manage %}
+          <div class="flex flex-wrap gap-2">
+            {% if allocation.status == 'invited' %}
+            <form method="post" action="{% if space_slug %}{% url 'organizations:console-coverage-decision' space_slug allocation.pk %}{% else %}{% url 'subscriptions:coverage-decision' allocation.pk %}{% endif %}">
+              {% csrf_token %}<input type="hidden" name="action" value="accept">
+              <button type="submit" class="mk-btn mk-btn-primary">Accepter{% if allocation.coverage.plan_version.plan.plan_type == 'base' %} et choisir cette formule{% endif %}</button>
+            </form>
+            <form method="post" action="{% if space_slug %}{% url 'organizations:console-coverage-decision' space_slug allocation.pk %}{% else %}{% url 'subscriptions:coverage-decision' allocation.pk %}{% endif %}">
+              {% csrf_token %}<input type="hidden" name="action" value="decline">
+              <button type="submit" class="mk-btn mk-btn-secondary">Refuser</button>
+            </form>
+            {% elif allocation.status == 'active' and allocation.coverage.plan_version.plan.plan_type == 'base' %}
+            <form method="post" action="{% if space_slug %}{% url 'organizations:console-coverage-decision' space_slug allocation.pk %}{% else %}{% url 'subscriptions:coverage-decision' allocation.pk %}{% endif %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="{% if allocation.selected_base %}use_personal_base{% else %}select_base{% endif %}">
+              <button type="submit" class="mk-btn mk-btn-secondary">{% if allocation.selected_base %}Revenir à ma formule initiale{% else %}Choisir cette formule{% endif %}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if coverage_financed %}
+    <h3 class="mt-5 text-sm font-bold">Couvertures que je finance</h3>
+    <div class="mt-3 space-y-2">
+      {% for coverage in coverage_financed %}
+      <div class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border p-3" style="border-color:var(--mk-border)">
+        <div><p class="text-sm font-bold">{{ coverage.plan_version.name }}</p>
+        <p class="text-xs" style="color:var(--mk-muted)">{{ coverage.purchased_quantity }} places · {{ coverage.get_status_display }} · Fin prévue {{ coverage.ends_at|date:"d/m/Y" }}</p></div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endif %}

@@ -45,7 +45,7 @@ dart run build_runner build --delete-conflicting-outputs
 bash tool/dart_format.sh write
 bash tool/dart_format.sh check
 flutter analyze
-flutter test --exclude-tags golden
+flutter test
 ```
 
 Les `*.g.dart` sont générés et ignorés par Git. Drift et json_serializable utilisent le même passage build_runner.
@@ -58,7 +58,7 @@ La frontière runtime est `MakoloRuntimeConfig`, alimentée par `--dart-define-f
 flutter run --flavor dev --dart-define-from-file=config/dev.json
 ```
 
-Le DEV courant utilise le backend de test PythonAnywhere, MapLibre avec un style MapTiler DEV, Firebase/FCM pour `com.makolo.dev`, Sentry Flutter et la capability de localisation background. App Links reste désactivé. Les identifiants client nécessaires au runtime DEV peuvent être versionnés ; les secrets serveur restent interdits.
+Le DEV courant utilise le backend de test PythonAnywhere, MapLibre avec un style configuré par `MAKOLO_MAP_STYLE`, un géocodeur sélectionné par `MAKOLO_GEOCODING_PROVIDER`, Firebase/FCM pour `com.makolo.dev`, Sentry Flutter et la capability de localisation background. Le géocodage accepte actuellement `maptiler` ou `google_maps`; son endpoint HTTPS est explicitement renseigné par `MAKOLO_GEOCODING_ENDPOINT`. Les features consomment uniquement `GeoSearchGateway`. App Links reste désactivé. Les identifiants client nécessaires au runtime DEV peuvent être versionnés ; les secrets serveur restent interdits.
 
 DEV/BETA/PROD, Firebase, Maps, Sentry, App Links et la capability de localisation background sont documentés dans `docs/architecture/mobile-par1a-runtime-configuration.md`.
 

@@ -489,3 +489,48 @@ Z3 est considéré implémenté lorsque :
 - aucune migration n'est ajoutée ;
 - tests ciblés, contrôle migrations, suite pertinente et CI sont verts ;
 - la PR est réconciliée puis mergée sur `main`, et `main` est revalidé.
+
+## B1 — Complétude additive du wire Discovery (octobre 2026)
+
+Cette section décrit les extensions **du wire observé dans la branche B1**, et
+non une nouvelle vérité métier. Les selectors, les politiques d'accès et les
+domaines propriétaires restent les seules autorités sur les faits.
+
+- La collection et le détail partagent l'identité canonique et la description
+  déjà autorisée. `results` et `items` restent compatibles.
+- `variants[]` référence, pour une Activity comportant plusieurs Occurrences
+  sélectionnées par Discovery, jusqu'à douze Occurrences par leur identifiant
+  canonique et les horaires effectivement connus. Ce ne sont pas des
+  Alternatives indépendantes. Aucune variante n'est fabriquée pour les autres
+  familles.
+- `temporal_facts[]` reprend les repères Occurrence déjà qualifiés,
+  `FundingDetails.opens_at/closes_at` et les dates de la révision publiée
+  d'Opportunity. Les instants qualifiés priment sur la répétition de leurs
+  composantes date/heure.
+- `spatial_facts[]` transporte les rôles des lieux d'Occurrence admis dans le
+  résultat courant (maximum douze), ainsi que les arrêts publics des routes
+  Transport canoniques (départ, escale, arrivée) en conservant leur position
+  d'origine. Le contrôle public existant des lieux d'Espace est appliqué.
+  `place` reste le lieu principal de compatibilité. Les coordonnées manquantes
+  ne sont jamais estimées.
+- `media_bindings[]` reprend uniquement une image déjà autorisée par la
+  représentation canonique, avec `RECOGNIZE`. Les documents et ressources ne
+  deviennent jamais implicitement des couvertures visuelles.
+- `relations[]` est vide tant qu'aucune relation canonique, établie et
+  divulgable n'a été apportée par les propriétaires. Une collection vide ne
+  prétend pas que toute relation possible a été recherchée exhaustivement.
+- Le contrat `price` existant est maintenu. Les modalités tarifaires
+  `exact/range/variant-dependent` exigent une vérité propriétaire adaptée :
+  elles ne sont pas inférées d'un libellé ou d'un prix minimum.
+- `presentation_facts`, `assessment`, `saved`, `watch`,
+  `personal_relation`, `engagement`, `capabilities` et les handoffs
+  conservent leurs frontières et leurs états d'inconnu.
+- La fraîcheur de génération n'atteste toujours pas la fraîcheur de chaque
+  fait métier. Aucun timestamp d'observation propriétaire n'est inventé.
+- Les URLs Web conservées sont des champs de compatibilité, jamais une preuve
+  d'une mutation API. `links.detail` référence l'API Discovery existante.
+
+Les groupes/placements absents, la pertinence, Mayele, Molongo, le tri, la
+qualité des données et les calculs métier coûteux sont hors de cette extension.
+Le serveur ne dépend pas des profondeurs UX N1/N2/N3 du client. Le client
+choisit librement sa présentation et ne ré-inférera pas les permissions.

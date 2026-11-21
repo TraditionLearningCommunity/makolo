@@ -12,6 +12,7 @@ class AuthorityScope(models.TextChoices):
     SPACE = "space", "Espace"
     GROUP = "group", "Groupe"
     ACTIVITY = "activity", "Activité"
+    PROJECT = "project", "Projet"
     DOSSIER = "dossier", "Dossier"
 
 
@@ -76,6 +77,7 @@ class Role(models.Model):
                     | Q(scope_type=AuthorityScope.SPACE, is_system=False, organization__isnull=False)
                     | Q(scope_type=AuthorityScope.GROUP, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.ACTIVITY, is_system=True, organization__isnull=True)
+                    | Q(scope_type=AuthorityScope.PROJECT, is_system=True, organization__isnull=True)
                     | Q(scope_type=AuthorityScope.DOSSIER, is_system=True, organization__isnull=True)
                 ),
                 name="auth_role_scope_organization_valid",
@@ -97,6 +99,8 @@ class Role(models.Model):
             errors["scope_type"] = "Les rôles Groupe disponibles actuellement sont des rôles système Makolo."
         if self.scope_type == AuthorityScope.ACTIVITY and (not self.is_system or self.organization_id):
             errors["scope_type"] = "Les rôles Activité disponibles actuellement sont des rôles système Makolo."
+        if self.scope_type == AuthorityScope.PROJECT and (not self.is_system or self.organization_id):
+            errors["scope_type"] = "Les rôles Projet disponibles actuellement sont des rôles système Makolo."
         if self.scope_type == AuthorityScope.DOSSIER and (not self.is_system or self.organization_id):
             errors["scope_type"] = "Les rôles Dossier disponibles actuellement sont des rôles système Makolo."
         if errors:
@@ -137,6 +141,7 @@ class Mandate(models.Model):
     group = models.ForeignKey("groups.Group", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
     activity = models.ForeignKey("activities.Activity", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
     dossier = models.ForeignKey("objectives.Dossier", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
+    project = models.ForeignKey("objectives.Project", on_delete=models.CASCADE, related_name="authority_mandates", null=True, blank=True)
     status = models.CharField(max_length=16, choices=MandateStatus.choices, default=MandateStatus.ACTIVE)
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
@@ -148,15 +153,16 @@ class Mandate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["scope_type", "space__name", "group__name", "activity__title", "dossier__title", "profile__email", "role__name"]
+        ordering = ["scope_type", "space__name", "group__name", "activity__title", "project__title", "dossier__title", "profile__email", "role__name"]
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    Q(scope_type=AuthorityScope.PLATFORM, space__isnull=True, group__isnull=True, activity__isnull=True, dossier__isnull=True)
-                    | Q(scope_type=AuthorityScope.SPACE, space__isnull=False, group__isnull=True, activity__isnull=True, dossier__isnull=True)
-                    | Q(scope_type=AuthorityScope.GROUP, space__isnull=True, group__isnull=False, activity__isnull=True, dossier__isnull=True)
-                    | Q(scope_type=AuthorityScope.ACTIVITY, space__isnull=True, group__isnull=True, activity__isnull=False, dossier__isnull=True)
-                    | Q(scope_type=AuthorityScope.DOSSIER, space__isnull=True, group__isnull=True, activity__isnull=True, dossier__isnull=False)
+                    Q(scope_type=AuthorityScope.PLATFORM, space__isnull=True, group__isnull=True, activity__isnull=True, dossier__isnull=True, project__isnull=True)
+                    | Q(scope_type=AuthorityScope.SPACE, space__isnull=False, group__isnull=True, activity__isnull=True, dossier__isnull=True, project__isnull=True)
+                    | Q(scope_type=AuthorityScope.GROUP, space__isnull=True, group__isnull=False, activity__isnull=True, dossier__isnull=True, project__isnull=True)
+                    | Q(scope_type=AuthorityScope.ACTIVITY, space__isnull=True, group__isnull=True, activity__isnull=False, dossier__isnull=True, project__isnull=True)
+                    | Q(scope_type=AuthorityScope.DOSSIER, space__isnull=True, group__isnull=True, activity__isnull=True, dossier__isnull=False, project__isnull=True)
+                    | Q(scope_type=AuthorityScope.PROJECT, space__isnull=True, group__isnull=True, activity__isnull=True, dossier__isnull=True, project__isnull=False)
                 ),
                 name="auth_mandate_scope_target_valid",
             ),
@@ -166,6 +172,7 @@ class Mandate(models.Model):
             models.UniqueConstraint(fields=["profile", "role", "scope_type", "group"], condition=Q(scope_type=AuthorityScope.GROUP, status=MandateStatus.ACTIVE), name="auth_mandate_active_group_unique"),
             models.UniqueConstraint(fields=["profile", "role", "scope_type", "activity"], condition=Q(scope_type=AuthorityScope.ACTIVITY, status=MandateStatus.ACTIVE), name="auth_mandate_active_activity_unique"),
             models.UniqueConstraint(fields=["profile", "role", "scope_type", "dossier"], condition=Q(scope_type=AuthorityScope.DOSSIER, status=MandateStatus.ACTIVE), name="auth_mandate_active_dossier_unique"),
+            models.UniqueConstraint(fields=["profile", "role", "scope_type", "project"], condition=Q(scope_type=AuthorityScope.PROJECT, status=MandateStatus.ACTIVE), name="auth_mandate_active_project_unique"),
         ]
         indexes = [
             models.Index(fields=["profile", "status"], name="auth_mand_prof_status_idx"),
@@ -174,22 +181,25 @@ class Mandate(models.Model):
             models.Index(fields=["group", "status"], name="auth_mandate_group_status_idx"),
             models.Index(fields=["activity", "status"], name="auth_mand_act_status_idx"),
             models.Index(fields=["dossier", "status"], name="auth_mand_dos_status_idx"),
+            models.Index(fields=["project", "status"], name="auth_mand_proj_status_idx"),
             models.Index(fields=["valid_from", "valid_until"], name="auth_mandate_validity_idx"),
         ]
 
     def clean(self):
         super().clean()
         errors = {}
-        if self.scope_type == AuthorityScope.PLATFORM and (self.space_id or self.group_id or self.activity_id or self.dossier_id):
+        if self.scope_type == AuthorityScope.PLATFORM and (self.space_id or self.group_id or self.activity_id or self.dossier_id or self.project_id):
             errors["scope_type"] = "Un Mandat plateforme ne cible aucun objet local."
-        if self.scope_type == AuthorityScope.SPACE and (not self.space_id or self.group_id or self.activity_id or self.dossier_id):
+        if self.scope_type == AuthorityScope.SPACE and (not self.space_id or self.group_id or self.activity_id or self.dossier_id or self.project_id):
             errors["scope_type"] = "Un Mandat Espace doit cibler uniquement un Espace."
-        if self.scope_type == AuthorityScope.GROUP and (not self.group_id or self.space_id or self.activity_id or self.dossier_id):
+        if self.scope_type == AuthorityScope.GROUP and (not self.group_id or self.space_id or self.activity_id or self.dossier_id or self.project_id):
             errors["scope_type"] = "Un Mandat Groupe doit cibler uniquement un Groupe."
-        if self.scope_type == AuthorityScope.ACTIVITY and (not self.activity_id or self.space_id or self.group_id or self.dossier_id):
+        if self.scope_type == AuthorityScope.ACTIVITY and (not self.activity_id or self.space_id or self.group_id or self.dossier_id or self.project_id):
             errors["scope_type"] = "Un Mandat Activité doit cibler uniquement une Activité."
-        if self.scope_type == AuthorityScope.DOSSIER and (not self.dossier_id or self.space_id or self.group_id or self.activity_id):
+        if self.scope_type == AuthorityScope.DOSSIER and (not self.dossier_id or self.space_id or self.group_id or self.activity_id or self.project_id):
             errors["scope_type"] = "Un Mandat Dossier doit cibler uniquement un Dossier."
+        if self.scope_type == AuthorityScope.PROJECT and (not self.project_id or self.space_id or self.group_id or self.activity_id or self.dossier_id):
+            errors["scope_type"] = "Un Mandat Projet doit cibler uniquement un Projet."
         if self.role_id and self.role.scope_type != self.scope_type:
             errors["role"] = "Le rôle ne correspond pas à la portée du Mandat."
         if self.valid_from and self.valid_until and self.valid_until <= self.valid_from:
@@ -218,6 +228,8 @@ class Mandate(models.Model):
             target = self.group
         elif self.scope_type == AuthorityScope.ACTIVITY:
             target = self.activity
+        elif self.scope_type == AuthorityScope.PROJECT:
+            target = self.project
         else:
             target = self.dossier
         return f"{self.profile} — {self.role} — {target}"

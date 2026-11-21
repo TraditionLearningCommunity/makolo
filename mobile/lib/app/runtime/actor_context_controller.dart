@@ -31,7 +31,15 @@ final class ActorContextController extends ChangeNotifier {
     required String profileId,
     required ActorContextStore store,
   }) async {
-    final initial = await store.readActorContext(profileId);
+    final stored = await store.readActorContext(profileId);
+    // Old clients could persist one selected Mandate as a global Space lens.
+    // The active Space now presents every coexisting authorization together.
+    final initial = stored is SpaceActorContext && !stored.perspective.isAll
+        ? SpaceActorContext(space: stored.space)
+        : stored;
+    if (initial != stored) {
+      await store.writeActorContext(profileId, initial);
+    }
     return ActorContextController._(
       profileId: profileId,
       store: store,
@@ -47,7 +55,9 @@ final class ActorContextController extends ChangeNotifier {
     SpaceActorIdentity space, {
     ActorPerspective perspective = const ActorPerspective.all(),
   }) {
-    return _set(SpaceActorContext(space: space, perspective: perspective));
+    // The argument remains for compatibility with stored clients and callers,
+    // but an individual Mandate never replaces the cumulative Space context.
+    return _set(SpaceActorContext(space: space));
   }
 
   Future<void> selectPerspective(ActorPerspective perspective) {
@@ -55,7 +65,8 @@ final class ActorContextController extends ChangeNotifier {
     if (current is! SpaceActorContext) {
       throw StateError('A perspective requires a Space actor context.');
     }
-    return _set(current.copyWith(perspective: perspective));
+    // Legacy calls must not silently hide other active roles or permissions.
+    return _set(SpaceActorContext(space: current.space));
   }
 
   Future<bool> revalidateSpaceContext(

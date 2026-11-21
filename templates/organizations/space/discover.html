@@ -4,36 +4,31 @@
   <div class="max-w-3xl">
     <span class="mk-kicker">Découvrir</span>
     <h2 id="space-discover-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qu’est-ce qui pourrait nous aider à avancer ?</h2>
-    <p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">Cette surface reste collective : elle ne reprend ni le Découvrir personnel, ni un classement fabriqué dans le navigateur.</p>
   </div>
 
   {% if projection_state == 'content' or projection_state == 'partial' %}
     <div class="mk-panel p-5" role="status">
-      <p class="font-bold">{{ projection.items|length }} possibilité{{ projection.items|length|pluralize }} sélectionnée{{ projection.items|length|pluralize }} par le serveur.</p>
+      <p class="font-bold">{{ projection.items|length }} possibilité{{ projection.items|length|pluralize }} à explorer.</p>
       {% if projection_state == 'partial' %}
-        <p class="mt-2 text-sm" style="color:var(--mk-muted)">La sélection est partielle. Makolo conserve ce que le serveur sait sans inventer de candidats supplémentaires.</p>
-      {% else %}
-        <p class="mt-2 text-sm" style="color:var(--mk-muted)">Le navigateur ne reclasse pas cette sélection.</p>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">Certains résultats peuvent manquer.</p>
       {% endif %}
       {% if projection.has_more %}
-        <p class="mt-3 text-sm font-semibold">D’autres possibilités existent selon la pagination serveur.</p>
+        <p class="mt-3 text-sm font-semibold">D’autres résultats sont disponibles.</p>
       {% endif %}
     </div>
   {% elif projection_state == 'empty' %}
     <div class="mk-panel p-6 sm:p-8" role="status">
-      <p class="text-xl font-extrabold">Aucune possibilité n’est sélectionnée pour le moment.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Il s’agit d’un résultat connu de cette projection, pas d’une absence générale de possibilités dans Makolo.</p>
+      <p class="text-xl font-extrabold">Aucune possibilité à afficher.</p>
     </div>
   {% elif projection_state == 'unavailable' %}
     <div class="mk-panel p-6 sm:p-8" role="status">
-      <p class="text-xl font-extrabold">La sélection n’est pas encore disponible.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Makolo ne dispose pas encore d’un mécanisme collectif suffisamment sûr pour sélectionner des possibilités pour ce Space. Aucun candidat personnel, populaire ou récent n’est injecté pour remplir l’écran.</p>
+      <p class="text-xl font-extrabold">Recherche collective indisponible.</p>
     </div>
   {% else %}
     <div class="mk-panel p-6 sm:p-8" role="alert">
-      <p class="text-xl font-extrabold">Découvrir n’a pas pu être chargé.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Le contexte du Space est conservé. Réessayez cette page ; aucune suggestion de remplacement n’est fabriquée localement.</p>
-      <a href="{{ space_discover_url }}" class="mk-btn mk-btn-primary mt-5">Réessayer</a>
+      <p class="text-xl font-extrabold">Impossible de charger Découvrir.</p>
+      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Impossible d’actualiser les résultats.</p>
+      <a href="{{ space_discover_url }}" class="mk-action-button mk-action-button-primary mt-5" data-variant="primary">Réessayer</a>
     </div>
   {% endif %}
 </section>

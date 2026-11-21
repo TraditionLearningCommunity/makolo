@@ -51,6 +51,7 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Départ principal",
+            live_enabled=True,
             start_at=self.now + timedelta(hours=4),
             end_at=self.now + timedelta(hours=7),
             timezone="Africa/Lubumbashi",
@@ -191,6 +192,61 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.assertNotIn(str(self.credential.public_id), rendered)
         self.assertNotIn(render_access_credential(self.credential), rendered)
         self.assertNotIn("payload", rendered.lower())
+
+    def test_credential_offline_presentation_is_finite_and_beneficiary_only(self):
+        path = f"/api/v1/me/accesses/{self.access.pk}/credential/"
+        self.client.force_authenticate(self.participant)
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        policy = response.json()["data"]["offline_presentation"]
+        self.assertEqual(policy["scope"], "display_only")
+        self.assertTrue(policy["allowed"])
+        self.assertEqual(
+            policy["expires_at"],
+            min(self.access.valid_until, self.occurrence.end_at).isoformat(),
+        )
+        self.assertNotIn("payload", policy)
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_open_ended_right_does_not_grant_device_qr_retention(self):
+        self.access.valid_until = None
+        self.access.save(update_fields=["valid_until", "updated_at"])
+        self.occurrence.end_at = None
+        self.occurrence.save(update_fields=["end_at", "updated_at"])
+        self.client.force_authenticate(self.participant)
+        response = self.client.get(
+            f"/api/v1/me/accesses/{self.access.pk}/credential/"
+        )
+        self.assertEqual(response.status_code, 200)
+        policy = response.json()["data"]["offline_presentation"]
+        self.assertFalse(policy["allowed"])
+        self.assertIsNone(policy["expires_at"])
+
+    def test_access_summary_and_detail_retain_practical_day_j_instructions(self):
+        self.client.force_authenticate(self.participant)
+        listing = self.client.get("/api/v1/me/accesses/")
+        self.assertEqual(listing.status_code, 200)
+        row = listing.json()["data"]["items"][0]
+        self.assertEqual(
+            row["occurrence"]["place"]["access_instructions"],
+            "Présentez-vous à l’accueil.",
+        )
+        self.assertEqual(
+            row["occurrence"]["place"]["address_line"],
+            "Avenue du Départ",
+        )
+        self.assertNotIn("payload", str(row))
+        detail = self.client.get(
+            f"/api/v1/me/accesses/{self.access.pk}/"
+        )
+        self.assertEqual(detail.status_code, 200)
+        place = detail.json()["data"]["occurrence"]["place"]
+        self.assertEqual(
+            place["access_instructions"], "Présentez-vous à l’accueil."
+        )
+        self.assertEqual(place["address_line"], "Avenue du Départ")
 
     def test_active_occurrence_hands_off_to_existing_operations_live(self):
         self.occurrence.start_at = self.now - timedelta(minutes=5)

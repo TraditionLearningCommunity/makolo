@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,122 @@ void main() {
 
       await cache.purge();
       expect(await cache.cached('owner/resource/version-1'), isNull);
+    },
+  );
+  test(
+    'concurrent media requests share one completed private cache file',
+    () async {
+      final root = await Directory.systemTemp.createTemp('makolo-cache-c5-');
+      addTearDown(() => root.delete(recursive: true));
+      final cache = ProfileMediaCache(profileId: 'profile-a', directory: root);
+      final firstStarted = Completer<void>();
+      final finish = Completer<void>();
+      var downloads = 0;
+
+      Future<void> download(
+        String path,
+        dynamic cancel,
+        dynamic progress,
+      ) async {
+        downloads++;
+        if (!firstStarted.isCompleted) firstStarted.complete();
+        await finish.future;
+        await File(path).writeAsBytes([9, 8, 7], flush: true);
+      }
+
+      final first = cache.getOrDownload(
+        'one-image',
+        extension: 'jpg',
+        download: download,
+      );
+      await firstStarted.future;
+      final second = cache.getOrDownload(
+        'one-image',
+        extension: 'jpg',
+        download: download,
+      );
+      finish.complete();
+      final results = await Future.wait([first, second]);
+      expect(downloads, 1);
+      expect(results[0].path, results[1].path);
+      expect(await results[0].readAsBytes(), [9, 8, 7]);
+    },
+  );
+
+  test(
+    'media failure removes part and never publishes partial bytes',
+    () async {
+      final root = await Directory.systemTemp.createTemp('makolo-cache-fail-');
+      addTearDown(() => root.delete(recursive: true));
+      final cache = ProfileMediaCache(profileId: 'profile-a', directory: root);
+      await expectLater(
+        cache.getOrDownload(
+          'failed-media',
+          extension: 'jpg',
+          download: (path, _, _) async {
+            await File(path).writeAsBytes([1, 2]);
+            throw const FileSystemException('network ended early');
+          },
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(await cache.cached('failed-media', extension: 'jpg'), isNull);
+      expect(await root.list().toList(), isEmpty);
+    },
+  );
+
+  test(
+    'cache purge after an in-flight download cannot restore old bytes',
+    () async {
+      final root = await Directory.systemTemp.createTemp('makolo-cache-purge-');
+      addTearDown(() => root.delete(recursive: true));
+      final cache = ProfileMediaCache(profileId: 'profile-a', directory: root);
+      final started = Completer<void>();
+      final finish = Completer<void>();
+      final download = cache.getOrDownload(
+        'image',
+        extension: 'png',
+        download: (path, _, _) async {
+          started.complete();
+          await finish.future;
+          await File(path).writeAsBytes([3, 1, 4], flush: true);
+        },
+      );
+      await started.future;
+      final purge = cache.purge();
+      finish.complete();
+      await download;
+      await purge;
+      expect(await cache.cached('image', extension: 'png'), isNull);
+    },
+  );
+
+  test(
+    'cache evicts oldest reconstructible media, not private files',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'makolo-cache-budget-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final cache = ProfileMediaCache(profileId: 'profile-a', directory: root);
+      for (
+        var index = 0;
+        index < ProfileMediaCache.maxCachedFiles + 2;
+        index++
+      ) {
+        await cache.getOrDownload(
+          'image-$index',
+          extension: 'jpg',
+          download: (path, _, _) =>
+              File(path).writeAsBytes([index], flush: true),
+        );
+      }
+      expect(
+        await root.list().where((e) => e is File).length,
+        ProfileMediaCache.maxCachedFiles,
+      );
+      expect(await cache.cached('image-0', extension: 'jpg'), isNull);
+      expect(await cache.cached('image-61', extension: 'jpg'), isNotNull);
     },
   );
 }

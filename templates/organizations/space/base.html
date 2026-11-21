@@ -18,7 +18,7 @@
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
         {% if space_switcher_items|length > 1 %}
         <details class="relative">
-          <summary class="mk-btn mk-btn-secondary cursor-pointer">Changer d’Espace</summary>
+          <summary class="mk-disclosure-trigger">Changer d’Espace</summary>
           <div class="absolute right-0 z-30 mt-2 w-64 rounded-2xl border p-2 shadow-2xl" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
             {% for item in space_switcher_items %}
             <a href="{{ item.url }}" class="block min-h-11 rounded-xl px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/5"><strong>{{ item.name }}</strong></a>
@@ -34,7 +34,7 @@
             <option value="{{ responsibility.key }}"{% if responsibility.key == selected_responsibility.key %} selected{% endif %}>{{ responsibility.label }}{% if responsibility.activity %} · {{ responsibility.activity.title }}{% endif %}</option>
             {% endfor %}
           </select>
-          <button type="submit" class="mk-btn mk-btn-secondary">Appliquer</button>
+          <button type="submit" class="mk-action-button" data-variant="secondary">Appliquer</button>
         </form>
       </div>
     </div>

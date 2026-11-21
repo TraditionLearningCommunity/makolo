@@ -22,8 +22,10 @@ class ActivityDetailPresentation {
     required this.state,
     required this.availability,
     required this.occurrences,
+    this.occurrencesHasMore = false,
     this.owner,
     this.vertical,
+    this.occurrenceNoun,
   });
 
   final String title;
@@ -32,7 +34,11 @@ class ActivityDetailPresentation {
   final String? availability;
   final String? owner;
   final String? vertical;
+  final String? occurrenceNoun;
   final List<ActivityOccurrenceSummary> occurrences;
+
+  /// The Activity owner may intentionally bound its occurrence projection.
+  final bool occurrencesHasMore;
 }
 
 class OccurrenceDetailPresentation {
@@ -43,6 +49,8 @@ class OccurrenceDetailPresentation {
     required this.availability,
     required this.capabilities,
     this.timing,
+    this.endTiming,
+    this.noun,
     this.place,
   });
 
@@ -51,6 +59,8 @@ class OccurrenceDetailPresentation {
   final String? state;
   final String? availability;
   final String? timing;
+  final String? endTiming;
+  final String? noun;
   final String? place;
   final Set<String> capabilities;
 
@@ -98,8 +108,21 @@ class DiscoveryDetailSelector {
         _text(availability?['state']),
       ),
       owner: _text(owner?['display_name']),
-      vertical: _text(identity?['vertical']),
+      vertical:
+          _text(
+            _map(
+              _map(payload['representation'])?['vocabulary'],
+            )?['activity_noun'],
+          ) ??
+          _text(identity?['vertical']),
+      occurrenceNoun: _text(
+        _map(
+          _map(payload['representation'])?['vocabulary'],
+        )?['occurrence_noun'],
+      ),
       occurrences: List.unmodifiable(items),
+      occurrencesHasMore:
+          _map(payload['occurrences_page'])?['has_more'] == true,
     );
   }
 
@@ -173,6 +196,12 @@ class DiscoveryDetailSelector {
         _text(availability?['state']),
       ),
       timing: _timing(_map(payload['timing']), now: now ?? DateTime.now()),
+      endTiming: _timing(
+        _map(payload['timing']),
+        end: true,
+        now: now ?? DateTime.now(),
+      ),
+      noun: _text(_map(activity?['vocabulary'])?['occurrence_noun']),
       place: placeParts.isEmpty ? null : placeParts.join(' · '),
       capabilities: Set.unmodifiable(capabilities),
     );
@@ -229,14 +258,20 @@ class DiscoveryDetailSelector {
   }
 }
 
-String? _timing(Map<String, dynamic>? timing, {required DateTime now}) {
+String? _timing(
+  Map<String, dynamic>? timing, {
+  required DateTime now,
+  bool end = false,
+}) {
   if (timing == null) return null;
-  final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
+  final instant = MakoloHumanization.tryParseInstant(
+    timing[end ? 'end_at' : 'start_at'],
+  );
   if (instant != null) {
     return MakoloHumanization.formatDateTime(instant, now: now);
   }
-  final date = _text(timing['start_date']);
-  final time = _text(timing['start_time']);
+  final date = _text(timing[end ? 'end_date' : 'start_date']);
+  final time = _text(timing[end ? 'end_time' : 'start_time']);
   final parsed = date == null
       ? null
       : DateTime.tryParse(time == null ? date : '${date}T$time');

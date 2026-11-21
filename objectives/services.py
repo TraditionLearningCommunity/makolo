@@ -5,12 +5,13 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Mandate
-from authorization.services import can, grant_dossier_role, revoke_mandate, validate_role_for_dossier
+from authorization.selectors import current_mandates
+from authorization.services import can, grant_dossier_role, grant_project_role, revoke_mandate, validate_role_for_dossier, validate_role_for_project
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from journeys.models import JourneyStatus
 
-from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle, Project, ProjectDossierLink, ProjectLifecycle
+from .models import Dossier, DossierAssignment, DossierAssignmentStatus, DossierJourneyDependency, DossierJourneyDependencyState, DossierJourneyLink, DossierLifecycle, Project, ProjectDossierLink, ProjectLifecycle, ProjectInvitation, ProjectInvitationStatus
 
 
 ALLOWED_LIFECYCLE_TRANSITIONS = {
@@ -65,6 +66,9 @@ def can_view_project(actor, project):
     if not getattr(actor, "is_authenticated", False): return False
     if can(actor, PermissionCode.PLATFORM_MANAGE): return True
     if project.owner_profile_id == actor.pk: return True
+    if can(actor, PermissionCode.PROJECT_VIEW, project=project): return True
+    if can(actor, PermissionCode.PROJECT_MANAGE, project=project): return True
+    if can(actor, PermissionCode.PROJECT_AUTHORITY_MANAGE, project=project): return True
     if project.owning_space_id:
         return can(actor, PermissionCode.SPACE_VIEW, space=project.owning_space) or can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space)
     return False
@@ -74,7 +78,177 @@ def can_manage_project(actor, project):
     if not getattr(actor, "is_authenticated", False): return False
     if can(actor, PermissionCode.PLATFORM_MANAGE): return True
     if project.owner_profile_id == actor.pk: return True
+    if can(actor, PermissionCode.PROJECT_MANAGE, project=project): return True
     return bool(project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space))
+
+
+def can_manage_project_authority(actor, project):
+    if not getattr(actor, "is_authenticated", False): return False
+    if can(actor, PermissionCode.PLATFORM_MANAGE): return True
+    if project.owner_profile_id == actor.pk: return True
+    if project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space): return True
+    return can(actor, PermissionCode.PROJECT_AUTHORITY_MANAGE, project=project)
+
+
+
+@transaction.atomic
+def invite_to_project(*, actor, project, invitee, role):
+    """A pending invitation is not a mandate or implicit Project visibility."""
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    validate_role_for_project(role)
+    if not invitee.is_active or invitee.pk == actor.pk or invitee.pk == project.owner_profile_id:
+        raise ValidationError("Ce compte ne peut pas être invité.")
+    if current_mandates().filter(
+        scope_type=AuthorityScope.PROJECT, project=project,
+        profile=invitee,
+    ).exists():
+        raise ValidationError("Cette personne possède déjà un accès Projet.")
+    pending = ProjectInvitation.objects.select_for_update().filter(
+        project=project, invitee=invitee,
+        status=ProjectInvitationStatus.PENDING,
+    ).first()
+    if pending:
+        if pending.role_id != role.pk:
+            raise ValidationError("Une invitation existe déjà pour cette personne.")
+        return pending
+    invitation = ProjectInvitation(
+        project=project, invitee=invitee, invited_by=actor, role=role,
+    )
+    invitation.full_clean()
+    invitation.save()
+    return invitation
+
+
+@transaction.atomic
+def respond_project_invitation(*, actor, invitation, accept):
+    """The invitee must explicitly consent before any Project mandate exists."""
+    _require_authenticated(actor)
+    project_id = ProjectInvitation.objects.filter(
+        pk=invitation.pk, invitee=actor,
+    ).values_list("project_id", flat=True).first()
+    if project_id is None:
+        raise PermissionDenied("Invitation non accessible.")
+    # Keep the same lock order as invitation creation: Project then invitation.
+    project = _locked_project(Project.objects.get(pk=project_id))
+    invitation = ProjectInvitation.objects.select_for_update().select_related(
+        "role", "invited_by",
+    ).filter(pk=invitation.pk, invitee=actor, project=project).first()
+    if invitation is None:
+        raise PermissionDenied("Invitation non accessible.")
+    if invitation.status != ProjectInvitationStatus.PENDING:
+        raise ValidationError("Cette invitation n'est plus en attente.")
+    if accept:
+        if not can_manage_project_authority(invitation.invited_by, project):
+            raise ValidationError("Cette invitation n'est plus valide.")
+        if current_mandates().filter(
+            scope_type=AuthorityScope.PROJECT, project=project,
+            profile=actor,
+        ).exists():
+            raise ValidationError("Vous possédez déjà un accès Projet.")
+        grant_project_role(
+            profile=actor, project=project, role=invitation.role,
+            granted_by=invitation.invited_by, source="objectives-invitation",
+        )
+    invitation.status = (
+        ProjectInvitationStatus.ACCEPTED if accept
+        else ProjectInvitationStatus.DECLINED
+    )
+    invitation.responded_at = timezone.now()
+    invitation.full_clean()
+    invitation.save(update_fields=["status", "responded_at"])
+    return invitation
+
+
+@transaction.atomic
+def cancel_project_invitation(*, actor, invitation):
+    _require_authenticated(actor)
+    invitation = ProjectInvitation.objects.select_for_update().select_related(
+        "project",
+    ).filter(pk=invitation.pk).first()
+    if invitation is None or not (
+        invitation.invited_by_id == actor.pk or
+        can_manage_project_authority(actor, invitation.project)
+    ):
+        raise PermissionDenied("Invitation non accessible.")
+    if invitation.status != ProjectInvitationStatus.PENDING:
+        raise ValidationError("Cette invitation n'est plus en attente.")
+    invitation.status = ProjectInvitationStatus.CANCELLED
+    invitation.responded_at = timezone.now()
+    invitation.full_clean()
+    invitation.save(update_fields=["status", "responded_at"])
+    return invitation
+
+
+@transaction.atomic
+def grant_project_authority(*, actor, project, profile, role):
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    if not getattr(profile, "is_active", False):
+        raise ValidationError("Le collaborateur doit disposer d'un compte Makolo actif.")
+    validate_role_for_project(role)
+    existing = current_mandates().select_for_update().filter(
+        profile=profile, project=project,
+        scope_type=AuthorityScope.PROJECT,
+    )
+    if existing.exclude(role_id=role.pk).exists():
+        raise ValidationError(
+            "Cette personne a déjà un accès Projet. Modifiez son rôle."
+        )
+    return grant_project_role(
+        profile=profile, project=project, role=role, granted_by=actor,
+        source="objectives-service",
+    )
+
+
+@transaction.atomic
+def revoke_project_authority(*, actor, project, mandate):
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    mandate = Mandate.objects.select_for_update().filter(
+        pk=mandate.pk, scope_type=AuthorityScope.PROJECT, project=project,
+    ).first()
+    if mandate is None:
+        raise ValidationError("Ce Mandat n'appartient pas au Projet.")
+    return revoke_mandate(mandate=mandate, actor=actor)
+
+
+@transaction.atomic
+def replace_project_authority(*, actor, project, mandate, role):
+    """Explicit role replacement: one server-authorized atomic transition.
+
+    A Project grant never transfers rights in Dossiers or Conversations.
+    Only effective mandates for the same person and the same Project are
+    replaced; historical mandates remain revoked, not deleted.
+    """
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    validate_role_for_project(role)
+    selected = current_mandates().select_for_update().filter(
+        pk=mandate.pk, scope_type=AuthorityScope.PROJECT, project=project,
+    ).first()
+    if selected is None:
+        raise ValidationError("Ce mandat Projet n'est plus actif.")
+    current = list(current_mandates().select_for_update().filter(
+        scope_type=AuthorityScope.PROJECT, project=project,
+        profile_id=selected.profile_id,
+    ))
+    if len(current) == 1 and current[0].role_id == role.pk:
+        return selected
+    for previous in current:
+        revoke_mandate(mandate=previous, actor=actor)
+    return grant_project_role(
+        profile=selected.profile, project=project, role=role,
+        granted_by=actor, source="objectives-service",
+    )
 
 
 def can_use_journey_for_dossier(actor, journey):
@@ -272,6 +446,32 @@ def unlink_journey(*, actor, dossier, journey):
 
 
 @transaction.atomic
+def update_dossier(*, actor, dossier, title, description, deadline):
+    """Edit Dossier-owned objective facts; no new lifecycle or Journey owner."""
+    _require_authenticated(actor)
+    dossier = _locked_dossier(dossier)
+    if not can_manage_dossier(actor, dossier):
+        raise PermissionDenied("Autorité de gestion du Dossier requise.")
+    before = (dossier.title, dossier.description, dossier.deadline)
+    dossier.title = (title or "").strip()
+    dossier.description = (description or "").strip()
+    dossier.deadline = deadline
+    after = (dossier.title, dossier.description, dossier.deadline)
+    if before == after:
+        return dossier
+    dossier.save(update_fields=["title", "description", "deadline", "updated_at"])
+    _emit(
+        event_type=DomainEventType.DOSSIER_UPDATED, dossier=dossier,
+        idempotency_key=f"dossier:{dossier.pk}:updated:{dossier.updated_at.isoformat()}",
+        payload={"dossier_id": str(dossier.pk), "changed_fields": [
+            key for key, old, new in zip(("title", "description", "deadline"), before, after)
+            if old != new
+        ]},
+    )
+    return dossier
+
+
+@transaction.atomic
 def set_dossier_lifecycle(*, actor, dossier, lifecycle):
     _require_authenticated(actor); dossier = _locked_dossier(dossier)
     if not can_manage_dossier(actor, dossier): raise PermissionDenied("Autorité de gestion du Dossier requise.")
@@ -328,6 +528,38 @@ def move_dossier_to_project(*, actor, dossier, target_project):
     except IntegrityError as exc: raise ValidationError("Le Dossier n’a pas pu être déplacé vers ce Projet.") from exc
     _emit_project(event_type=DomainEventType.PROJECT_DOSSIER_MOVED, project=target_project, source_type="objectives.ProjectDossierLink", source_id=new_link.pk, idempotency_key=f"project-dossier-link:{new_link.pk}:moved", payload={"dossier_id": str(dossier.pk), "source_project_id": str(source_project.pk) if source_project else "", "target_project_id": str(target_project.pk)})
     return new_link
+
+
+
+@transaction.atomic
+def update_project(*, actor, project, title, description, starts_on, ends_on):
+    """Edit Project-owned horizon facts, never lifecycle or child facts."""
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project(actor, project):
+        raise PermissionDenied("Autorité de gestion du Projet requise.")
+    previous = (project.title, project.description, project.starts_on, project.ends_on)
+    project.title = (title or "").strip()
+    project.description = (description or "").strip()
+    project.starts_on = starts_on
+    project.ends_on = ends_on
+    # Project.save() invokes full_clean, preserving the horizon check.
+    updated = (project.title, project.description, project.starts_on, project.ends_on)
+    if previous == updated:
+        return project
+    project.save(update_fields=["title", "description", "starts_on", "ends_on", "updated_at"])
+    _emit_project(
+        event_type=DomainEventType.PROJECT_UPDATED,
+        project=project,
+        idempotency_key=f"project:{project.pk}:updated:{project.updated_at.isoformat()}",
+        payload={"project_id": str(project.pk), "changed_fields": [
+            name for name, before, after in zip(
+                ("title", "description", "starts_on", "ends_on"),
+                previous, updated,
+            ) if before != after
+        ]},
+    )
+    return project
 
 
 @transaction.atomic
