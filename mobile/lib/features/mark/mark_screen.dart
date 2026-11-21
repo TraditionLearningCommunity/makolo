@@ -1569,7 +1569,6 @@ class _MarkScreenState extends State<MarkScreen> {
                                         _pendingConfirmationCode = null;
                                         _pendingConfirmationKey = null;
                                         _teamMember = null;
-                                        _textOnlyConsent = false;
                                       });
                                       unawaited(_saveDraft());
                                     },
@@ -1757,25 +1756,20 @@ class _MarkScreenState extends State<MarkScreen> {
                                       ),
                                     ),
                                   ],
-                                  if (_attachments.isNotEmpty ||
-                                      _links.isNotEmpty) ...[
+                                  if ((_attachments.isNotEmpty ||
+                                          _links.isNotEmpty) &&
+                                      _input.text.trim().isNotEmpty) ...[
                                     const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.info_outline_rounded,
-                                          size: 17,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            'Pièces non incluses',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall,
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Tooltip(
+                                        message: 'Les pièces restent dans la demande. '
+                                            'Seul le texte sera envoyé.',
+                                        child: FilterChip(
+                                          avatar: const Icon(
+                                            Icons.text_fields_rounded,
+                                            size: 17,
                                           ),
-                                        ),
-                                        ChoiceChip(
                                           label: const Text('Texte seul'),
                                           selected: _textOnlyConsent,
                                           onSelected: _busy
@@ -1784,7 +1778,7 @@ class _MarkScreenState extends State<MarkScreen> {
                                                   _textOnlyConsent = selected;
                                                 }),
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ],
                                   if (_voiceCapture && _voiceStore != null) ...[
