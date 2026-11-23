@@ -2,7 +2,8 @@
 {% block title %}Makolo | Mark{% endblock %}
 {% block content %}
 <div class="mk-mark-page" data-mk-surface="mark" data-mk-mark-root
-  data-mk-mark-scope="personal:{{ request.user.pk }}">
+  data-mk-mark-scope="personal:{{ request.user.pk }}"
+  data-mk-mark-intake-url="/api/v1/me/mark/intake/">
   <section class="mk-mark-window" data-mk-mark-window aria-label="Demande Makolo">
     <div class="mk-mark-window-tools" role="group" aria-label="Affichage de Makolo Mark">
       <button type="button" data-mk-mark-float hidden>Ouvrir en fenêtre</button>
