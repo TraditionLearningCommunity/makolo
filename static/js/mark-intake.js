@@ -25,6 +25,12 @@
     };
     const scope = root.dataset.mkMarkScope || 'unknown';
     const draftKey = 'mk:mark:tab-draft:' + scope;
+    const intakeUrl = root.dataset.mkMarkIntakeUrl;
+    let requestKey = null;
+    let requestFingerprint = null;
+    let received = false;
+    let sending = false;
+    let offerFallback = false;
     let links = [];
     let attachments = [];
     let consent = false;
@@ -86,6 +92,8 @@
     }
 
     function resetConsent() {
+      received = false;
+      offerFallback = false;
       consent = false;
       const panel = $('[data-mk-mark-text-consent]');
       if (panel) panel.hidden = true;
@@ -283,7 +291,7 @@
         target.appendChild(item);
       });
       const choice = $('[data-mk-mark-text-consent]');
-      if (choice && !consent) choice.hidden = !hasLocalReferences();
+      if (choice && !consent) choice.hidden = !offerFallback;
     }
 
     function addFiles(list) {
@@ -378,7 +386,11 @@
         count.hidden = input.value.length < 500;
         count.textContent = input.value.length + '/600';
       }
-      if (send) send.disabled = !input.value.trim() || input.value.length > MAX_TEXT;
+      const hasParts = hasLocalReferences() || typedLinks().length > 0;
+      const maxLength = hasParts && !consent ? 20000 : MAX_TEXT;
+      if (send) send.disabled = sending || received ||
+        (!input.value.trim() && !hasParts) ||
+        input.value.length > maxLength;
       root.classList.toggle(
         'mk-mark-writing',
         document.activeElement === input ||
@@ -393,7 +405,7 @@
       persist();
       renderReferences();
       updateComposer();
-      announce(input.value.length > MAX_TEXT
+      announce(input.value.length > ((hasLocalReferences() || typedLinks().length) ? 20000 : MAX_TEXT)
         ? 'Raccourcissez votre demande avant de continuer.'
         : '');
     });
