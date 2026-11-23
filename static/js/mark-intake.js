@@ -31,6 +31,7 @@
     let received = false;
     let sending = false;
     let offerFallback = false;
+    let editRevision = 0;
     let links = [];
     let attachments = [];
     let consent = false;
@@ -92,6 +93,7 @@
     }
 
     function resetConsent() {
+      editRevision += 1;
       received = false;
       offerFallback = false;
       consent = false;
@@ -687,7 +689,11 @@
       }
       return result;
     }
-    function acknowledgeReceipt() {
+    function acknowledgeReceipt(revision) {
+      if (revision !== editRevision || !root.isConnected) {
+        announce('La demande précédente a été reçue. Votre modification reste à envoyer.');
+        return;
+      }
       received = true;
       offerFallback = false;
       const panel = $('[data-mk-mark-text-consent]');
@@ -716,6 +722,7 @@
         announce('Envoi indisponible pour le moment.');
         return;
       }
+      const revision = editRevision;
       const formData = new FormData();
       formData.append('request_key', requestKey);
       formData.append('text', input.value);
@@ -742,7 +749,7 @@
         if (payload?.data?.state !== 'received' || !payload?.data?.receipt_id) {
           throw new Error('Receipt missing');
         }
-        acknowledgeReceipt();
+        acknowledgeReceipt(revision);
       } catch (error) {
         uncertain = !error.status;
         if (uncertain) {
@@ -754,7 +761,7 @@
             if (verify.ok) {
               const payload = await verify.json();
               if (payload?.data?.state === 'received') {
-                acknowledgeReceipt();
+                acknowledgeReceipt(revision);
                 return;
               }
             }
