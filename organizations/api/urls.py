@@ -42,6 +42,7 @@ from .space_request_views import SpaceJourneyRequestAPIView
 from .space_history_views import SpaceHistoryAPIView
 from .space_search_views import SpaceSearchAPIView
 from .space_mark_views import SpaceMarkAPIView
+from core.api.mark_intake_views import SpaceMarkIntakeAPIView, SpaceMarkReceiptAPIView
 from .space_work_views import SpaceWorkAPIView
 from .space_work_g2_case_views import SpaceG2ServiceCaseAPIView
 from .space_work_g2_create import SpaceWorkG2CreateAPIView
@@ -182,6 +183,8 @@ urlpatterns = [
     path("workspaces/<slug:slug>/intelligence/connections/", SpaceIntelligenceConnectionsAPIView.as_view(), name="workspace-intelligence-connections"),
     path("workspaces/<slug:slug>/intelligence/connections/<uuid:connection_id>/", SpaceIntelligenceConnectionAPIView.as_view(), name="workspace-intelligence-connection"),
     path("workspaces/<slug:slug>/mark/", SpaceMarkAPIView.as_view(), name="workspace-mark"),
+    path("workspaces/<slug:slug>/mark/intake/", SpaceMarkIntakeAPIView.as_view(), name="workspace-mark-intake"),
+    path("workspaces/<slug:slug>/mark/intake/<uuid:receipt_id>/", SpaceMarkReceiptAPIView.as_view(), name="workspace-mark-receipt"),
     path("follows/", FollowListCreateAPIView.as_view(), name="follows"),
     path("follows/<uuid:pk>/", FollowDetailAPIView.as_view(), name="follow-detail"),
     path("follows/targets/<str:kind>/<uuid:target_id>/", FollowTargetAPIView.as_view(), name="follow-target"),
