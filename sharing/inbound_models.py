@@ -112,3 +112,44 @@ class InboundCapture(models.Model):
         return self.status == InboundCaptureStatus.EXPIRED or (
             self.status == InboundCaptureStatus.PENDING and self.expires_at <= timezone.now()
         )
+
+
+class InboundCaptureBundle(models.Model):
+    """A private, idempotent receipt for a coherent batch of staged captures.
+
+    Sharing owns receipt and staging; Mark only submits an intention. No
+    business action or Resource/Proof ownership is implied by reception.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="inbound_capture_bundles",
+    )
+    space = models.ForeignKey(
+        "organizations.Organization", on_delete=models.CASCADE,
+        null=True, blank=True, related_name="inbound_capture_bundles",
+    )
+    request_key = models.CharField(max_length=64)
+    payload_digest = models.CharField(max_length=64)
+    text = models.TextField(blank=True)
+    links = models.JSONField(default=list, blank=True)
+    context = models.JSONField(default=dict, blank=True)
+    captures = models.ManyToManyField(InboundCapture, related_name="bundles", blank=True)
+    expires_at = models.DateTimeField(default=default_capture_expiry)
+    received_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["created_by", "request_key"],
+                name="sharing_bundle_owner_request_uniq",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["created_by", "received_at"], name="sharing_bundle_owner_received_idx"),
+        ]
+
+    @property
+    def is_expired(self):
+        return self.expires_at <= timezone.now()
