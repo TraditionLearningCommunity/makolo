@@ -56,6 +56,7 @@ class MarkRepository {
     String? pendingConfirmationCode,
     String? pendingConfirmationKey,
     String? submissionKey,
+    String? submissionFingerprint,
   }) {
     final drafts = runtime.drafts;
     if (drafts == null) return Future<void>.value();
@@ -74,6 +75,7 @@ class MarkRepository {
       'pending_confirmation_code': ?pendingConfirmationCode,
       'pending_confirmation_key': ?pendingConfirmationKey,
       'submission_key': ?submissionKey,
+      'submission_fingerprint': ?submissionFingerprint,
     };
     // Autosave, share ingress, confirmation and deletion can interleave.
     // Serialize by actor and snapshot each payload before it is enqueued.
@@ -259,6 +261,7 @@ class MarkRepository {
     required List<String> links,
     required List<MakoloUploadFile> uploads,
     required String requestKey,
+    required String submissionFingerprint,
     Map<String, String>? selected,
   }) async {
     await saveDraft(
@@ -269,6 +272,7 @@ class MarkRepository {
       links: links,
       selected: selected,
       submissionKey: requestKey,
+      submissionFingerprint: submissionFingerprint,
     );
     final api = runtime.api;
     if (api == null) {
