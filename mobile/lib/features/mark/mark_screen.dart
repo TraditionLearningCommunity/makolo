@@ -1889,7 +1889,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                   ],
                                   if ((_attachments.isNotEmpty ||
                                           _links.isNotEmpty) &&
-                                      _input.text.trim().isNotEmpty) ...[
+                                      _input.text.trim().isNotEmpty &&
+                                      _result?.state == 'failed') ...[
                                     const SizedBox(height: 6),
                                     Align(
                                       alignment: Alignment.centerRight,
@@ -2000,10 +2001,11 @@ class _MarkScreenState extends State<MarkScreen> {
                                                 _restoring ||
                                                 _voiceCapture ||
                                                 _dictating ||
-                                                _input.text.trim().isEmpty ||
-                                                ((_attachments.isNotEmpty ||
-                                                        _links.isNotEmpty) &&
-                                                    !_textOnlyConsent)
+                                                _result?.state == 'received' ||
+                                                (_input.text.trim().isEmpty &&
+                                                    _attachments.isEmpty &&
+                                                    _links.isEmpty &&
+                                                    _typedLinks.isEmpty)
                                             ? null
                                             : _submit,
                                         icon: _busy
@@ -2038,7 +2040,24 @@ class _MarkScreenState extends State<MarkScreen> {
                                 onClose: _cancelDictation,
                               ),
                             ],
-                            if (_result?.state == 'offline_draft')
+                            if (_result?.state == 'received')
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      size: 18,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Text('Demande reçue'),
+                                  ],
+                                ),
+                              ),
+                            if (const {'offline_draft', 'receipt_unknown'}
+                                .contains(_result?.state))
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
                                 child: Row(
@@ -2052,7 +2071,11 @@ class _MarkScreenState extends State<MarkScreen> {
                                           .error,
                                     ),
                                     const SizedBox(width: 6),
-                                    const Text('Non envoyé'),
+                                    Text(
+                                      _result?.state == 'receipt_unknown'
+                                          ? 'À confirmer'
+                                          : 'Non envoyé',
+                                    ),
                                     TextButton(
                                       onPressed: _busy
                                           ? null
@@ -2065,6 +2088,8 @@ class _MarkScreenState extends State<MarkScreen> {
                             if (_result != null &&
                                 !const {
                                   'offline_draft',
+                                  'receipt_unknown',
+                                  'received',
                                   'local_attachments_only',
                                   'local_references_only',
                                 }.contains(_result!.state)) ...[
