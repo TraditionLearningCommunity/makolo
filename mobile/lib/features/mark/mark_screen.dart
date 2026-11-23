@@ -2056,8 +2056,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                       ),
                                       if (_input.text.length >=
                                           ((_attachments.isNotEmpty ||
-                                                   _links.isNotEmpty ||
-                                                   _typedLinks.isNotEmpty) &&
+                                                      _links.isNotEmpty ||
+                                                      _typedLinks.isNotEmpty) &&
                                                   !_textOnlyConsent
                                               ? 19900
                                               : 500))
