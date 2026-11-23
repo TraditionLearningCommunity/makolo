@@ -86,3 +86,4 @@ MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=(self)"
 # Optional callable for opt-in recorded-audio transcription in Mark.
 # Leave unset until a real provider is installed and evaluated.
 MAKOLO_MARK_AUDIO_TRANSCRIBER = os.environ.get("MAKOLO_MARK_AUDIO_TRANSCRIBER", "").strip()
+MAKOLO_MARK_AUDIO_MODEL = os.environ.get("MAKOLO_MARK_AUDIO_MODEL", "gpt-transcribe").strip()
