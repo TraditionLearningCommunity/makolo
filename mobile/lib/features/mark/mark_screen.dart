@@ -2054,13 +2054,19 @@ class _MarkScreenState extends State<MarkScreen> {
                                           minHeight: 44,
                                         ),
                                       ),
-                                      if (_input.text.length >= 500)
+                                      if (_input.text.length >=
+                                          ((_attachments.isNotEmpty ||
+                                                   _links.isNotEmpty ||
+                                                   _typedLinks.isNotEmpty) &&
+                                                  !_textOnlyConsent
+                                              ? 19900
+                                              : 500))
                                         Padding(
                                           padding: const EdgeInsets.only(
                                             right: 6,
                                           ),
                                           child: Text(
-                                            '${_input.text.length}/600',
+                                            '${_input.text.length}/${((_attachments.isNotEmpty || _links.isNotEmpty || _typedLinks.isNotEmpty) && !_textOnlyConsent) ? 20000 : 600}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .labelSmall,
