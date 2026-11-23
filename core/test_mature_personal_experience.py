@@ -237,6 +237,7 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(response, 'data-mk-mark-attach-open')
         self.assertContains(response, 'data-mk-mark-gallery')
         self.assertContains(response, 'data-mk-mark-send')
+        self.assertContains(response, '/api/v1/me/mark/intake/')
         self.assertContains(response, 'data-mk-mark-save')
         self.assertContains(response, 'data-mk-orbit-available')
         self.assertContains(response, 'data-mk-orbit-saved')
