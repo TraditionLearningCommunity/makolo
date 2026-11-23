@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -14,6 +15,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/makolo_api_client.dart';
 import '../../design/action_controls.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
@@ -87,6 +89,8 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _draftSaved = false;
   int _draftSaveToken = 0;
   String? _appliedTranscriptFileId;
+  String? _submissionKey;
+  String? _submissionFingerprint;
 
   @override
   void initState() {
@@ -155,6 +159,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _appliedTranscriptFileId = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
+      _submissionKey = null;
+      _submissionFingerprint = null;
       _selectedContext = widget.selectedContext;
       _teamMember = null;
       _restoring = true;
@@ -203,6 +209,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _appliedTranscriptFileId = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
+      _submissionKey = null;
+      _submissionFingerprint = null;
       _selectedContext = widget.selectedContext;
       _teamMember = null;
       _restoring = true;
@@ -298,6 +306,8 @@ class _MarkScreenState extends State<MarkScreen> {
     if (draft != null) {
       _pendingConfirmationCode = draft['pending_confirmation_code']?.toString();
       _pendingConfirmationKey = draft['pending_confirmation_key']?.toString();
+      _submissionKey = draft['submission_key']?.toString();
+      _submissionFingerprint = draft['submission_fingerprint']?.toString();
       final priorTeam = draft['team_member'];
       if (priorTeam is Map &&
           priorTeam['email'] is String &&
@@ -1148,6 +1158,8 @@ class _MarkScreenState extends State<MarkScreen> {
       teamMember: _teamMember,
       pendingConfirmationCode: _pendingConfirmationCode,
       pendingConfirmationKey: _pendingConfirmationKey,
+      submissionKey: _submissionKey,
+      submissionFingerprint: _submissionFingerprint,
     );
     if (mounted &&
         token == _draftSaveToken &&
@@ -1296,6 +1308,78 @@ class _MarkScreenState extends State<MarkScreen> {
       await _saveDraft();
     }
     unawaited(_drainSharedInputs());
+  }
+
+  /// Resolve only files staged for the active actor in the private Profile
+  /// sandbox. No arbitrary path from the draft or from the UI reaches the API.
+  Future<List<MakoloUploadFile>> _prepareIntakeUploads(
+    List<Map<String, dynamic>> items,
+  ) async {
+    final coordinator = await _fileCoordinator();
+    final profileId = widget.runtime.session?.profileId;
+    if (coordinator == null || profileId == null) {
+      throw StateError('Pièces indisponibles pour cette session.');
+    }
+    const types = <String, String>{
+      '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.png': 'image/png', '.webp': 'image/webp',
+      '.pdf': 'application/pdf', '.txt': 'text/plain',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4',
+      '.webm': 'audio/webm', '.wav': 'audio/wav',
+      '.mp3': 'audio/mpeg', '.aac': 'audio/aac',
+      '.ogg': 'audio/ogg',
+    };
+    if (items.length > 10) throw StateError('10 pièces maximum.');
+    final seen = <String>{};
+    var totalBytes = 0;
+    final uploads = <MakoloUploadFile>[];
+    for (var index = 0; index < items.length; index++) {
+      final id = items[index]['file_id']?.toString() ?? '';
+      if (id.isEmpty || !seen.add(id)) {
+        throw StateError('Une pièce de la demande est invalide.');
+      }
+      final file = await coordinator.store.read(id);
+      if (file == null ||
+          file.profileId != profileId ||
+          file.owner != _owner ||
+          file.purpose != 'mark_intake' ||
+          file.sensitivity != 'private') {
+        throw StateError('Cette pièce n’est pas disponible pour cet acteur.');
+      }
+      final source = File(file.path);
+      if (!await source.exists()) {
+        throw StateError('Une pièce doit être sélectionnée à nouveau.');
+      }
+      final extension = p.extension(file.path).toLowerCase();
+      final type = types[extension];
+      if (type == null) {
+        throw StateError('Ce format de pièce n’est pas accepté.');
+      }
+      final size = await source.length();
+      final maxSize = type.startsWith('audio/') || type == 'image/webp'
+          ? 25 * 1024 * 1024
+          : 12 * 1024 * 1024;
+      if (size <= 0 || size > maxSize) {
+        throw StateError('Une pièce est trop volumineuse.');
+      }
+      totalBytes += size;
+      if (totalBytes > 60 * 1024 * 1024) {
+        throw StateError('La demande contient trop de données.');
+      }
+      final declared = p.basename(items[index]['name']?.toString() ?? '');
+      final filename = p.extension(declared).toLowerCase() == extension
+          ? declared
+          : 'piece-${index + 1}$extension';
+      uploads.add(MakoloUploadFile(
+        fieldName: 'files',
+        path: file.path,
+        filename: filename,
+        contentType: type,
+      ));
+    }
+    return uploads;
   }
 
   Future<void> _submit() async {
