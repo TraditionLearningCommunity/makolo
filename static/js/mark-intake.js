@@ -659,25 +659,138 @@
       else form.requestSubmit();
     }
 
-    form.addEventListener('submit', (event) => {
-      if (event.submitter?.name === 'cancel_confirmation') return;
-      if (!input.value.trim() || input.value.length > MAX_TEXT) {
-        event.preventDefault();
-        announce(!input.value.trim()
-          ? 'Écrivez ce que vous souhaitez faire avant de continuer.'
-          : 'Limitez votre demande à 600 caractères.');
-        input.focus();
+    const fileIdentities = new WeakMap();
+    function fileIdentity(file) {
+      if (!fileIdentities.has(file)) {
+        fileIdentities.set(file, String(Date.now()) + ':' + Math.random());
+      }
+      return fileIdentities.get(file);
+    }
+    function newRequestKey() {
+      if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+      if (!window.crypto?.getRandomValues) throw new Error('Secure random unavailable');
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, (x) => x.toString(16).padStart(2, '0')).join('');
+    }
+    function markContext() {
+      const selected = {};
+      for (const field of ['kind', 'id', 'family']) {
+        const value = form.elements.namedItem('selected_' + field)?.value;
+        if (value) selected[field] = value;
+      }
+      const result = {};
+      if (Object.keys(selected).length) result.selected = selected;
+      const responsibility = root.dataset.mkMarkResponsibility;
+      if (root.dataset.mkMarkContext === 'space' && responsibility && responsibility !== 'all') {
+        result.responsibility = responsibility;
+      }
+      return result;
+    }
+    function acknowledgeReceipt() {
+      received = true;
+      offerFallback = false;
+      const panel = $('[data-mk-mark-text-consent]');
+      if (panel) panel.hidden = true;
+      announce('Demande reçue.');
+      try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
+      setSaved(false);
+      updateComposer();
+    }
+    async function sendMultimodal() {
+      if (!intakeUrl || sending) return;
+      const allLinks = [...new Set([...links, ...typedLinks()])];
+      const fingerprint = JSON.stringify({
+        text: input.value,
+        links: allLinks,
+        files: attachments.map(fileIdentity),
+        context: markContext(),
+      });
+      if (fingerprint !== requestFingerprint) {
+        requestKey = null;
+        requestFingerprint = fingerprint;
+      }
+      try {
+        if (!requestKey) requestKey = newRequestKey();
+      } catch (_) {
+        announce('Envoi indisponible pour le moment.');
         return;
       }
-      if (hasLocalReferences() && !consent) {
-        event.preventDefault();
-        submission = event.submitter;
-        const panel = $('[data-mk-mark-text-consent]');
-        if (panel) {
-          panel.hidden = false;
-          panel.querySelector('button')?.focus();
+      const formData = new FormData();
+      formData.append('request_key', requestKey);
+      formData.append('text', input.value);
+      formData.append('links', JSON.stringify(allLinks));
+      formData.append('context', JSON.stringify(markContext()));
+      for (const file of attachments) formData.append('files', file, file.name);
+      const token = form.elements.namedItem('csrfmiddlewaretoken')?.value;
+      sending = true;
+      announce('');
+      updateComposer();
+      let uncertain = false;
+      try {
+        const response = await fetch(intakeUrl, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { Accept: 'application/json', ...(token ? { 'X-CSRFToken': token } : {}) },
+          body: formData,
+        });
+        if (!response.ok) {
+          const error = new Error('Reception rejected');
+          error.status = response.status;
+          throw error;
         }
-        announce('Vos supports restent locaux ; vous pouvez choisir de continuer avec le texte seul.');
+        const payload = await response.json();
+        if (payload?.data?.state !== 'received' || !payload?.data?.receipt_id) {
+          throw new Error('Receipt missing');
+        }
+        acknowledgeReceipt();
+      } catch (error) {
+        uncertain = !error.status;
+        if (uncertain) {
+          try {
+            const verify = await fetch(intakeUrl + '?request_key=' + encodeURIComponent(requestKey), {
+              credentials: 'same-origin',
+              headers: { Accept: 'application/json' },
+            });
+            if (verify.ok) {
+              const payload = await verify.json();
+              if (payload?.data?.state === 'received') {
+                acknowledgeReceipt();
+                return;
+              }
+            }
+          } catch (_) { /* The original reception is still unknown. */ }
+        }
+        if (!received) {
+          announce(uncertain ? 'Réception à confirmer. Réessayez.' :
+            'Envoi impossible. Réessayez ou retirez la pièce concernée.');
+          offerFallback = Boolean(input.value.trim() && attachments.length);
+          const panel = $('[data-mk-mark-text-consent]');
+          if (panel) panel.hidden = !offerFallback;
+        }
+      } finally {
+        sending = false;
+        updateComposer();
+      }
+    }
+
+    form.addEventListener('submit', (event) => {
+      if (event.submitter?.name === 'cancel_confirmation') return;
+      if (sending || received) {
+        event.preventDefault();
+        return;
+      }
+      const hasParts = hasLocalReferences() || typedLinks().length > 0;
+      const maxLength = hasParts && !consent ? 20000 : MAX_TEXT;
+      if ((!input.value.trim() && !hasParts) || input.value.length > maxLength) {
+        event.preventDefault();
+        announce(input.value.length > maxLength
+          ? 'Raccourcissez votre demande avant de continuer.'
+          : 'Ajoutez du texte ou une pièce.');
+        return;
+      }
+      if (hasParts && !consent) {
+        event.preventDefault();
+        void sendMultimodal();
       } else {
         persist();
       }
