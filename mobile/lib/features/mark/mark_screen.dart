@@ -778,6 +778,7 @@ class _MarkScreenState extends State<MarkScreen> {
           },
         ),
       ];
+      _result = null;
     });
     _textOnlyConsent = false;
     await _saveDraft();
@@ -827,6 +828,7 @@ class _MarkScreenState extends State<MarkScreen> {
           },
       ];
       _textOnlyConsent = false;
+      _result = null;
     });
     await _saveDraft();
   }
@@ -870,6 +872,7 @@ class _MarkScreenState extends State<MarkScreen> {
         },
       ];
       _textOnlyConsent = false;
+      _result = null;
     });
     await _saveDraft();
   }
