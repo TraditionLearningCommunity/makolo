@@ -99,6 +99,7 @@
       consent = false;
       const panel = $('[data-mk-mark-text-consent]');
       if (panel) panel.hidden = true;
+      updateComposer();
     }
 
     function closePreview() {
