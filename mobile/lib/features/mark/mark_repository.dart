@@ -303,8 +303,7 @@ class MarkRepository {
       final data = envelope['data'] is Map<String, dynamic>
           ? envelope['data'] as Map<String, dynamic>
           : envelope;
-      if (data['state'] != 'received' ||
-          data['receipt_id'] is! String) {
+      if (data['state'] != 'received' || data['receipt_id'] is! String) {
         return const MarkResult(
           state: 'receipt_unknown',
           message: 'Réception non confirmée. Réessayez.',
