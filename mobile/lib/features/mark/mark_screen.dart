@@ -885,6 +885,56 @@ class _MarkScreenState extends State<MarkScreen> {
     return file.path;
   }
 
+  Future<void> _transcribeAttachedAudio(
+    StoredLocalFile file,
+    Map<String, dynamic> item,
+    int revision,
+    ActorContext actor,
+  ) async {
+    final transcriber = _audioTranscriber;
+    final profileId = widget.runtime.session?.profileId;
+    if (!_canTranscribeAudio ||
+        actor is! PersonalActorContext ||
+        transcriber == null ||
+        profileId == null ||
+        item['transcribed'] == true ||
+        _busy) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final recognized = await transcriber.transcribe(
+        file,
+        activeProfileId: profileId,
+      );
+      if (!mounted ||
+          revision != _draftRevision ||
+          actor != _actor ||
+          transcriber != _audioTranscriber) return;
+      final combined = appendMarkTranscript(_input.text, recognized);
+      setState(() {
+        _input.value = TextEditingValue(
+          text: combined,
+          selection: TextSelection.collapsed(offset: combined.length),
+        );
+        item['transcribed'] = true;
+        _draftSaved = false;
+        _result = null;
+        _pendingConfirmationCode = null;
+        _pendingConfirmationKey = null;
+      });
+      await _saveDraft();
+    } on Object {
+      if (mounted && revision == _draftRevision && actor == _actor) {
+        _show('Transcription indisponible. L’audio est conservé.');
+      }
+    } finally {
+      if (mounted && revision == _draftRevision && actor == _actor) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   Future<void> _previewAttachment(Map<String, dynamic> item) async {
     final id = item['file_id']?.toString();
     if (id == null || id.isEmpty) return;
@@ -909,10 +959,11 @@ class _MarkScreenState extends State<MarkScreen> {
           item['saved_asset_id'] == null;
       if (item['kind'] == 'audio') {
         final player = AudioPlayer();
+        String? choice;
         try {
           await player.setFilePath(file.path);
           if (!mounted || revision != _draftRevision || actor != _actor) return;
-          await showDialog<void>(
+          choice = await showDialog<String>(
             context: context,
             builder: (dialogContext) => AlertDialog(
               title: const Text('Enregistrement audio'),
@@ -922,6 +973,14 @@ class _MarkScreenState extends State<MarkScreen> {
                   onPressed: () => unawaited(player.play()),
                   label: const Text('Écouter'),
                 ),
+                if (_canTranscribeAudio &&
+                    actor is PersonalActorContext &&
+                    item['transcribed'] != true)
+                  TextButton.icon(
+                    icon: const Icon(Icons.text_fields_rounded),
+                    onPressed: () => Navigator.pop(dialogContext, 'transcribe'),
+                    label: const Text('Transcrire'),
+                  ),
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('Fermer'),
@@ -931,6 +990,12 @@ class _MarkScreenState extends State<MarkScreen> {
           );
         } finally {
           await player.dispose();
+        }
+        if (choice == 'transcribe' &&
+            mounted &&
+            revision == _draftRevision &&
+            actor == _actor) {
+          await _transcribeAttachedAudio(file, item, revision, actor);
         }
         return;
       }
