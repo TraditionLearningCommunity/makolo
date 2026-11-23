@@ -50,6 +50,7 @@ class MarkRecordedAudioTranscriber {
           contentType: 'audio/mp4',
         ),
       ],
+      transferTimeout: const Duration(minutes: 2),
     );
     final payload = response.jsonObject()['data'];
     if (payload is! Map || payload['text'] is! String) {
