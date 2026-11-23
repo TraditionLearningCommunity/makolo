@@ -211,3 +211,46 @@ La recette Samsung/émulateur a confirmé que la navigation principale et le cer
 - La rotation/correction EXIF d'une photo dépend du chemin d'acquisition natif et reste à vérifier sur Samsung. Aucune rotation systématique n'est introduite pour ne pas détériorer les images déjà orientées correctement.
 - Le plafond serveur de 600 caractères est toujours la limite d'envoi de demande Mark, et ne doit pas être confondu avec la capacité du brouillon à conserver une longue transcription.
 - **Non exécutés depuis cette session GitHub :** analyse statique, formatage Flutter après ces commits, tests Flutter/Django, build Android, recettes Samsung/Web et vérification réelle avec un modèle STT. Aucun workflow CI n'a été modifié, désactivé ou annulé. #522 reste ouverte sans fusion.
+
+
+## Réception multimodale réelle — 23 novembre 2026
+
+Cette section supplante les anciennes notes affirmant que les API Mark n'acceptent que le texte pour le **nouveau parcours de réception de pièces**. La sémantique et les transitions de `/mark/` restent toutefois distinctes : une **réception provisoire n'est jamais une action métier confirmée**.
+
+### Backend et propriété
+
+- `sharing.InboundCapture` reste l'unique propriétaire de l'intake documentaire existant. `sharing.InboundCaptureBundle` (migration additive `0008_inbound_capture_bundle.py`) associe les captures d'une même demande, le Profile authentifié, l'Espace éventuel, un digest de contenu et une clé d'idempotence unique par Profile.
+- Les nouveaux endpoints personnels : `POST /api/v1/me/mark/intake/`, `GET /api/v1/me/mark/intake/?request_key=…` et `GET /api/v1/me/mark/intake/<receipt_id>/`. Les équivalents Space sont `/api/v1/organizations/workspaces/<slug>/mark/intake/` et `…/<receipt_id>/` ; un **mandat explicite** avec `space.manage` est requis côté Space.
+- `sharing/inbound_bundle_services.py` valide le texte facultatif (20k caractères), jusqu'à dix liens HTTP(S) sécurisés, jusqu'à dix fichiers (12 Mio document/image JPEG/PNG, 25 Mio autres médias autorisés, 60 Mio total), type/extension/signature, propriété de l'acteur et cohérence du contexte. Les captures et le reçu sont créés dans une transaction, avec suppression des copies physiques lors d'un échec de transaction. Une seconde requête de même clé et contenu retrouve le même reçu ; une clé réutilisée pour un contenu différent est refusée. Réception `state=received`, `receipt_id`, `action_confirmed=false` : ni Access, ni Proof, ni Requirement ni réussite métier implicite.
+- Les reçus sont privés, leur lookup vérifie le Profile et l'Espace, avec throttling de réception. Le nettoyage des captures étend son balayage aux reçus arrivés à expiration.
+
+### Flutter
+
+- Le composeur autorise désormais texte, liens, photos, PDF, audio, fichiers mixtes **sans obligation de texte**. Les pièces locales sont résolues exclusivement via `ProfileFileStore` et contrôlées pour le Profile actif, l'owner Profile/Space, le purpose `mark_intake`, la sensibilité privée, la présence et la taille. `MakoloApiClient.upload` possède un délai réseau étendu **uniquement** pour ces transferts multimodaux.
+- `MarkRepository.submitIntake` persiste un `submission_key` stable avec empreinte du payload avant réseau. L'API renvoie un reçu ou un état d'incertitude ; après un timeout, un `GET` par clé tente de confirmer la réception avant le prochain envoi volontaire. Les fichiers locaux ne sont pas supprimés avant confirmation. « Reçu » est présenté discrètement, sans affirmer une action métier accomplie. Une nouvelle édition réinitialise cet état.
+- L'envoi **texte seul sans référence** reste confié à l'orchestrateur Mark existant, afin de ne pas remplacer ses clarifications, permissions ou actions confirmables.
+- Après enregistrement, la personne peut conserver l'audio ou demander sa transcription **si la capacité est disponible**. Un audio déjà joint au brouillon peut également être transcrit depuis son aperçu. `appendMarkTranscript` ajoute les mots à la dernière version éditée, sans remplacer ou tronquer le texte ; la source audio est conservée en cas d'échec.
+
+### Web personnel et Space
+
+- Le même contrat de réception est appelé par `static/js/mark-intake.js` avec authentification/cookie de session et CSRF. Le serveur reçoit réellement le `FormData` des médias, liens et texte. Un envoi sans texte est possible ; le contournement « Texte seul » n'apparaît qu'après une erreur de transfert lorsque l'utilisateur dispose de texte à envoyer.
+- La session navigateur ne copie jamais les données brutes des fichiers dans `sessionStorage`. Elle préserve la rédaction et les liens ; un fichier devra être re-sélectionné après fermeture de la page. Les reçus ambigus sont vérifiés par clé durant la session. Les réponses tardives ne doivent pas effacer la dernière édition. Les formulaires de confirmations métiers sont exclus de l'interception multipart.
+- Sur ordinateur, réduire la fenêtre Mark pendant une capture active n'annule plus silencieusement l'audio : la réduction est bloquée jusqu'à fin ou annulation volontaire.
+
+### Transcription différée, disponibilité et confidentialité
+
+- Le contrat `MAKOLO_MARK_AUDIO_TRANSCRIBER` accepte un callable réellement configuré. L'implémentation optionnelle `core.mark_audio_openai_provider.transcribe_openai_recording` est disponible et **désactivée par défaut**. Pour l'activer, l'administrateur doit fournir `MAKOLO_MARK_AUDIO_TRANSCRIBER=core.mark_audio_openai_provider.transcribe_openai_recording` et un `OPENAI_API_KEY` serveur effectif ; `MAKOLO_MARK_AUDIO_MODEL` vaut `gpt-transcribe` par défaut. Sans ces conditions, `GET /mark/transcription/` annonce `available=false`, l'UI n'offre pas de bouton mensonger et aucune transmission à un moteur externe n'a lieu.
+- Le fichier audio ne quitte l'appareil pour ce service qu'après le geste explicite « Transcrire ». La requête au fournisseur est configurée pour ne pas suivre de redirection ; le résultat vient réellement du service, et le message d'échec n'expose ni token ni réponse confidentielle. La configuration et les conditions de traitement des données doivent être validées par l'exploitant avant la bêta.
+
+### Tests créés ou adaptés
+
+- Django : `sharing/test_mark_inbound_bundle.py`, `core/test_mark_audio_openai_provider.py`, les assertions de templates personnel/Space, ainsi que les tests de transcription existants. Couverture écrite pour reçus seuls/multimédias, lots mixtes, clés d'idempotence, accès interdits, formats et erreurs.
+- Flutter : `mobile/test/mark_multimodal_intake_test.dart` et les tests de capture/transcription existants, dont un scénario d'upload au timeout et vérification d'un reçu. Le propriétaire `ProfileFileStore` ne change pas de responsabilité.
+- **Aucun test n'a pu être exécuté depuis le connecteur GitHub** : il faut lancer `python manage.py makemigrations --check`, `python manage.py migrate --plan`, `python manage.py check`, les tests Django ciblés, `mobile/tool/dart_format.sh`, `flutter analyze`, les tests Flutter, puis le build Android et la recette sur Samsung/Web avant toute certification. La migration additive doit être appliquée sur le serveur bêta avant que les endpoints de reçus soient utilisables.
+
+### Limites réelles restantes
+
+- Les médias sont réellement **reçus en staging privé** ; le routage ultérieur vers un dossier, une préparation, une Activity ou une autre action dépend toujours des propriétaires métiers. Il ne doit jamais être déduit du seul reçu. Une protection antimalware avancée et la politique de rétention peuvent exiger des contrôles supplémentaires avant production publique.
+- La transcription différée est disponible dans le code mais dépend d'un moteur et d'une clé serveur configurés. Aucun résultat n'est simulé, et aucune conversation vocale immersive n'est promise.
+- Le navigateur ne restaure pas les objets `File` après fermeture ou rechargement ; les fichiers locaux mobiles restent préservés jusqu'à réconciliation, avec nettoyage différé par les mécanismes de stockage.
+- Le travail reste sur la **PR #522 ouverte** : ni `main`, ni fusion, ni annulation ou modification de workflow CI.
