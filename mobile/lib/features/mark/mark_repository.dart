@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../../app/runtime/actor_context.dart';
@@ -321,6 +322,12 @@ class MarkRepository {
         state: 'received',
         message: data['message']?.toString() ?? 'Demande reçue.',
         raw: data,
+      );
+    } on TimeoutException {
+      return const MarkResult(
+        state: 'receipt_unknown',
+        message: 'Réception non confirmée. Réessayez.',
+        offline: true,
       );
     } on MakoloTransportError {
       return const MarkResult(
