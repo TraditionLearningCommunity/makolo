@@ -91,6 +91,22 @@ class PersonalMarkIntakeAPIView(PersonalProjectionAPIView):
     projection_code = "personal.mark.intake"
     parser_classes = [MultiPartParser, FormParser]
 
+    def get(self, request):
+        self._guard_personal_scope(request)
+        key = str(request.query_params.get("request_key") or "")
+        if not key or len(key) > 64:
+            raise ValidationError({"request_key": "Identifiant requis."})
+        bundle = InboundCaptureBundle.objects.filter(
+            created_by=request.user, space__isnull=True, request_key=key,
+        ).first()
+        if bundle is None:
+            raise NotFound()
+        return _receipt(
+            request, space=None, receipt_id=bundle.pk,
+            projection=self.projection_code,
+        )
+
+
     def get_throttles(self):
         checks = super().get_throttles()
         if self.request.method == "POST":
@@ -116,6 +132,22 @@ class PersonalMarkReceiptAPIView(PersonalProjectionAPIView):
 class SpaceMarkIntakeAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request, slug):
+        space = self._space(request, slug)
+        key = str(request.query_params.get("request_key") or "")
+        if not key or len(key) > 64:
+            raise ValidationError({"request_key": "Identifiant requis."})
+        bundle = InboundCaptureBundle.objects.filter(
+            created_by=request.user, space=space, request_key=key,
+        ).first()
+        if bundle is None:
+            raise NotFound()
+        return _receipt(
+            request, space=space, receipt_id=bundle.pk,
+            projection="space.mark.intake",
+        )
+
 
     def get_throttles(self):
         checks = super().get_throttles()
