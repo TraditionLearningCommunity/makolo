@@ -68,7 +68,7 @@ def _verified_upload(upload):
         if suffix in _AUDIO_FORMATS:
             valid = (
                 (mime == "audio/mp4" and len(data) >= 12 and data[4:8] == b"ftyp")
-                or (mime == "audio/webm" and data.startswith(b"\\x1a\\x45\\xdf\\xa3"))
+                or (mime == "audio/webm" and data.startswith(bytes.fromhex("1a45dfa3")))
                 or (mime == "audio/wav" and data.startswith(b"RIFF") and data[8:12] == b"WAVE")
                 or (mime == "audio/mpeg" and (data.startswith(b"ID3") or (len(data) > 1 and data[0] == 0xff and data[1] & 0xe0 == 0xe0)))
                 or (mime == "audio/aac" and len(data) > 1 and data[0] == 0xff and data[1] & 0xf0 == 0xf0)
