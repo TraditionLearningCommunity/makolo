@@ -81,8 +81,7 @@ MAKOLO_CONTENT_SECURITY_POLICY = "; ".join(
         "worker-src 'self' blob:",
     ]
 )
-# The microphone remains browser-permission gated; first-party Mark can record.
-MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(self), geolocation=(self)"
+MAKOLO_PERMISSIONS_POLICY = "camera=(self), microphone=(), geolocation=(self)"
 
 # Optional callable for opt-in recorded-audio transcription in Mark.
 # Leave unset until a real provider is installed and evaluated.
