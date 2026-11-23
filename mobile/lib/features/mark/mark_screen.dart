@@ -454,12 +454,13 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 
   Future<void> _removeLink(String link) async {
-    setState(
-      () => _links = [
+    setState(() {
+      _links = [
         for (final item in _links)
           if (item != link) item,
-      ],
-    );
+      ];
+      _result = null;
+    });
     _textOnlyConsent = false;
     await _saveDraft();
   }
@@ -716,6 +717,7 @@ class _MarkScreenState extends State<MarkScreen> {
           'kind': 'audio',
         },
       ];
+      _result = null;
     });
     _textOnlyConsent = false;
     await _saveDraft();
@@ -1151,6 +1153,7 @@ class _MarkScreenState extends State<MarkScreen> {
         for (final entry in _attachments)
           if (entry['file_id'] != fileId) entry,
       ];
+      _result = null;
     });
     _textOnlyConsent = false;
     await _saveDraft();
@@ -1533,6 +1536,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _busy = false;
       _result = result;
       if (result.state == 'received') {
+        _draftSaved = false;
         _submissionKey = null;
         _submissionFingerprint = null;
         _textOnlyConsent = false;
