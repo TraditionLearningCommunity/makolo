@@ -256,6 +256,7 @@ class MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
+    Duration? transferTimeout,
   }) {
     return _authorized(
       method,
@@ -287,6 +288,7 @@ class MakoloApiClient {
       extraHeaders: headers,
       cancel: cancel,
       onSendProgress: onProgress,
+      transferTimeout: transferTimeout,
     );
   }
 
@@ -449,6 +451,7 @@ class MakoloApiClient {
     Map<String, String>? extraHeaders,
     MakoloCancelHandle? cancel,
     TransferProgress? onSendProgress,
+    Duration? transferTimeout,
   }) async {
     var session = await _requireSession();
     var response = await _send(
@@ -459,6 +462,7 @@ class MakoloApiClient {
       extraHeaders: extraHeaders,
       cancel: cancel,
       onSendProgress: onSendProgress,
+      transferTimeout: transferTimeout,
     );
     if (response.statusCode != 401) {
       return _ensureSuccess(response);
@@ -473,6 +477,7 @@ class MakoloApiClient {
       extraHeaders: extraHeaders,
       cancel: cancel,
       onSendProgress: onSendProgress,
+      transferTimeout: transferTimeout,
     );
     return _ensureSuccess(response);
   }
@@ -559,6 +564,7 @@ class MakoloApiClient {
     Map<String, String>? extraHeaders,
     MakoloCancelHandle? cancel,
     TransferProgress? onSendProgress,
+    Duration? transferTimeout,
   }) async {
     final started = Stopwatch()..start();
     try {
@@ -567,6 +573,8 @@ class MakoloApiClient {
         data: body,
         options: Options(
           method: method,
+          sendTimeout: transferTimeout,
+          receiveTimeout: transferTimeout,
           headers: {
             'Accept': 'application/json',
             if (bearer != null) 'Authorization': 'Bearer $bearer',
