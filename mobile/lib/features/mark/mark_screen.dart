@@ -910,7 +910,8 @@ class _MarkScreenState extends State<MarkScreen> {
       if (!mounted ||
           revision != _draftRevision ||
           actor != _actor ||
-          transcriber != _audioTranscriber) return;
+          transcriber != _audioTranscriber)
+        return;
       final combined = appendMarkTranscript(_input.text, recognized);
       setState(() {
         _input.value = TextEditingValue(
