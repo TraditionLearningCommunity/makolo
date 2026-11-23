@@ -330,6 +330,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertContains(response, 'data-mk-mark-attach-open')
         self.assertContains(response, 'data-mk-mark-gallery')
         self.assertContains(response, 'data-mk-mark-send')
+        self.assertContains(response, f'/api/v1/organizations/workspaces/{self.space.slug}/mark/intake/')
         self.assertContains(response, 'data-mk-mark-save')
         self.assertContains(response, 'data-mk-orbit-available')
         self.assertContains(response, 'data-mk-orbit-saved')
