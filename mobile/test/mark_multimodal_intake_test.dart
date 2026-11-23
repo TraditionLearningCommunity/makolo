@@ -50,6 +50,7 @@ class _IntakeApi extends MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
+    Duration? transferTimeout,
   }) async {
     lastPath = path;
     lastFields = fields;
