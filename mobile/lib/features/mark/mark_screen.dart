@@ -2049,15 +2049,19 @@ class _MarkScreenState extends State<MarkScreen> {
                                     Icon(
                                       Icons.check_circle_outline_rounded,
                                       size: 18,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
                                     ),
                                     const SizedBox(width: 6),
                                     const Text('Demande reçue'),
                                   ],
                                 ),
                               ),
-                            if (const {'offline_draft', 'receipt_unknown'}
-                                .contains(_result?.state))
+                            if (const {
+                              'offline_draft',
+                              'receipt_unknown',
+                            }.contains(_result?.state))
                               Padding(
                                 padding: const EdgeInsets.only(top: 10),
                                 child: Row(
