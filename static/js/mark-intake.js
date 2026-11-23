@@ -304,8 +304,8 @@
         announce('10 pièces maximum pour une demande.');
         return;
       }
-      const docExtensions = /\\.(pdf|docx?|txt|jpe?g|png)$/i;
-      const supported = /\\.(pdf|docx?|txt|jpe?g|png|webp|m4a|mp4|webm|wav|mp3|aac|ogg)$/i;
+      const docExtensions = /\.(pdf|docx?|txt|jpe?g|png)$/i;
+      const supported = /\.(pdf|docx?|txt|jpe?g|png|webp|m4a|mp4|webm|wav|mp3|aac|ogg)$/i;
       if (files.some((file) =>
         !supported.test(file.name) || !file.size ||
         file.size > (docExtensions.test(file.name) ? 12 * 1024 * 1024 : MAX_FILE_BYTES))) {
