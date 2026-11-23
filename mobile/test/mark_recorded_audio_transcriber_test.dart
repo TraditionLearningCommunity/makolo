@@ -37,6 +37,7 @@ class _FakeMarkApi extends MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
+    Duration? transferTimeout,
   }) async {
     expect(path, MarkRecordedAudioTranscriber.path);
     expect(files.single.fieldName, 'audio');
