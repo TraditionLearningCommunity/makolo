@@ -395,12 +395,12 @@
     function updateComposer() {
       const count = $('[data-mk-mark-count]');
       const send = $('[data-mk-mark-send]');
-      if (count) {
-        count.hidden = input.value.length < 500;
-        count.textContent = input.value.length + '/600';
-      }
       const hasParts = hasLocalReferences() || typedLinks().length > 0;
       const maxLength = hasParts && !consent ? 20000 : MAX_TEXT;
+      if (count) {
+        count.hidden = input.value.length < maxLength - (maxLength === 600 ? 100 : 200);
+        count.textContent = input.value.length + '/' + maxLength;
+      }
       if (send) send.disabled = sending || received ||
         (!input.value.trim() && !hasParts) ||
         input.value.length > maxLength;
