@@ -253,6 +253,39 @@ class MarkRepository {
     }
   }
 
+  Future<MarkResult?> _verifyIntakeReceipt({
+    required MakoloApiClient api,
+    required ActorContext actor,
+    required String intakePath,
+    required String requestKey,
+  }) async {
+    try {
+      final response = await api.get(
+        '$intakePath?request_key=${Uri.encodeQueryComponent(requestKey)}',
+      );
+      final envelope = response.jsonObject();
+      final data = envelope['data'];
+      if (data is! Map ||
+          data['state'] != 'received' ||
+          data['receipt_id'] is! String) {
+        return null;
+      }
+      try {
+        await clearDraft(actor);
+      } on Object {
+        // A later retry can still resolve the same receipt.
+      }
+      return MarkResult(
+        state: 'received',
+        message: data['message']?.toString() ?? 'Demande reçue.',
+        raw: Map<String, dynamic>.from(data),
+      );
+    } on Object {
+      // A missing or unreachable receipt is not evidence of a failed send.
+      return null;
+    }
+  }
+
   /// Submit a complete request to Sharing's private intake owner. A receipt
   /// means received into staging, never a completed Mark business action.
   Future<MarkResult> submitIntake({
@@ -324,12 +357,26 @@ class MarkRepository {
         raw: data,
       );
     } on TimeoutException {
+      final confirmed = await _verifyIntakeReceipt(
+        api: api,
+        actor: actor,
+        intakePath: path,
+        requestKey: requestKey,
+      );
+      if (confirmed != null) return confirmed;
       return const MarkResult(
         state: 'receipt_unknown',
         message: 'Réception non confirmée. Réessayez.',
         offline: true,
       );
     } on MakoloTransportError {
+      final confirmed = await _verifyIntakeReceipt(
+        api: api,
+        actor: actor,
+        intakePath: path,
+        requestKey: requestKey,
+      );
+      if (confirmed != null) return confirmed;
       return const MarkResult(
         state: 'receipt_unknown',
         message: 'Réception non confirmée. Réessayez.',
