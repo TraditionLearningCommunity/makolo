@@ -24,4 +24,13 @@ def configured_mark_audio_transcriber():
         processor = import_string(reference.strip())
     except (ImportError, AttributeError, ValueError):
         return None
-    return processor if callable(processor) else None
+    if not callable(processor):
+        return None
+    availability = getattr(processor, "is_configured", None)
+    if callable(availability):
+        try:
+            if not availability():
+                return None
+        except Exception:
+            return None
+    return processor
