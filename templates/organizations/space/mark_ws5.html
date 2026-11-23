@@ -1,7 +1,9 @@
 {% extends 'organizations/space/base.html' %}
 {% block space_content %}
 <div class="mk-mark-page" data-mk-mark-root data-mk-mark-context="space"
-  data-mk-mark-scope="space:{{ request.user.pk }}:{{ space.pk }}">
+  data-mk-mark-scope="space:{{ request.user.pk }}:{{ space.pk }}"
+  data-mk-mark-intake-url="/api/v1/organizations/workspaces/{{ space.slug }}/mark/intake/"
+  data-mk-mark-responsibility="{{ selected_responsibility.key }}">
   <section class="mk-mark-window" data-mk-mark-window aria-label="Demande Makolo pour {{ space.name }}">
     <div class="mk-mark-window-tools" role="group" aria-label="Affichage de Makolo Mark">
       <button type="button" data-mk-mark-float hidden>Ouvrir en fenêtre</button>
