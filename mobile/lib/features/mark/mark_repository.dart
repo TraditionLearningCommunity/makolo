@@ -332,6 +332,7 @@ class MarkRepository {
           'context': jsonEncode(context),
         },
         files: uploads,
+        transferTimeout: const Duration(minutes: 5),
       );
       final envelope = response.jsonObject();
       final data = envelope['data'] is Map<String, dynamic>
