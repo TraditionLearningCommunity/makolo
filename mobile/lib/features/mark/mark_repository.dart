@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../network/api_error.dart';
+import '../../network/makolo_api_client.dart';
 
 class MarkResult {
   const MarkResult({
@@ -52,6 +55,7 @@ class MarkRepository {
     Map<String, String>? teamMember,
     String? pendingConfirmationCode,
     String? pendingConfirmationKey,
+    String? submissionKey,
   }) {
     final drafts = runtime.drafts;
     if (drafts == null) return Future<void>.value();
@@ -69,6 +73,7 @@ class MarkRepository {
       if (teamMember != null) 'team_member': Map<String, String>.of(teamMember),
       'pending_confirmation_code': ?pendingConfirmationCode,
       'pending_confirmation_key': ?pendingConfirmationKey,
+      'submission_key': ?submissionKey,
     };
     // Autosave, share ingress, confirmation and deletion can interleave.
     // Serialize by actor and snapshot each payload before it is enqueued.
@@ -235,6 +240,89 @@ class MarkRepository {
       return const MarkResult(
         state: 'offline_draft',
         message: 'Enregistré sur cet appareil. Makolo n’a pas pu revalider le contexte à distance.',
+        offline: true,
+      );
+    } on MakoloApiError catch (error) {
+      return MarkResult(
+        state: error.statusCode == 403 ? 'forbidden' : 'failed',
+        message: error.message,
+      );
+    }
+  }
+
+  /// Submit a complete request to Sharing's private intake owner. A receipt
+  /// means received into staging, never a completed Mark business action.
+  Future<MarkResult> submitIntake({
+    required ActorContext actor,
+    required String input,
+    required List<Map<String, dynamic>> attachments,
+    required List<String> links,
+    required List<MakoloUploadFile> uploads,
+    required String requestKey,
+    Map<String, String>? selected,
+  }) async {
+    await saveDraft(
+      actor: actor,
+      input: input,
+      inputKind: uploads.isEmpty ? 'text' : 'document',
+      attachments: attachments,
+      links: links,
+      selected: selected,
+      submissionKey: requestKey,
+    );
+    final api = runtime.api;
+    if (api == null) {
+      return const MarkResult(state: 'offline_draft', offline: true);
+    }
+    final context = <String, dynamic>{
+      if (selected != null) 'selected': selected,
+      if (actor case SpaceActorContext(:final perspective))
+        if (!perspective.isAll) 'responsibility': perspective.id,
+    };
+    final path = switch (actor) {
+      PersonalActorContext() => 'api/v1/me/mark/intake/',
+      SpaceActorContext(:final space) =>
+        'api/v1/organizations/workspaces/${space.slug}/mark/intake/',
+    };
+    try {
+      final response = await api.upload(
+        path,
+        fields: {
+          'request_key': requestKey,
+          'text': input,
+          'links': jsonEncode(links),
+          'context': jsonEncode(context),
+        },
+        files: uploads,
+      );
+      final envelope = response.jsonObject();
+      final data = envelope['data'] is Map<String, dynamic>
+          ? envelope['data'] as Map<String, dynamic>
+          : envelope;
+      if (data['state'] != 'received' ||
+          data['receipt_id'] is! String) {
+        return const MarkResult(
+          state: 'receipt_unknown',
+          message: 'Réception non confirmée. Réessayez.',
+          offline: true,
+        );
+      }
+      // Only an authoritative receipt allows clearing the local intent.
+      // Physical private file copies are not destroyed here.
+      try {
+        await clearDraft(actor);
+      } on Object {
+        // Leave the same request key in the local draft for safe retry.
+      }
+      return MarkResult(
+        state: 'received',
+        message: data['message']?.toString() ?? 'Demande reçue.',
+        raw: data,
+      );
+    } on MakoloTransportError {
+      return const MarkResult(
+        state: 'receipt_unknown',
+        message: 'Réception non confirmée. Réessayez.',
         offline: true,
       );
     } on MakoloApiError catch (error) {
