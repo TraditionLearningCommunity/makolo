@@ -791,7 +791,10 @@
     }
 
     form.addEventListener('submit', (event) => {
-      if (event.submitter?.name === 'cancel_confirmation') return;
+      // Do not hijack confirmation/clarification actions owned by Mark.
+      // Only the primary compose action sends an intake bundle.
+      if (event.submitter &&
+          !event.submitter.hasAttribute('data-mk-mark-send')) return;
       if (sending || received) {
         event.preventDefault();
         return;
