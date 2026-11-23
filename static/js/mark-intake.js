@@ -327,7 +327,8 @@
     function setMode(next) {
       if (next === 'minimized' || next === 'inline') closePreview();
       if (next === 'minimized' && speechPanel && !speechPanel.hidden) {
-        closeDictation(false);
+        announce('Terminez ou annulez l’enregistrement avant de réduire Mark.');
+        return;
       }
       const desktop = window.matchMedia('(min-width: 1200px)').matches;
       mode = desktop ? next : 'inline';
