@@ -23,6 +23,23 @@ class _IntakeApi extends MakoloApiClient {
   Map<String, Object?>? lastFields;
   List<MakoloUploadFile> lastFiles = const [];
   bool timeout = false;
+  bool receiptExists = false;
+
+  @override
+  Future<ApiResponse> get(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) async {
+    expect(path, contains('request_key='));
+    if (!receiptExists) throw TimeoutException('server unavailable');
+    return ApiResponse(
+      200,
+      '{"data":{"state":"received","receipt_id":"test-receipt-1",'
+      '"action_confirmed":false,"message":"Demande reçue."}}',
+      const {},
+    );
+  }
 
   @override
   Future<ApiResponse> upload(
@@ -123,6 +140,23 @@ void main() {
     expect(stored?['submission_key'], 'abcdefabcdefabcdefabcdefabcdefab');
     expect(stored?['submission_fingerprint'], 'payload-v1');
     expect(stored?['links'], ['https://example.org/a']);
+  });
+
+  test('uncertain POST resolves an already received request', () async {
+    api.timeout = true;
+    api.receiptExists = true;
+    final result = await repository.submitIntake(
+      actor: const PersonalActorContext(),
+      input: '',
+      attachments: const [],
+      links: const ['https://example.org/receipt'],
+      uploads: const [],
+      requestKey: '11111111111111111111111111111111',
+      submissionFingerprint: 'link-received',
+    );
+    expect(result.state, 'received');
+    expect(result.raw['action_confirmed'], isFalse);
+    expect(await repository.readDraft(const PersonalActorContext()), isNull);
   });
 
   test(
