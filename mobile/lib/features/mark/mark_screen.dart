@@ -1384,51 +1384,84 @@ class _MarkScreenState extends State<MarkScreen> {
 
   Future<void> _submit() async {
     if (_busy || _restoring || _voiceCapture || _dictating) return;
-    final input = _input.text.trim();
-    if (input.length > 600) {
-      _show('Raccourcissez votre demande à 600 caractères avant de continuer.');
-      return;
-    }
-    if (input.isEmpty && _attachments.isEmpty && _links.isEmpty) {
-      _show('Écrivez une demande ou ajoutez une pièce.');
+    final input = _input.text;
+    final attachments = List<Map<String, dynamic>>.of(_attachments);
+    final links = {..._links, ..._typedLinks}.toList(growable: false);
+    final hasReferences = attachments.isNotEmpty || links.isNotEmpty;
+    if (input.trim().isEmpty && !hasReferences) return;
+    if (input.length > (hasReferences && !_textOnlyConsent ? 20000 : 600)) {
+      _show('Raccourcissez votre demande avant l’envoi.');
       return;
     }
     final revision = _draftRevision;
     final actor = _actor;
     final repository = _repository;
-    final attachments = List<Map<String, dynamic>>.of(_attachments);
-    final links = List<String>.of(_links);
-    // Mark's owner APIs accept text only; this choice is explicit, not a modal.
-    if ((attachments.isNotEmpty || links.isNotEmpty) &&
-        (input.isEmpty || !_textOnlyConsent)) {
-      _show(
-        'Ces pièces ne peuvent pas être envoyées ici. '
-        'Choisissez « Texte seul » pour continuer sans elles.',
-      );
-      return;
-    }
-    final allowTextOnly =
-        _textOnlyConsent && (attachments.isNotEmpty || links.isNotEmpty);
+    final selected = _selectedContext == null
+        ? null
+        : Map<String, String>.of(_selectedContext!);
     setState(() => _busy = true);
-    final result = await repository.submit(
-      actor: actor,
-      input: input,
-      inputKind: 'text',
-      attachments: attachments,
-      links: links,
-      selected: _selectedContext,
-      teamMember: actor is SpaceActorContext ? _teamMember : null,
-      allowTextOnly: allowTextOnly,
-    );
+    late final MarkResult result;
+    try {
+      if (hasReferences && !_textOnlyConsent) {
+        final uploads = await _prepareIntakeUploads(attachments);
+        if (!mounted ||
+            revision != _draftRevision ||
+            repository != _repository ||
+            actor != _actor) return;
+        // The payload identity survives a transport timeout and app restart.
+        // A changed input gets a different key on the next attempt.
+        final fingerprint = jsonEncode({
+          'owner': _owner,
+          'text': input,
+          'links': links,
+          'files': [for (final item in attachments) item['file_id']],
+          'selected': selected,
+        });
+        if (_submissionKey == null ||
+            _submissionFingerprint != fingerprint) {
+          _submissionKey = _newIdempotencyKey();
+          _submissionFingerprint = fingerprint;
+        }
+        result = await repository.submitIntake(
+          actor: actor,
+          input: input,
+          attachments: attachments,
+          links: links,
+          uploads: uploads,
+          requestKey: _submissionKey!,
+          submissionFingerprint: _submissionFingerprint!,
+          selected: selected,
+        );
+      } else {
+        result = await repository.submit(
+          actor: actor,
+          input: input.trim(),
+          inputKind: 'text',
+          attachments: attachments,
+          links: links,
+          selected: selected,
+          teamMember: actor is SpaceActorContext ? _teamMember : null,
+          allowTextOnly: _textOnlyConsent,
+        );
+      }
+    } on Object {
+      result = const MarkResult(
+        state: 'failed',
+        message: 'Envoi impossible. Vérifiez les pièces et réessayez.',
+      );
+    }
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor) {
-      return;
-    }
+        actor != _actor) return;
     setState(() {
       _busy = false;
       _result = result;
+      if (result.state == 'received') {
+        _submissionKey = null;
+        _submissionFingerprint = null;
+        _textOnlyConsent = false;
+      }
       if (result.state == 'needs_confirmation' &&
           result.action?['code'] == 'redeem_recognition') {
         if (_pendingConfirmationCode != 'redeem_recognition') {
