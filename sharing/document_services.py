@@ -21,7 +21,7 @@ from journeys.collaboration_services import create_artifact, create_note, valida
 from journeys.models import Journey
 
 from .analytics import emit_capture_event
-from .inbound_models import InboundCapture, InboundCaptureSourceKind, InboundCaptureStatus
+from .inbound_models import InboundCapture, InboundCaptureBundle, InboundCaptureSourceKind, InboundCaptureStatus
 
 EXPORTABLE_ARTIFACT_KINDS = {JourneyArtifactKind.CV, JourneyArtifactKind.COVER_LETTER, JourneyArtifactKind.CERTIFICATE, JourneyArtifactKind.TRANSCRIPT, JourneyArtifactKind.RECOMMENDATION, JourneyArtifactKind.FORM}
 BLOCKED_ARTIFACT_KINDS = {JourneyArtifactKind.IDENTITY_DOCUMENT, JourneyArtifactKind.PAYMENT_RECEIPT, JourneyArtifactKind.OTHER}
@@ -180,4 +180,7 @@ def expire_captures(*, limit=500):
             capture = InboundCapture.objects.select_for_update(of=("self",)).filter(pk=capture_id, status=InboundCaptureStatus.PENDING).first()
             if capture is None or capture.expires_at > timezone.now(): continue
             _mark_expired(capture); expired_count += 1
+    # Bundles hold private source text/links only while their captures are live.
+    # The staging owner purges expired receipt metadata on the existing schedule.
+    InboundCaptureBundle.objects.filter(expires_at__lte=timezone.now()).delete()
     return expired_count
