@@ -304,8 +304,17 @@
         announce('10 pièces maximum pour une demande.');
         return;
       }
-      if (files.some((file) => !file.size || file.size > MAX_FILE_BYTES)) {
-        announce('Les pièces doivent être non vides et ne pas dépasser 25 Mo chacune.');
+      const docExtensions = /\\.(pdf|docx?|txt|jpe?g|png)$/i;
+      const supported = /\\.(pdf|docx?|txt|jpe?g|png|webp|m4a|mp4|webm|wav|mp3|aac|ogg)$/i;
+      if (files.some((file) =>
+        !supported.test(file.name) || !file.size ||
+        file.size > (docExtensions.test(file.name) ? 12 * 1024 * 1024 : MAX_FILE_BYTES))) {
+        announce('Un fichier est vide, trop volumineux ou son format n’est pas accepté.');
+        return;
+      }
+      const total = [...attachments, ...files].reduce((sum, file) => sum + file.size, 0);
+      if (total > 60 * 1024 * 1024) {
+        announce('La demande contient trop de pièces volumineuses.');
         return;
       }
       attachments.push(...files);
