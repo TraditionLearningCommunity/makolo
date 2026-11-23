@@ -61,13 +61,15 @@ void main() {
       outbox: OutboxRepository(database, 'profile-intake'),
       profileId: 'profile-intake',
     );
-    repository = MarkRepository(AppRuntime(
-      tokens: MemoryTokenStore(),
-      session: null,
-      recovery: SessionRecoveryController(),
-      api: api,
-      drafts: drafts,
-    ));
+    repository = MarkRepository(
+      AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        api: api,
+        drafts: drafts,
+      ),
+    );
   });
 
   tearDown(() async {
@@ -75,36 +77,35 @@ void main() {
     api.close(force: true);
   });
 
-  test('audio-only receives server receipt and never claims a business action',
-      () async {
-    final result = await repository.submitIntake(
-      actor: const PersonalActorContext(),
-      input: '',
-      attachments: const [
-        {'file_id': 'voice', 'kind': 'audio', 'purpose': 'mark_intake'},
-      ],
-      links: const [],
-      uploads: const [
-        MakoloUploadFile(
-          fieldName: 'files',
-          path: '/private/voice.m4a',
-          filename: 'voice.m4a',
-          contentType: 'audio/mp4',
-        ),
-      ],
-      requestKey: '0123456789abcdef0123456789abcdef',
-      submissionFingerprint: 'media-payload-v1',
-    );
-    expect(result.state, 'received');
-    expect(result.raw['action_confirmed'], isFalse);
-    expect(api.lastPath, 'api/v1/me/mark/intake/');
-    expect(api.lastFields?['text'], '');
-    expect(api.lastFiles.single.contentType, 'audio/mp4');
-    expect(
-      await repository.readDraft(const PersonalActorContext()),
-      isNull,
-    );
-  });
+  test(
+    'audio-only receives server receipt and never claims a business action',
+    () async {
+      final result = await repository.submitIntake(
+        actor: const PersonalActorContext(),
+        input: '',
+        attachments: const [
+          {'file_id': 'voice', 'kind': 'audio', 'purpose': 'mark_intake'},
+        ],
+        links: const [],
+        uploads: const [
+          MakoloUploadFile(
+            fieldName: 'files',
+            path: '/private/voice.m4a',
+            filename: 'voice.m4a',
+            contentType: 'audio/mp4',
+          ),
+        ],
+        requestKey: '0123456789abcdef0123456789abcdef',
+        submissionFingerprint: 'media-payload-v1',
+      );
+      expect(result.state, 'received');
+      expect(result.raw['action_confirmed'], isFalse);
+      expect(api.lastPath, 'api/v1/me/mark/intake/');
+      expect(api.lastFields?['text'], '');
+      expect(api.lastFiles.single.contentType, 'audio/mp4');
+      expect(await repository.readDraft(const PersonalActorContext()), isNull);
+    },
+  );
 
   test('timeout retains durable same-key draft for explicit retry', () async {
     api.timeout = true;
@@ -124,26 +125,28 @@ void main() {
     expect(stored?['links'], ['https://example.org/a']);
   });
 
-  test('space intake is routed to its own owner without personal authority',
-      () async {
-    final space = SpaceActorContext(
-      space: SpaceActorIdentity(id: 'space-id', slug: 'atelier'),
-      perspective: ActorPerspective.opaque('mandate:1'),
-    );
-    final result = await repository.submitIntake(
-      actor: space,
-      input: '',
-      attachments: const [],
-      links: const ['https://example.org/a'],
-      uploads: const [],
-      requestKey: 'fedcfedcfedcfedcfedcfedcfedcfedc',
-      submissionFingerprint: 'link-space-v1',
-    );
-    expect(result.state, 'received');
-    expect(
-      api.lastPath,
-      'api/v1/organizations/workspaces/atelier/mark/intake/',
-    );
-    expect(api.lastFields?['context'], contains('mandate:1'));
-  });
+  test(
+    'space intake is routed to its own owner without personal authority',
+    () async {
+      final space = SpaceActorContext(
+        space: SpaceActorIdentity(id: 'space-id', slug: 'atelier'),
+        perspective: ActorPerspective.opaque('mandate:1'),
+      );
+      final result = await repository.submitIntake(
+        actor: space,
+        input: '',
+        attachments: const [],
+        links: const ['https://example.org/a'],
+        uploads: const [],
+        requestKey: 'fedcfedcfedcfedcfedcfedcfedcfedc',
+        submissionFingerprint: 'link-space-v1',
+      );
+      expect(result.state, 'received');
+      expect(
+        api.lastPath,
+        'api/v1/organizations/workspaces/atelier/mark/intake/',
+      );
+      expect(api.lastFields?['context'], contains('mandate:1'));
+    },
+  );
 }
