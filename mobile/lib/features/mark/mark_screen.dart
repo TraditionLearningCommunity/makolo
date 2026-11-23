@@ -1321,14 +1321,20 @@ class _MarkScreenState extends State<MarkScreen> {
       throw StateError('Pièces indisponibles pour cette session.');
     }
     const types = <String, String>{
-      '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-      '.png': 'image/png', '.webp': 'image/webp',
-      '.pdf': 'application/pdf', '.txt': 'text/plain',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.pdf': 'application/pdf',
+      '.txt': 'text/plain',
       '.doc': 'application/msword',
       '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      '.m4a': 'audio/mp4', '.mp4': 'audio/mp4',
-      '.webm': 'audio/webm', '.wav': 'audio/wav',
-      '.mp3': 'audio/mpeg', '.aac': 'audio/aac',
+      '.m4a': 'audio/mp4',
+      '.mp4': 'audio/mp4',
+      '.webm': 'audio/webm',
+      '.wav': 'audio/wav',
+      '.mp3': 'audio/mpeg',
+      '.aac': 'audio/aac',
       '.ogg': 'audio/ogg',
     };
     if (items.length > 10) throw StateError('10 pièces maximum.');
@@ -1372,12 +1378,14 @@ class _MarkScreenState extends State<MarkScreen> {
       final filename = p.extension(declared).toLowerCase() == extension
           ? declared
           : 'piece-${index + 1}$extension';
-      uploads.add(MakoloUploadFile(
-        fieldName: 'files',
-        path: file.path,
-        filename: filename,
-        contentType: type,
-      ));
+      uploads.add(
+        MakoloUploadFile(
+          fieldName: 'files',
+          path: file.path,
+          filename: filename,
+          contentType: type,
+        ),
+      );
     }
     return uploads;
   }
@@ -1407,7 +1415,8 @@ class _MarkScreenState extends State<MarkScreen> {
         if (!mounted ||
             revision != _draftRevision ||
             repository != _repository ||
-            actor != _actor) return;
+            actor != _actor)
+          return;
         // The payload identity survives a transport timeout and app restart.
         // A changed input gets a different key on the next attempt.
         final fingerprint = jsonEncode({
@@ -1417,8 +1426,7 @@ class _MarkScreenState extends State<MarkScreen> {
           'files': [for (final item in attachments) item['file_id']],
           'selected': selected,
         });
-        if (_submissionKey == null ||
-            _submissionFingerprint != fingerprint) {
+        if (_submissionKey == null || _submissionFingerprint != fingerprint) {
           _submissionKey = _newIdempotencyKey();
           _submissionFingerprint = fingerprint;
         }
@@ -1453,7 +1461,8 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor) return;
+        actor != _actor)
+      return;
     setState(() {
       _busy = false;
       _result = result;
