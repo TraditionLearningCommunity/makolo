@@ -12,7 +12,11 @@ from sharing.inbound_bundle_services import receive_inbound_bundle
 from sharing.inbound_models import InboundCapture, InboundCaptureBundle
 from core.api.mark_intake_views import (
     PersonalMarkIntakeAPIView, PersonalMarkReceiptAPIView,
+    SpaceMarkIntakeAPIView, SpaceMarkReceiptAPIView,
 )
+from organizations.models import Organization
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
 
 
 def pdf():
@@ -135,6 +139,50 @@ class MarkInboundBundleTests(TestCase):
         force_authenticate(request, user=self.user)
         self.assertEqual(self.collection(request).status_code, 400)
         self.assertFalse(InboundCaptureBundle.objects.exists())
+
+    def test_space_receipt_requires_explicit_manage_authority(self):
+        space = Organization.objects.create(
+            name="Collectif de production", slug="collectif-mark-test",
+            created_by=self.user,
+        )
+        grant_space_role(
+            profile=self.user, space=space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.user,
+        )
+        path = f"/api/v1/organizations/workspaces/{space.slug}/mark/intake/"
+        view = SpaceMarkIntakeAPIView.as_view()
+        request = self.factory.post(
+            path, data={
+                "request_key": uuid4().hex,
+                "text": "",
+                "links": "[]",
+                "context": "{}",
+                "files": [pdf()],
+            }, format="multipart",
+        )
+        force_authenticate(request, user=self.user)
+        response = view(request, slug=space.slug)
+        self.assertEqual(response.status_code, 201)
+        receipt_id = response.data["data"]["receipt_id"]
+        bundle = InboundCaptureBundle.objects.get(pk=receipt_id)
+        self.assertEqual(bundle.space, space)
+        self.assertFalse(response.data["data"]["action_confirmed"])
+
+        foreign = self.factory.post(
+            path, data={
+                "request_key": uuid4().hex,
+                "text": "Contenu privé",
+            }, format="multipart",
+        )
+        force_authenticate(foreign, user=self.other)
+        denied = view(foreign, slug=space.slug)
+        self.assertIn(denied.status_code, (403, 404))
+
+        lookup = SpaceMarkReceiptAPIView.as_view()
+        foreign_lookup = self.factory.get(path + receipt_id + "/")
+        force_authenticate(foreign_lookup, user=self.other)
+        denied = lookup(foreign_lookup, slug=space.slug, receipt_id=receipt_id)
+        self.assertIn(denied.status_code, (403, 404))
 
     def test_empty_request_is_not_a_receipt(self):
         self.assertEqual(self._post().status_code, 400)
