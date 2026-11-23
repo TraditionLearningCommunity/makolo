@@ -1,0 +1,79 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Makolo — ADB Reverse Samsung USB",
+      "type": "process",
+      "command": "adb",
+      "args": [
+        "-s",
+        "RFCNA0800DA",
+        "reverse",
+        "tcp:9999",
+        "tcp:9999"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      }
+    },
+    {
+      "label": "Makolo — ADB Reverse Emulator",
+      "type": "process",
+      "command": "adb",
+      "args": [
+        "-s",
+        "emulator-5554",
+        "reverse",
+        "tcp:9999",
+        "tcp:9999"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      }
+    },
+    {
+      "label": "Makolo — Activer clavier émulateur",
+      "type": "process",
+      "command": "adb",
+      "args": [
+        "-s",
+        "emulator-5554",
+        "shell",
+        "settings",
+        "put",
+        "secure",
+        "show_ime_with_hard_keyboard",
+        "1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      }
+    },
+    {
+      "label": "Makolo — Préparer émulateur local",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Makolo — Activer clavier émulateur",
+        "Makolo — ADB Reverse Emulator"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Makolo — Préparer émulateur PythonAnywhere",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Makolo — Activer clavier émulateur"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

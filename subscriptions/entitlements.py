@@ -177,6 +177,19 @@ def _resolve(subject, *, feature_code=None, at=None):
         feature_qs = feature_qs.filter(code=feature_code)
     features = {feature.code: feature for feature in feature_qs}
 
+    from .coverage_entitlements import funded_feature_contributions, resolved_funded_allocations
+
+    allocations = resolved_funded_allocations(subject, at=at)
+    selected = next(
+        (item for item in allocations
+         if item.selected_base and item.coverage.plan_version.plan.plan_type == SubscriptionPlanType.BASE),
+        None,
+    )
+    allocations = tuple(
+        item for item in allocations
+        if item.coverage.plan_version.plan.plan_type != SubscriptionPlanType.BASE
+        or (selected is not None and item.pk == selected.pk)
+    )
     contributions = {code: [] for code in features}
     if subscription is not None:
         items = (
@@ -196,6 +209,8 @@ def _resolve(subject, *, feature_code=None, at=None):
         ).select_related("feature")
         for entitlement in entitlements:
             item = item_by_version[entitlement.plan_version_id]
+            if item.item_type == SubscriptionPlanType.BASE and selected is not None:
+                continue
             source_type = (
                 EntitlementSourceType.BASE
                 if item.item_type == SubscriptionPlanType.BASE
@@ -235,6 +250,10 @@ def _resolve(subject, *, feature_code=None, at=None):
             }
         )
 
+    funded = funded_feature_contributions(subject, features, allocations) if allocations else {}
+    for code, entries in funded.items():
+        contributions[code].extend(entries)
+
     from .eligibility import entitlement_requirement_blocks
 
     requirement_blocks = entitlement_requirement_blocks(
@@ -249,11 +268,33 @@ def _resolve(subject, *, feature_code=None, at=None):
             contributions[code],
             key=lambda entry: (entry["priority"], entry["at"], entry["source"].source_id),
         )
+        # Only independently financed coverage changes the historical Subscription
+        # suspension gate; administrative Grants keep their existing semantics.
+        has_independent = any(
+            entry["source"].source_type in {"funded_base", "funded_addon"}
+            for entry in entries
+        )
+        if has_independent and subscription and subscription.status == SubscriptionStatus.SUSPENDED:
+            entries = [
+                entry for entry in entries
+                if entry["source"].source_type not in {
+                    EntitlementSourceType.BASE, EntitlementSourceType.ADDON,
+                }
+            ]
+        if has_independent and requirement_blocks.get(code):
+            entries = [
+                entry for entry in entries
+                if entry["source"].source_type not in {
+                    EntitlementSourceType.BASE, EntitlementSourceType.ADDON,
+                }
+            ]
         sources = tuple(entry["source"] for entry in entries)
         effective = _aggregate(feature, entries) if entries else None
         result = _decorate_usage(feature, subject, effective, sources)
-        result = _apply_requirement_gate(result, requirement_blocks.get(code))
-        results[code] = _apply_subscription_status_gate(subscription, result)
+        if not has_independent:
+            result = _apply_requirement_gate(result, requirement_blocks.get(code))
+            result = _apply_subscription_status_gate(subscription, result)
+        results[code] = result
     return results
 
 

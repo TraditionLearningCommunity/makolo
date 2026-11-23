@@ -1,15 +1,16 @@
 {% extends 'base/app.html' %}
-{% block title %}Créer une activité | Makolo{% endblock %}
+{% block title %}{% if create_space_label %}{{ create_space_label }}{% else %}Créer une activité{% endif %} | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6 pb-10">
   <section>
-    <span class="mk-kicker">Contexte personnel</span>
-    <h1 class="mk-page-title mt-2">Créer une activité</h1>
-    <p class="mk-page-copy mt-3">Organisez en votre nom ou au nom d’un Espace que vous êtes autorisé à représenter. L’identité qui crée l’objet reste toujours votre Profil.</p>
+    <span class="mk-kicker">{% if create_space_context %}Métier · {{ create_space_context.name }}{% else %}Contexte personnel{% endif %}</span>
+    <h1 class="mk-page-title mt-2">{% if create_space_label %}{{ create_space_label }}{% else %}Créer une activité{% endif %}</h1>
+    <p class="mk-page-copy mt-3">{% if create_space_context %}Cette activité sera enregistrée en brouillon pour {{ create_space_context.name }}. Vous devez toujours être autorisé à agir pour cet Espace lors de l’enregistrement.{% else %}Créez une activité en votre nom ou au nom d’un Espace que vous êtes autorisé à représenter.{% endif %}</p>
   </section>
   <form method="post" class="mk-panel space-y-5 p-5 sm:p-7">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="rounded-2xl border border-rose-500/20 bg-rose-50 p-4 text-sm text-rose-800">{{ form.non_field_errors }}</div>{% endif %}
+    {% include 'subscriptions/_blocked_action_handoff.html' %}
     {% for field in form %}
       <div>
         <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
@@ -20,7 +21,7 @@
     {% endfor %}
     <div class="flex flex-wrap gap-3 pt-2">
       <button type="submit" class="mk-btn mk-btn-primary">Créer en brouillon</button>
-      <a href="{% url 'core:participant-home' %}" class="mk-btn mk-btn-secondary">Annuler</a>
+      {% if create_space_context %}<a href="{% url 'organizations:space-work' create_space_context.slug %}" class="mk-btn mk-btn-secondary">Retour à Métier</a>{% else %}<a href="{% url 'core:participant-home' %}" class="mk-btn mk-btn-secondary">Annuler</a>{% endif %}
     </div>
   </form>
 </div>

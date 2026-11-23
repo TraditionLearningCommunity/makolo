@@ -1,10 +1,12 @@
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from accounts.models import User
+from activities.models import Activity
 from authorization.constants import PermissionCode
 from authorization.services import can
 from demo_seed.beta import BETA_PERSONAS
+from demo_seed.mobile_mature_universe import _activity_copy, _demo_title, _opportunity_summary
 from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.task22_extension import T22_PERSONAS
 from events.models import Event
@@ -46,6 +48,12 @@ class MakoloDemoSeedTests(TestCase):
         self.assertTrue(admin.is_superuser)
         self.assertTrue(admin.check_password(self.password))
         self.assertTrue(participant.check_password(self.password))
+        event = Activity.objects.get(slug="beta-event-free")
+        transport = Activity.objects.get(slug="beta-transport-lub-kol")
+        self.assertEqual(event.title, "Atelier communauté gratuit")
+        self.assertEqual(transport.title, "Lubumbashi → Kolwezi")
+        self.assertFalse(event.title.startswith(("Exemple — ", "[DEMO]")))
+        self.assertFalse(transport.title.startswith(("Exemple — ", "[DEMO]")))
 
     def test_beta_seed_reconciles_guarded_status_snapshots_on_rerun(self):
         call_command(
@@ -145,3 +153,55 @@ class MakoloDemoSeedTests(TestCase):
             },
         )
         self.assertTrue(all(email.endswith(".test") for email in set(BETA_PERSONAS.values()) | set(T22_PERSONAS.values())))
+
+
+class DemoProductLanguageTests(SimpleTestCase):
+    def test_mobile_scenarios_are_identified_without_erasing_their_title(self):
+        self.assertEqual(
+            _demo_title("Festival musical à Lubumbashi"),
+            "Festival musical à Lubumbashi",
+        )
+        self.assertEqual(
+            _demo_title("Exemple — Festival musical à Lubumbashi"),
+            "Festival musical à Lubumbashi",
+        )
+
+    def test_mobile_activity_copy_is_contextual_not_one_generic_formula(self):
+        spec = {
+            "title": "Atelier de prise de parole",
+            "geo": "Lubumbashi",
+        }
+        event_short, event_detail = _activity_copy(spec, "event")
+        transport_short, transport_detail = _activity_copy(
+            {"title": "Lubumbashi → Kolwezi", "geo": "Lubumbashi→Kolwezi"},
+            "transport",
+        )
+        self.assertIn("participation", event_short)
+        self.assertIn("Atelier de prise de parole", event_detail)
+        self.assertIn("départ", transport_short)
+        self.assertIn("Lubumbashi → Kolwezi", transport_detail)
+        self.assertNotEqual(event_detail, transport_detail)
+        self.assertNotIn("horaire confirmé", event_detail.lower())
+
+    def test_fictitious_opportunity_copy_varies_by_actual_scenario(self):
+        base = {"title": "Formation professionnelle", "geo": "Lubumbashi"}
+        engaged = _opportunity_summary({**base, "relation": "engaged"})
+        ineligible = _opportunity_summary({**base, "relation": "not_eligible"})
+        self.assertNotEqual(engaged, ineligible)
+        self.assertIn("dossier déjà commencé", engaged)
+        self.assertIn("vérifier les critères", ineligible)
+        self.assertIn("fictifs", engaged)
+        self.assertIn("aucune candidature réelle", engaged)
+        self.assertNotIn("Alain", engaged)
+
+    def test_public_demo_opportunity_does_not_claim_a_personal_journey_or_real_offer(self):
+        summary = _opportunity_summary({
+            "title": "Formation professionnelle",
+            "relation": "engaged",
+            "state": "ongoing",
+            "geo": "Lubumbashi",
+        })
+        self.assertIn("exemples de Makolo", summary)
+        self.assertIn("fictifs", summary)
+        self.assertNotIn("Alain", summary)
+        self.assertNotIn("actuellement ouverte", summary)

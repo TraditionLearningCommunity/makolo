@@ -1,0 +1,5 @@
+{% for point in timeline_points %}
+  <div class="mk-thread-entry" data-thread-entry data-entry-id="{{ point.pk }}" data-day="{{ point.published_at|date:'Y-m-d' }}" data-timestamp="{{ point.published_at|date:'c' }}">
+    {% include 'conversations/_point.html' with point=point %}
+  </div>
+{% endfor %}

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -31,12 +33,18 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
   String _relationship = _mine;
   bool _refreshing = false;
   bool _loadingMore = false;
+  bool _loadFailed = false;
+  bool _canLoadNext = false;
+  String? _completedRequest;
+  _AccessCollectionView? _visibleView;
+  final ScrollController _scroll = ScrollController();
   late Stream<List<StoredProjection>> _pages;
   late Stream<AccessSourceState> _source;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_checkEnd);
     _pages = widget.repository.watchCollectionPages();
     _source = widget.repository.watchCollectionSource(
       relationship: _relationship,
@@ -56,6 +64,26 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _checkEnd() {
+    final view = _visibleView;
+    if (!_scroll.hasClients ||
+        _scroll.position.extentAfter >= 480 ||
+        !_canLoadNext ||
+        _loadFailed ||
+        _loadingMore ||
+        view == null ||
+        !view.hasMore) {
+      return;
+    }
+    unawaited(_loadMore(view));
+  }
+
   Future<void> _ensureFirstPage() async {
     final cached = await widget.repository.readCollectionPage(
       relationship: _relationship,
@@ -68,12 +96,20 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
 
   Future<void> _refreshFirst() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    setState(() {
+      _refreshing = true;
+      _loadFailed = false;
+      _completedRequest = null;
+    });
     try {
+      final relationship = _relationship;
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: 0,
       );
+      if (mounted && relationship == _relationship) {
+        unawaited(_warmPage(relationship: relationship, offset: 0));
+      }
     } on Object {
       // Keep any cached owner projection readable.
     } finally {
@@ -82,24 +118,87 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
   }
 
   Future<void> _loadMore(_AccessCollectionView view) async {
-    if (_loadingMore || !view.hasMore) return;
+    final relationship = _relationship;
+    final requestKey = '$relationship:${view.nextOffset}';
+    if (_loadingMore ||
+        _loadFailed ||
+        !view.hasMore ||
+        !_canLoadNext ||
+        _completedRequest == requestKey) {
+      return;
+    }
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: view.nextOffset,
       );
+      final source = await widget.repository.readCollectionSource(
+        relationship: relationship,
+        offset: view.nextOffset,
+      );
+      final received = await widget.repository.readCollectionPage(
+        relationship: relationship,
+        offset: view.nextOffset,
+      );
+      if (source.invalidated ||
+          source.lastErrorCode != null ||
+          source.lastSuccessAt == null ||
+          received == null) {
+        throw StateError('Access continuation unavailable');
+      }
+      if (!mounted || relationship != _relationship) return;
+      _completedRequest = requestKey;
+      unawaited(_warmPage(relationship: relationship, offset: view.nextOffset));
     } on Object {
-      // Keep the pages already available locally.
+      if (mounted && relationship == _relationship) {
+        setState(() => _loadFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && relationship == _relationship) {
+        setState(() => _loadingMore = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _checkEnd();
+        });
+      }
     }
+  }
+
+  Future<void> _warmPage({
+    required String relationship,
+    required int offset,
+  }) async {
+    final source = await widget.repository.readCollectionSource(
+      relationship: relationship,
+      offset: offset,
+    );
+    if (source.invalidated ||
+        source.lastErrorCode != null ||
+        source.lastSuccessAt == null) {
+      return;
+    }
+    final page = await widget.repository.readCollectionPage(
+      relationship: relationship,
+      offset: offset,
+    );
+    final rows = page?.payload['items'];
+    if (rows is! List) return;
+    final ids = <String>[];
+    for (final raw in rows) {
+      final entry = _map(raw);
+      final identity = _map(entry['identity']);
+      final id = _string(identity['id']);
+      if (id != null) ids.add(id);
+    }
+    await widget.repository.warmKnownDetails(ids);
   }
 
   void _selectRelationship(String relationship) {
     if (_relationship == relationship) return;
     setState(() {
       _relationship = relationship;
+      _completedRequest = null;
+      _loadFailed = false;
       _source = widget.repository.watchCollectionSource(
         relationship: _relationship,
       );
@@ -113,10 +212,10 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
       appBar: AppBar(
         title: const Text('Mes accès'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refreshFirst,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -124,18 +223,48 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         stream: _pages,
         initialData: const [],
         builder: (context, pagesSnapshot) {
+          final pages = pagesSnapshot.data ?? const <StoredProjection>[];
           final view = _AccessCollectionView.fromPages(
-            pagesSnapshot.data ?? const [],
+            pages,
             relationship: _relationship,
+          );
+          final hasKnownFirstPage = pages.any(
+            (page) =>
+                page.kind == AccessRepository.collectionProjectionKind &&
+                page.resourceKey ==
+                    widget.repository.collectionResourceKey(
+                      relationship: _relationship,
+                      offset: 0,
+                    ),
           );
           return StreamBuilder<AccessSourceState>(
             stream: _source,
             initialData: AccessSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? AccessSourceState.unknown;
+              _visibleView = view;
+              _canLoadNext =
+                  hasKnownFirstPage &&
+                  !source.invalidated &&
+                  source.reachability != ReachabilityState.unreachable;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _checkEnd();
+              });
+              if (source.invalidated) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(MakoloSpacing.inner),
+                    child: Text(
+                      'Ces accès ne sont plus disponibles avec '
+                      'l’autorité actuelle. Actualisez après reconnexion.',
+                    ),
+                  ),
+                );
+              }
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
                 child: ListView(
+                  controller: _scroll,
                   key: PageStorageKey<String>(
                     'personal-accesses-$_relationship',
                   ),
@@ -143,7 +272,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
                     Text(
-                      'Vos droits déjà accordés, avant leur représentation.',
+                      'Mes billets, invitations et droits disponibles.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -166,11 +295,11 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                       ],
                     ),
                     if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty) ...[
+                        hasKnownFirstPage) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
-                        'Dernier état connu sur cet appareil. '
-                        'L’usage réel sera revalidé par le domaine Access.',
+                        'Dernières informations disponibles. '
+                        'Votre droit sera vérifié à l’entrée.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -186,11 +315,27 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                             ? const Center(
                                 child: CircularProgressIndicator.adaptive(),
                               )
-                            : Text(
-                                _relationship == _mine
-                                    ? 'Aucun accès disponible pour le moment.'
-                                    : 'Aucun accès obtenu pour une autre personne.',
-                                textAlign: TextAlign.center,
+                            : Column(
+                                children: [
+                                  Text(
+                                    !hasKnownFirstPage
+                                        ? 'Vos accès ne sont pas encore '
+                                              'disponibles sur cet appareil.'
+                                        : _relationship == _mine
+                                        ? 'Aucun accès disponible pour le moment.'
+                                        : 'Aucun accès obtenu pour une autre personne.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (!hasKnownFirstPage) ...[
+                                    const SizedBox(height: MakoloSpacing.sm),
+                                    MakoloActionButton(
+                                      label: 'Réessayer',
+                                      onPressed: _refreshFirst,
+                                      icon: Icons.refresh_rounded,
+                                      appearance: MakoloActionAppearance.quiet,
+                                    ),
+                                  ],
+                                ],
                               ),
                       )
                     else
@@ -207,22 +352,43 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                         if (index < view.items.length - 1)
                           const SizedBox(height: MakoloSpacing.sm),
                       ],
-                    if (view.hasMore) ...[
-                      const SizedBox(height: MakoloSpacing.md),
-                      OutlinedButton(
-                        onPressed: _loadingMore ? null : () => _loadMore(view),
-                        child: Text(
-                          _loadingMore ? 'Chargement…' : 'Afficher la suite',
+                    if (_loadingMore && view.hasMore)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(MakoloSpacing.md),
+                          child: CircularProgressIndicator.adaptive(),
                         ),
                       ),
-                    ],
+                    if (_loadFailed && view.hasMore)
+                      Center(
+                        child: MakoloActionButton(
+                          label: 'Réessayer',
+                          onPressed: () {
+                            setState(() => _loadFailed = false);
+                            unawaited(_loadMore(view));
+                          },
+                          appearance: MakoloActionAppearance.quiet,
+                        ),
+                      ),
+                    if (!view.hasMore &&
+                        hasKnownFirstPage &&
+                        view.items.isNotEmpty &&
+                        source.lastErrorCode == null &&
+                        source.reachability != ReachabilityState.unreachable)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(MakoloSpacing.md),
+                          child: Text('Vous avez tout vu'),
+                        ),
+                      ),
                     if (_relationship == _mine &&
                         widget.onOpenHistory != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      TextButton.icon(
+                      MakoloActionButton(
+                        label: 'Voir les accès terminés',
                         onPressed: widget.onOpenHistory,
-                        icon: const Icon(Icons.history_rounded),
-                        label: const Text('Voir les accès terminés'),
+                        icon: Icons.history_rounded,
+                        appearance: MakoloActionAppearance.quiet,
                       ),
                     ],
                   ],

@@ -81,6 +81,19 @@ def is_beneficiary(actor, journey):
 def can_access_case(actor, journey, *, write=False, restricted=False):
     if is_beneficiary(actor, journey):
         return not write
+    # A Journey held by a Space is one shared business case. Its members use
+    # current Space mandates, not one JourneyAssignment per team member.
+    # This grant is read-only and never exposes restricted artifacts.
+    beneficiary_space_id = getattr(journey, "beneficiary_space_id", None)
+    if beneficiary_space_id and not write and not restricted:
+        beneficiary_space = journey.beneficiary_space
+        if (
+            can(actor, PermissionCode.SPACE_ACTIVITIES_VIEW,
+                beneficiary_space, include_platform=False)
+            or can(actor, PermissionCode.SPACE_MANAGE,
+                   beneficiary_space, include_platform=False)
+        ):
+            return True
     permission = CASE_WRITE_PERMISSION if (write or restricted) else CASE_READ_PERMISSION
     return _active_assignment_exists(actor, journey) and can(actor, permission, activity=journey.activity)
 
@@ -461,6 +474,27 @@ def _validate_file_signature(data, mime_type):
     return False
 
 
+def can_write_space_beneficiary_artifact(actor, journey, *, restricted=False):
+    """A Space applicant may manage *its own* files, never provider case ops.
+
+    This exception is intentionally local to artifact creation/versioning:
+    can_access_case(write=True) remains reserved for owner Activity authority.
+    """
+    space = getattr(journey, "beneficiary_space", None)
+    if (
+        not space or getattr(space, "lifecycle", None) != "active"
+        or getattr(journey, "workflow", None) != "service"
+    ):
+        return False
+    if can(actor, PermissionCode.SPACE_MANAGE, space, include_platform=False):
+        return True
+    return (
+        not restricted
+        and can(actor, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                space, include_platform=False)
+    )
+
+
 def validate_artifact_upload(uploaded_file):
     if uploaded_file is None:
         raise ValidationError("Un fichier est obligatoire.")
@@ -485,7 +519,9 @@ def validate_artifact_upload(uploaded_file):
 
 @transaction.atomic
 def create_artifact(*, journey, uploaded_file, uploaded_by, kind, title, step=None, sensitivity=JourneyArtifactSensitivity.NORMAL, status=JourneyArtifactStatus.DRAFT):
-    if not is_beneficiary(uploaded_by, journey):
+    if not is_beneficiary(uploaded_by, journey) and not can_write_space_beneficiary_artifact(
+        uploaded_by, journey, restricted=sensitivity == JourneyArtifactSensitivity.RESTRICTED,
+    ):
         ensure_case_access(uploaded_by, journey, write=True, restricted=sensitivity == JourneyArtifactSensitivity.RESTRICTED)
     if step is not None and step.journey_id != journey.pk:
         raise ValidationError("La Step et l’Artifact doivent appartenir à la même Journey.")
@@ -505,7 +541,13 @@ def create_artifact(*, journey, uploaded_file, uploaded_by, kind, title, step=No
 @transaction.atomic
 def create_artifact_version(*, artifact, uploaded_file, uploaded_by, sensitivity=None):
     previous = JourneyArtifact.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "step").order_by().get(pk=artifact.pk)
-    if not is_beneficiary(uploaded_by, previous.journey):
+    if not is_beneficiary(uploaded_by, previous.journey) and not can_write_space_beneficiary_artifact(
+        uploaded_by, previous.journey,
+        restricted=(
+            previous.sensitivity == JourneyArtifactSensitivity.RESTRICTED
+            or sensitivity == JourneyArtifactSensitivity.RESTRICTED
+        ),
+    ):
         ensure_case_access(uploaded_by, previous.journey, write=True, restricted=(sensitivity or previous.sensitivity) == JourneyArtifactSensitivity.RESTRICTED)
     if JourneyArtifact.objects.filter(supersedes=previous).exists():
         raise ValidationError("Cet Artifact a déjà une version suivante.")

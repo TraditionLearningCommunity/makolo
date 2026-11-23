@@ -1,0 +1,154 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-5xl space-y-7 pb-10" aria-labelledby="g2-title" data-mt4-kind="{{ work_g2.kind }}">
+  <nav aria-label="Navigation Métier" class="flex flex-wrap items-center gap-2 text-sm">
+    <a href="{{ work_g2.back_url }}" class="font-semibold underline underline-offset-4">{{ work_g2.back_label }}</a>
+    {% if work_g2.parent_url and work_g2.parent_url != work_g2.back_url %}
+      <span aria-hidden="true">/</span>
+      <a href="{{ work_g2.parent_url }}" class="font-semibold underline underline-offset-4">{% if work_g2.is_education %}Programme associé{% else %}Prestation associée{% endif %}</a>
+    {% endif %}
+  </nav>
+
+  <header class="space-y-3">
+    <span class="mk-kicker">
+      {% if work_g2.is_education %}
+        {% if work_g2.is_activity %}Programme{% elif work_g2.is_occurrence %}Session{% else %}Inscription{% endif %}
+      {% else %}
+        {% if work_g2.is_activity %}Prestation{% elif work_g2.is_occurrence %}Réalisation{% else %}Dossier de prestation{% endif %}
+      {% endif %}
+    </span>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 id="g2-title" class="text-3xl font-extrabold tracking-[-.04em] break-words">{{ work_g2.title }}</h2>
+        {% if work_g2.summary %}
+          <p class="mt-2 max-w-3xl" style="color:var(--mk-muted)">{{ work_g2.summary }}</p>
+        {% endif %}
+      </div>
+      <span class="mk-badge">{{ work_g2.status }}</span>
+    </div>
+  </header>
+
+  {% if work_g2.is_activity %}
+    <section class="space-y-3" aria-labelledby="g2-sessions">
+      <div>
+        <span class="mk-kicker">{% if work_g2.is_education %}Sessions{% else %}Rendez-vous et réalisations{% endif %}</span>
+        <h3 id="g2-sessions" class="mt-1 text-xl font-extrabold">
+          {% if work_g2.is_education %}Sessions de ce programme{% else %}Réalisations de cette prestation{% endif %}
+        </h3>
+      </div>
+      {% if work_g2.related %}
+        <ol class="mk-panel divide-y px-5 sm:px-6" style="border-color:var(--mk-border)">
+          {% for row in work_g2.related %}
+            <li class="py-4">
+              {% if row.url %}<a class="group flex flex-wrap items-center justify-between gap-3" href="{{ row.url }}">{% else %}<div class="flex flex-wrap items-center justify-between gap-3">{% endif %}
+                <span class="min-w-0">
+                  <strong class="block group-hover:underline">{{ row.title }}</strong>
+                  <span class="mt-1 block text-sm" style="color:var(--mk-muted)">
+                    {% if row.timing.start_date %}{{ row.timing.start_date }} · {% endif %}
+                    {% if row.timing.start_time %}{{ row.timing.start_time }} · {% endif %}
+                    {{ row.state }}
+                  </span>
+                </span>
+                {% if row.url %}<span class="mk-action-hint">Ouvrir</span>{% else %}
+                  <span class="text-xs" style="color:var(--mk-muted)">État de cette date à actualiser</span>
+                {% endif %}
+              {% if row.url %}</a>{% else %}</div>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+        <nav class="flex flex-wrap justify-between gap-3" aria-label="Pagination des sessions">
+          <span>{% if work_g2.previous_occurrences %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.previous_occurrences }}">Précédentes</a>{% endif %}</span>
+          <span>{% if work_g2.next_occurrences %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.next_occurrences }}">Voir les suivantes</a>{% endif %}</span>
+        </nav>
+      {% else %}
+        <div class="mk-panel p-5 sm:p-6">
+          <p class="font-semibold">{% if work_g2.is_education %}Aucune session programmée.{% else %}Aucune réalisation programmée.{% endif %}</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="space-y-3" aria-labelledby="g2-journeys">
+      <div>
+        <span class="mk-kicker">{% if work_g2.is_education %}Inscriptions{% else %}Dossiers{% endif %}</span>
+        <h3 id="g2-journeys" class="mt-1 text-xl font-extrabold">{% if work_g2.is_education %}Demandes et inscriptions visibles{% else %}Dossiers liés à cette prestation{% endif %}</h3>
+      </div>
+      {% if work_g2.linked_work %}
+        <ol class="mk-panel divide-y px-5 sm:px-6" style="border-color:var(--mk-border)">
+          {% for row in work_g2.linked_work %}
+            <li class="py-4">
+              <a href="{{ row.url }}" class="group flex flex-wrap items-center justify-between gap-3">
+                <span class="min-w-0">
+                  <strong class="block group-hover:underline">{{ row.work_label }}</strong>
+                  <span class="mt-1 block text-sm" style="color:var(--mk-muted)">{{ row.state }}</span>
+                </span>
+                <span class="mk-action-hint">Consulter</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+        <nav class="flex flex-wrap justify-between gap-3" aria-label="Pagination des démarches">
+          <span>{% if work_g2.previous_work %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.previous_work }}">Précédentes</a>{% endif %}</span>
+          <span>{% if work_g2.next_work %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.next_work }}">Voir les suivantes</a>{% endif %}</span>
+        </nav>
+      {% else %}
+        <div class="mk-panel p-5 sm:p-6">
+          <p class="font-semibold">{% if work_g2.is_education %}Aucune inscription accessible.{% else %}Aucun dossier accessible.{% endif %}</p>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if work_g2.is_occurrence %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="g2-time">
+      <h3 id="g2-time" class="text-lg font-extrabold">{% if work_g2.is_education %}Cette session{% else %}Cette réalisation{% endif %}</h3>
+      {% if work_g2.timing.start_date %}
+      <p class="text-sm" style="color:var(--mk-muted)">
+        {{ work_g2.timing.start_date }}
+        {% if work_g2.timing.start_time %}· {{ work_g2.timing.start_time }}{% endif %}
+        {% if work_g2.timing.end_date %} → {{ work_g2.timing.end_date }}{% endif %}
+        {% if work_g2.timing.end_time %}· {{ work_g2.timing.end_time }}{% endif %}
+        {% if work_g2.timing.timezone %}· {{ work_g2.timing.timezone }}{% endif %}
+      </p>
+      {% endif %}
+      {% if work_g2.context.place.name %}<p><strong>Lieu :</strong> {{ work_g2.context.place.name }}</p>{% endif %}
+      {% if work_g2.context.capacity %}
+        <p class="text-sm">
+          <strong>Disponibilité établie :</strong>
+          {% if work_g2.context.capacity.unlimited %}Aucune limite renseignée{% else %}{{ work_g2.context.capacity.available }} disponible(s){% endif %}
+        </p>
+      {% endif %}
+      {% if not work_g2.timing.start_date %}<p class="text-sm" style="color:var(--mk-muted)">La date exacte n’est pas établie.</p>{% endif %}
+    </section>
+  {% endif %}
+
+  {% if work_g2.is_journey %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="g2-journey-detail">
+      <h3 id="g2-journey-detail" class="text-lg font-extrabold">{% if work_g2.is_education %}Cette inscription{% else %}Ce dossier{% endif %}</h3>
+      {% if work_g2.context.activity.title %}<p>Concerne : <strong>{{ work_g2.context.activity.title }}</strong></p>{% endif %}
+      {% if work_g2.context.service_outcome %}
+        <p>Résultat déclaré : <strong>{{ work_g2.context.service_outcome }}</strong></p>
+      {% endif %}
+      {% if work_g2.context.conditions %}
+        <div class="text-sm" style="color:var(--mk-muted)">
+          Conditions évaluées : {{ work_g2.context.conditions.satisfied }} satisfaites ·
+          {{ work_g2.context.conditions.awaiting }} en attente ·
+          {{ work_g2.context.conditions.unsatisfied }} à revoir
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if work_g2.actions %}
+  <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="g2-actions">
+    <span class="mk-kicker">Prochaines actions autorisées</span>
+    <h3 id="g2-actions" class="text-lg font-extrabold">Actions disponibles</h3>
+    <div class="flex flex-wrap gap-2">
+      {% for action in work_g2.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <footer><a class="mk-action-button" data-variant="secondary" href="{{ work_g2.back_url }}">{{ work_g2.back_label }}</a></footer>
+</main>
+{% endblock %}

@@ -163,6 +163,50 @@ void main() {
     expect((await tokens.readSession())?.refreshToken, 'new-refresh');
   });
 
+  test('late 401 reuses an already rotated access token', () async {
+    final slowEntered = Completer<void>();
+    final releaseSlow = Completer<void>();
+    var refreshCalls = 0;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'old-access',
+        refreshToken: 'old-refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: testDio((request, _) async {
+        if (request.path.endsWith('/auth/refresh/')) {
+          refreshCalls++;
+          expect(request.data, {'refresh': 'old-refresh'});
+          return jsonResponse({
+            'access': 'new-access',
+            'refresh': 'new-refresh',
+          }, 200);
+        }
+        if (request.headers['Authorization'] == 'Bearer old-access') {
+          if (request.path.endsWith('/me/ongoing/')) {
+            slowEntered.complete();
+            await releaseSlow.future;
+          }
+          return jsonResponse({'detail': 'expired'}, 401);
+        }
+        expect(request.headers['Authorization'], 'Bearer new-access');
+        return jsonResponse({'ok': true}, 200);
+      }),
+    );
+
+    final slow = api.get('api/v1/me/ongoing/');
+    await slowEntered.future;
+    expect((await api.get('api/v1/me/now/')).statusCode, 200);
+    releaseSlow.complete();
+    expect((await slow).statusCode, 200);
+    expect(refreshCalls, 1);
+    expect((await tokens.readSession())?.refreshToken, 'new-refresh');
+  });
+
   test('refresh rotation is persisted before the retried mutation', () async {
     final seen = <String>[];
     final tokens = MemoryTokenStore(
@@ -329,6 +373,43 @@ void main() {
     },
   );
 
+  for (final phase in [
+    DioExceptionType.connectionTimeout,
+    DioExceptionType.sendTimeout,
+    DioExceptionType.receiveTimeout,
+  ]) {
+    test(
+      'each timeout phase preserves existing app error semantics: $phase',
+      () async {
+        final dio = Dio();
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              handler.reject(
+                DioException(requestOptions: options, type: phase),
+              );
+            },
+          ),
+        );
+        final api = MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          tokenStore: MemoryTokenStore(),
+          dio: dio,
+        );
+        await expectLater(
+          api.publicGet('api/v1/me/now/?profile=private'),
+          throwsA(
+            isA<TimeoutException>().having(
+              (e) => e.message,
+              'generic message',
+              'Makolo network request timed out.',
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   test('cancellation is exposed without leaking Dio CancelToken', () async {
     final tokens = MemoryTokenStore(
       session: const AuthSession(
@@ -359,6 +440,45 @@ void main() {
     await expectLater(
       api.get('api/v1/me/now/', cancel: MakoloCancelHandle()),
       throwsA(isA<MakoloRequestCancelled>()),
+    );
+  });
+
+  test('avatar multipart sends the owner-validated image MIME type', () async {
+    final directory = await Directory.systemTemp.createTemp('makolo-avatar-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/portrait.jpg');
+    await file.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: testDio((request, _) async {
+        expect(request.method, 'PATCH');
+        expect(request.path, 'api/v1/accounts/auth/profile/update/');
+        final form = request.data as FormData;
+        expect(form.files.single.key, 'avatar');
+        expect(form.files.single.value.contentType.toString(), 'image/jpeg');
+        return jsonResponse({'message': 'Profil mis à jour.'}, 200);
+      }),
+    );
+
+    await api.upload(
+      'api/v1/accounts/auth/profile/update/',
+      method: 'PATCH',
+      files: [
+        MakoloUploadFile(
+          fieldName: 'avatar',
+          path: file.path,
+          filename: 'portrait.jpg',
+          contentType: 'image/jpeg',
+        ),
+      ],
     );
   });
 

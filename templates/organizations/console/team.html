@@ -5,9 +5,9 @@
     <div class="min-w-0">
       <p class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Collaboration interne</p>
       <h2 class="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Équipes de {{ space.name }}</h2>
-      <p class="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Une Équipe regroupe les personnes qui travaillent ensemble dans cet Espace. Les responsabilités et Permissions restent portées par les Mandates.</p>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">Une équipe réunit les personnes qui travaillent ensemble. En faire partie ne donne pas automatiquement le droit d’agir au nom de l’Espace.</p>
     </div>
-    {% if can_manage_team %}<a href="{% url 'organizations:team-create' space.slug %}" class="min-h-11 shrink-0 rounded-2xl bg-indigo-600 px-4 py-3 text-center text-sm font-bold text-white">Créer une équipe</a>{% endif %}
+    {% if can_manage_team %}<a href="{% url 'organizations:team-create' space.slug %}" class="mk-action-button" data-variant="primary">Créer une équipe</a>{% endif %}
   </section>
 
   <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-labelledby="teams-title">
@@ -23,16 +23,16 @@
         {% if not team.is_default %}
           {% if can_manage_team %}
           <div class="mt-4 flex flex-wrap gap-2">
-            <a href="{% url 'organizations:team-add-member' space.slug team.pk %}" class="min-h-11 rounded-xl border border-zinc-300 px-3 py-3 text-sm font-bold dark:border-zinc-700">Ajouter</a>
-            <a href="{% url 'organizations:team-rename' space.slug team.pk %}" class="min-h-11 rounded-xl border border-zinc-300 px-3 py-3 text-sm font-bold dark:border-zinc-700">Renommer</a>
-            <form method="post" action="{% url 'organizations:team-archive' space.slug team.pk %}" data-confirm-message="Archiver cette équipe ? Les Memberships historiques seront conservés.">{% csrf_token %}<button type="submit" class="min-h-11 rounded-xl border border-zinc-300 px-3 py-3 text-sm font-bold dark:border-zinc-700">Archiver</button></form>
+            <a href="{% url 'organizations:team-add-member' space.slug team.pk %}" class="mk-action-button" data-variant="secondary">Ajouter</a>
+            <a href="{% url 'organizations:team-rename' space.slug team.pk %}" class="mk-action-button" data-variant="secondary">Renommer</a>
+            <form method="post" action="{% url 'organizations:team-archive' space.slug team.pk %}" data-confirm-message="Archiver cette équipe ? L’historique des membres sera conservé.">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="secondary">Archiver</button></form>
           </div>
           {% endif %}
           <div class="mt-5 space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {% for team_membership in team.console_memberships %}
               <div class="flex flex-col gap-2 rounded-2xl bg-zinc-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-900">
                 <div class="min-w-0"><p class="text-sm font-bold">{{ team_membership.user.full_name|default:team_membership.user.username }}</p><p class="break-all text-xs text-zinc-500">{{ team_membership.user.email }}</p></div>
-                {% if can_manage_team %}<form method="post" action="{% url 'organizations:team-remove-member' space.slug team.pk team_membership.pk %}" data-confirm-message="Retirer cette personne de {{ team.name }} ? Ses autres équipes et responsabilités resteront inchangées.">{% csrf_token %}<button type="submit" class="min-h-11 rounded-xl px-3 text-sm font-bold text-rose-600">Retirer de cette équipe</button></form>{% endif %}
+                {% if can_manage_team %}<form method="post" action="{% url 'organizations:team-remove-member' space.slug team.pk team_membership.pk %}" data-confirm-message="Retirer cette personne de {{ team.name }} ? Ses autres équipes et responsabilités resteront inchangées.">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="danger">Retirer de cette équipe</button></form>{% endif %}
               </div>
             {% empty %}<p class="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-500 dark:bg-zinc-900">Aucun membre actif dans cette équipe.</p>{% endfor %}
           </div>
@@ -43,10 +43,10 @@
 
   <section class="rounded-3xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-950" aria-labelledby="collaborators-title">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div><h3 id="collaborators-title" class="text-xl font-black">Collaborateurs de l’Espace</h3><p class="mt-1 text-sm text-zinc-500">L’Équipe principale représente les collaborateurs globaux. Une TeamMembership seule ne donne aucune autorité.</p></div>
+      <div><h3 id="collaborators-title" class="text-xl font-black">Collaborateurs de l’Espace</h3><p class="mt-1 text-sm text-zinc-500">L’équipe principale regroupe les collaborateurs de l’Espace. L’appartenance à une équipe n’accorde pas automatiquement d’autorisation.</p></div>
       <div class="flex flex-col gap-2 sm:flex-row">
-        <form method="get" class="flex min-w-0 gap-2"><label for="team-search" class="sr-only">Rechercher un collaborateur</label><input id="team-search" name="q" value="{{ query }}" type="search" placeholder="Nom ou e-mail" class="min-h-11 min-w-0 flex-1 rounded-2xl border border-zinc-300 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900"><button type="submit" class="min-h-11 rounded-2xl border border-zinc-300 px-4 text-sm font-bold dark:border-zinc-700">Rechercher</button></form>
-        {% if can_manage_team %}<a href="{% url 'organizations:team-member-create' space.slug %}" class="min-h-11 rounded-2xl bg-indigo-600 px-4 py-3 text-center text-sm font-bold text-white">Ajouter à l’Espace</a>{% endif %}
+        <form method="get" class="flex min-w-0 gap-2"><label for="team-search" class="sr-only">Rechercher un collaborateur</label><input id="team-search" name="q" value="{{ query }}" type="search" placeholder="Nom ou e-mail" class="min-h-11 min-w-0 flex-1 rounded-2xl border border-zinc-300 bg-white px-4 text-sm dark:border-zinc-700 dark:bg-zinc-900"><button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button></form>
+        {% if can_manage_team %}<a href="{% url 'organizations:team-member-create' space.slug %}" class="mk-action-button" data-variant="primary">Ajouter à l’Espace</a>{% endif %}
       </div>
     </div>
 
@@ -54,14 +54,14 @@
       {% for membership in page_obj %}
         <article class="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div class="min-w-0"><p class="font-black">{{ membership.user.full_name|default:membership.user.username }}</p><p class="mt-1 break-all text-xs text-zinc-500">{{ membership.user.email }}</p><div class="mt-2 flex flex-wrap gap-2 text-xs">{% if membership.console_standard_space_mandate %}<span class="rounded-full bg-indigo-50 px-2 py-1 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ membership.console_standard_space_mandate.role.name }}</span>{% else %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">Aucune responsabilité Space</span>{% endif %}{% if membership.console_activity_mandates %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">{{ membership.console_activity_mandates|length }} responsabilité{{ membership.console_activity_mandates|length|pluralize }} Activity</span>{% endif %}</div></div>
-            {% if can_manage_team %}<div class="flex flex-col gap-2 sm:flex-row"><a href="{% url 'organizations:member-responsibilities' space.slug membership.pk %}" class="min-h-11 rounded-xl border border-zinc-300 px-4 py-3 text-center text-sm font-bold dark:border-zinc-700">Gérer les responsabilités</a><form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}" data-confirm-message="Retirer cette personne de l’Espace ? Toutes ses Teams et responsabilités locales seront révoquées.">{% csrf_token %}<button type="submit" class="min-h-11 rounded-xl border border-rose-500 px-4 text-sm font-bold text-rose-600">Retirer de l’Espace</button></form></div>{% endif %}
+            <div class="min-w-0"><p class="font-black">{{ membership.user.full_name|default:membership.user.username }}</p><p class="mt-1 break-all text-xs text-zinc-500">{{ membership.user.email }}</p><div class="mt-2 flex flex-wrap gap-2 text-xs">{% if membership.console_standard_space_mandate %}<span class="rounded-full bg-indigo-50 px-2 py-1 font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">{{ membership.console_standard_space_mandate.role.name }}</span>{% else %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">Aucun rôle attribué dans cet Espace</span>{% endif %}{% if membership.console_activity_mandates %}<span class="rounded-full bg-white px-2 py-1 text-zinc-500 dark:bg-zinc-950">{{ membership.console_activity_mandates|length }} responsabilité{{ membership.console_activity_mandates|length|pluralize }} sur des activités</span>{% endif %}</div></div>
+            {% if can_manage_team %}<div class="flex flex-col gap-2 sm:flex-row"><a href="{% url 'organizations:member-responsibilities' space.slug membership.pk %}" class="mk-action-button" data-variant="secondary">Gérer les rôles et droits</a><form method="post" action="{% url 'organizations:member-deactivate' space.slug membership.pk %}" data-confirm-message="Retirer cette personne de l’Espace ? Son appartenance aux équipes et ses responsabilités dans cet Espace prendront fin.">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="danger">Retirer de l’Espace</button></form></div>{% endif %}
           </div>
         </article>
       {% empty %}<div class="rounded-2xl bg-zinc-50 p-5 text-sm text-zinc-500 dark:bg-zinc-900">{% if query %}Aucun collaborateur ne correspond à « {{ query }} ».{% else %}Aucun collaborateur actif dans l’Équipe principale.{% endif %}</div>{% endfor %}
     </div>
 
-    {% if page_obj.paginator.num_pages > 1 %}<nav class="mt-5 flex items-center justify-between gap-3 text-sm" aria-label="Pagination des collaborateurs">{% if page_obj.has_previous %}<a class="min-h-11 rounded-xl border border-zinc-300 px-4 py-3 font-bold dark:border-zinc-700" href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">Précédent</a>{% else %}<span></span>{% endif %}<span class="text-zinc-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="min-h-11 rounded-xl border border-zinc-300 px-4 py-3 font-bold dark:border-zinc-700" href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</nav>{% endif %}
+    {% if page_obj.paginator.num_pages > 1 %}<nav class="mt-5 flex items-center justify-between gap-3 text-sm" aria-label="Pagination des collaborateurs">{% if page_obj.has_previous %}<a class="mk-action-button" data-variant="secondary" href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">Précédent</a>{% else %}<span></span>{% endif %}<span class="text-zinc-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a class="mk-action-button" data-variant="secondary" href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Suivant</a>{% endif %}</nav>{% endif %}
   </section>
 </div>
 {% endblock %}

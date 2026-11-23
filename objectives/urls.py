@@ -7,16 +7,25 @@ from .activity_views import dossier_from_activity
 app_name = "objectives"
 
 urlpatterns = [
+    path("organizer/", views.organizer, name="organizer"),
     path("", views.dossier_list, name="dossier-list"),
     path("new/", views.dossier_create, name="dossier-create"),
     path("from-activity/<uuid:activity_id>/", dossier_from_activity, name="dossier-from-activity"),
     path("projects/", views.project_list, name="project-list"),
     path("projects/new/", views.project_create, name="project-create"),
+    path("projects/invitations/", views.project_invitations, name="project-invitations"),
+    path("projects/invitations/<uuid:invitation_id>/respond/", views.project_invitation_respond, name="project-invitation-respond"),
+
     path("projects/<uuid:project_id>/", views.project_detail, name="project-detail"),
+    path("projects/<uuid:project_id>/dossiers/create/", views.project_create_child, name="project-create-child"),
+    path("projects/<uuid:project_id>/edit/", views.project_edit, name="project-edit"),
+    path("projects/<uuid:project_id>/dossiers/<uuid:dossier_id>/move/", views.project_move_dossier, name="project-move-dossier"),
     path("projects/<uuid:project_id>/dossiers/link/", views.project_link_dossier, name="project-link-dossier"),
     path("projects/<uuid:project_id>/dossiers/<uuid:dossier_id>/unlink/", views.project_unlink_dossier, name="project-unlink-dossier"),
+    path("projects/<uuid:project_id>/authority/", views.project_authority, name="project-authority"),
     path("projects/<uuid:project_id>/lifecycle/", views.project_lifecycle, name="project-lifecycle"),
     path("<uuid:dossier_id>/", views.dossier_detail, name="dossier-detail"),
+    path("<uuid:dossier_id>/edit/", views.dossier_edit, name="dossier-edit"),
     path("<uuid:dossier_id>/project/", views.dossier_project, name="dossier-project"),
     path("<uuid:dossier_id>/collaboration/assign/", views.dossier_assign, name="dossier-assign"),
     path("<uuid:dossier_id>/collaboration/<uuid:assignment_id>/remove/", views.dossier_unassign, name="dossier-unassign"),

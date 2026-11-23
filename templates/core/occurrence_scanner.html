@@ -1,0 +1,15 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}Scanner · Jour J | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-5 pb-10">
+  {% include 'occurrence/scanner_content.html' %}
+</div>
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+{% if scanner_available %}
+<script src="{% static 'dist/qr-scanner.umd.min.js' %}"></script>
+<script src="{% static 'dist/scanner.js' %}"></script>
+{% endif %}
+{% endblock %}

@@ -1,13 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
+import 'package:makolo_mobile/app/runtime/app_runtime.dart';
+import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/navigation/actor_selector.dart';
+import 'package:makolo_mobile/features/space/space_occurrence_repository.dart';
+import 'package:makolo_mobile/features/space/space_create_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 import 'package:makolo_mobile/sync/sync_source.dart';
@@ -250,6 +257,367 @@ void main() {
     );
     expect(oldAll.path, isNot(contains('responsibility=')));
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
+  });
+
+  test('Nous Resources summary is local-first and owner-revocable', () async {
+    var phase = 'online';
+    final harness = await _harness(
+      handler: (request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/workspaces/space-x/us/resources/',
+        );
+        expect(request.url.queryParameters['kind'], 'document');
+        expect(request.url.queryParameters['offset'], '0');
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'denied') {
+          return MockResponse(
+            jsonEncode({
+              'error': {
+                'code': 'permission_denied',
+                'message': 'Access revoked',
+              },
+            }),
+            403,
+          );
+        }
+        return MockResponse(
+          jsonEncode({
+            'space_id': 'space-x',
+            'visibility': 'visible',
+            'kind': 'document',
+            'count': 2,
+            'counts': {'document': 2, 'passport': 1, 'template': 1, 'theme': 0},
+            'total_count': 4,
+            'items': <Object>[],
+            'has_more': false,
+            'next_offset': 0,
+            'coverage': {
+              'state': 'partial',
+              'owners': [
+                'space_assets.documents',
+                'sharing.passport',
+                'presentations.library',
+              ],
+            },
+          }),
+          200,
+        );
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final source = repository.resourcesSource(space);
+
+    expect(source.actorScope, SyncActorScope.space(spaceId: 'space-x'));
+    await repository.refreshResources(space);
+    final acquired = await repository.readResources(space);
+    expect(acquired, isNotNull);
+    expect((acquired!.payload['counts'] as Map)['document'], 2);
+
+    phase = 'offline';
+    await repository.refreshResources(space);
+    expect(
+      await repository.readResources(space),
+      isNotNull,
+      reason: 'Transport failure keeps the last acquired Resource summary.',
+    );
+    expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+
+    phase = 'denied';
+    await repository.refreshResources(space);
+    expect(
+      await repository.readResources(space),
+      isNull,
+      reason: 'Owner denial withdraws the cached Resource summary.',
+    );
+    expect((await repository.readSource(source)).invalidated, isTrue);
+  });
+
+  test('Space document detail is local-first and owner-revocable', () async {
+    var phase = 'online';
+    final documentId = '00000000-0000-4000-8000-000000000001';
+    final harness = await _harness(
+      handler: (request) async {
+        expect(
+          request.url.path,
+          '/api/v1/organizations/workspaces/space-x/documents/$documentId/',
+        );
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'denied') {
+          return MockResponse(
+            jsonEncode({
+              'error': {'code': 'not_found', 'message': 'Unavailable'},
+            }),
+            404,
+          );
+        }
+        return MockResponse(
+          jsonEncode({
+            'document': {
+              'id': documentId,
+              'title': 'Statuts',
+              'visibility': 'restricted',
+              'versions': [
+                {
+                  'id': '00000000-0000-4000-8000-000000000002',
+                  'number': 1,
+                  'mime_type': 'application/pdf',
+                },
+              ],
+            },
+            'can_manage': true,
+            'shares': <Object>[],
+          }),
+          200,
+        );
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final source = repository.documentDetailSource(space, documentId);
+
+    await repository.refreshDocumentDetail(space, documentId);
+    final acquired = await repository.readDocumentDetail(space, documentId);
+    expect(acquired, isNotNull);
+    expect((acquired!.payload['document'] as Map)['title'], 'Statuts');
+
+    phase = 'offline';
+    await repository.refreshDocumentDetail(space, documentId);
+    expect(
+      await repository.readDocumentDetail(space, documentId),
+      isNotNull,
+      reason: 'Transport failure keeps the acquired document metadata.',
+    );
+    expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+
+    phase = 'denied';
+    await repository.refreshDocumentDetail(space, documentId);
+    expect(
+      await repository.readDocumentDetail(space, documentId),
+      isNull,
+      reason: 'Owner denial withdraws the cached document detail.',
+    );
+    expect((await repository.readSource(source)).invalidated, isTrue);
+  });
+
+  test(
+    'Space documents are local-first and scoped to the active Space',
+    () async {
+      var phase = 'online';
+      final harness = await _harness(
+        handler: (request) async {
+          expect(
+            request.url.path,
+            '/api/v1/organizations/workspaces/space-x/documents/',
+          );
+          expect(request.url.queryParameters['q'], 'statuts');
+          if (phase == 'offline') {
+            throw const SocketException('offline');
+          }
+          if (phase == 'denied') {
+            return MockResponse(
+              jsonEncode({
+                'error': {
+                  'code': 'permission_denied',
+                  'message': 'Access revoked',
+                },
+              }),
+              403,
+            );
+          }
+          return MockResponse(
+            jsonEncode({
+              'space_id': 'space-x',
+              'count': 1,
+              'items': [
+                {
+                  'id': '00000000-0000-4000-8000-000000000001',
+                  'title': 'Statuts',
+                  'visibility': 'restricted',
+                  'latest_version': 1,
+                },
+              ],
+              'has_more': false,
+              'next_offset': 1,
+              'can_manage': true,
+            }),
+            200,
+          );
+        },
+      );
+      addTearDown(harness.close);
+      final repository = harness.repository;
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final other = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+
+      final source = repository.documentsSource(
+        space,
+        query: 'statuts',
+        offset: 0,
+      );
+      expect(source.actorScope, SyncActorScope.space(spaceId: 'space-x'));
+      expect(
+        source.sourceKey,
+        isNot(
+          repository
+              .documentsSource(other, query: 'statuts', offset: 0)
+              .sourceKey,
+        ),
+      );
+
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      final acquired = await repository.readDocumentPage(
+        space,
+        query: 'statuts',
+        offset: 0,
+      );
+      expect(acquired, isNotNull);
+      expect(acquired!.payload['count'], 1);
+      expect(acquired.payload['_query'], 'statuts');
+      await harness.store.putProjection(
+        kind: SpaceSyncKeys.documentsProjectionKind,
+        resourceKey: SpaceSyncKeys.documentsResourceKey(
+          'space-x',
+          query: 'statuts',
+          offset: 20,
+        ),
+        schemaVersion: 1,
+        payload: {
+          'space_id': 'space-x',
+          'count': 21,
+          'items': [
+            {
+              'id': '00000000-0000-4000-8000-000000000020',
+              'title': 'Statuts anciens',
+              'visibility': 'restricted',
+              'latest_version': 1,
+            },
+          ],
+          'has_more': false,
+          'next_offset': 21,
+          'can_manage': true,
+          '_query': 'statuts',
+          '_offset': 20,
+        },
+      );
+
+      phase = 'offline';
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 0),
+        isNotNull,
+        reason: 'Transport failure keeps the acquired reading snapshot.',
+      );
+      expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 20),
+        isNotNull,
+        reason: 'Transport failure keeps acquired continuation pages.',
+      );
+
+      phase = 'denied';
+      await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 0),
+        isNull,
+        reason: 'Owner denial withdraws the cached collection page.',
+      );
+      expect((await repository.readSource(source)).invalidated, isTrue);
+      expect(
+        await repository.readDocumentPage(space, query: 'statuts', offset: 20),
+        isNull,
+        reason: 'Owner denial withdraws sibling continuation pages too.',
+      );
+    },
+  );
+
+  test('acquired Space stays locally selectable on outage but never after revocation', () async {
+    var phase = 'online';
+    final harness = await _harness(
+      handler: (request) async {
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'revoked') {
+          return MockResponse(
+            jsonEncode({
+              'error': {
+                'code': 'permission_denied',
+                'message': 'Access revoked',
+              },
+            }),
+            403,
+          );
+        }
+        if (request.url.path.endsWith('/space-x/')) {
+          return MockResponse(jsonEncode(_workspace()), 200);
+        }
+        return MockResponse(jsonEncode([_inventoryRow()]), 200);
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final unknown = SpaceActorIdentity(id: 'unknown', slug: 'unknown');
+    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+    await repository.refreshInventory();
+    // Inventory-known Spaces may open before the first workspace fetch.
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+    await repository.refreshWorkspace(space);
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+    expect(await repository.hasAcquiredSpaceContext(unknown), isFalse);
+
+    phase = 'offline';
+    await expectLater(repository.refreshInventory(), throwsA(isA<Exception>()));
+    await expectLater(
+      repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+
+    phase = 'revoked';
+    await expectLater(
+      repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+  });
+
+  test('Space context uses the current Profile local inventory only', () async {
+    final harness = await _harness(
+      handler: (request) async {
+        if (request.url.path.endsWith('/space-x/')) {
+          return MockResponse(jsonEncode(_workspace()), 200);
+        }
+        return MockResponse(jsonEncode([_inventoryRow()]), 200);
+      },
+    );
+    addTearDown(harness.close);
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    await harness.repository.refreshInventory();
+    await harness.repository.refreshWorkspace(space);
+
+    final otherStore = ProfileStore(harness.database, 'profile-b');
+    final otherActor = await ActorContextController.restore(
+      profileId: 'profile-b',
+      store: _ActorStore(),
+    );
+    addTearDown(otherActor.dispose);
+    final otherRepository = WorkspaceContextRepository(
+      database: harness.database,
+      store: otherStore,
+      profileId: 'profile-b',
+      actorContext: otherActor,
+    );
+    expect(await otherRepository.hasAcquiredSpaceContext(space), isFalse);
+    expect(await harness.repository.hasAcquiredSpaceContext(space), isTrue);
   });
 
   test('Space projections parse into local snapshots', () async {
@@ -561,6 +929,333 @@ void main() {
     expect(harness.actorContext.value, SpaceActorContext(space: space));
   });
 
+  test(
+    'workspace denial removes only its Space, actor and late responses',
+    () async {
+      var denyWorkspace = false;
+      final lateStarted = Completer<void>();
+      final lateResponse = Completer<MockResponse>();
+      var delayNow = false;
+      final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+      final harness = await _harness(
+        handler: (request) async {
+          final path = request.url.path;
+          if (path == '/api/v1/organizations/workspaces/') {
+            return MockResponse(
+              jsonEncode([
+                _inventoryRow(),
+                _inventoryRow(id: 'space-y', slug: 'space-y'),
+              ]),
+              200,
+            );
+          }
+          if (path == '/api/v1/organizations/workspaces/space-x/' ||
+              path == '/api/v1/organizations/workspaces/space-y/') {
+            if (denyWorkspace && path.contains('space-x')) {
+              return MockResponse(
+                jsonEncode({
+                  'error': {
+                    'code': 'permission_denied',
+                    'message': 'Forbidden',
+                  },
+                }),
+                403,
+              );
+            }
+            return MockResponse(
+              jsonEncode(
+                _workspace(
+                  id: path.contains('space-y') ? 'space-y' : 'space-x',
+                  slug: path.contains('space-y') ? 'space-y' : 'space-x',
+                ),
+              ),
+              200,
+            );
+          }
+          if (path.endsWith('/now/')) {
+            if (delayNow && path.contains('space-x')) {
+              if (!lateStarted.isCompleted) lateStarted.complete();
+              return lateResponse.future;
+            }
+            return MockResponse(
+              jsonEncode(
+                _now(
+                  id: path.contains('space-y') ? 'space-y' : 'space-x',
+                  slug: path.contains('space-y') ? 'space-y' : 'space-x',
+                ),
+              ),
+              200,
+            );
+          }
+          throw StateError('Unexpected route $path');
+        },
+      );
+      addTearDown(harness.close);
+      final repository = harness.repository;
+      await repository.refreshInventory();
+      await repository.refreshWorkspace(spaceX);
+      await repository.refreshWorkspace(spaceY);
+      await repository.refreshNow(spaceX, const ActorPerspective.all());
+      await repository.refreshNow(spaceY, const ActorPerspective.all());
+      final operational = SpaceOccurrenceRepository(
+        database: harness.database,
+        store: harness.store,
+        profileId: 'profile-a',
+        sync: repository.sync,
+      );
+      await harness.store.putProjection(
+        kind: SpaceOccurrenceRepository.liveProjection,
+        resourceKey: operational.resourceKey(spaceX, 'occ-1'),
+        schemaVersion: 1,
+        payload: {'state': 'stale'},
+      );
+      await harness.actorContext.selectSpace(spaceX);
+
+      delayNow = true;
+      final inFlight = repository.sync!.pullSource(
+        repository.nowSource(spaceX, const ActorPerspective.all()),
+      );
+      await lateStarted.future;
+      denyWorkspace = true;
+      await expectLater(
+        repository.refreshWorkspace(spaceX),
+        throwsA(isA<Exception>()),
+      );
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(await repository.readWorkspace(spaceX), isNull);
+      expect(await repository.readWorkspace(spaceY), isNotNull);
+      expect(
+        await harness.store.readProjection(
+          SpaceOccurrenceRepository.liveProjection,
+          resourceKey: operational.resourceKey(spaceX, 'occ-1'),
+        ),
+        isNull,
+      );
+      expect(
+        (await repository.readInventory()).map((space) => space.identity.id),
+        ['space-y'],
+      );
+
+      // A later inventory 200 may know the Space exists as membership, but
+      // cannot regrant previously denied workspace authority.
+      await repository.refreshInventory();
+      expect(
+        (await repository.readInventory()).map((space) => space.identity.id),
+        ['space-y'],
+      );
+
+      lateResponse.complete(MockResponse(jsonEncode(_now()), 200));
+      await inFlight;
+      expect(
+        await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(
+            spaceX.id,
+            perspective: const ActorPerspective.all(),
+          ),
+        ),
+        isNull,
+      );
+      await expectLater(
+        repository.sync!.pullSource(
+          repository.nowSource(spaceX, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      await repository.sync!.invalidate(repository.workspaceSource(spaceX));
+      await expectLater(
+        repository.sync!.pullSource(
+          repository.nowSource(spaceX, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(
+            spaceY.id,
+            perspective: const ActorPerspective.all(),
+          ),
+        ),
+        isNotNull,
+      );
+    },
+  );
+
+  test(
+    'late owner denial from a closed runtime cannot reset actor context',
+    () async {
+      final started = Completer<void>();
+      final delayed = Completer<MockResponse>();
+      final harness = await _harness(
+        handler: (_) async {
+          if (!started.isCompleted) started.complete();
+          return delayed.future;
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.actorContext.selectSpace(space);
+      final pending = harness.repository.refreshWorkspace(space);
+      await started.future;
+      harness.repository.sync!.deactivate();
+      delayed.complete(
+        MockResponse(
+          jsonEncode({
+            'error': {'code': 'permission_denied', 'message': 'Forbidden'},
+          }),
+          403,
+        ),
+      );
+      await expectLater(pending, throwsA(isA<Exception>()));
+      expect(
+        harness.actorContext.value,
+        SpaceActorContext(space: space),
+        reason: 'Only the active runtime may alter its actor preference',
+      );
+    },
+  );
+
+  test(
+    'owner inventory removal withdraws one Space without global erasure',
+    () async {
+      var includeX = true;
+      final x = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final y = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+      final harness = await _harness(
+        handler: (request) async {
+          final path = request.url.path;
+          if (path == '/api/v1/organizations/workspaces/') {
+            return MockResponse(
+              jsonEncode([
+                if (includeX) _inventoryRow(),
+                _inventoryRow(id: 'space-y', slug: 'space-y'),
+              ]),
+              200,
+            );
+          }
+          if (path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          if (path.endsWith('/space-y/')) {
+            return MockResponse(
+              jsonEncode(_workspace(id: 'space-y', slug: 'space-y')),
+              200,
+            );
+          }
+          throw StateError('Unexpected path $path');
+        },
+      );
+      addTearDown(harness.close);
+      final repo = harness.repository;
+      await repo.refreshInventory();
+      await repo.refreshWorkspace(x);
+      await repo.refreshWorkspace(y);
+      includeX = false;
+      await repo.refreshInventory();
+      expect(await repo.readWorkspace(x), isNull);
+      expect(await repo.readWorkspace(y), isNotNull);
+      expect((await repo.readInventory()).map((item) => item.identity.id), [
+        'space-y',
+      ]);
+      expect(
+        (await repo.readSource(repo.workspaceSource(x))).invalidated,
+        true,
+      );
+    },
+  );
+
+  test(
+    'transport failure cannot erase a Workspace authority tombstone',
+    () async {
+      var denied = true;
+      final harness = await _harness(
+        handler: (_) async => MockResponse(
+          jsonEncode({
+            'error': {
+              'code': denied ? 'permission_denied' : 'server_unavailable',
+              'message': 'Unable to verify Workspace',
+            },
+          }),
+          denied ? 403 : 503,
+        ),
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await expectLater(
+        harness.repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      denied = false;
+      await expectLater(
+        harness.repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      final source = await harness.repository.readSource(
+        harness.repository.workspaceSource(space),
+      );
+      expect(source.invalidated, isTrue);
+      expect(source.lastErrorCode, 'permission_denied');
+      await expectLater(
+        harness.repository.sync!.pullSource(
+          harness.repository.nowSource(space, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
+
+  test(
+    'inventory 403 withdraws all Space projections but no other Profile',
+    () async {
+      var deny = false;
+      final harness = await _harness(
+        handler: (request) async {
+          if (deny) {
+            return MockResponse(
+              jsonEncode({
+                'error': {'code': 'permission_denied', 'message': 'Forbidden'},
+              }),
+              403,
+            );
+          }
+          if (request.url.path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      await harness.repository.refreshWorkspace(space);
+      await harness.actorContext.selectSpace(space);
+      final another = ProfileStore(harness.database, 'profile-b');
+      await another.putProjection(
+        kind: SpaceProjectionKind.workspace.wireValue,
+        resourceKey: 'space-x',
+        schemaVersion: 1,
+        payload: {'profile': 'B'},
+      );
+      deny = true;
+      await expectLater(
+        harness.repository.refreshInventory(),
+        throwsA(isA<Exception>()),
+      );
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(await harness.repository.readWorkspace(space), isNull);
+      expect(await harness.repository.readInventory(), isEmpty);
+      expect(
+        (await another.readProjection(
+          SpaceProjectionKind.workspace.wireValue,
+          resourceKey: 'space-x',
+        ))?.payload['profile'],
+        'B',
+      );
+    },
+  );
+
   test('Profile isolation keeps Space snapshots separate', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
@@ -599,4 +1294,188 @@ void main() {
       'B',
     );
   });
+
+  test(
+    'native Space creation uses the owner without granting client authority',
+    () async {
+      var posted = false;
+      final harness = await _harness(
+        handler: (request) async {
+          if (request.url.path == '/api/v1/organizations/workspaces/' &&
+              request.data != null) {
+            final payload = request.data as Map;
+            expect(payload['name'], 'Association Lumière');
+            expect(payload['public_profile'], false);
+            posted = true;
+            return MockResponse(jsonEncode(_workspace()), 201);
+          }
+          throw StateError('Unexpected request: ${request.url.path}');
+        },
+      );
+      addTearDown(harness.close);
+
+      final identity = await harness.repository.createSpace(
+        name: ' Association Lumière ',
+        publicProfile: false,
+      );
+      expect(posted, isTrue);
+      expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
+      expect(harness.actorContext.value, const PersonalActorContext());
+    },
+  );
+
+  testWidgets(
+    'actor picker opens an inventory-known Space without first workspace data',
+    (tester) async {
+      var offline = false;
+      var requests = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          requests++;
+          if (offline) throw const SocketException('offline');
+          if (request.url.path.endsWith('/space-x/')) {
+            fail('Workspace must not be a prerequisite to choose the context');
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      offline = true;
+      final beforeSelection = requests;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloActorPicker(context, runtime: runtime),
+                child: const Text('Choisir un contexte'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choisir un contexte'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Space X'));
+      await tester.pumpAndSettle();
+      expect(harness.actorContext.value, SpaceActorContext(space: space));
+      expect(requests, beforeSelection);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'actor picker switches to an acquired Space without the server or network chatter',
+    (tester) async {
+      var offline = false;
+      var requests = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          requests++;
+          if (offline) throw const SocketException('offline');
+          if (request.url.path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      await harness.repository.refreshWorkspace(space);
+      offline = true;
+      await expectLater(
+        harness.repository.refreshInventory(),
+        throwsA(isA<Exception>()),
+      );
+      final baseline = requests;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloActorPicker(context, runtime: runtime),
+                child: const Text('Choisir un contexte'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choisir un contexte'));
+      await tester.pumpAndSettle();
+      expect(find.text('Space X'), findsOneWidget);
+      expect(find.text('Vérifier mes Espaces'), findsNothing);
+      expect(find.textContaining('Espaces déjà consultés'), findsNothing);
+      expect(find.textContaining('ne peuvent pas être vérifiés'), findsNothing);
+      await tester.tap(find.text('Space X'));
+      await tester.pumpAndSettle();
+      expect(harness.actorContext.value, SpaceActorContext(space: space));
+      expect(requests, baseline);
+      expect(find.text('Agir en tant que'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'uncertain create response cannot repeat an unconfirmed Space POST',
+    (tester) async {
+      var attempts = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          if (request.url.path == '/api/v1/organizations/workspaces/' &&
+              request.data != null) {
+            attempts++;
+            return const MockResponse(
+              '{"error":{"code":"unavailable","message":"Try later"}}',
+              503,
+            );
+          }
+          throw StateError('Unexpected request');
+        },
+      );
+      addTearDown(harness.close);
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+      );
+      expect(
+        tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+        isTrue,
+      );
+      await tester.enterText(find.byType(TextFormField), 'Espace Associatif');
+      await tester.tap(find.text('Créer cet Espace'));
+      await tester.pumpAndSettle();
+
+      expect(attempts, 1);
+      expect(find.textContaining('Réponse incertaine'), findsOneWidget);
+      final submit = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(submit.onPressed, isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

@@ -1,0 +1,149 @@
+{% extends discovery_base_template %}
+{% load static %}
+{% block title %}{{ card.title }} | Découvrir Makolo{% endblock %}
+{% block workspace_layout %}explore{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6" data-mk-surface="discover-n2">
+  <a href="{{ return_url }}" data-discovery-return class="mk-action-button" data-variant="ghost"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Retour à Découvrir</span></a>
+  <article class="mk-panel space-y-6 p-5 sm:p-8">
+    <header class="space-y-3">
+      {% if card.operator_name %}<p class="text-sm" style="color:var(--mk-muted)">Proposé par {{ card.operator_name }}</p>{% endif %}
+      {% if card.type_labels %}<div class="flex flex-wrap gap-2">{% for label in card.type_labels %}<span class="mk-badge">{{ label }}</span>{% endfor %}</div>{% endif %}
+      <h1 class="mk-page-title">{{ card.title }}</h1>
+      {% if card.summary %}<p class="text-base">{{ card.summary }}</p>{% endif %}
+    </header>
+
+    {% if not card.representation.image_url and card.representation.kind == 'route' and card.representation.route_label %}
+    <section class="rounded-2xl p-5 sm:p-7" style="background:var(--mk-surface-muted)" aria-label="Trajet proposé">
+      <i data-lucide="route" class="h-6 w-6" style="color:var(--mk-primary)" aria-hidden="true"></i>
+      <h2 class="mt-3 break-words text-xl font-bold">{{ card.representation.route_label }}</h2>
+    </section>
+    {% endif %}
+
+    {% if card.representation.image_url or card.gallery_media %}
+    <section class="overflow-hidden rounded-2xl" style="background:var(--mk-surface-muted)" aria-label="Images publiées">
+      {% if card.representation.image_url %}
+      <details class="group">
+        <summary class="cursor-zoom-in list-none" aria-label="Agrandir le visuel de {{ card.title }}">
+          <img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" class="block w-full object-contain" style="max-height:480px" decoding="async">
+        </summary>
+        <div class="space-y-2 p-3">
+          <img src="{{ card.representation.image_url }}" alt="Visuel agrandi de {{ card.title }}" class="mx-auto w-full object-contain" style="max-height:80vh" loading="lazy">
+          <a href="{{ card.representation.image_url }}" download class="mk-action-button" data-variant="ghost" aria-label="Télécharger le visuel"><i data-lucide="download" class="h-5 w-5" aria-hidden="true"></i><span class="sr-only">Télécharger le visuel</span></a>
+        </div>
+      </details>
+      {% endif %}
+      {% if card.gallery_media %}
+      <div class="flex snap-x gap-3 overflow-x-auto p-3">
+        {% for media in card.gallery_media %}
+        <a href="{{ media.resource.url }}" target="_blank" rel="noopener noreferrer" class="shrink-0 snap-start rounded-xl" aria-label="Agrandir {{ media.resource.alt_text|default:card.title }}"><img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-36 rounded-xl object-contain" style="max-height:9rem" loading="lazy" decoding="async"></a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if not discovery_space and n2_item.journey_continuation.links.web %}
+    <div class="border-t pt-4" style="border-color:var(--mk-border)" data-discovery-journey-continuation>
+      <a href="{{ n2_item.journey_continuation.links.web }}" class="mk-action-button" data-variant="primary">{{ n2_item.journey_continuation.label }}</a>
+    </div>
+    {% endif %}
+    {% if not discovery_space and n2_item.links.web and n2_item.links.web != "#" %}
+    <div class="border-t pt-4" style="border-color:var(--mk-border)">
+      <a href="{{ n2_item.links.web }}" class="mk-action-button" data-variant="secondary">{% if card.presentation_kind == "event" %}Voir l’événement{% elif card.presentation_kind == "transport" %}Voir le trajet{% elif card.presentation_kind == "service" %}Voir le service{% else %}Ouvrir la proposition{% endif %}<i data-lucide="arrow-up-right" class="ml-2 h-4 w-4" aria-hidden="true"></i></a>
+    </div>
+    {% endif %}
+
+    {% include 'discovery/_action_bar.html' with card=card detail=True %}
+
+    {% if card.description and card.description != card.summary %}
+    <section aria-label="Présentation" class="whitespace-pre-line leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</section>
+    {% endif %}
+
+    {% if card.facts %}
+    <section aria-label="Faits établis" class="space-y-3">
+      <h2 class="text-lg font-bold">Informations pratiques</h2>
+      <dl class="grid gap-3 sm:grid-cols-2">
+        {% for fact in card.facts %}
+        <div class="min-w-0 rounded-xl p-3" style="background:var(--mk-surface-muted)">
+          <dt class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)">{% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="h-4 w-4 shrink-0" style="color:var(--mk-primary)" aria-hidden="true"></i>{% endif %}{{ fact.label }}</dt>
+          <dd class="mt-1 break-words font-semibold">{{ fact.value }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}
+
+    {% if n2.assessment.favorable or n2.assessment.limiting or n2.assessment.unknown %}
+    <section aria-label="Conditions de cette opportunité" class="space-y-3">
+      <h2 class="text-lg font-bold">À savoir</h2>
+      {% if n2.assessment.favorable %}
+      <div><h3 class="font-semibold">Ce qui facilite</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.favorable %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if n2.assessment.limiting %}
+      <div><h3 class="font-semibold">À prendre en compte</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.limiting %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if n2.assessment.unknown %}
+      <div><h3 class="font-semibold">À confirmer</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.unknown %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if n2.variants %}
+    <section aria-label="Variantes de cette opportunité" class="space-y-3">
+      <h2 class="text-lg font-bold">Réalisations proposées</h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        {% for variant in n2.variants %}
+        <div class="rounded-xl border p-4" style="border-color:var(--mk-border)">
+          <h3 class="font-semibold">{% if card.presentation_kind == "transport" %}Départ{% else %}Option{% endif %} {{ forloop.counter }}</h3>
+          {% if variant.start %}<p class="text-sm">Début : {{ variant.start }}</p>{% endif %}
+          {% if variant.end %}<p class="text-sm">Fin : {{ variant.end }}</p>{% endif %}
+          {% for place in variant.places %}<p class="text-sm">Lieu : {{ place }}</p>{% endfor %}
+          {% if not variant.start and not variant.end and not variant.places %}
+          <p class="text-sm" style="color:var(--mk-muted)">Date et lieu non précisés.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if n2.comparison %}
+    <section aria-label="Comparaison conditionnelle des variantes" class="space-y-3">
+      <h2 class="text-lg font-bold">Comparer les variantes connues</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[400px] text-left text-sm">
+          <thead><tr><th scope="col" class="p-3">Fait</th>{% for variant in n2.variants %}<th scope="col" class="p-3">Variante {{ forloop.counter }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in n2.comparison %}
+            <tr class="border-t" style="border-color:var(--mk-border)">
+              <th scope="row" class="p-3">{{ row.label }}</th>
+              {% for value in row.values %}<td class="p-3">{{ value }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if n2.relations %}
+    <section class="space-y-2" aria-label="Relations publiées">
+      <h2 class="text-lg font-bold">Relations indiquées</h2>
+      <ul class="list-disc pl-5">{% for relation in n2.relations %}<li>{{ relation }}</li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+
+    {% if card.resources %}
+    <section aria-label="Documents et ressources" class="space-y-3">
+      <h2 class="text-lg font-bold">Documents et ressources</h2>
+      <div class="grid gap-3">{% for resource in card.resources %}{% include "discovery/_resource_item.html" %}{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    {% if n2.freshness %}<p class="text-xs" style="color:var(--mk-muted)">{{ n2.freshness }}</p>{% endif %}
+  </article>
+</main>
+{% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}

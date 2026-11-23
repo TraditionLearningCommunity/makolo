@@ -92,6 +92,18 @@ class PaymentCreateSerializer(serializers.Serializer):
         return payment
 
 
+class ObligationPaymentInitiateSerializer(serializers.Serializer):
+    provider = serializers.ChoiceField(choices=PaymentProvider.choices)
+    method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    payer_name = serializers.CharField(max_length=180, required=False, allow_blank=True)
+    payer_email = serializers.EmailField(required=False, allow_blank=True)
+    payer_phone = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    idempotency_key = serializers.CharField(max_length=128, required=True, allow_blank=False)
+
+    def validate_idempotency_key(self, value):
+        return value.strip()
+
+
 class ManualCompleteSerializer(serializers.Serializer):
     provider_reference = serializers.CharField(max_length=160, required=False, allow_blank=True)
 

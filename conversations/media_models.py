@@ -8,7 +8,7 @@ from django.db.models import Q
 
 from journeys.storage import private_artifact_storage
 
-from .point_models import ConversationPoint, ConversationPointResponse, PointExchangeEntry
+from .point_models import ConversationPoint, ConversationPointOption, ConversationPointResponse, PointExchangeEntry
 
 
 class ConversationAttachmentKind(models.TextChoices):
@@ -42,6 +42,11 @@ class ConversationPointAttachment(models.Model):
         null=True,
         blank=True,
     )
+    option = models.ForeignKey(
+        ConversationPointOption, on_delete=models.PROTECT,
+        related_name="attachments", null=True, blank=True,
+    )
+    caption = models.CharField(max_length=5000, blank=True)
     kind = models.CharField(max_length=16, choices=ConversationAttachmentKind.choices, default=ConversationAttachmentKind.FILE)
     file = models.FileField(storage=private_artifact_storage, upload_to=conversation_attachment_upload_to, max_length=500)
     original_name = models.CharField(max_length=255)
@@ -55,8 +60,14 @@ class ConversationPointAttachment(models.Model):
         ordering = ["created_at", "id"]
         constraints = [
             models.CheckConstraint(
-                condition=Q(response__isnull=True) | Q(exchange_entry__isnull=True),
-                name="conv_attachment_not_response_and_exchange",
+                condition=(
+                    Q(response__isnull=True) | Q(exchange_entry__isnull=True)
+                ) & (
+                    Q(option__isnull=True) | (
+                        Q(response__isnull=True) & Q(exchange_entry__isnull=True)
+                    )
+                ),
+                name="conv_attachment_single_context",
             ),
         ]
         indexes = [
@@ -69,12 +80,18 @@ class ConversationPointAttachment(models.Model):
         errors = {}
         self.original_name = Path(self.original_name or "fichier").name[:255]
         self.mime_type = (self.mime_type or "application/octet-stream").strip().lower()[:180]
+        self.caption = (self.caption or "").strip()
         if self.response_id and self.response.point_id != self.point_id:
             errors["response"] = "La réponse et la pièce jointe doivent appartenir au même Point."
         if self.exchange_entry_id and self.exchange_entry.point_id != self.point_id:
             errors["exchange_entry"] = "L’échange et la pièce jointe doivent appartenir au même Point."
-        if self.response_id and self.exchange_entry_id:
-            errors["exchange_entry"] = "Une pièce jointe appartient soit à une réponse, soit à un échange, jamais aux deux."
+        if self.option_id:
+            if self.option.point_id != self.point_id:
+                errors["option"] = "Le choix doit appartenir au même Point."
+            if self.point.kind != "poll":
+                errors["option"] = "Seul un Sondage possède des médias de choix."
+        if sum(bool(value) for value in (self.response_id, self.exchange_entry_id, self.option_id)) > 1:
+            errors["option"] = "La pièce jointe appartient à un seul contexte : Point, choix, réponse ou échange."
         if errors:
             raise ValidationError(errors)
 

@@ -7,6 +7,7 @@ from accounts.api.views import MeAPIView as AuthMeAPIView
 from core.api.day_of_views import PersonalOccurrenceDayOfAPIView
 from core.api.detail_views import PersonalJourneyDetailAPIView
 from core.api.mark_views import PersonalMarkAPIView
+from core.api.mark_audio_transcription_views import PersonalMarkAudioTranscriptionAPIView
 from core.api.me_views import PersonalMeAPIView
 from core.api.personal_views import PersonalNowAPIView, PersonalOngoingAPIView
 from core.api.projections import PROJECTION_SCHEMA_VERSION
@@ -27,6 +28,7 @@ class Z13MobileHandoffRouteContractTests(SimpleTestCase):
         self.assert_view("/api/v1/me/now/", PersonalNowAPIView)
         self.assert_view("/api/v1/discovery/items/", DiscoveryItemsAPIView)
         self.assert_view("/api/v1/me/mark/", PersonalMarkAPIView)
+        self.assert_view("/api/v1/me/mark/transcription/", PersonalMarkAudioTranscriptionAPIView)
         self.assert_view("/api/v1/me/ongoing/", PersonalOngoingAPIView)
 
         with self.assertRaises(Resolver404):

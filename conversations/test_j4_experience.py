@@ -54,7 +54,7 @@ class ConversationExperienceTests(TestCase):
         self.client.force_login(self.member)
         response = self.client.get(reverse("conversations:list"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "1 pour vous")
+        self.assertContains(response, "1 à traiter")
         self.assertContains(response, "J4 Activity")
 
     def test_detail_does_not_leak_to_outsider(self):
@@ -70,5 +70,5 @@ class ConversationExperienceTests(TestCase):
             follow=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Tout est en ordre")
+        self.assertContains(response, "En cours ailleurs")
         self.assertEqual(self.point.responses.filter(actor=self.member, status="active").count(), 1)

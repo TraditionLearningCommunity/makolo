@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from accounts.models import UserProfile
 from activities.models import ActivityStatus, ActivityVisibility
+from organizations.models import SpaceLifecycle
 from payments.models import PaymentObligationStatus
 
 from .models import FundingContribution, FundingDetails
@@ -92,6 +94,31 @@ def funding_accepts_contributions(funding: FundingDetails, *, at=None) -> bool:
         return False
     if activity.visibility == ActivityVisibility.PRIVATE:
         return False
+    # Suspension of a Space is a current owner restriction, not an archived
+    # Discovery snapshot. Never create a new payment obligation while its
+    # economic owner is unable to operate.
+    if activity.space_id is not None:
+        space = activity.space
+        if (
+            not space.public_profile
+            or not space.searchable
+            or space.lifecycle != SpaceLifecycle.ACTIVE
+            or space.verification_status == "suspended"
+        ):
+            return False
+    elif activity.owner_profile_id is None or not activity.owner_profile.is_active:
+        return False
+    else:
+        # A Profile can explicitly withdraw its public visibility even when
+        # a legacy published Activity still exists. Missing extension rows
+        # retain the previous Activity-public behavior until onboarding.
+        privacy = UserProfile.objects.filter(
+            user_id=activity.owner_profile_id,
+        ).values("public_profile", "searchable").first()
+        if privacy is not None and (
+            not privacy["public_profile"] or not privacy["searchable"]
+        ):
+            return False
     if funding.opens_at and at < funding.opens_at:
         return False
     if funding.closes_at and at >= funding.closes_at:
@@ -106,6 +133,32 @@ def public_fundings(*, at=None):
             activity__status=ActivityStatus.PUBLISHED,
             activity__visibility=ActivityVisibility.PUBLIC,
         )
+        # Discovery is a public catalog: a suspended/archived/non-public
+        # Space cannot publish Funding into it. Personal Activities must have
+        # an active logical Profile owner. Group eligibility is applied by
+        # the caller after this owner-level publication gate.
+        .filter(
+            Q(
+                activity__space__isnull=False,
+                activity__space__public_profile=True,
+                activity__space__searchable=True,
+                activity__space__lifecycle=SpaceLifecycle.ACTIVE,
+            )
+            | (
+                Q(
+                    activity__space__isnull=True,
+                    activity__owner_profile__is_active=True,
+                )
+                & (
+                    Q(activity__owner_profile__profile__isnull=True)
+                    | Q(
+                        activity__owner_profile__profile__public_profile=True,
+                        activity__owner_profile__profile__searchable=True,
+                    )
+                )
+            )
+        )
+        .exclude(activity__space__verification_status="suspended")
         .filter(models_window_q(at))
         .select_related("activity", "activity__space", "activity__owner_profile")
         .order_by("activity__title", "id")

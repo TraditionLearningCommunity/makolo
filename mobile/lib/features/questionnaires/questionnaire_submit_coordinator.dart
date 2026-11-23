@@ -55,7 +55,9 @@ class QuestionnaireSubmitCoordinator {
     final operationId = '$deviceId:$intentId';
     final draftId = 'questionnaire:$requestId';
 
-    await drafts.saveLocal(
+    // One SQLite transaction: a process kill cannot leave a submitted
+    // intention without its answers, nor answers with a phantom queued send.
+    await drafts.saveAndQueue(
       draftId: draftId,
       owner: owner,
       resourceKind: resourceKind,
@@ -64,15 +66,13 @@ class QuestionnaireSubmitCoordinator {
         'answers': answers,
         'base_observed_at': DateTime.now().toUtc().toIso8601String(),
       },
-    );
-    await outbox.enqueue(
       operationId: operationId,
       deviceInstanceId: deviceId,
       operationKind: operationKind,
-      owner: owner,
-      resourceKind: resourceKind,
-      resourceId: requestId,
-      payload: <String, dynamic>{
+      intentId: intentId,
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+      enforceSingleActive: true,
+      operationPayload: <String, dynamic>{
         'request_id': requestId,
         'journey_id': journeyId,
         'answers': answers,
@@ -82,16 +82,20 @@ class QuestionnaireSubmitCoordinator {
           'submit': links.submit,
         },
       },
-      intentId: intentId,
-      replayPolicy: ReplayPolicy.refetchBeforeRetry,
     );
     return true;
   }
 
   Future<OutboxResolution> _execute(OutboxOperation operation) async {
+    if (operation.owner != owner || operation.profileId != outbox.profileId) {
+      return OutboxResolution.conflict;
+    }
+    if (!await _hasOwnerSession(operation)) {
+      return OutboxResolution.awaitingConfirmation;
+    }
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
-    final journeyId = _requiredString(payload, 'journey_id');
+    final journeyId = payload['journey_id']?.toString().trim() ?? '';
     final answers = _answers(payload['answers']);
     final links = _links(payload);
 
@@ -105,6 +109,9 @@ class QuestionnaireSubmitCoordinator {
         response: saved,
       );
 
+      if (!await _hasOwnerSession(operation)) {
+        return OutboxResolution.awaitingConfirmation;
+      }
       final submitted = await api.post(_relative(links.submit!));
       await questionnaires.applyOwnerResponse(
         requestId: requestId,
@@ -147,9 +154,15 @@ class QuestionnaireSubmitCoordinator {
   }
 
   Future<OutboxResolution> _reconcile(OutboxOperation operation) async {
+    if (operation.owner != owner || operation.profileId != outbox.profileId) {
+      return OutboxResolution.conflict;
+    }
+    if (!await _hasOwnerSession(operation)) {
+      return OutboxResolution.awaitingConfirmation;
+    }
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
-    final journeyId = _requiredString(payload, 'journey_id');
+    final journeyId = payload['journey_id']?.toString().trim() ?? '';
     final links = _links(payload);
 
     try {
@@ -193,6 +206,9 @@ class QuestionnaireSubmitCoordinator {
       resourceKind: resourceKind,
       resourceId: requestId,
     );
+    // A Profile-targeted Conversation FormRequest deliberately has no Journey.
+    // Its canonical owner is Questionnaires; no synthetic Journey is refreshed.
+    if (journeyId.isEmpty) return;
     await journeys.invalidateDetail(journeyId);
     try {
       await journeys.refreshDetail(journeyId);
@@ -222,6 +238,11 @@ class QuestionnaireSubmitCoordinator {
         'base_observed_at': DateTime.now().toUtc().toIso8601String(),
       },
     );
+  }
+
+  Future<bool> _hasOwnerSession(OutboxOperation operation) async {
+    final session = await tokens.readSession();
+    return session?.profileId == operation.profileId;
   }
 
   Map<String, dynamic> _payload(OutboxOperation operation) {
@@ -268,6 +289,17 @@ class QuestionnaireSubmitCoordinator {
 
   String _relative(String value) {
     final trimmed = value.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        uri.hasFragment ||
+        uri.pathSegments.contains('..') ||
+        uri.pathSegments.length < 3 ||
+        uri.pathSegments[0] != 'api' ||
+        uri.pathSegments[1] != 'v1') {
+      throw const FormatException('Untrusted Questionnaire owner path');
+    }
     return trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
   }
 }

@@ -1,0 +1,174 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-5xl space-y-7 pb-12" aria-labelledby="mt5-heading" data-mt5-depth="{{ work_g3.kind }}">
+  <nav aria-label="Retour à Métier">
+    <a class="text-sm font-semibold underline underline-offset-4" href="{{ work_g3.back_url }}">{{ work_g3.back_label }}</a>
+  </nav>
+  <header class="space-y-3">
+    <span class="mk-kicker">
+      {% if work_g3.kind == 'offer' %}Offre
+      {% elif work_g3.kind == 'commerce_order' %}Commande
+      {% elif work_g3.kind == 'transport_route' %}Route
+      {% elif work_g3.kind == 'vehicle' %}Véhicule
+      {% elif work_g3.kind == 'occurrence' %}Départ / réalisation
+      {% elif work_g3.is_commerce %}Activité commerciale
+      {% else %}Service de transport{% endif %}
+    </span>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="min-w-0">
+        <h2 id="mt5-heading" class="text-3xl font-extrabold tracking-[-.04em] break-words">{{ work_g3.title }}</h2>
+        {% if work_g3.summary %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ work_g3.summary }}</p>{% endif %}
+      </div>
+      <span class="mk-badge">{{ work_g3.status }}</span>
+    </div>
+    {% if work_g3.timing.start_date %}
+      <p class="text-sm" style="color:var(--mk-muted)">
+        {{ work_g3.timing.start_date }}
+        {% if work_g3.timing.start_time %}· {{ work_g3.timing.start_time }}{% endif %}
+        {% if work_g3.timing.timezone %}· {{ work_g3.timing.timezone }}{% endif %}
+      </p>
+    {% endif %}
+  </header>
+
+  {% if work_g3.kind == 'offer' %}
+    <section class="mk-panel p-5 sm:p-6 space-y-4" aria-label="Conditions de l'offre">
+      <h3 class="text-lg font-extrabold">Ce que nous proposons</h3>
+      <p class="text-2xl font-extrabold">{{ work_g3.facts.unit_price }} {{ work_g3.facts.currency }} <span class="text-sm font-normal">par unité</span></p>
+      <p>Quantité par demande : {{ work_g3.facts.min_quantity }}{% if work_g3.facts.max_quantity %} à {{ work_g3.facts.max_quantity }}{% else %} minimum{% endif %}</p>
+      <p class="text-sm">Mode de paiement : {{ work_g3.facts.payment_mode }}</p>
+      {% if work_g3.facts.payment_modes %}
+      <p class="text-sm">Modes acceptés : {% for mode in work_g3.facts.payment_modes %}{{ mode }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% if work_g3.facts.available_from or work_g3.facts.available_until %}
+      <p class="text-sm">Disponibilité : {% if work_g3.facts.available_from %}à partir du {{ work_g3.facts.available_from }}{% endif %}
+        {% if work_g3.facts.available_until %} · jusqu’au {{ work_g3.facts.available_until }}{% endif %}</p>
+      {% endif %}
+      <p class="text-sm font-semibold">
+        {% if work_g3.facts.currently_available %}Actuellement disponible selon les conditions de l’offre.
+        {% else %}Indisponible actuellement.{% endif %}
+      </p>
+      {% if work_g3.context.capacity %}
+        <div class="rounded-xl p-4" style="background:var(--mk-soft)">
+          {% if work_g3.context.capacity.unlimited %}Aucune limite de quantité renseignée.
+          {% else %}Capacité disponible : {{ work_g3.context.capacity.available }} sur {{ work_g3.context.capacity.total }}.
+          {% endif %}
+          {% if not work_g3.context.capacity.pool_active %}<p>Disponibilité suspendue.</p>{% endif %}
+        </div>
+      {% endif %}
+      {% if work_g3.facts.capacity_pool_bound and not work_g3.context.capacity %}
+        <p class="text-sm" style="color:var(--mk-muted)">Quantité disponible à vérifier.</p>
+      {% endif %}
+    </section>
+  {% elif work_g3.kind == 'commerce_order' %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Référence et montants de commande">
+      <h3 class="text-lg font-extrabold">Commande {{ work_g3.facts.reference }}</h3>
+      <p class="text-sm">Paiement prévu : {{ work_g3.facts.payment_mode }}</p>
+      <dl class="grid grid-cols-2 gap-3">
+        <dt>Sous-total historique</dt><dd class="text-right font-semibold">{{ work_g3.facts.subtotal }} {{ work_g3.facts.currency }}</dd>
+        <dt>Remise historique</dt><dd class="text-right font-semibold">{{ work_g3.facts.discount_total }} {{ work_g3.facts.currency }}</dd>
+        <dt>Total commandé</dt><dd class="text-right font-extrabold">{{ work_g3.facts.total }} {{ work_g3.facts.currency }}</dd>
+      </dl>
+      <p class="text-sm" style="color:var(--mk-muted)">La confirmation de commande ne confirme ni le paiement ni la remise.</p>
+    </section>
+  {% elif work_g3.kind == 'transport_route' %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Itinéraire">
+      <h3 class="text-lg font-extrabold">Arrêts de cette route</h3>
+      {% if work_g3.facts.code %}<p class="text-sm">Code de la route : {{ work_g3.facts.code }}</p>{% endif %}
+      {% if work_g3.context.stops %}
+        <ol class="space-y-3">
+          {% for stop in work_g3.context.stops %}
+            <li class="flex items-center justify-between gap-4">
+              <span><strong>{{ stop.position }}. {{ stop.name }}</strong></span>
+              <span class="text-xs" style="color:var(--mk-muted)">
+                {% if stop.boarding_allowed %}Embarquement{% endif %}
+                {% if stop.alighting_allowed %}{% if stop.boarding_allowed %} · {% endif %}Descente{% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p>Aucun arrêt connu pour cette route.</p>
+      {% endif %}
+    </section>
+  {% elif work_g3.kind == 'vehicle' %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Véhicule">
+      <h3 class="text-lg font-extrabold">Véhicule</h3>
+      <p>Type : {{ work_g3.facts.vehicle_type }}</p>
+      <p>Places physiques : <strong>{{ work_g3.facts.passenger_capacity }}</strong></p>
+      {% if work_g3.facts.registration %}<p>Référence d’immatriculation : {{ work_g3.facts.registration }}</p>{% endif %}
+      <p class="text-sm" style="color:var(--mk-muted)">La capacité physique ne correspond pas nécessairement aux places réservables.</p>
+    </section>
+  {% elif work_g3.kind == 'occurrence' %}
+    {% if work_g3.facts.departure_id %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Exploitation du départ">
+      <h3 class="text-lg font-extrabold">Exploitation réelle</h3>
+      <p>Route : <strong>{{ work_g3.facts.route.name }}</strong></p>
+      {% if work_g3.facts.vehicle_assignment_known %}
+        {% if work_g3.facts.vehicle %}
+          <p>Véhicule : <strong>{{ work_g3.facts.vehicle.label }}</strong> · {{ work_g3.facts.vehicle.physical_capacity }} places physiques</p>
+        {% else %}
+          <p>Véhicule non encore affecté.</p>
+        {% endif %}
+      {% endif %}
+      {% if work_g3.context.capacity %}
+        <p>Places vendables disponibles : {% if work_g3.context.capacity.unlimited %}sans limite déclarée{% else %}<strong>{{ work_g3.context.capacity.available }}</strong> / {{ work_g3.context.capacity.total }}{% endif %}</p>
+      {% endif %}
+      {% if work_g3.facts.boarding_instructions %}<p>Embarquement : {{ work_g3.facts.boarding_instructions }}</p>{% endif %}
+      {% if work_g3.facts.operational_reference %}<p>Référence opérationnelle : {{ work_g3.facts.operational_reference }}</p>{% endif %}
+    </section>
+    {% endif %}
+  {% elif work_g3.kind == 'activity' and work_g3.facts.route %}
+    <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Service de transport">
+      <h3 class="text-lg font-extrabold">Service de transport</h3>
+      <p>Itinéraire : <strong>{{ work_g3.facts.route.name }}</strong></p>
+      <p>Mode : {{ work_g3.facts.mode }}</p>
+    </section>
+  {% endif %}
+
+  {% for group in work_g3.collections %}
+    <section class="space-y-3" aria-labelledby="mt5-collection-{{ group.key }}">
+      <h3 id="mt5-collection-{{ group.key }}" class="text-xl font-extrabold">{{ group.label }}</h3>
+      {% if group.items %}
+        <ol class="mk-panel divide-y px-5 sm:px-6" style="border-color:var(--mk-border)">
+          {% for row in group.items %}
+            <li class="py-4">
+              {% if row.url %}<a class="flex flex-wrap justify-between items-center gap-3 group" href="{{ row.url }}">{% else %}<div class="flex flex-wrap justify-between items-center gap-3">{% endif %}
+                <span class="min-w-0">
+                  <strong class="block group-hover:underline">{% if row.title %}{{ row.title }}{% else %}{{ row.label|default:'' }}{% endif %}</strong>
+                  <span class="block mt-1 text-sm" style="color:var(--mk-muted)">
+                    {% if row.quantity %}{{ row.quantity }} × {{ row.unit_price }} {{ row.currency }} · {% endif %}
+                    {% if row.line_total %}Total : {{ row.line_total }} {{ row.currency }} · {% endif %}
+                    {% if row.timing.start_date %}{{ row.timing.start_date }} · {% endif %}
+                    {% if row.state %}{{ row.state }}{% endif %}
+                  </span>
+                </span>
+                {% if row.url %}<span class="mk-action-hint">Ouvrir</span>{% elif row.source.kind == 'occurrence' %}<span class="text-xs" style="color:var(--mk-muted)">Date non ouvrable</span>{% endif %}
+              {% if row.url %}</a>{% else %}</div>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="mk-panel p-5">Aucun élément accessible dans ce contexte.</p>
+      {% endif %}
+      {% if group.next or group.previous %}
+      <nav aria-label="Pagination {{ group.label }}" class="flex flex-wrap justify-between gap-3">
+        <span>{% if group.previous %}<a href="{{ group.previous }}" class="mk-action-button" data-variant="secondary">Précédents</a>{% endif %}</span>
+        <span>{% if group.next %}<a href="{{ group.next }}" class="mk-action-button" data-variant="secondary">Voir les suivants</a>{% endif %}</span>
+      </nav>
+      {% endif %}
+    </section>
+  {% endfor %}
+
+  {% if work_g3.actions %}
+  <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="mt5-actions">
+    <span class="mk-kicker">Actions disponibles</span>
+    <h3 id="mt5-actions" class="text-lg font-extrabold">Agir</h3>
+    <div class="flex flex-wrap gap-2">
+      {% for action in work_g3.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  <footer><a href="{{ work_g3.back_url }}" class="mk-action-button" data-variant="secondary">{{ work_g3.back_label }}</a></footer>
+</main>
+{% endblock %}

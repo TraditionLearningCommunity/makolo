@@ -1,4 +1,5 @@
 from django.urls import path
+from .space_document_views import SpaceDocumentShareDownloadView
 
 from .document_views import (
     InboundCaptureAbsorbView,
@@ -6,9 +7,17 @@ from .document_views import (
     InboundCaptureDetailView,
     InboundCaptureDiscardView,
 )
+from .passport_visibility_views import ProfilePassportVisibilityView
+from .passport_share_views import (
+    PassportShareCreateView, PassportShareRevokeView, PassportSharedView,
+    PassportDeliveryView,
+    PassportVersionRevokeView,
+)
 from .passport_views import (
     MyPassportView,
+    MyPassportHistoryView,
     PassportVerificationView,
+    SpacePassportHistoryView,
     ProfilePassportView,
     SpacePassportView,
 )
@@ -32,9 +41,17 @@ app_name = "sharing"
 
 urlpatterns = [
     path("passport/me/", MyPassportView.as_view(), name="passport-me"),
+    path("passport/me/visibility/", ProfilePassportVisibilityView.as_view(), name="passport-visibility"),
+    path("passport/me/history/", MyPassportHistoryView.as_view(), name="passport-me-history"),
+    path("passport/spaces/<slug:slug>/history/", SpacePassportHistoryView.as_view(), name="passport-space-history"),
     path("passport/profile/<uuid:profile_id>/", ProfilePassportView.as_view(), name="passport-profile"),
     path("passport/spaces/<slug:slug>/", SpacePassportView.as_view(), name="passport-space"),
     path("passport/verify/<str:token>/", PassportVerificationView.as_view(), name="passport-verify"),
+    path("passport/shared/<str:token>/", PassportSharedView.as_view(), name="passport-shared"),
+    path("passport/delivery/<uuid:delivery_id>/", PassportDeliveryView.as_view(), name="passport-delivery"),
+    path("passport/issued/<uuid:snapshot_id>/revoke/", PassportVersionRevokeView.as_view(), name="passport-version-revoke"),
+    path("passport/issued/<uuid:snapshot_id>/share/", PassportShareCreateView.as_view(), name="passport-share-create"),
+    path("passport/issued/shares/<uuid:share_id>/revoke/", PassportShareRevokeView.as_view(), name="passport-share-revoke"),
     path("s/<slug:token>/", ShareLandingView.as_view(), name="landing"),
     path("s/<slug:token>/go/", ShareActionView.as_view(), name="action"),
     path("s/<slug:token>/qr.png", ShareQRView.as_view(), name="qr"),
@@ -49,6 +66,7 @@ urlpatterns = [
         name="journey-reuse",
     ),
     path("shares/<uuid:delivery_id>/", ShareDeliveryLandingView.as_view(), name="delivery"),
+    path("shares/<uuid:delivery_id>/document/", SpaceDocumentShareDownloadView.as_view(), name="space-document-delivery"),
     path("shares/<uuid:delivery_id>/go/", ShareDeliveryGoView.as_view(), name="delivery-go"),
     path("shares/<uuid:delivery_id>/accept/", ShareDeliveryAcceptView.as_view(), name="delivery-accept"),
     path("shares/<uuid:delivery_id>/decline/", ShareDeliveryDeclineView.as_view(), name="delivery-decline"),

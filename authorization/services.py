@@ -11,6 +11,8 @@ from .constants import (
     PermissionCode,
     STANDARD_ACTIVITY_ROLE_CODES,
     STANDARD_DOSSIER_ROLE_CODES,
+    PROJECT_PERMISSION_CODES,
+    STANDARD_PROJECT_ROLE_CODES,
     STANDARD_GROUP_ROLE_CODES,
     STANDARD_SPACE_ROLE_CODES,
     SystemRoleCode,
@@ -46,12 +48,12 @@ def _authenticated(profile) -> bool:
     return bool(profile and getattr(profile, "is_authenticated", False))
 
 
-def _mandates_with_permissions(profile, *, space=None, group=None, activity=None, dossier=None, at=None):
+def _mandates_with_permissions(profile, *, space=None, group=None, activity=None, dossier=None, project=None, at=None):
     queryset = (
         Mandate.objects.filter(profile=profile)
         .filter(_current_mandate_q(at))
         .filter(role__is_active=True)
-        .select_related("role", "space", "group", "activity", "dossier")
+        .select_related("role", "space", "group", "activity", "dossier", "project")
         .prefetch_related(
             Prefetch(
                 "role__role_permissions",
@@ -59,7 +61,9 @@ def _mandates_with_permissions(profile, *, space=None, group=None, activity=None
             )
         )
     )
-    if dossier is not None:
+    if project is not None:
+        queryset = queryset.filter(Q(scope_type=AuthorityScope.PLATFORM) | Q(scope_type=AuthorityScope.PROJECT, project=project))
+    elif dossier is not None:
         queryset = queryset.filter(Q(scope_type=AuthorityScope.PLATFORM) | Q(scope_type=AuthorityScope.DOSSIER, dossier=dossier))
     elif activity is not None:
         queryset = queryset.filter(Q(scope_type=AuthorityScope.PLATFORM) | Q(scope_type=AuthorityScope.ACTIVITY, activity=activity))
@@ -70,14 +74,18 @@ def _mandates_with_permissions(profile, *, space=None, group=None, activity=None
     return queryset
 
 
-def effective_permission_codes(profile, *, space=None, group=None, activity=None, dossier=None, at=None, include_platform=True) -> set[str]:
+def effective_permission_codes(profile, *, space=None, group=None, activity=None, dossier=None, project=None, at=None, include_platform=True) -> set[str]:
     if not _authenticated(profile):
         return set()
     if getattr(profile, "is_superuser", False):
         return set(Permission.objects.filter(is_active=True).values_list("code", flat=True))
     mandates = _mandates_with_permissions(
-        profile, space=space, group=group, activity=activity, dossier=dossier, at=at
+        profile, space=space, group=group, activity=activity, dossier=dossier, project=project, at=at
     )
+    if project is None:
+        # Project Mandates are local to one Project. A context-free permission
+        # query must not promote one such grant into global authority.
+        mandates = mandates.exclude(scope_type=AuthorityScope.PROJECT)
     if not include_platform:
         # Platform authority does not implicitly convey owner-scoped authority.
         mandates = mandates.exclude(scope_type=AuthorityScope.PLATFORM)
@@ -92,12 +100,16 @@ def effective_permission_codes(profile, *, space=None, group=None, activity=None
     return codes
 
 
-def can(profile, permission_code: str, space=None, *, group=None, activity=None, dossier=None, at=None, include_platform=True) -> bool:
+def can(profile, permission_code: str, space=None, *, group=None, activity=None, dossier=None, project=None, at=None, include_platform=True) -> bool:
     if not _authenticated(profile):
         return False
     if getattr(profile, "is_superuser", False):
         return True
-    if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, dossier=dossier, at=at, include_platform=include_platform):
+    # A Project permission is meaningful only for a specific Project.
+    # Never widen a mandate on Project A into authority over Project B.
+    if permission_code in PROJECT_PERMISSION_CODES and project is None:
+        return False
+    if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, dossier=dossier, project=project, at=at, include_platform=include_platform):
         return True
     if activity is not None and getattr(activity, "space_id", None):
         inherited = ACTIVITY_PERMISSION_INHERITANCE.get(permission_code)
@@ -106,12 +118,16 @@ def can(profile, permission_code: str, space=None, *, group=None, activity=None,
     return False
 
 
-def can_many(profile, permission_codes, space=None, *, group=None, activity=None, dossier=None, at=None) -> dict[str, bool]:
+def can_many(profile, permission_codes, space=None, *, group=None, activity=None, dossier=None, project=None, at=None) -> dict[str, bool]:
     requested = tuple(dict.fromkeys(permission_codes))
-    if activity is not None or dossier is not None:
-        return {code: can(profile, code, space, group=group, activity=activity, dossier=dossier, at=at) for code in requested}
+    if activity is not None or dossier is not None or project is not None:
+        return {code: can(profile, code, space, group=group, activity=activity, dossier=dossier, project=project, at=at) for code in requested}
     effective = effective_permission_codes(profile, space=space, group=group, at=at)
-    return {code: code in effective for code in requested}
+    return {
+        code: can(profile, code, space, group=group, at=at)
+        if code in PROJECT_PERMISSION_CODES else code in effective
+        for code in requested
+    }
 
 
 def has_platform_authority(profile, *, at=None) -> bool:
@@ -183,6 +199,22 @@ def dossier_ids_with_permission(profile, permission_code: str, *, at=None):
     )
 
 
+def project_ids_with_permission(profile, permission_code: str, *, at=None):
+    """Return Projects reached by a current Project-scoped Mandate."""
+    if not _authenticated(profile):
+        return []
+    if getattr(profile, "is_superuser", False) or has_platform_authority(profile, at=at):
+        return None
+    return list(
+        Mandate.objects.filter(
+            profile=profile, scope_type=AuthorityScope.PROJECT, role__is_active=True,
+            role__role_permissions__permission__code=permission_code,
+            role__role_permissions__permission__is_active=True,
+        ).filter(_current_mandate_q(at)).exclude(project_id=None)
+        .values_list("project_id", flat=True).distinct()
+    )
+
+
 def get_system_role(code: str, *, scope_type=AuthorityScope.SPACE) -> Role:
     if scope_type == AuthorityScope.ACTIVITY and code == SystemRoleCode.ACTIVITY_MANAGER:
         code = SystemRoleCode.ACTIVITY_LOCAL_MANAGER
@@ -190,6 +222,51 @@ def get_system_role(code: str, *, scope_type=AuthorityScope.SPACE) -> Role:
         return Role.objects.get(code=code, scope_type=scope_type, is_system=True, is_active=True)
     except Role.DoesNotExist as exc:
         raise ValidationError(f"Le rôle système « {code} » n'est pas disponible.") from exc
+
+
+@transaction.atomic
+def create_custom_space_role(*, actor, space, code, name, description="", permission_codes=()):
+    """Create a Space role with both explicit authority and Subscription capacity.
+
+    There is no public role-creation endpoint today. This is the canonical
+    mutation entrypoint for future clients; raw ORM/test fixtures are not a
+    source of commercial entitlement or authority. Existing roles are kept.
+    """
+    from organizations.models import Organization
+    from subscriptions.entitlements import resolve_entitlement
+
+    space = Organization.objects.select_for_update().order_by().get(pk=space.pk)
+    if not can(actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, space):
+        raise PermissionDenied("L'autorité de gouvernance de cet Espace est requise.")
+    if not resolve_entitlement(space, "custom_roles").allowed:
+        raise ValidationError({
+            "subscription": "Les rôles personnalisés ne sont pas disponibles pour cet Espace."
+        })
+
+    if Role.objects.filter(organization=space, is_system=False, code=code).exists():
+        raise ValidationError({"code": "Ce code de rôle existe déjà dans cet Espace."})
+
+    codes = tuple(dict.fromkeys(permission_codes))
+    permissions = list(Permission.objects.filter(
+        code__in=codes, scope_type=AuthorityScope.SPACE, is_active=True,
+    ))
+    if len(permissions) != len(codes):
+        raise ValidationError({"permissions": "Permission Espace inconnue ou inactive."})
+    if any(not can(actor, permission.code, space) for permission in permissions):
+        raise PermissionDenied("Une permission non détenue ne peut pas être déléguée.")
+
+    role = Role(
+        code=code, name=name, description=description,
+        scope_type=AuthorityScope.SPACE, organization=space,
+        is_system=False, is_active=True,
+    )
+    role.full_clean()
+    role.save()
+    for permission in permissions:
+        assignment = RolePermission(role=role, permission=permission)
+        assignment.full_clean()
+        assignment.save()
+    return role
 
 
 def validate_role_for_space(role: Role, space) -> None:
@@ -264,6 +341,46 @@ def grant_activity_role(*, profile, activity, role=None, role_code=None, granted
     mandate.full_clean(); mandate.save(); return mandate
 
 
+def validate_role_for_project(role: Role) -> None:
+    if not role.is_active or role.scope_type != AuthorityScope.PROJECT or not role.is_system:
+        raise ValidationError("Ce rôle ne peut pas être accordé sur un Projet.")
+    if role.organization_id is not None or role.code not in STANDARD_PROJECT_ROLE_CODES:
+        raise ValidationError("Ce rôle Projet n'est pas un rôle système pris en charge.")
+
+
+@transaction.atomic
+def grant_project_role(*, profile, project, role, granted_by=None,
+                       source="objectives-service", valid_from=None, valid_until=None) -> Mandate:
+    if isinstance(role, str):
+        role = get_system_role(role, scope_type=AuthorityScope.PROJECT)
+    validate_role_for_project(role)
+    existing = Mandate.objects.select_for_update().filter(
+        profile=profile, role=role, scope_type=AuthorityScope.PROJECT,
+        project=project, status=MandateStatus.ACTIVE,
+    ).order_by().first()
+    if existing:
+        # Renew an expired effective window without inserting a second active
+        # mandate (the database intentionally forbids that duplicate).
+        if not existing.is_current():
+            existing.valid_from = valid_from
+            existing.valid_until = valid_until
+            existing.granted_by = granted_by
+            existing.full_clean()
+            existing.save(update_fields=[
+                "valid_from", "valid_until", "granted_by", "updated_at",
+            ])
+        return existing
+    mandate = Mandate(
+        profile=profile, role=role, scope_type=AuthorityScope.PROJECT,
+        project=project, status=MandateStatus.ACTIVE,
+        valid_from=valid_from, valid_until=valid_until,
+        granted_by=granted_by, source=source,
+    )
+    mandate.full_clean()
+    mandate.save()
+    return mandate
+
+
 @transaction.atomic
 def grant_dossier_role(*, profile, dossier, role, granted_by=None, source="objectives-service", valid_from=None, valid_until=None) -> Mandate:
     if isinstance(role, str):
@@ -315,17 +432,39 @@ def revoke_mandate(*, mandate, actor=None) -> Mandate:
 
 
 @transaction.atomic
-def replace_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
-    target_role = get_system_role(role_code, scope_type=AuthorityScope.SPACE)
-    if target_role.code not in STANDARD_SPACE_ROLE_CODES:
+def grant_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
+    """Add one current standard Space Mandate without revoking coexisting ones.
+
+    Authority accumulates across the Profile's active Mandates. Removing one
+    Mandate, transferring ownership, and leaving a Space remain separate
+    explicit operations with their own server-side authorization checks.
+    """
+    role = get_system_role(role_code, scope_type=AuthorityScope.SPACE)
+    if role.code not in STANDARD_SPACE_ROLE_CODES:
         raise ValidationError("Ce rôle n'est pas un rôle standard d'Espace.")
-    current = list(Mandate.objects.select_for_update().filter(profile=profile, space=space, scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE, role__code__in=STANDARD_SPACE_ROLE_CODES).order_by())
-    for mandate in current:
-        if mandate.role_id == target_role.pk:
-            continue
-        _assert_owner_can_be_removed(mandate)
-        mandate.status = MandateStatus.REVOKED; mandate.revoked_at = timezone.now(); mandate.save(update_fields=["status", "revoked_at", "updated_at"])
-    return grant_space_role(profile=profile, space=space, role=target_role, granted_by=granted_by, source=source)
+    return grant_space_role(
+        profile=profile,
+        space=space,
+        role=role,
+        granted_by=granted_by,
+        source=source,
+    )
+
+
+@transaction.atomic
+def replace_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
+    """Compatibility entry point: Space grants are additive, never exclusive.
+
+    Historical callers used "replace" to mean "assign". Explicit revocation,
+    membership departure and ownership relinquishment retain dedicated services.
+    """
+    return grant_standard_space_role(
+        profile=profile,
+        space=space,
+        role_code=role_code,
+        granted_by=granted_by,
+        source=source,
+    )
 
 
 @transaction.atomic

@@ -1,0 +1,115 @@
+{% extends "organizations/space/ws4_base.html" %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/space-documents.css' %}">{% endblock %}
+{% block space_content %}
+<section class="mk-docs" aria-labelledby="docs-title">
+  <header class="mk-docs-heading">
+    <div>
+      <a class="mk-docs-back" href="{% url 'organizations:space-documents' slug=space.slug %}"><i data-lucide="arrow-left" aria-hidden="true"></i> Documents</a>
+      <span class="mk-docs-kicker">{{ document.get_visibility_display }}</span>
+      <h1 id="docs-title">{{ document.title }}</h1>
+    </div>
+    {% if not document.archived_at and document_versions %}
+      {% if document_versions.0.mime_type == "application/pdf" or document_versions.0.mime_type == "image/jpeg" or document_versions.0.mime_type == "image/png" %}
+      <a class="mk-docs-quiet" href="{% url 'organizations:space-document-preview' slug=space.slug version_id=document_versions.0.id %}" target="_blank" rel="noopener noreferrer" title="Ouvrir"><i data-lucide="eye" aria-hidden="true"></i> Ouvrir</a>
+      {% endif %}
+      <a class="mk-docs-primary" href="{% url 'organizations:space-document-download' slug=space.slug version_id=document_versions.0.id %}" title="Télécharger la dernière version"><i data-lucide="download" aria-hidden="true"></i> Télécharger</a>
+    {% endif %}
+  </header>
+  {% if can_manage_documents %}
+  <details class="mk-docs-edit">
+    <summary class="mk-docs-quiet"><i data-lucide="pencil" aria-hidden="true"></i> Modifier</summary>
+    <form class="mk-docs-form" method="post" action="{% url 'organizations:space-document-update' slug=space.slug document_id=document.id %}">
+      {% csrf_token %}
+      <label>Titre<input name="title" value="{{ document.title }}" required maxlength="220"></label>
+      <label>Accès<select name="visibility">
+        <option value="restricted" {% if document.visibility == 'restricted' %}selected{% endif %}>Confidentiel</option>
+        <option value="internal" {% if document.visibility == 'internal' %}selected{% endif %}>Équipe autorisée</option>
+      </select></label>
+      <button class="mk-docs-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i> Enregistrer</button>
+    </form>
+  </details>
+  {% endif %}
+  {% if document.archived_at %}<div class="mk-docs-notice"><i data-lucide="archive" aria-hidden="true"></i> Document archivé</div>{% endif %}
+  <section class="mk-docs-panel">
+    <header><h2>Versions</h2>
+    {% if can_manage_documents %}
+    <details class="mk-docs-create">
+      <summary class="mk-docs-quiet"><i data-lucide="plus" aria-hidden="true"></i> Nouvelle version</summary>
+      <form class="mk-docs-form" method="post" enctype="multipart/form-data" action="{% url 'organizations:space-document-version' slug=space.slug document_id=document.id %}">
+        {% csrf_token %}
+        <label>Fichier<input name="file" type="file" required></label>
+        <button type="submit" class="mk-docs-primary"><i data-lucide="upload" aria-hidden="true"></i> Enregistrer</button>
+      </form>
+    </details>
+    {% endif %}
+    </header>
+    <ul class="mk-docs-list">
+    {% for version in document_versions %}
+      <li class="mk-docs-version">
+        <span class="mk-docs-file"><i data-lucide="file-text" aria-hidden="true"></i></span>
+        <span class="mk-docs-copy"><strong>Version {{ version.version }}</strong><small>{{ version.created_at|date:"d M Y" }} · {{ version.size|filesizeformat }}</small></span>
+        {% if not document.archived_at %}
+        {% if version.mime_type == "application/pdf" or version.mime_type == "image/jpeg" or version.mime_type == "image/png" %}
+        <a href="{% url 'organizations:space-document-preview' slug=space.slug version_id=version.id %}" target="_blank" rel="noopener noreferrer" class="mk-docs-icon" title="Ouvrir" aria-label="Ouvrir la version {{ version.version }}"><i data-lucide="eye" aria-hidden="true"></i></a>
+        {% endif %}
+        <a href="{% url 'organizations:space-document-download' slug=space.slug version_id=version.id %}" class="mk-docs-icon" title="Télécharger" aria-label="Télécharger la version {{ version.version }}"><i data-lucide="download" aria-hidden="true"></i></a>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li>Aucune version disponible.</li>
+    {% endfor %}
+    </ul>
+  </section>
+  {% if eligible_journeys and not document.archived_at %}
+  <section class="mk-docs-panel mk-docs-use" aria-labelledby="space-document-use-title">
+    <header><h2 id="space-document-use-title"><i data-lucide="arrow-up-right" aria-hidden="true"></i> Utiliser</h2></header>
+    <form method="post" action="{% url 'organizations:space-document-reuse' slug=space.slug document_id=document.id %}" class="mk-docs-use-form">
+      {% csrf_token %}
+      <label for="space-document-journey" class="mk-docs-sr">Choisir une démarche</label>
+      <select id="space-document-journey" name="journey_id" required>
+        <option value="">Choisir une démarche</option>
+        {% for journey in eligible_journeys %}
+        <option value="{{ journey.id }}">{{ journey.activity.title }}</option>
+        {% endfor %}
+      </select>
+      <button class="mk-docs-quiet" type="submit"><i data-lucide="arrow-up-right" aria-hidden="true"></i> Ajouter</button>
+    </form>
+  </section>
+  {% endif %}
+  {% if can_manage_documents %}
+  <section class="mk-docs-panel mk-docs-share" aria-labelledby="space-document-share-title">
+    <header>
+      <h2 id="space-document-share-title"><i data-lucide="share-2" aria-hidden="true"></i> Partager</h2>
+      <details class="mk-docs-create">
+        <summary class="mk-docs-quiet"><i data-lucide="send" aria-hidden="true"></i> Envoyer</summary>
+        <form method="post" action="{% url 'organizations:space-document-share' slug=space.slug document_id=document.id %}" class="mk-docs-form">
+          {% csrf_token %}
+          <label>Destinataire Makolo<input name="recipient" type="text" maxlength="150" required placeholder="@identifiant" autocomplete="off"></label>
+          <label>Durée<select name="days"><option value="1">1 jour</option><option value="7" selected>7 jours</option><option value="30">30 jours</option></select></label>
+          <button type="submit" class="mk-docs-primary"><i data-lucide="send" aria-hidden="true"></i> Partager</button>
+        </form>
+      </details>
+    </header>
+    <ul class="mk-docs-list">
+      {% for row in share_rows %}
+        <li class="mk-docs-version">
+          <span class="mk-docs-file"><i data-lucide="user-round" aria-hidden="true"></i></span>
+          <span class="mk-docs-copy"><strong>@{{ row.recipient.user.username }}</strong><small>{% if row.envelope.is_active_at and not row.declined_at %}Partagé{% else %}Terminé{% endif %} · {{ row.delivered_at|date:"d M Y" }}</small></span>
+          {% if row.envelope.is_active_at %}
+          <form method="post" action="{% url 'organizations:space-document-share-revoke' slug=space.slug delivery_id=row.id %}">
+            {% csrf_token %}<button type="submit" class="mk-docs-icon" title="Révoquer" aria-label="Révoquer le partage avec @{{ row.recipient.user.username }}"><i data-lucide="x" aria-hidden="true"></i></button>
+          </form>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="mk-docs-empty-compact">Aucun partage en cours</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <form method="post" action="{% url 'organizations:space-document-archive' slug=space.slug document_id=document.id %}" class="mk-docs-danger">
+    {% csrf_token %}<button type="submit"><i data-lucide="archive" aria-hidden="true"></i> Archiver</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

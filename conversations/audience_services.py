@@ -214,6 +214,11 @@ def conversation_viewer_ids(conversation, *, at=None):
     )
     ids |= conversation_manager_ids(conversation, at=at)
 
+    # Accepted Group/Space invitations grant dynamic viewer eligibility only.
+    # Mandates, authorities and historical group membership are not copied.
+    from .participant_services import collective_viewer_ids
+    ids |= collective_viewer_ids(conversation)
+
     if context.kind == ConversationContextKind.SPACE:
         ids |= set(
             TeamMembership.objects.filter(

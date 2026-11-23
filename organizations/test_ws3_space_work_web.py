@@ -99,13 +99,62 @@ class WS3SpaceWorkWebTests(TestCase):
             self.assertEqual(response.context["projection"]["primary_business_label"], label)
             self.assertContains(response, f">{label}<")
 
+    def test_generic_web_renders_real_portfolio_and_calm_question(self):
+        self.space.archetype = SpaceArchetype.GENERIC
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self._activity("Atelier hebdomadaire", ActivityStatus.PUBLISHED)
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nos activités")
+        self.assertContains(response, "Atelier hebdomadaire")
+        self.assertContains(response, "travail durable")
+        self.assertNotContains(response, 'data-work-chapter="preparation"')
+        self.assertEqual(
+            [s["key"] for s in response.context["work_sections"]],
+            ["activities"],
+        )
+
+    def test_community_web_groups_actual_action_then_initiative(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Nettoyer le quartier", ActivityStatus.PUBLISHED)
+        Occurrence.objects.create(
+            activity=activity,
+            label="Action prévue",
+            status=OccurrenceStatus.SCHEDULED,
+            start_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ce que nous faisons avancer")
+        self.assertContains(response, "Nos initiatives")
+        self.assertContains(response, "Action prévue")
+        self.assertContains(response, "Nettoyer le quartier")
+        self.assertNotContains(response, "Rien ne demande d’intervention")
+        self.assertEqual(
+            [s["key"] for s in response.context["work_sections"]],
+            ["upcoming", "activities"],
+        )
+
+    def test_web_first_group_exposes_no_fake_chapter_when_empty(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune initiative à afficher.")
+        self.assertNotContains(response, "Nos initiatives")
+        self.assertNotContains(response, 'data-work-chapter=')
+
     def test_sections_are_projection_backed_and_empty_is_honest(self):
         self.client.force_login(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["work_has_items"])
-        self.assertContains(response, "Aucun programme ou session visible pour le moment.")
-        self.assertContains(response, "Makolo n’invente pas d’activité")
+        self.assertContains(response, "Aucun programme ni session à afficher.")
+        self.assertNotContains(response, 'data-work-chapter=')
         self.assertNotContains(response, 'id="work-preparation"')
         self.assertNotContains(response, 'id="work-upcoming"')
         self.assertNotContains(response, 'id="work-active"')
@@ -175,7 +224,7 @@ class WS3SpaceWorkWebTests(TestCase):
         self.assertNotContains(response, beneficiary.email)
         self.assertNotContains(response, "Pièce indispensable")
 
-    def test_owner_handoff_exists_only_when_projection_exposes_activity_owner(self):
+    def test_owner_handoff_points_to_existing_authorized_depths(self):
         activity = self._activity("Programme owner-backed", ActivityStatus.PUBLISHED)
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -192,12 +241,30 @@ class WS3SpaceWorkWebTests(TestCase):
         self.assertEqual(
             activity_item["owner_url"],
             reverse(
-                "organizations:console-activity-detail",
-                kwargs={"slug": self.space.slug, "activity_id": activity.pk},
-            ),
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug,
+                    "kind": "activity",
+                    "owner_id": activity.pk,
+                },
+            ) + "?responsibility=all&from=activities",
         )
-        self.assertIsNone(route_item["owner_url"])
-        self.assertIsNone(vehicle_item["owner_url"])
+        self.assertEqual(self.client.get(activity_item["owner_url"]).status_code, 200)
+        for kind, source, item, section in (
+            ("transport_route", route, route_item, "routes"),
+            ("vehicle", vehicle, vehicle_item, "vehicles"),
+        ):
+            owner_url = reverse(
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug,
+                    "kind": kind,
+                    "owner_id": source.pk,
+                },
+            ) + f"?responsibility=all&from={section}"
+            self.assertEqual(item["owner_url"], owner_url)
+            # A projected link must also be authorized by the actual owner read.
+            self.assertEqual(self.client.get(owner_url).status_code, 200)
 
     def test_responsibility_filters_reading_and_foreign_or_revoked_keys_are_404(self):
         allowed = self._activity("Programme autorisé", ActivityStatus.PUBLISHED)

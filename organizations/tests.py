@@ -104,7 +104,9 @@ class OrganizationPermissionTests(TestCase):
         self.assertIsInstance(membership, TeamMembership)
         self.assertEqual(membership.status, TeamMembershipStatus.ACTIVE)
         active_roles = set(Mandate.objects.filter(profile=self.event_manager, space=self.organization, status=MandateStatus.ACTIVE).values_list("role__code", flat=True))
-        self.assertEqual(active_roles, {SystemRoleCode.FINANCE})
+        # Space Mandates are intentionally cumulative: adding Finance must not
+        # silently revoke the previously granted Activity Manager authority.
+        self.assertEqual(active_roles, {SystemRoleCode.SPACE_ACTIVITY_MANAGER, SystemRoleCode.FINANCE})
         legacy = OrganizationMembership.objects.get(organization=self.organization, user=self.event_manager)
         self.assertEqual(legacy.role, OrganizationRole.FINANCE)
 

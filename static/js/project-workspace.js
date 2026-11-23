@@ -1,0 +1,593 @@
+/* Project depth: one owner projection, three local views. No inferred deadlines. */
+(() => {
+  'use strict';
+  const root = document.querySelector('[data-project-workspace]');
+  const json = document.getElementById('mk-project-workspace-data');
+  if (!root || !json) return;
+  let payload;
+  try { payload = JSON.parse(json.textContent); } catch (_) { return; }
+  if (!payload.identity || payload.identity.id !== root.dataset.projectId) return;
+  const lens = payload.actor_context || {kind: 'personal'};
+  const spaceSlug = lens.kind === 'space' ? lens.space?.slug : null;
+  if (lens.kind === 'space' && typeof spaceSlug !== 'string') return;
+  const scopeParam = spaceSlug ? '&context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
+  const scopeSuffix = spaceSlug ? '?context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
+
+  const $ = (selector) => root.querySelector(selector);
+  const area = $('[data-project-content]');
+  // Project information is shared between every view, and starts fully
+  // readable without JavaScript. Fold only if its real rendered height
+  // exceeds three lines at the current viewport/font scale.
+  const descriptionRoot = $('[data-project-description]');
+  const descriptionText = $('[data-project-description-text]');
+  const descriptionToggle = $('[data-project-description-toggle]');
+  let descriptionExpanded = false;
+  const updateDescription = () => {
+    if (!descriptionRoot || !descriptionText || !descriptionToggle) return;
+    descriptionRoot.classList.remove('is-collapsed');
+    const style = window.getComputedStyle(descriptionText);
+    const lineHeight = parseFloat(style.lineHeight) ||
+      (parseFloat(style.fontSize) || 15) * 1.45;
+    const overflowed = descriptionText.getBoundingClientRect().height >
+      lineHeight * 3 + 2;
+    descriptionToggle.hidden = !overflowed;
+    descriptionRoot.classList.toggle(
+      'is-collapsed', overflowed && !descriptionExpanded,
+    );
+    descriptionToggle.setAttribute(
+      'aria-expanded', String(overflowed && descriptionExpanded),
+    );
+    const label = descriptionExpanded
+      ? 'Replier les informations' : 'Lire toutes les informations';
+    descriptionToggle.setAttribute('aria-label', label);
+    descriptionToggle.setAttribute('title', label);
+  };
+  if (descriptionRoot && descriptionToggle) {
+    descriptionToggle.addEventListener('click', () => {
+      descriptionExpanded = !descriptionExpanded;
+      updateDescription();
+    });
+    window.addEventListener('resize', updateDescription);
+    updateDescription();
+  }
+  const more = $('[data-project-more]');
+  const moreButton = $('[data-project-more-button]');
+  const moreError = $('[data-project-more-error]');
+  const state = {
+    view: 'overview', q: '', status: 'all', readiness: 'all',
+    sort: 'deadline', calendar: 'all',
+    rows: Array.isArray(payload.visible_dossiers) ? payload.visible_dossiers : [],
+    page: payload.dossiers_page || {}, pending: false,
+  };
+  const csrf = root.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+  const el = (tag, cls, text) => {
+    const result = document.createElement(tag);
+    if (cls) result.className = cls;
+    if (text !== undefined) result.textContent = text;
+    return result;
+  };
+  const icon = (value) => {
+    const node = el('i');
+    node.setAttribute('data-lucide', value);
+    node.setAttribute('aria-hidden', 'true');
+    return node;
+  };
+  const add = (parent, node) => { parent.appendChild(node); return node; };
+  // Bounded, owner-authorized identity suggestions. Prefix email
+  // enumeration is forbidden: the endpoint resolves email only exactly.
+  const inviteeInput = root.querySelector('#project-authority #id_identity');
+  const inviteSuggestions = $('[data-project-person-suggestions]');
+  let inviteLookupTimer = null;
+  let inviteLookupAbort = null;
+  if (inviteeInput && inviteSuggestions) {
+    const resetSuggestions = () => {
+      inviteSuggestions.replaceChildren();
+      inviteSuggestions.hidden = true;
+    };
+    inviteeInput.setAttribute('autocomplete', 'off');
+    inviteeInput.addEventListener('input', () => {
+      window.clearTimeout(inviteLookupTimer);
+      inviteLookupAbort?.abort();
+      resetSuggestions();
+      const query = inviteeInput.value.trim();
+      if (query.length < 2) return;
+      inviteLookupTimer = window.setTimeout(async () => {
+        inviteLookupAbort = new AbortController();
+        try {
+          const target = '/api/v1/objectives/projects/' +
+            encodeURIComponent(root.dataset.projectId) +
+            '/people/search/?q=' + encodeURIComponent(query) + scopeParam;
+          const response = await fetch(target, {
+            credentials: 'same-origin', signal: inviteLookupAbort.signal,
+            headers: {Accept: 'application/json'},
+          });
+          if (!response.ok) return;
+          const payload = await response.json();
+          if (inviteeInput.value.trim() !== query ||
+              !Array.isArray(payload.results)) return;
+          resetSuggestions();
+          for (const person of payload.results.slice(0, 8)) {
+            if (typeof person.username !== 'string') continue;
+            const option = el('button', 'mk-project__person-option');
+            option.type = 'button';
+            option.setAttribute('role', 'option');
+            add(option, el('strong', '', String(person.name || person.username)));
+            add(option, el('small', '', '@' + person.username +
+              (person.email ? ' · ' + person.email : '')));
+            option.addEventListener('click', () => {
+              inviteeInput.value = person.username;
+              resetSuggestions();
+              inviteeInput.focus();
+            });
+            add(inviteSuggestions, option);
+          }
+          inviteSuggestions.hidden = !inviteSuggestions.childElementCount;
+        } catch (_) {
+          // Automatic lookup failures remain silent while typing.
+        }
+      }, 300);
+    });
+  }
+
+  const safeHref = (value) => typeof value === 'string' &&
+    value.startsWith('/') && !value.startsWith('//') ? value : '#';
+  const title = (row) => String(row.title || 'Dossier');
+  const stateText = (code) => ({
+    draft: 'En préparation', active: 'En cours', completed: 'Terminé',
+    cancelled: 'Annulé', archived: 'Archivé',
+    blocked: 'Bloqué', action_required: 'Action requise',
+    waiting: 'En attente', ready: 'Prêt', complete: 'Terminé',
+  })[code] || 'Situation non disponible';
+  const localDay = (date) => date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
+  const parse = (value) => typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
+  const when = (value) => {
+    const parsed = parse(value);
+    return parsed ? parsed.split('-').reverse().join('/') : '';
+  };
+  const fold = (value) => String(value || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('fr');
+  const unique = () => {
+    const seen = new Set();
+    return state.rows.filter((row) => {
+      if (!row || typeof row.id !== 'string' || typeof row.title !== 'string' ||
+          seen.has(row.id)) return false;
+      seen.add(row.id); return true;
+    });
+  };
+  const sorted = (rows) => rows.slice().sort((a, b) => {
+    if (state.sort === 'title') return fold(a.title).localeCompare(fold(b.title), 'fr');
+    const aValue = state.sort === 'state' ? (a.state || '') : (parse(a[state.sort]) || '');
+    const bValue = state.sort === 'state' ? (b.state || '') : (parse(b[state.sort]) || '');
+    if (!aValue && bValue) return 1;
+    if (!bValue && aValue) return -1;
+    return aValue.localeCompare(bValue) || a.id.localeCompare(b.id);
+  });
+  const filtered = () => sorted(unique().filter((row) => {
+    if (state.status !== 'all' && row.state !== state.status) return false;
+    if (state.readiness !== 'all' &&
+        (row.readiness || {}).state !== state.readiness) return false;
+    return !state.q || fold(title(row) + ' ' + (row.description || '')).includes(fold(state.q));
+  }));
+  function refreshIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  }
+  function empty(message) {
+    const container = el('div', 'mk-project__empty');
+    add(container, el('span', '', message));
+    return container;
+  }
+  function metric(number, label) {
+    const node = el('div', 'mk-project__number');
+    add(node, el('strong', '', String(number)));
+    add(node, el('span', '', label));
+    return node;
+  }
+  function dossierLink(row) {
+    const link = el('a', '', title(row));
+    link.href = safeHref(row.web_url) === '#' ? '#' :
+      safeHref(row.web_url) + scopeSuffix;
+    return link;
+  }
+  function postForm(action, fields) {
+    const form = el('form');
+    form.method = 'post';
+    form.action = safeHref(action) === '#' ? '#' :
+      safeHref(action) + scopeSuffix;
+    const csrfField = el('input');
+    csrfField.type = 'hidden'; csrfField.name = 'csrfmiddlewaretoken'; csrfField.value = csrf;
+    add(form, csrfField);
+    for (const [key, value] of Object.entries(fields || {})) {
+      const node = el('input');
+      node.type = 'hidden'; node.name = key; node.value = value;
+      add(form, node);
+    }
+    add(document.body, form);
+    form.submit();
+  }
+  function actionDialog(row, mode) {
+    const dialog = el('dialog', 'mk-project__dialog');
+    const inner = el('div');
+    inner.style.padding = '24px';
+    const form = el('div');
+    add(form, el('h2', '', mode === 'unlink'
+      ? 'Détacher ce dossier ?' : 'Déplacer ce dossier'));
+    add(form, el('p', 'mk-project__hint', mode === 'unlink'
+      ? 'Le dossier restera disponible indépendamment. Aucune démarche ne sera supprimée.'
+      : 'Choisissez un Projet cible autorisé. Le Dossier conserve ses démarches.'));
+    let targets;
+    if (mode === 'move') {
+      targets = el('select');
+      targets.setAttribute('aria-label', 'Projet cible');
+      targets.style.width = '100%';
+      targets.style.padding = '12px';
+      targets.style.margin = '14px 0';
+      for (const option of payload.move_targets || []) {
+        const choice = el('option', '', option.title);
+        choice.value = option.id;
+        add(targets, choice);
+      }
+      add(form, targets);
+    }
+    const actions = el('div', 'mk-project__dialog-actions');
+    const cancel = el('button', 'mk-action-button', 'Annuler');
+    cancel.dataset.variant = 'ghost';
+    cancel.type = 'button'; cancel.addEventListener('click', () => dialog.close());
+    add(actions, cancel);
+    const confirm = el('button', 'mk-action-button', mode === 'unlink'
+      ? 'Détacher' : 'Déplacer');
+    confirm.dataset.variant = mode === 'unlink' ? 'danger' : 'primary';
+    confirm.type = 'button';
+    confirm.addEventListener('click', () => {
+      const path = (row.web_actions || {})[mode];
+      if (!safeHref(path) || path === '#') return;
+      if (mode === 'move' && (!targets || !targets.value)) return;
+      confirm.disabled = true;
+      postForm(path, mode === 'move'
+        ? {target_project_id: targets.value} : {});
+    });
+    add(actions, confirm);
+    add(form, actions); add(inner, form); add(dialog, inner);
+    add(root, dialog);
+    dialog.addEventListener('close', () => dialog.remove(), {once: true});
+    dialog.showModal();
+  }
+  function menu(row) {
+    if (!row.capabilities || !row.capabilities.length || !csrf) return null;
+    const box = el('div', 'mk-project__card-menu');
+    if (row.capabilities.includes('move') &&
+        Array.isArray(payload.move_targets) && payload.move_targets.length) {
+      const button = el('button', 'mk-action-button');
+      button.dataset.variant = 'secondary'; button.dataset.size = 'icon';
+      button.type = 'button'; button.title = 'Déplacer le dossier';
+      button.setAttribute('aria-label', 'Déplacer ' + title(row));
+      add(button, icon('folder-input'));
+      button.addEventListener('click', () => actionDialog(row, 'move'));
+      add(box, button);
+    }
+    if (row.capabilities.includes('unlink')) {
+      const button = el('button', 'mk-action-button');
+      button.dataset.variant = 'danger'; button.dataset.size = 'icon';
+      button.type = 'button'; button.title = 'Détacher le dossier';
+      button.setAttribute('aria-label', 'Détacher ' + title(row));
+      add(button, icon('unlink'));
+      button.addEventListener('click', () => actionDialog(row, 'unlink'));
+      add(box, button);
+    }
+    return box;
+  }
+  function card(row, {compact = false} = {}) {
+    const node = el('article', compact ? 'mk-project__card mk-project__card--preview' : 'mk-project__card');
+    const head = el('div', 'mk-project__card-top');
+    add(head, icon('folder'));
+    add(head, dossierLink(row));
+    const actions = menu(row);
+    if (actions) add(head, actions);
+    add(node, head);
+    const meta = el('div', 'mk-project__card-meta');
+    add(meta, el('span', '', stateText(row.state)));
+    if (row.deadline) add(meta, el('span', '', 'Échéance ' + when(row.deadline)));
+    const readiness = row.readiness || {};
+    if (readiness.label) {
+      add(meta, el('span', '', 'Situation : ' + readiness.label +
+        (readiness.partial ? ' (partielle)' : '')));
+    }
+    add(node, meta);
+    if (!compact && row.description) add(node, el('p', '', row.description));
+    return node;
+  }
+  function renderOverview(rows) {
+    if (state.page.has_more)
+      add(area, el('p', 'mk-project__hint', 'Dossiers chargés uniquement.'));
+    if (rows.length) {
+      const stats = el('div', 'mk-project__numbers');
+      const active = rows.filter((x) => x.state === 'active').length;
+      const draft = rows.filter((x) => x.state === 'draft').length;
+      const completed = rows.filter((x) => x.state === 'completed').length;
+      const indicators = [
+        [rows.length, 'dossiers'],
+        ...(active ? [[active, 'en cours']] : []),
+        ...(draft ? [[draft, 'à préparer']] : []),
+        ...(completed ? [[completed, 'terminés']] : []),
+      ];
+      stats.setAttribute('aria-label', indicators.map(([n, label]) =>
+        n + ' ' + label).join(', '));
+      indicators.forEach(([number, label], index) => {
+        if (index) add(stats, el('span', 'mk-project__numbers-dot', '·'));
+        add(stats, metric(number, label));
+      });
+      add(area, stats);
+    }
+    const urgent = rows.filter((row) =>
+      (row.readiness || {}).state === 'action_required').slice(0, 2);
+    const urgentIds = new Set(urgent.map(row => String(row.id)));
+    const today = localDay(new Date());
+    const deadlines = rows.filter((row) => parse(row.deadline) &&
+      parse(row.deadline) >= today && !urgentIds.has(String(row.id)))
+      .sort((a, b) => parse(a.deadline).localeCompare(parse(b.deadline)));
+    if (deadlines.length) {
+      const next = el('p', 'mk-project__hint');
+      const strong = el('strong', '', 'Prochaine échéance visible : ');
+      add(next, strong); add(next, dossierLink(deadlines[0]));
+      add(next, el('span', '', ' · ' + when(deadlines[0].deadline)));
+      add(area, next);
+    }
+    if (urgent.length) {
+      add(area, el('h3', 'mk-project__subtitle', 'À suivre'));
+      for (const row of urgent) {
+        const line = el('div', 'mk-project__row');
+        add(line, icon('circle-alert'));
+        const text = el('div', 'mk-project__row-body');
+        add(text, dossierLink(row));
+        const readiness = row.readiness || {};
+        add(text, el('small', '',
+          readiness.hidden_signal || 'Action requise'));
+        add(line, text); add(area, line);
+      }
+    }
+    if (!rows.length) {
+      add(area, empty('Aucun Dossier visible.'));
+      return;
+    }
+    const title = el('div', 'mk-project__preview-heading');
+    add(title, el('h3', 'mk-project__subtitle', 'Dossiers'));
+    const all = el('button', 'mk-project__see-all', 'Voir tout');
+    all.type = 'button';
+    all.addEventListener('click', () => { state.view = 'dossiers'; render(); });
+    add(title, all); add(area, title);
+    const complementary = rows.filter(row => !urgentIds.has(String(row.id)))
+      .slice(0, 3);
+    if (complementary.length) {
+      const cards = el('div', 'mk-project__cards mk-project__cards--preview');
+      for (const row of complementary) add(cards, card(row, {compact: true}));
+      add(area, cards);
+    }
+  }
+  function dropdown(label, values, selected, onSelect) {
+    const box = el('label', '', label);
+    const select = el('select');
+    for (const [value, caption] of values) {
+      const option = el('option', '', caption);
+      option.value = value;
+      add(select, option);
+    }
+    select.value = selected;
+    select.addEventListener('change', () => onSelect(select.value));
+    add(box, select);
+    return box;
+  }
+  function renderDossiers(rows) {
+    const filter = el('div', 'mk-project__filters');
+    const inputBox = el('label', '', 'Recherche locale');
+    const search = el('input');
+    search.type = 'search'; search.placeholder = 'Nom ou description';
+    search.value = state.q;
+    search.addEventListener('input', () => {
+      state.q = search.value;
+      // Repaint only the result rows while retaining the active input focus.
+      renderRows();
+    });
+    add(inputBox, search); add(filter, inputBox);
+    add(filter, dropdown('État', [
+      ['all', 'Tous'], ['draft', 'En préparation'], ['active', 'En cours'],
+      ['completed', 'Terminés'], ['cancelled', 'Annulés'], ['archived', 'Archivés'],
+    ], state.status, (value) => { state.status = value; render(); }));
+    add(filter, dropdown('Readiness', [
+      ['all', 'Toutes'], ['blocked', 'Bloqué'], ['action_required', 'Action requise'],
+      ['waiting', 'En attente'], ['ready', 'Prêt'], ['complete', 'Terminé'],
+    ], state.readiness, (value) => { state.readiness = value; render(); }));
+    add(filter, dropdown('Tri', [
+      ['title', 'Nom'], ['deadline', 'Échéance'], ['state', 'État'],
+      ['created_at', 'Création'], ['updated_at', 'Modification'],
+    ], state.sort, (value) => { state.sort = value; render(); }));
+    add(area, filter);
+    const list = el('div');
+    add(area, list);
+    function renderRows() {
+      list.replaceChildren();
+      const matching = filtered();
+      if (matching.length && (state.q || state.status !== 'all' ||
+          state.readiness !== 'all'))
+        add(list, el('p', 'mk-project__hint', matching.length + ' résultat' +
+          (matching.length > 1 ? 's' : '')));
+      if (!matching.length) { add(list, empty('Aucun résultat.')); return; }
+      for (const row of matching) {
+        const line = el('div', 'mk-project__row');
+        add(line, icon('folder'));
+        const text = el('div', 'mk-project__row-body');
+        add(text, dossierLink(row));
+        add(text, el('small', '', stateText(row.state) +
+          (row.deadline ? ' · Échéance ' + when(row.deadline) : '') +
+          ((row.readiness || {}).label ? ' · ' + row.readiness.label : '')));
+        add(line, text);
+        const actions = menu(row);
+        if (actions) add(line, actions);
+        add(list, line);
+      }
+      refreshIcons();
+    }
+    renderRows();
+  }
+  function renderCalendar(rows) {
+    const horizon = payload.horizon || {};
+    const start = parse(horizon.starts_on);
+    const end = parse(horizon.ends_on);
+    if (start || end) {
+      const panel = el('div', 'mk-project__calendar');
+      add(panel, el('h3', '', 'Horizon du Projet'));
+      add(panel, el('p', 'mk-project__hint', [
+        start ? 'Début : ' + when(start) : '',
+        end ? 'Fin : ' + when(end) : '',
+      ].filter(Boolean).join(' · ')));
+    if (start && end && end > start) {
+      const line = el('div', 'mk-project__line');
+      const first = Date.parse(start + 'T00:00:00Z');
+      const duration = Date.parse(end + 'T00:00:00Z') - first;
+      for (const row of rows) {
+        const deadline = parse(row.deadline);
+        if (!deadline || deadline < start || deadline > end) continue;
+        const pct = (Date.parse(deadline + 'T00:00:00Z') - first) / duration * 100;
+        const anchor = el('a', 'mk-project__point');
+        anchor.href = safeHref(row.web_url);
+        anchor.style.left = pct + '%';
+        anchor.title = title(row) + ' · ' + when(deadline);
+        anchor.setAttribute('aria-label', anchor.title);
+        add(line, anchor);
+      }
+      add(panel, line);
+      const bounds = el('div', 'mk-project__horizon');
+      add(bounds, el('span', '', when(start)));
+      add(bounds, el('span', '', when(end)));
+      add(panel, bounds);
+    }
+      add(area, panel);
+    }
+    const control = el('div', 'mk-project__filters');
+    const options = [
+      ['all', 'Tous les jalons'], ['upcoming', '30 prochains jours'],
+      ['late', 'En retard'], ['active', 'Dossiers actifs'],
+      ['undated', 'Sans date'],
+    ];
+    add(control, dropdown('Afficher', options, state.calendar, (value) => {
+      state.calendar = value; render();
+    }));
+    const today = el('button', 'mk-action-button', 'Aujourd’hui');
+    today.dataset.variant = 'secondary';
+    today.type = 'button';
+    today.addEventListener('click', () => {
+      state.calendar = 'upcoming'; render();
+    });
+    add(control, today); add(area, control);
+    const now = new Date(), day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayDate = localDay(day);
+    const in30 = localDay(new Date(day.getTime() + 30 * 86400000));
+    const dates = rows.filter((row) => {
+      const d = parse(row.deadline);
+      switch (state.calendar) {
+        case 'upcoming': return d && d >= todayDate && d <= in30;
+        case 'late': return d && d < todayDate && row.state === 'active';
+        case 'active': return !!d && row.state === 'active';
+        case 'undated': return !d;
+        default: return !!d;
+      }
+    }).sort((a, b) => {
+      const first = parse(a.deadline), second = parse(b.deadline);
+      return !first ? (second ? 1 : 0) : !second ? -1 : first.localeCompare(second);
+    });
+    if (!dates.length) add(area, empty(state.calendar === 'undated'
+      ? 'Aucun Dossier sans échéance.' : 'Aucune échéance visible.'));
+    for (const row of dates) {
+      const line = el('div', 'mk-project__milestone');
+      add(line, icon(row.deadline ? 'flag' : 'calendar-off'));
+      add(line, dossierLink(row));
+      add(line, el('small', '', row.deadline
+        ? 'Échéance · ' + when(row.deadline) : 'Sans échéance'));
+      add(area, line);
+    }
+  }
+  function render() {
+    area.replaceChildren();
+    for (const button of root.querySelectorAll('[data-project-view]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.projectView === state.view));
+    }
+    const rows = unique();
+    if (state.view === 'dossiers') renderDossiers(rows);
+    else if (state.view === 'calendar') renderCalendar(rows);
+    else renderOverview(rows);
+    more.hidden = state.page.has_more !== true;
+    refreshIcons();
+  }
+  for (const button of root.querySelectorAll('[data-project-view]')) {
+    button.addEventListener('click', () => {
+      state.view = button.dataset.projectView; render();
+    });
+  }
+  const topMenu = root.querySelector('[data-project-top-menu]');
+  if (topMenu) {
+    document.addEventListener('pointerdown', (event) => {
+      if (topMenu.open && !topMenu.contains(event.target)) {
+        topMenu.removeAttribute('open');
+      }
+    });
+    topMenu.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        topMenu.removeAttribute('open');
+        topMenu.querySelector('summary')?.focus();
+      }
+    });
+  }
+  for (const opener of root.querySelectorAll('[data-dialog-open]')) {
+    opener.addEventListener('click', () => {
+      const dialog = document.getElementById(opener.dataset.dialogOpen);
+      if (dialog && typeof dialog.showModal === 'function') {
+        root.querySelector('[data-project-top-menu]')?.removeAttribute('open');
+        // People and role management are distinct depths, never two
+        // competing modal surfaces at once.
+        const parent = opener.closest('dialog');
+        if (parent && parent !== dialog && parent.open) parent.close();
+        if (!dialog.open) dialog.showModal();
+      }
+    });
+  }
+  for (const closer of root.querySelectorAll('[data-dialog-close]')) {
+    closer.addEventListener('click', () => closer.closest('dialog')?.close());
+  }
+  moreButton.addEventListener('click', async () => {
+    if (state.pending || !state.page.has_more) return;
+    state.pending = true; moreButton.disabled = true; moreError.hidden = true;
+    moreButton.textContent = 'Chargement…';
+    try {
+      const offset = state.page.next_offset;
+      const url = '/api/v1/objectives/projects/' +
+        encodeURIComponent(root.dataset.projectId) + '/dossiers/' +
+        '?limit=50&offset=' + encodeURIComponent(offset) + scopeParam;
+      const response = await fetch(url, {credentials: 'same-origin',
+        headers: {Accept: 'application/json'}});
+      if (!response.ok) throw new Error('Project Dossier continuation unavailable');
+      const envelope = await response.json();
+      const page = envelope.data;
+      const pageLens = page?.actor_context || {kind: 'personal'};
+      if (!page || page.project_id !== root.dataset.projectId ||
+          pageLens.kind !== lens.kind ||
+          (spaceSlug && pageLens.space?.slug !== spaceSlug) ||
+          page.page?.offset !== offset || !Array.isArray(page.items)) {
+        throw new Error('Project owner projection mismatch');
+      }
+      state.rows.push(...page.items);
+      state.page = page.page;
+      render();
+    } catch (_) {
+      moreError.hidden = false;
+    } finally {
+      state.pending = false; moreButton.disabled = false;
+      moreButton.textContent = 'Charger d’autres dossiers';
+    }
+  });
+  render();
+})();

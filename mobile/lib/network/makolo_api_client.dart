@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -42,11 +44,15 @@ class MakoloUploadFile {
     required this.fieldName,
     required this.path,
     this.filename,
+    this.contentType,
   });
 
   final String fieldName;
   final String path;
   final String? filename;
+
+  /// Explicit MIME type for owners that validate the multipart part.
+  final String? contentType;
 }
 
 class MakoloApiClient {
@@ -250,6 +256,7 @@ class MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
+    Duration? transferTimeout,
   }) {
     return _authorized(
       method,
@@ -266,7 +273,13 @@ class MakoloApiClient {
           data.files.add(
             MapEntry(
               file.fieldName,
-              await MultipartFile.fromFile(file.path, filename: file.filename),
+              await MultipartFile.fromFile(
+                file.path,
+                filename: file.filename,
+                contentType: file.contentType == null
+                    ? null
+                    : DioMediaType.parse(file.contentType!),
+              ),
             ),
           );
         }
@@ -275,6 +288,7 @@ class MakoloApiClient {
       extraHeaders: headers,
       cancel: cancel,
       onSendProgress: onProgress,
+      transferTimeout: transferTimeout,
     );
   }
 
@@ -296,7 +310,7 @@ class MakoloApiClient {
     );
     if (response.statusCode == 401) {
       await _deleteIfExists('$destinationPath.part');
-      session = await _refreshSingleFlight();
+      session = await _refreshAfterUnauthorized(session.accessToken);
       response = await _downloadOnce(
         path,
         destinationPath: destinationPath,
@@ -321,6 +335,62 @@ class MakoloApiClient {
     }
     await partial.rename(destinationPath);
     return response;
+  }
+
+  /// Read a published, owner-gated image through the authenticated Makolo
+  /// transport. Widgets do not access bearer tokens, raw storage or Web.
+  /// These bytes are only held in memory for the current presentation.
+  Future<Uint8List> getPresentationImage(String path) async {
+    final uri = Uri.tryParse(path);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        !path.startsWith('/')) {
+      throw const FormatException('Only same-origin media paths are permitted');
+    }
+    Future<Response<List<int>>> request(String bearer) async {
+      final started = Stopwatch()..start();
+      try {
+        return await _dio.get<List<int>>(
+          path,
+          options: Options(
+            responseType: ResponseType.bytes,
+            validateStatus: (_) => true,
+            headers: {
+              'Authorization': 'Bearer $bearer',
+              'Accept': 'image/jpeg, image/png',
+            },
+          ),
+        );
+      } on DioException catch (error) {
+        throw _transportError(error, elapsed: started.elapsed);
+      }
+    }
+
+    var session = await _requireSession();
+    var response = await request(session.accessToken);
+    if (response.statusCode == 401) {
+      session = await _refreshAfterUnauthorized(session.accessToken);
+      response = await request(session.accessToken);
+    }
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw MakoloApiError.fromResponse(status, '');
+    }
+    final mime = response.headers
+        .value(Headers.contentTypeHeader)
+        ?.split(';')
+        .first
+        .trim()
+        .toLowerCase();
+    if (mime != 'image/jpeg' && mime != 'image/png' && mime != 'image/webp') {
+      throw const FormatException('Unsupported presentation image type');
+    }
+    final data = response.data;
+    if (data == null || data.isEmpty || data.length > 8 * 1024 * 1024) {
+      throw const FormatException('Invalid presentation image payload');
+    }
+    return Uint8List.fromList(data);
   }
 
   Future<void> logoutCurrentSession() async {
@@ -381,6 +451,7 @@ class MakoloApiClient {
     Map<String, String>? extraHeaders,
     MakoloCancelHandle? cancel,
     TransferProgress? onSendProgress,
+    Duration? transferTimeout,
   }) async {
     var session = await _requireSession();
     var response = await _send(
@@ -391,12 +462,13 @@ class MakoloApiClient {
       extraHeaders: extraHeaders,
       cancel: cancel,
       onSendProgress: onSendProgress,
+      transferTimeout: transferTimeout,
     );
     if (response.statusCode != 401) {
       return _ensureSuccess(response);
     }
 
-    session = await _refreshSingleFlight();
+    session = await _refreshAfterUnauthorized(session.accessToken);
     response = await _send(
       method,
       path,
@@ -405,6 +477,7 @@ class MakoloApiClient {
       extraHeaders: extraHeaders,
       cancel: cancel,
       onSendProgress: onSendProgress,
+      transferTimeout: transferTimeout,
     );
     return _ensureSuccess(response);
   }
@@ -424,6 +497,17 @@ class MakoloApiClient {
       cancel: cancel,
     );
     return _ensureSuccess(response);
+  }
+
+  // A concurrent request may have rotated the credentials while this
+  // request was in flight. Reuse the persisted session instead of rotating
+  // the refresh token again for a late 401.
+  Future<AuthSession> _refreshAfterUnauthorized(
+    String rejectedAccessToken,
+  ) async {
+    final current = await _requireSession();
+    if (current.accessToken != rejectedAccessToken) return current;
+    return _refreshSingleFlight();
   }
 
   Completer<AuthSession>? _refreshCompleter;
@@ -480,13 +564,17 @@ class MakoloApiClient {
     Map<String, String>? extraHeaders,
     MakoloCancelHandle? cancel,
     TransferProgress? onSendProgress,
+    Duration? transferTimeout,
   }) async {
+    final started = Stopwatch()..start();
     try {
       final response = await _dio.request<Object?>(
         path,
         data: body,
         options: Options(
           method: method,
+          sendTimeout: transferTimeout,
+          receiveTimeout: transferTimeout,
           headers: {
             'Accept': 'application/json',
             if (bearer != null) 'Authorization': 'Bearer $bearer',
@@ -505,7 +593,7 @@ class MakoloApiClient {
         _headers(response.headers),
       );
     } on DioException catch (error) {
-      throw _transportError(error);
+      throw _transportError(error, elapsed: started.elapsed);
     }
   }
 
@@ -517,6 +605,7 @@ class MakoloApiClient {
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
   }) async {
+    final started = Stopwatch()..start();
     try {
       final response = await _dio.download(
         path,
@@ -539,11 +628,34 @@ class MakoloApiClient {
         _headers(response.headers),
       );
     } on DioException catch (error) {
-      throw _transportError(error);
+      throw _transportError(error, elapsed: started.elapsed);
     }
   }
 
-  Object _transportError(DioException error) {
+  Object _transportError(DioException error, {Duration? elapsed}) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.transformTimeout) {
+      assert(() {
+        final request = error.requestOptions;
+        // Never include path identifiers, query, credentials or request body.
+        final group = request.uri.pathSegments
+            .take(3)
+            .map((segment) {
+              return RegExp(r'^[a-z][a-z0-9_-]{0,35}$').hasMatch(segment)
+                  ? segment
+                  : ':other';
+            })
+            .join('/');
+        developer.log(
+          'timeout phase=${error.type.name} method=${request.method} '
+          'route_group=$group elapsed_ms=${elapsed?.inMilliseconds ?? -1}',
+          name: 'makolo.network',
+        );
+        return true;
+      }());
+    }
     switch (error.type) {
       case DioExceptionType.cancel:
         return const MakoloRequestCancelled();

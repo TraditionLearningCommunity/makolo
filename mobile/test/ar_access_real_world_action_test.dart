@@ -7,6 +7,7 @@ import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
+import 'package:makolo_mobile/features/access/access_credential_vault.dart';
 import 'package:makolo_mobile/features/access/access_selector.dart';
 import 'package:makolo_mobile/features/day_of/day_of_repository.dart';
 import 'package:makolo_mobile/features/day_of/day_of_screen.dart';
@@ -16,6 +17,18 @@ import 'package:makolo_mobile/sync/sync_engine.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
+
+class _EphemeralAccessVault implements AccessCredentialVault {
+  @override
+  Future<RetainedAccessQr?> read(String profileId, String accessId) async =>
+      null;
+  @override
+  Future<void> save(String profileId, RetainedAccessQr value) async {}
+  @override
+  Future<void> delete(String profileId, String accessId) async {}
+  @override
+  Future<void> clearProfile(String profileId) async {}
+}
 
 Map<String, dynamic> envelope(String projection, Map<String, dynamic> data) {
   return {
@@ -363,6 +376,7 @@ void main() {
         database: database,
         store: store,
         profileId: 'profile-a',
+        credentialVault: _EphemeralAccessVault(),
         api: MakoloApiClient(
           baseUri: Uri.parse('https://makolo.invalid/'),
           dio: client.dio,
@@ -377,6 +391,8 @@ void main() {
 
       expect(credential.payload, secretPayload);
       expect(credential.credentialType, 'qr');
+      expect(credential.offlineUntil, isNull);
+      expect(credential.locallyRetained, isFalse);
       expect(
         await store.readProjection(
           AccessRepository.credentialProjectionKind,

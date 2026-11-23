@@ -1031,3 +1031,197 @@ Contrats principaux :
 - Payment, Access, Capacity, Form, Resource et Proof restent des liens/états de leurs domaines lorsqu’ils sont composés, jamais des copies Obtention.
 
 Le contrat métier complet est documenté dans [`obtention.md`](obtention.md).
+
+
+## Découvrir N1 — projection d'objets et continuation (19 octobre 2026)
+
+Cette section décrit le contrat d'implémentation de la branche de PR #522, sans
+anticiper sa fusion. Les invariants métier et le code effectif restent
+prioritaires ; elle ne crée aucun nouveau modèle `Possibility`.
+
+- L'identité de la possibilité demeure la `candidate_key` et ses références
+  `identity.resource/occurrence/revision`. La liste et le détail utilisent le
+  même `project_rows` ; aucun propriétaire n'est redéduit sur le client.
+- `owner.display_name` est conservé pour les consommateurs historiques.
+  Lorsqu'il existe un porteur public autorisé, `owner.identity` identifie un
+  `profile` ou un `space`, `owner.representation` décrit le nom et
+  l'avatar publiables, et `owner.links` expose des destinations explicites.
+  `links.native` ne vaut que pour les routes natives effectivement déclarées.
+  Une Activity sans `space` ni `owner_profile` public reçoit `owner=null` ;
+  `created_by` n'est jamais substitué. Les Opportunity externes conservent
+  leur émetteur, sans création de Profil ou Space.
+- `date.kind=added_at` sur Activity est dérivé de `Activity.created_at` ;
+  `date.kind=published_at` n'est utilisé pour Opportunity que lorsque sa
+  publication est connue. Ne pas assimiler ces dates à une Occurrence ni au
+  `generated_at` de la réponse.
+- `price` peut représenter `free`, `exact`, `range` ou `unknown`
+  lorsqu'il existe des Offers Commerce applicables à la fenêtre et au
+  contexte Activity/Occurrence. Le sélecteur propriétaire groupé
+  `offer_price_facts_many` minimise les requêtes N1 ; il ne calcule ni devis,
+  ni état de Capacity, ni paiement. Un montant de Funding n'est jamais un prix.
+- Les `presentation_facts` n'écrasent pas `price`, `timing`, `place`,
+  `availability` ni les faits temporels/spatiaux propres à la verticale.
+  Les ressources restent limitées à la visibilité publique du propriétaire.
+- `engagement` continue de distinguer présentation Web, capacités serveur
+  et liens réellement exécutables. Pour Service, un utilisateur authentifié
+  peut recevoir un handoff typé vers `ServiceDetails.pk`, jamais vers un
+  `Activity.pk` utilisé comme `service_id`. Le GET Services prévalide et
+  fournit, selon la politique, les Opportunities publiées recherchables ;
+  le POST Services vérifie les droits, l'idempotence et retourne une Journey
+  réelle. Les clients ne créent pas cette Journey.
+- Pour Event/Tickets, l'inspection des billets et leur commande utilisent
+  les APIs propriétaires Events et Tickets. Le client ne confirme ni Access ni
+  Payment à la création d'une commande. Les handoffs publics restent bornés
+  aux types de billets publiables. Le retour vers la commande appartient à
+  Tickets.
+- Une API native de Profil public expose uniquement les attributs déjà
+  publiables dans le Passeport canonique. Les Profiles non publics, non
+  cherchables ou inactifs restent inaccessibles. La route native `/people/:id`
+  consomme une identité typée, jamais un slug deviné.
+- En compact, N1 est bord à bord sans Card extérieure, avec marges internes
+  de lecture, titre dominant et trois colonnes d'actions à icônes seules
+  et libellés accessibles. Le grand écran conserve une grille et les libellés
+  appropriés. Les contenus longs et faits établis ne sont plus coupés à
+  deux ou trois lignes pour suivre une maquette historique.
+- Ces règles N1 remplacent les contraintes de hauteur et d'habillage des
+  exemples G03/G04/G05 antérieurs ; les invariants de navigation, recherche,
+  pagination, carte, local-first et permissions restent applicables.
+
+**Frontières :** la projection est un read model, pas un propriétaire
+d'Activity, Opportunity, Ticket, Service, Resource ou Permission. Les routes
+natives doivent revalider les capacités et les mutations côté serveur.
+
+## Découvrir N1 / N2 / action métier — contrat de navigation figé (25 octobre 2026)
+
+**Décision UX et d'architecture pour la PR #522.** Ce contrat précise la
+continuation de N1 ; les possibilités, ressources, permissions, droits et
+parcours restent la propriété des domaines existants. La navigation n'introduit
+ni `Start` universel, ni modèle `Possibility`, ni création implicite de Journey.
+
+### Intentions et destinations
+
+1. **Toucher la surface non interactive d'une possibilité N1** (notamment
+   titre / ouverture de l'unité) signifie **consulter N2**, pour comprendre
+   la même possibilité, avec la même `candidate_key`, les mêmes faits et
+   le même contexte d'exploration. Cela **ne démarre jamais** un Service,
+   une réservation, une demande, une inscription, une commande ou un paiement.
+2. **La colonne centrale N1** représente **une seule continuation principale**
+   choisie par le serveur et le domaine propriétaire : par exemple
+   « Commencer », « Voir les billets », « Réserver », « S'inscrire »,
+   « Demander », « Acheter », « Contribuer », « Postuler » ou « Payer »,
+   **uniquement si l'action et sa destination sont réellement disponibles,
+   autorisées et compatibles avec le client**.
+3. Cette colonne **ouvre la profondeur métier nécessaire**, et non
+   nécessairement une mutation immédiate : sélection d'Occurrence,
+   d'offre, de place, de variante, préparation de dossier, vérification de
+   conditions, confirmation d'achat, etc. Le domaine propriétaire effectue
+   ensuite les contrôles et mutations.
+4. **N2 réexpose la continuation principale pertinente**, en fonction du
+   contexte réévalué, sans rendre N2 obligatoire avant une action directe.
+   Les deux chemins sont `N1 → N2 → action` et `N1 → parcours métier`.
+5. **Sans continuation exploitable**, la colonne centrale mène à
+   **« Détails » / N2**. Ne jamais fabriquer un bouton de réservation,
+   de paiement ou de Start pour combler l'emplacement.
+6. La possibilité déjà engagée peut proposer **la continuation de l'existant**
+   (« Voir mon inscription », « Reprendre », « Voir mon accès ») au lieu
+   d'inciter à recommencer. La simple observation ou sauvegarde n'engage
+   personne.
+
+**Gestes autonomes :** le porteur ouvre uniquement son Profil/Espace public
+autorisé ; la description se déplie localement ; média/galerie et annexes
+ouvrent leur lecteur/destination ; Enregistrer agit sur Bookmark ; Partager
+ouvre Sharing. Aucun de ces gestes ne déclenche l'action centrale, et
+inversement. Les cibles tactiles et leurs libellés accessibles sont distincts.
+
+### Propriété des responsabilités
+
+| Couche | Possède / décide | Ne doit pas faire |
+| --- | --- | --- |
+| **Domaines propriétaires** (Services, Events, Tickets, Journey, Capacity, Commerce, Payment, Funding, Obtention, Access, etc.) | Éligibilité, Permission/Mandate, capacités, créneaux, offres, prix, disponibilité, prérequis, validations, état et mutations ; routes/API et réponses métier, concurrence et idempotence lorsque pertinentes | Transférer une autorité par simple composition ou considérer l'ouverture d'un écran comme une transaction |
+| **Serveur Discovery / orchestration** | Admission et identité de la possibilité ; composition des faits publics dans le contexte acteur ; `engagement` et **`engagement.primary_action`** à partir de handoffs **vérifiés** ; code, label métier, état/capabilities et destination typée ; repli `detail` si nécessaire | Déduire une action d'un titre, d'un prix, d'une verticale, d'un texte ou d'une URL ; exécuter les mutations des propriétaires |
+| **API / projection** | Transporter `identity`, `links.detail`, faits et `engagement.primary_action` ; cohérence liste/détail, divulgation minimale, auth, contrats stables et destinations explicitement disponibles | Exposer des permissions internes, URL privées, secrets ou actions fictives |
+| **Web** | N1/N2 et liens vers les parcours Web réellement reconnus ; label et icône métier, état disabled/fallback ; interactions indépendantes | Inventer un endpoint ou faire passer un simple lien de détail pour une exécution autorisée |
+| **Flutter** | Même sémantique N1/N2 ; interpréter les destinations typées **seulement si une route native connue est supportée** ; conserver contexte, feedback et ergonomie compact/wide ; consultation N2 sûre en repli | Forger un chemin à partir d'ID/slug, simuler le succès d'une action, requérir un écran Start universel, reconstruire Permission/Readiness/Payment |
+| **N2 / profondeur** | Montrer détails, variantes, conditions et continuité ; proposer la même action métier actualisée si applicable | Devenir une étape imposée pour toute action ou un deuxième propriétaire métier |
+
+### Contrat de continuation et sûreté
+
+- `engagement.primary_action` est la **décision sémantique serveur** :
+  `code`, `label`, `icon`, `destination: {kind, path}`. Les champs
+  `engagement.owner`, `state`, `capabilities`, `resource`,
+  `links` et `presentation` étayent cette décision ; une présence
+  de route seule ne confère pas l'autorité.
+- `destination.kind=detail` signifie ouvrir N2 sans mutation.
+  `destination.kind=native` exige une route prise en charge dans Flutter
+  **et** la preuve de capability attendue ; sinon repli vers N2.
+  Le Web utilise seulement la destination Web explicitement exposée
+  et revalidée par l'owner, ou le détail.
+- Une action peut être **absente, non actionnable, expirée ou conditionnelle**.
+  L'expérience ne promet pas « Réserver », « Commencer » ou « Payer »
+  si l'owner ne permet pas réellement la continuation.
+- **Payer** suppose une obligation ou transaction propriétaire admissible ;
+  un prix visible dans N1 ne crée ni dette ni paiement. De même
+  « Réserver » suppose sélection/vérification de Capacity selon le
+  contexte. `Access` ne se confond pas avec `AccessCredential`.
+- La route propriétaire **revérifie au moment de l'exécution** la
+  visibilité, les droits, l'état, les prérequis, prix et capacité.
+  Une action côté client ne vaut jamais confirmation.
+- La navigation vers N2 conserve la sélection, le résultat et le retour
+  aux filtres/recherche du champ ; une ressource annexée n'est pas une
+  preuve de satisfaction d'un Requirement.
+- **Backend générique, métier contextuel :** `start`, `inspect_offers`,
+  `reserve`, `apply`, `contribute`, `buy`, etc. ne sont
+  admissibles que lorsqu'un vrai handoff propriétaire les supporte.
+  Le tableau des intentions est une cible de convergence, **pas
+  l'affirmation que toutes les verticales sont livrées**.
+
+### Référence runtime et critères de fermeture de #522
+
+**État d'implémentation de la branche de #522 (25 octobre 2026) :**
+`discovery/api/composition.py::_primary_action_for_projection` expose
+`start` pour Service, `inspect_offers` pour Event,
+`contribute` pour Funding et `start_journey` pour Obtention, seulement
+lorsqu'un handoff propriétaire vérifié existe. Sinon, `detail`.
+Flutter possède une route distincte pour chacune de ces continuations :
+
+- Service : `/services/:id/start` et API Services ;
+- Event : `/events/:slug/tickets`, API Tickets, commande, paiement sandbox
+  et entrée en liste d'attente lorsque le ticket est réellement épuisé ;
+- Funding : `/funding/:id/contribute`, détail public autorisé,
+  contribution idempotente, puis PaymentObligation ;
+- Payment : `/payments/obligations/:id`, lecture des droits/états, création
+  et confirmation sandbox uniquement si le serveur l'active ;
+- Obtention : `/obtention/:id/choose`, modes publiés par l'owner,
+  création d'une Journey réelle puis profondeur `/journeys/:id` existante.
+
+**Aucune action centrale N1 Flutter n'ouvre une page Web.**
+La présentation Web continue d'utiliser ses propres routes et le même
+métier côté serveur. Les destinations mobiles non supportées se replient
+vers N2, sans action fictive ni transaction implicite. Ce tableau est un
+inventaire des raccordements écrits dans la PR, **pas une attestation de
+tests exécutés ou de paiement validé sur appareil**. Les intégrations
+métiers sans API ou destination native exploitable restent ouvertes et
+ne doivent jamais être présentées comme des actions exécutables.
+
+Critères ciblés à valider avant de considérer la colonne centrale close :
+
+- toucher N1 hors contrôle ouvre N2, jamais Start ; le texte, porteur,
+  les médias, annexes, Bookmark, action centrale et partage restent
+  indépendants ;
+- action serveur `detail`, absence d'action ou destination native
+  non reconnue → N2, sans mutation ;
+- Service `start` autorisé → parcours Service existant ; Event
+  `inspect_offers` → billets existants ; échec/permission retirée →
+  état métier réel, sans succès simulé ;
+- Web et Flutter affichent la même intention propriétaire, mais
+  choisissent leur destination **réellement prise en charge** ;
+- utilisateur anonyme/connecté, action personnelle / Space autorisée,
+  indisponibilité, capacité épuisée, données obsolètes, retour de N2
+  et accessibilité sont testés sur les chemins réellement concernés ;
+- aucun ajout de modèle, de migration, de route fictive ou d'action
+  cliente exécutant une mutation à la place du domaine.
+
+**Séquençage :** fermer d'abord la colonne centrale N1 et ses handoffs
+réels ; traiter ensuite l'expérience approfondie N2 en conservant ce
+contrat. Ne pas forcer toutes les verticales vers Start.
+

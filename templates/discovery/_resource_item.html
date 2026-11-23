@@ -1,0 +1,46 @@
+<div class="flex min-w-0 items-start gap-2 rounded-xl border p-3" style="border-color:var(--mk-border)">
+  <i data-lucide="file-text" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+  <div class="min-w-0">
+    <p class="break-words text-sm font-semibold">{{ resource.title }}</p>
+    {% if resource.description %}<p class="mt-1 line-clamp-2 break-words text-xs" style="color:var(--mk-muted)">{{ resource.description }}</p>{% endif %}
+    {% if resource.text_content and not resource.read_url %}
+      <details class="mt-2">
+        <summary class="min-h-[36px] cursor-pointer text-sm font-semibold underline">Consulter le texte</summary>
+        <p class="mt-2 whitespace-pre-line break-words text-sm">{{ resource.text_content }}</p>
+        {% if resource.text_truncated %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Extrait de cette ressource</p>{% endif %}
+      </details>
+    {% endif %}
+    {% if resource.read_url %}
+      <details class="mt-2">
+        <summary class="cursor-pointer text-sm font-semibold underline">Lire la ressource dans Makolo</summary>
+        <iframe src="{{ resource.read_url }}" title="{{ resource.title }}" loading="lazy" class="mt-2 h-72 w-full rounded-lg border" style="border-color:var(--mk-border)"></iframe>
+      </details>
+    {% endif %}
+    {% if resource.download_url %}
+      {% if resource.mime_type == 'application/pdf' or resource.mime_type == 'image/png' or resource.mime_type == 'image/jpeg' or resource.mime_type == 'text/csv' or resource.mime_type == 'video/mp4' or resource.mime_type == 'audio/wav' %}
+        <details class="mt-2">
+          <summary class="cursor-pointer text-sm font-semibold underline">Consulter dans Makolo</summary>
+          {% if resource.mime_type == 'image/png' or resource.mime_type == 'image/jpeg' %}
+            <img src="{{ resource.download_url }}" alt="{{ resource.title }}" loading="lazy" class="mt-2 max-h-[70vh] w-full object-contain">
+          {% elif resource.mime_type == 'video/mp4' %}
+            <video controls preload="none" class="mt-2 w-full"><source src="{{ resource.download_url }}" type="video/mp4">Vidéo non disponible.</video>
+          {% elif resource.mime_type == 'audio/wav' %}
+            <audio controls preload="none" class="mt-2 w-full"><source src="{{ resource.download_url }}" type="audio/wav">Audio non disponible.</audio>
+          {% else %}
+            <iframe src="{{ resource.download_url }}" title="{{ resource.title }}" loading="lazy" class="mt-2 h-72 w-full rounded-lg border" style="border-color:var(--mk-border)"></iframe>
+          {% endif %}
+        </details>
+      {% endif %}
+      <a class="mt-2 inline-flex items-center gap-1 text-sm font-semibold underline" download href="{{ resource.download_url }}">Télécharger le document</a>
+    {% elif resource.external_url %}
+      <a class="mt-2 inline-flex items-center gap-1 text-sm font-semibold underline" href="{{ resource.external_url }}" target="_blank" rel="noopener noreferrer">Consulter la source externe</a>
+    {% endif %}
+    {% if resource.mime_type %}
+      <p class="text-xs" style="color:var(--mk-muted)">
+        {% if 'pdf' in resource.mime_type %}Document PDF
+        {% elif 'spreadsheet' in resource.mime_type or 'excel' in resource.mime_type %}Tableur
+        {% else %}Document{% endif %}
+      </p>
+    {% endif %}
+  </div>
+</div>

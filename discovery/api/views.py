@@ -1,7 +1,10 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.utils.cache import patch_vary_headers
 
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
+from django.core.exceptions import ValidationError as DomainValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,24 +21,67 @@ from discovery.services import (
     public_discovery_events,
     serialize_event,
 )
-from discovery.watches import execute_watch, normalize_watch_criteria
+from discovery.watches import execute_watch, normalize_watch_criteria, ensure_discovery_watch
 from objectives.models import Dossier
+from organizations.api.workspace_projection import workspace_spaces
 
 from .composition import (
     compose_discovery,
     paginated_projection,
     parse_page_params,
     project_rows,
+    spatial_index_from_rows,
+    spatial_discovery_projection,
+    _public_occurrence_facts_for_rows,
     set_saved_state,
     detail_projection,
 )
 
 
+class PrivateDiscoveryResponseBoundary:
+    """An API response may depend on viewer/owner authority at every request.
+
+    Do not let a browser, proxy or shared HTTP cache reuse a personal field,
+    Watch, Bookmark, N2 detail, error response or signed continuation.
+    """
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        patch_vary_headers(response, ("Authorization", "Cookie"))
+        return response
+
+
 MAX_MAP_POINTS = 100
 
 
-def _scope_for(request):
+def _scope_for(request, *, space=None):
+    if space is not None:
+        return "space"
     return "personal" if getattr(request.user, "is_authenticated", False) else "public"
+
+
+def _exploration_space(request):
+    """Resolve a requested Space from current server authority, never from a client profile ID."""
+    context = request.query_params.get("context")
+    slug = request.query_params.get("space")
+    if context not in (None, "", "space", "personal", "public"):
+        raise ValidationError({"context": ["Contexte Découvrir invalide."]})
+    if context == "personal" and not getattr(request.user, "is_authenticated", False):
+        from rest_framework.exceptions import NotAuthenticated
+        raise NotAuthenticated()
+    if context == "public" and getattr(request.user, "is_authenticated", False):
+        raise ValidationError({"context": ["Le contexte public ne remplace pas un Profil authentifié."]})
+    if context != "space":
+        if slug:
+            raise ValidationError({"space": ["Un Space exige context=space."]})
+        return None
+    if not isinstance(slug, str) or not slug.strip():
+        raise ValidationError({"space": ["Space requis."]})
+    if not getattr(request.user, "is_authenticated", False):
+        from rest_framework.exceptions import NotAuthenticated
+        raise NotAuthenticated()
+    return get_object_or_404(workspace_spaces(request.user), slug=slug)
 
 
 def _reject_profile_override(request):
@@ -45,7 +91,63 @@ def _reject_profile_override(request):
         )
 
 
-class DiscoveryItemsAPIView(APIView):
+from .throttles import DiscoveryClarifyThrottle, DiscoveryResearchThrottle
+
+
+class DiscoveryResearchAPIView(PrivateDiscoveryResponseBoundary, APIView):
+    """Optional external leads; never a canonical Discovery item or GET side effect."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [DiscoveryResearchThrottle]
+
+    def post(self, request):
+        from discovery.assistance import research_discovery_sources
+
+        if not isinstance(request.data, dict) or set(request.data) != {"q"}:
+            raise ValidationError({"q": ["Recherche invalide."]})
+        try:
+            result = research_discovery_sources(
+                actor=request.user, text=request.data["q"],
+            )
+        except ValueError as exc:
+            raise ValidationError({"q": [str(exc)]}) from exc
+        response = Response(projection_envelope(
+            projection="discovery.source-leads",
+            scope="personal", data=result,
+        ))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class DiscoveryClarifyAPIView(PrivateDiscoveryResponseBoundary, APIView):
+    """Explicit, authenticated Discovery clarification. Never a billable GET."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [DiscoveryClarifyThrottle]
+
+    def post(self, request):
+        from discovery.assistance import clarify_discovery_search
+
+        if not isinstance(request.data, dict) or set(request.data) != {"criteria"}:
+            raise ValidationError({"criteria": ["Contrat de recherche invalide."]})
+        try:
+            result = clarify_discovery_search(
+                actor=request.user, criteria=request.data["criteria"],
+            )
+        except ValueError as exc:
+            raise ValidationError({"criteria": [str(exc)]}) from exc
+        response = Response(
+            projection_envelope(
+                projection="discovery.clarification",
+                scope="personal",
+                data=result,
+            )
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class DiscoveryItemsAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Canonical mature Discovery collection.
 
     The legacy Event-only mobile feed remains under /api/v1/events/discover/.
@@ -57,46 +159,61 @@ class DiscoveryItemsAPIView(APIView):
 
     def get(self, request):
         _reject_profile_override(request)
-        data = paginated_projection(
-            request.query_params,
-            profile=request.user,
-        )
+        space = _exploration_space(request)
+        try:
+            data = paginated_projection(
+                request.query_params,
+                profile=request.user,
+                space=space,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"discovery": exc.messages}) from exc
         return Response(
             projection_envelope(
                 projection="discovery.items",
-                scope=_scope_for(request),
+                scope=_scope_for(request, space=space),
                 data=data,
             )
         )
 
 
-class DiscoveryItemDetailAPIView(APIView):
+class DiscoveryItemDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, family, item_id):
         _reject_profile_override(request)
+        space = _exploration_space(request)
         projection = detail_projection(
             family,
             item_id,
             profile=request.user,
+            space=space,
         )
         if projection is None:
             raise NotFound("Possibilité introuvable.")
+        payload = {"item": projection}
+        if space is not None:
+            payload.update({
+                "actor": {"type": "space", "id": str(space.pk)},
+                "viewer": {"type": "profile", "id": str(request.user.pk)},
+            })
         return Response(
             projection_envelope(
                 projection="discovery.item",
-                scope=_scope_for(request),
-                data={"item": projection},
+                scope=_scope_for(request, space=space),
+                data=payload,
             )
         )
 
 
-class DiscoveryItemSavedAPIView(APIView):
+class DiscoveryItemSavedAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Explicit conservation, distinct from Interest, Watch and engagement."""
 
     permission_classes = [IsAuthenticated]
 
     def put(self, request, family, item_id):
+        if request.query_params.get("context") == "space" or request.query_params.get("space"):
+            raise ValidationError({"context": ["Cet enregistrement appartient au Profil, pas au Space."]})
         projection = set_saved_state(
             family,
             item_id,
@@ -113,6 +230,8 @@ class DiscoveryItemSavedAPIView(APIView):
         )
 
     def delete(self, request, family, item_id):
+        if request.query_params.get("context") == "space" or request.query_params.get("space"):
+            raise ValidationError({"context": ["Cet enregistrement appartient au Profil, pas au Space."]})
         projection = set_saved_state(
             family,
             item_id,
@@ -129,17 +248,35 @@ class DiscoveryItemSavedAPIView(APIView):
         )
 
 
-class DiscoveryMapAPIView(APIView):
+class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Public/private-viewer map projection from the same Discovery field."""
 
     permission_classes = [AllowAny]
 
     def get(self, request):
         _reject_profile_override(request)
-        composition = compose_discovery(
-            request.query_params,
-            profile=request.user,
-        )
+        space = _exploration_space(request)
+        candidate_profile = None if space is not None else request.user
+        try:
+            composition = compose_discovery(
+                request.query_params,
+                profile=candidate_profile,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"discovery": exc.messages}) from exc
+        # Spatial presentation of the *same admitted candidates* as Discovery.
+        # Opt-in keeps the legacy 100-point API stable for existing consumers.
+        if request.query_params.get("spatial") == "1":
+            if request.query_params.get("details") == "1":
+                return Response(spatial_discovery_projection(
+                    composition.rows,
+                    profile=candidate_profile,
+                    space=space,
+                    viewer=request.user if space is not None else None,
+                ))
+            # Compatibility path for existing Map consumers.
+            return Response(spatial_index_from_rows(composition.rows))
+
         points = []
         for family, _, candidate in composition.rows:
             if family != "activity":
@@ -160,7 +297,7 @@ class DiscoveryMapAPIView(APIView):
         )
 
 
-class DiscoveryForYouAPIView(APIView):
+class DiscoveryForYouAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Historical Event-compatibility surface, deliberately not Z3 ranking."""
 
     permission_classes = [AllowAny]
@@ -187,7 +324,7 @@ class DiscoveryForYouAPIView(APIView):
         )
 
 
-class BookmarkListCreateAPIView(APIView):
+class BookmarkListCreateAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Legacy Event-shaped bookmark API backed by canonical ActivityBookmark."""
 
     permission_classes = [IsAuthenticated]
@@ -230,7 +367,7 @@ class BookmarkListCreateAPIView(APIView):
         )
 
 
-class BookmarkDetailAPIView(APIView):
+class BookmarkDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, event_id):
@@ -269,14 +406,24 @@ def _watch_payload(watch):
     }
 
 
+def _normalize_watch_or_error(raw):
+    try:
+        return normalize_watch_criteria(raw)
+    except DomainValidationError as exc:
+        raise ValidationError({"criteria": exc.messages}) from exc
+
+
 def _resolve_personal_dossier(request, raw_id):
     if raw_id in (None, ""):
         return None
-    dossier = Dossier.objects.filter(
-        pk=raw_id,
-        owner_profile=request.user,
-        owning_space__isnull=True,
-    ).first()
+    try:
+        dossier = Dossier.objects.filter(
+            pk=raw_id,
+            owner_profile=request.user,
+            owning_space__isnull=True,
+        ).first()
+    except (ValueError, TypeError, DomainValidationError) as exc:
+        raise ValidationError({"dossier_id": ["Identifiant de Dossier invalide."]}) from exc
     if dossier is None:
         raise ValidationError(
             {"dossier_id": ["Dossier personnel introuvable."]}
@@ -284,7 +431,7 @@ def _resolve_personal_dossier(request, raw_id):
     return dossier
 
 
-class DiscoveryWatchListCreateAPIView(APIView):
+class DiscoveryWatchListCreateAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -302,29 +449,25 @@ class DiscoveryWatchListCreateAPIView(APIView):
 
     def post(self, request):
         name = str(request.data.get("name") or "").strip()
-        if not name:
-            raise ValidationError({"name": ["Le nom de la Veille est obligatoire."]})
-        criteria = normalize_watch_criteria(request.data.get("criteria"))
+        if not name or len(name) > 140:
+            raise ValidationError({"name": ["Le nom de la Veille doit contenir entre 1 et 140 caractères."]})
+        criteria = _normalize_watch_or_error(request.data.get("criteria"))
         dossier = _resolve_personal_dossier(
-            request,
-            request.data.get("dossier_id"),
+            request, request.data.get("dossier_id"),
         )
-        watch = DiscoveryWatch.objects.create(
-            owner=request.user,
-            name=name,
-            criteria=criteria,
-            dossier=dossier,
+        watch, created = ensure_discovery_watch(
+            owner=request.user, name=name, criteria=criteria, dossier=dossier,
         )
         return Response(
             projection_envelope(
                 projection="discovery.watch",
-                data={"watch": _watch_payload(watch)},
+                data={"watch": _watch_payload(watch), "created": created},
             ),
-            status=201,
+            status=201 if created else 200,
         )
 
 
-class DiscoveryWatchDetailAPIView(APIView):
+class DiscoveryWatchDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, watch_id):
@@ -340,13 +483,13 @@ class DiscoveryWatchDetailAPIView(APIView):
         watch = _owned_watch(request, watch_id)
         if "name" in request.data:
             name = str(request.data.get("name") or "").strip()
-            if not name:
+            if not name or len(name) > 140:
                 raise ValidationError(
-                    {"name": ["Le nom de la Veille est obligatoire."]}
+                    {"name": ["Le nom de la Veille doit contenir entre 1 et 140 caractères."]}
                 )
             watch.name = name
         if "criteria" in request.data:
-            watch.criteria = normalize_watch_criteria(
+            watch.criteria = _normalize_watch_or_error(
                 request.data.get("criteria")
             )
         if "status" in request.data:
@@ -361,7 +504,10 @@ class DiscoveryWatchDetailAPIView(APIView):
                 request,
                 request.data.get("dossier_id"),
             )
-        watch.save()
+        try:
+            watch.save()
+        except DomainValidationError as exc:
+            raise ValidationError({"watch": exc.messages}) from exc
         return Response(
             projection_envelope(
                 projection="discovery.watch",
@@ -375,7 +521,7 @@ class DiscoveryWatchDetailAPIView(APIView):
         return Response(status=204)
 
 
-class DiscoveryWatchResultsAPIView(APIView):
+class DiscoveryWatchResultsAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, watch_id):

@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .context_views import ScannerOccurrenceContextAPIView
+from .occurrence_views import ScannerOccurrenceControlAPIView
 from .mobile_views import CurrentScannerAssignmentListAPIView
 from .views import (
     EventAccessGateViewSet,
@@ -26,6 +27,11 @@ urlpatterns = [
         "occurrences/<uuid:occurrence_id>/context/",
         ScannerOccurrenceContextAPIView.as_view(),
         name="occurrence-context",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/control/",
+        ScannerOccurrenceControlAPIView.as_view(),
+        name="occurrence-control",
     ),
     path(
         "assignments/current/",

@@ -143,6 +143,50 @@ class InteroperabilityExtensionProjection {
   }
 }
 
+class DomainIntegrationProjection {
+  const DomainIntegrationProjection({
+    required this.code,
+    required this.owner,
+    required this.kind,
+    required this.displayName,
+    required this.status,
+    required this.available,
+    required this.connected,
+    required this.description,
+    required this.activeCount,
+  });
+
+  final String code;
+  final String owner;
+  final String kind;
+  final String displayName;
+  final String status;
+  final bool available;
+  final bool connected;
+  final String description;
+  final int activeCount;
+
+  factory DomainIntegrationProjection.fromJson(Map<String, dynamic> json) {
+    return DomainIntegrationProjection(
+      code: json['code'] is String ? json['code'] as String : '',
+      owner: json['owner'] is String ? json['owner'] as String : '',
+      kind: json['kind'] is String ? json['kind'] as String : '',
+      displayName: json['display_name'] is String
+          ? json['display_name'] as String
+          : '',
+      status: json['status'] is String ? json['status'] as String : '',
+      available: json['available'] == true,
+      connected: json['connected'] == true,
+      description: json['description'] is String
+          ? json['description'] as String
+          : '',
+      activeCount: json['active_count'] is int
+          ? json['active_count'] as int
+          : 0,
+    );
+  }
+}
+
 class ProfileInteroperabilityProjection {
   const ProfileInteroperabilityProjection({
     required this.schemaVersion,
@@ -150,6 +194,7 @@ class ProfileInteroperabilityProjection {
     required this.connections,
     required this.actions,
     required this.extensions,
+    this.domainIntegrations = const [],
     required this.receivedAt,
   });
 
@@ -158,13 +203,15 @@ class ProfileInteroperabilityProjection {
   final List<InteroperabilityConnectionProjection> connections;
   final List<InteroperabilityActionProjection> actions;
   final List<InteroperabilityExtensionProjection> extensions;
+  final List<DomainIntegrationProjection> domainIntegrations;
   final DateTime receivedAt;
 
   bool get isEmpty =>
       providers.isEmpty &&
       connections.isEmpty &&
       actions.isEmpty &&
-      extensions.isEmpty;
+      extensions.isEmpty &&
+      domainIntegrations.isEmpty;
 
   factory ProfileInteroperabilityProjection.fromStored(
     StoredProjection stored,
@@ -193,6 +240,10 @@ class ProfileInteroperabilityProjection {
       extensions: _maps(payload['extensions'])
           .map(InteroperabilityExtensionProjection.fromJson)
           .where((extension) => extension.available && extension.enabled)
+          .toList(growable: false),
+      domainIntegrations: _maps(payload['domain_integrations'])
+          .map(DomainIntegrationProjection.fromJson)
+          .where((item) => item.code.isNotEmpty && item.owner.isNotEmpty)
           .toList(growable: false),
       receivedAt: stored.receivedAt,
     );

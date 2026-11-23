@@ -8,6 +8,7 @@ from .views import (
     NotificationUnreadCountAPIView,
     NotificationUnreadPresenceAPIView,
     PushEndpointAPIView,
+    PushEndpointDetailAPIView,
 )
 
 
@@ -17,6 +18,7 @@ urlpatterns = [
     path("unread-presence/", NotificationUnreadPresenceAPIView.as_view(), name="notification-unread-presence"),
     path("read-all/", NotificationMarkAllReadAPIView.as_view(), name="notification-read-all"),
     path("push/endpoints/", PushEndpointAPIView.as_view(), name="push-endpoint"),
+    path("push/endpoints/<uuid:pk>/", PushEndpointDetailAPIView.as_view(), name="push-endpoint-detail"),
     path("<uuid:pk>/", NotificationDetailAPIView.as_view(), name="notification-detail"),
     path("<uuid:pk>/read/", NotificationMarkReadAPIView.as_view(), name="notification-read"),
 ]

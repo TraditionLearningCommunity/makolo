@@ -76,3 +76,28 @@ When changing CI:
 6. after changing trigger policy, verify the workflow files themselves and observe the PR checks before merge.
 
 Path filtering is an optimization, not a weakening of product contracts.
+
+## Funding full-diff impact gate (November 2026)
+
+The Funding PostgreSQL workflow uses a lightweight `scope` job before provisioning
+PostgreSQL. This evaluates the **complete change set** (`base...head` for PRs,
+`before..head` for pushes), not only the latest commit. The check uses a full
+checkout rather than relying solely on GitHub's first-300-file PR path filter.
+
+The heavy Funding suite still runs for changes in Funding itself or in the
+upstream surfaces its tests exercise: Activity, Payments, identity/authority,
+Commerce/Subscriptions, Discovery, social/topic context, geography, shared
+core/configuration/templates, tooling and dependencies. On missing history,
+unavailable diff or ambiguous revision, the scope defaults to **run**.
+
+A manual `workflow_dispatch` runs the complete suite regardless of changed
+paths. Changes to the workflow file itself also run the suite. This is an
+optimization of runner allocation, not a removal of Funding tests or a
+substitute for the broader required CI. Do not make a failing Funding check
+green by removing the affected path from its scope.
+
+For an unusually large cumulative PR such as #522, any relevant Funding
+change anywhere in the PR still selects the complete Funding suite even if
+the latest commit is mobile-only. Optimizing a single-commit feedback loop
+further would require a separately enforced cumulative pre-merge gate;
+do not silently switch the required tests to only the latest commit.

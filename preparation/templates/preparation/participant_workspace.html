@@ -1,1 +1,54 @@
-<section class="mk-panel p-5 sm:p-6"><h2 class="font-extrabold">Formulaires</h2><div class="mt-4 space-y-3">{% for item in form_requests %}<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)"><div><p class="font-bold">{{ item.form_version.title }}</p><p class="text-xs" style="color:var(--mk-subtle)">{% if item.status == 'completed' %}Soumis{% elif item.response %}En cours{% else %}À compléter{% endif %}{% if item.due_at %} · avant le {{ item.due_at|date:'d/m/Y H:i' }}{% endif %}</p></div><a class="mk-btn mk-btn-secondary" href="{% url 'questionnaires:request-detail' item.pk %}">{% if item.status == 'completed' %}Relire{% elif item.response %}Continuer{% else %}Ouvrir{% endif %}</a></div>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun formulaire demandé.</p>{% endfor %}</div></section><section class="mk-panel p-5 sm:p-6"><h2 class="font-extrabold">Documents et instructions</h2><div class="mt-4 space-y-3">{% for resource in resources %}<article class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><div class="flex flex-wrap items-center justify-between gap-2"><div><p class="font-bold">{{ resource.title }}</p><p class="text-xs" style="color:var(--mk-subtle)">Version {{ resource.version }}{% if resource.occurrence_id %} · pour cette occurrence{% endif %}</p></div>{% if resource.kind == 'file' %}<a class="mk-btn mk-btn-secondary" href="{% url 'preparation:resource-download' resource.pk %}">Télécharger</a>{% elif resource.kind == 'url' %}<a class="mk-btn mk-btn-secondary" href="{{ resource.external_url }}" rel="noopener noreferrer">Ouvrir</a>{% endif %}</div>{% if resource.description %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ resource.description }}</p>{% endif %}{% if resource.kind == 'text' %}<p class="mt-3 whitespace-pre-line text-sm">{{ resource.text_content }}</p>{% endif %}</article>{% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucun document ou instruction supplémentaire.</p>{% endfor %}</div></section>
+{% if form_requests %}
+<section class="mk-panel p-4 sm:p-5" aria-labelledby="journey-preparation-forms">
+  <h2 id="journey-preparation-forms" class="font-bold">Mes formulaires</h2>
+  <ul class="mt-2 divide-y" style="border-color:var(--mk-border)">
+    {% for item in form_requests %}
+    <li class="flex flex-wrap items-center justify-between gap-3 py-3">
+      <div class="min-w-0 flex-1">
+        <p class="font-semibold">{{ item.form_version.title }}</p>
+        <p class="text-sm" style="color:var(--mk-muted)">
+          {% if item.status == 'completed' %}Soumis{% elif item.response %}En cours{% else %}À compléter{% endif %}
+          {% if item.due_at %} · avant le {{ item.due_at|date:'d/m/Y H:i' }}{% endif %}
+        </p>
+      </div>
+      <a class="mk-btn mk-btn-secondary" href="{% url 'questionnaires:request-detail' item.pk %}">
+        {% if item.status == 'completed' %}Relire{% elif item.response %}Continuer{% else %}Ouvrir{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% if resources %}
+<section class="mk-panel p-4 sm:p-5" aria-labelledby="journey-preparation-resources">
+  <h2 id="journey-preparation-resources" class="font-bold">Documents et ressources</h2>
+  <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+    {% for resource in resources %}
+    <article class="min-w-0 rounded-xl p-3" style="background:var(--mk-surface-muted)">
+      {% if resource.kind == 'text' %}
+      <details>
+        <summary class="cursor-pointer font-semibold break-words">
+          <i data-lucide="align-left" class="inline-block h-5 w-5 mr-1" aria-hidden="true"></i>
+          {{ resource.title }}
+        </summary>
+        {% if resource.text_content %}<p class="mt-2 text-sm whitespace-pre-line break-words">{{ resource.text_content }}</p>{% endif %}
+      </details>
+      {% else %}
+      <div class="font-semibold break-words">
+        {% if resource.kind == 'file' %}<i data-lucide="file-text" class="inline-block h-5 w-5 mr-1" aria-hidden="true"></i>
+        {% elif resource.kind == 'url' %}<i data-lucide="external-link" class="inline-block h-5 w-5 mr-1" aria-hidden="true"></i>
+        {% else %}<i data-lucide="folder" class="inline-block h-5 w-5 mr-1" aria-hidden="true"></i>{% endif %}
+        {{ resource.title }}
+      </div>
+      {% endif %}
+      {% if resource.description %}<p class="mt-1 text-xs break-words" style="color:var(--mk-muted)">{{ resource.description|truncatechars:85 }}</p>{% endif %}
+      {% if resource.kind == 'file' %}
+      <a class="mt-2 inline-block text-sm font-semibold" href="{% url 'preparation:resource-download' resource.pk %}">Télécharger</a>
+      {% elif resource.kind == 'url' and resource.external_url %}
+      <a class="mt-2 inline-block text-sm font-semibold" href="{{ resource.external_url }}" rel="noopener noreferrer">Ouvrir le lien</a>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

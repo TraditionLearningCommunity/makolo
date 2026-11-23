@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
@@ -35,7 +37,11 @@ class ProfileFileStore {
     required this.profileId,
     required this.privateDirectory,
     required this.stagingDirectory,
-  });
+  }) {
+    if (profileId.trim().isEmpty) {
+      throw ArgumentError.value(profileId, 'profileId');
+    }
+  }
 
   final MakoloDatabase database;
   final String profileId;
@@ -86,21 +92,42 @@ class ProfileFileStore {
     required String sensitivity,
     required Future<void> Function(String destinationPath) writeTo,
   }) async {
-    await stagingDirectory.create(recursive: true);
-    final target = File(
-      '${stagingDirectory.path}/${_safeName(fileId)}'
-      '${_safeSuffix(sourceFilename)}',
-    );
-    if (await target.exists()) await target.delete();
+    if (fileId.trim().isEmpty ||
+        owner.trim().isEmpty ||
+        purpose.trim().isEmpty ||
+        sensitivity.trim().isEmpty) {
+      throw ArgumentError(
+        'FileRecord identity, owner and purpose are required',
+      );
+    }
+    // FileRecord.file_id is a global PK in Drift v2. Never overwrite a file
+    // belonging to another Profile, or an older staged intent with the same
+    // ID. A new capture requires a new opaque file ID.
+    final existing = await (database.select(
+      database.fileRecords,
+    )..where((row) => row.fileId.equals(fileId))).getSingleOrNull();
+    if (existing != null) {
+      throw StateError('File ID already belongs to a durable FileRecord');
+    }
 
+    await stagingDirectory.create(recursive: true);
+    final suffix = _safeSuffix(sourceFilename);
+    // Random physical name: source filenames, file IDs, tokens and PII never
+    // become filesystem names. Each attempt is independent even after a
+    // competing process loses the SQLite primary-key insert.
+    final target = File(
+      '${stagingDirectory.path}/stage-${_randomKey()}$suffix',
+    );
+    final partial = File('${target.path}.part');
     try {
-      await writeTo(target.path);
-      if (!await target.exists()) {
+      await writeTo(partial.path);
+      if (!await partial.exists() || await partial.length() == 0) {
         throw FileSystemException(
-          'Staging writer did not create the expected file.',
-          target.path,
+          'Staging writer did not produce a complete nonempty file.',
+          partial.path,
         );
       }
+      await partial.rename(target.path);
       return await _record(
         fileId: fileId,
         owner: owner,
@@ -109,6 +136,7 @@ class ProfileFileStore {
         sensitivity: sensitivity,
       );
     } on Object {
+      if (await partial.exists()) await partial.delete();
       if (await target.exists()) await target.delete();
       rethrow;
     }
@@ -124,7 +152,7 @@ class ProfileFileStore {
     final now = DateTime.now().toUtc();
     await database
         .into(database.fileRecords)
-        .insertOnConflictUpdate(
+        .insert(
           FileRecordsCompanion.insert(
             fileId: fileId,
             profileId: profileId,
@@ -135,6 +163,7 @@ class ProfileFileStore {
             reconstructible: const Value(false),
             createdAt: now,
           ),
+          mode: InsertMode.insertOrAbort,
         );
 
     return StoredLocalFile(
@@ -156,6 +185,10 @@ class ProfileFileStore {
       );
     final row = await query.getSingleOrNull();
     if (row == null) return null;
+    if (!_isInside(row.localPath, privateDirectory) &&
+        !_isInside(row.localPath, stagingDirectory)) {
+      throw StateError('FileRecord points outside this Profile sandbox');
+    }
     return _stored(row);
   }
 
@@ -174,11 +207,114 @@ class ProfileFileStore {
   }) async {
     var removed = 0;
     for (final file in await stagedFiles()) {
-      if (!await canRemove(file)) continue;
+      if (!await canRemove(file) || await _referencedByLocalWork(file)) {
+        continue;
+      }
       await remove(file.fileId);
       removed += 1;
     }
     return removed;
+  }
+
+  /// Cleanup of orphaned transfer attempts after a crash. This never
+  /// removes tracked FileRecords, user drafts or private durable copies.
+  /// Recent partial files are left alone in case a writer is still active.
+  Future<int> cleanupInterruptedStaging({
+    Duration olderThan = const Duration(days: 1),
+  }) async {
+    if (olderThan <= Duration.zero) {
+      throw ArgumentError.value(olderThan, 'olderThan');
+    }
+    if (!await stagingDirectory.exists()) return 0;
+    final tracked = await (database.select(
+      database.fileRecords,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    final paths = tracked.map((row) => p.normalize(row.localPath)).toSet();
+    final cutoff = DateTime.now().toUtc().subtract(olderThan);
+    var removed = 0;
+    await for (final entry in stagingDirectory.list(followLinks: false)) {
+      if (entry is! File ||
+          !p.basename(entry.path).startsWith('stage-') ||
+          paths.contains(p.normalize(entry.path))) {
+        continue;
+      }
+      final modified = (await entry.stat()).modified.toUtc();
+      if (modified.isAfter(cutoff)) continue;
+      await entry.delete();
+      removed++;
+    }
+    return removed;
+  }
+
+  /// Crash leftovers from a private promotion: the last durable copy
+  /// always remains in staging until FileRecords points to the destination.
+  /// Do not touch any tracked private copy or older legacy filename.
+  Future<int> cleanupInterruptedPrivateCopies({
+    Duration olderThan = const Duration(days: 1),
+  }) async {
+    if (olderThan <= Duration.zero) {
+      throw ArgumentError.value(olderThan, 'olderThan');
+    }
+    if (!await privateDirectory.exists()) return 0;
+    final records = await (database.select(
+      database.fileRecords,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    final tracked = records.map((r) => p.normalize(r.localPath)).toSet();
+    final cutoff = DateTime.now().toUtc().subtract(olderThan);
+    var removed = 0;
+    await for (final entity in privateDirectory.list(followLinks: false)) {
+      if (entity is! File ||
+          !p.basename(entity.path).startsWith('stage-') ||
+          tracked.contains(p.normalize(entity.path))) {
+        continue;
+      }
+      final modified = (await entity.stat()).modified.toUtc();
+      if (modified.isAfter(cutoff)) continue;
+      await entity.delete();
+      removed++;
+    }
+    return removed;
+  }
+
+  /// Never delete files still named by a draft or unresolved outbox intent.
+  /// This is a conservative technical reference check, not a business owner.
+  Future<bool> _referencedByLocalWork(StoredLocalFile file) async {
+    final drafts = await (database.select(
+      database.localDrafts,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    for (final row in drafts) {
+      if (_payloadReferencesFile(row.payloadJson, file)) return true;
+    }
+    final operations =
+        await (database.select(database.outboxOperations)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.state.isNotIn(['confirmed', 'cancelled']),
+            ))
+            .get();
+    for (final row in operations) {
+      if (_payloadReferencesFile(row.payloadJson, file)) return true;
+    }
+    return false;
+  }
+
+  bool _payloadReferencesFile(String raw, StoredLocalFile file) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on Object {
+      return true; // Malformed active work is not safely disposable.
+    }
+    bool match(Object? value) {
+      if (value is String) {
+        return value == file.fileId || value == file.path;
+      }
+      if (value is List) return value.any(match);
+      if (value is Map) return value.values.any(match);
+      return false;
+    }
+
+    return match(decoded);
   }
 
   Future<StoredLocalFile> promoteToPrivate(String fileId) async {
@@ -190,26 +326,52 @@ class ProfileFileStore {
       throw FileSystemException('Recorded file is missing.', record.path);
     }
 
-    await privateDirectory.create(recursive: true);
-    final suffix = _safeSuffix(current.uri.pathSegments.last);
-    final destination = File(
-      '${privateDirectory.path}/${_safeName(fileId)}$suffix',
-    );
-    if (await destination.exists()) await destination.delete();
-    await current.copy(destination.path);
-    if (current.path != destination.path && await current.exists()) {
-      await current.delete();
+    if (_isInside(current.path, privateDirectory)) return record;
+    if (!_isInside(current.path, stagingDirectory)) {
+      throw StateError('Cannot promote a file outside Profile staging');
     }
-
-    await (database.update(database.fileRecords)..where(
-          (row) => row.profileId.equals(profileId) & row.fileId.equals(fileId),
-        ))
-        .write(
-          FileRecordsCompanion(
-            localPath: Value(destination.path),
-            reconstructible: const Value(false),
-          ),
-        );
+    await privateDirectory.create(recursive: true);
+    final destination = File(
+      '${privateDirectory.path}/${p.basename(current.path)}',
+    );
+    final partial = File('${destination.path}.part-${_randomKey()}');
+    try {
+      await current.copy(partial.path);
+      if (await partial.length() == 0) {
+        throw const FileSystemException('Empty promoted file');
+      }
+      // On a previous interrupted promotion the destination can exist while
+      // SQLite still names staging. Never destroy the last staging copy.
+      if (await destination.exists()) {
+        await destination.delete();
+      }
+      await partial.rename(destination.path);
+      final changed =
+          await (database.update(database.fileRecords)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.fileId.equals(fileId) &
+                    row.localPath.equals(current.path),
+              ))
+              .write(
+                FileRecordsCompanion(
+                  localPath: Value(destination.path),
+                  reconstructible: const Value(false),
+                ),
+              );
+      if (changed != 1) {
+        throw StateError('FileRecord changed during private promotion');
+      }
+    } finally {
+      if (await partial.exists()) await partial.delete();
+    }
+    // Only remove the old bytes AFTER the metadata points to the durable
+    // copy. A crash before this line leaves two copies, not zero copies.
+    try {
+      if (await current.exists()) await current.delete();
+    } on FileSystemException {
+      // Stale staging bytes are handled by bounded orphan cleanup.
+    }
 
     return StoredLocalFile(
       fileId: record.fileId,
@@ -254,13 +416,15 @@ class ProfileFileStore {
     return candidate == root || p.isWithin(root, candidate);
   }
 
-  static String _safeName(String value) =>
-      value.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+  static final Random _secureRandom = Random.secure();
+  static String _randomKey() => List<int>.generate(
+    16,
+    (_) => _secureRandom.nextInt(256),
+  ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
   static String _safeSuffix(String filename) {
-    final dot = filename.lastIndexOf('.');
-    if (dot < 0 || dot == filename.length - 1) return '';
-    final extension = filename.substring(dot);
-    return extension.replaceAll(RegExp(r'[^A-Za-z0-9.]'), '');
+    final extension = p.extension(filename);
+    if (!RegExp(r'^\.[A-Za-z0-9]{1,10}$').hasMatch(extension)) return '';
+    return extension.toLowerCase();
   }
 }

@@ -54,8 +54,8 @@ _SUBSCRIPTION_STATUS = {
 }
 
 _TRANSITION_STATUS = {
-    SubscriptionTransitionStatus.REQUESTED: ("Demande reçue", "Votre demande a bien été enregistrée."),
-    SubscriptionTransitionStatus.IN_PROGRESS: ("En cours", "Makolo vérifie la demande en cours."),
+    SubscriptionTransitionStatus.REQUESTED: ("Choix enregistré", "Makolo prépare la suite de votre changement."),
+    SubscriptionTransitionStatus.IN_PROGRESS: ("À finaliser", "Le paiement ou une condition du changement reste à finaliser."),
     SubscriptionTransitionStatus.READY: ("Prête", "Le changement peut maintenant être finalisé."),
     SubscriptionTransitionStatus.COMPLETED: ("Terminée", "Le changement de formule est terminé."),
     SubscriptionTransitionStatus.REJECTED: ("Non aboutie", "La demande ne peut pas être finalisée."),
@@ -65,10 +65,10 @@ _TRANSITION_STATUS = {
 }
 
 _ELIGIBILITY_STATUS = {
-    PlanEligibilityStatus.AVAILABLE: ("Disponible", "Cette formule peut être demandée.", "success"),
+    PlanEligibilityStatus.AVAILABLE: ("Disponible", "Vous pouvez choisir cette formule.", "success"),
     PlanEligibilityStatus.CONDITIONALLY_AVAILABLE: (
         "Conditions à remplir",
-        "Cette formule peut être demandée, mais certaines conditions doivent encore être remplies.",
+        "Certaines conditions doivent être remplies avant son activation.",
         "warning",
     ),
     PlanEligibilityStatus.NOT_ELIGIBLE: (
@@ -115,6 +115,14 @@ def _item_card(item):
     }
 
 
+# Presentation wording only: FeatureDefinition remains the canonical technical catalog.
+_CAPABILITY_COPY = {
+    "activities.create": "Créez et organisez vos activités dans Makolo.",
+    "team.members": "Nombre de personnes pouvant collaborer dans votre Espace.",
+    "custom_roles": "Définissez des responsabilités adaptées à votre Espace.",
+}
+
+
 def _capability_rows(subscription):
     results = resolve_effective_entitlements(subscription.subject)
     active = {code: result for code, result in results.items() if result.effective_value is not None}
@@ -140,7 +148,7 @@ def _capability_rows(subscription):
             {
                 "code": code,
                 "name": feature.name,
-                "description": feature.description,
+                "description": _CAPABILITY_COPY.get(code, feature.description),
                 "value": result.effective_value,
                 "value_label": value_label,
                 "usage": result.usage,
@@ -217,7 +225,11 @@ def _catalog_rows(subscription, active_items):
         label, explanation, tone = _ELIGIBILITY_STATUS[result.status]
         if result.status == PlanEligibilityStatus.CONDITIONALLY_AVAILABLE and not requirements:
             label = "Disponibilité à confirmer"
-            explanation = "Cette formule peut être demandée. Sa disponibilité finale sera confirmée après la demande."
+            explanation = "Cette formule nécessite encore une vérification de ses conditions."
+        if current:
+            label = "Formule actuelle"
+            explanation = "Cette formule est déjà incluse dans votre abonnement."
+            tone = "neutral"
         rows.append(
             {
                 "plan_version_id": str(version.pk),
@@ -296,6 +308,18 @@ def _ongoing_rows(subscription):
     return tuple(rows)
 
 
+def _effective_funded_base(subscription):
+    """Present the same effective BASE as Entitlements, retaining the personal fallback."""
+    from .contracts import SubscriptionPlanType
+    from .coverage_entitlements import resolved_funded_allocations
+
+    for allocation in resolved_funded_allocations(subscription.subject):
+        version = allocation.coverage.plan_version
+        if allocation.selected_base and version.plan.plan_type == SubscriptionPlanType.BASE:
+            return allocation
+    return None
+
+
 def build_subscription_product_view(subscription, *, can_manage, include_catalog=True):
     active_items = list(
         SubscriptionItem.objects.filter(
@@ -313,6 +337,23 @@ def build_subscription_product_view(subscription, *, can_manage, include_catalog
     addon_items = tuple(
         item for item in active_items if item.item_type == SubscriptionPlanType.ADDON
     )
+    funded_base = _effective_funded_base(subscription)
+    personal_base_card = _item_card(base_item) if base_item else None
+    if funded_base is not None:
+        version = funded_base.coverage.plan_version
+        current_base_card = {
+            "item_id": None,
+            "plan_version_id": str(version.pk),
+            "name": version.name,
+            "description": version.short_description,
+            "benefits": _benefits(version),
+            "kind": SubscriptionPlanType.BASE,
+            "funded": True,
+            "allocation_id": str(funded_base.pk),
+            "personal_fallback": personal_base_card,
+        }
+    else:
+        current_base_card = personal_base_card
     label, explanation, tone = _SUBSCRIPTION_STATUS[subscription.status]
     return SubscriptionProductView(
         subscription=subscription,
@@ -325,7 +366,7 @@ def build_subscription_product_view(subscription, *, can_manage, include_catalog
             "tone": tone,
             "grace_until": subscription.grace_until,
         },
-        current_base=_item_card(base_item) if base_item else None,
+        current_base=current_base_card,
         active_addons=tuple(_item_card(item) for item in addon_items),
         capabilities=_capability_rows(subscription),
         catalog=_catalog_rows(subscription, active_items) if include_catalog else (),

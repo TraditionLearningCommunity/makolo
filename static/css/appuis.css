@@ -1,0 +1,267 @@
+/* Appuis: shared Profile / Space presentation, scoped to one surface. */
+[data-mk-surface="appuis"] {
+  --ap-primary: #5232db;
+  --ap-deep: #2b176e;
+  --ap-coral: #ff704d;
+  --ap-muted: #64748b;
+  --ap-border: #e8e1df;
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: 24px clamp(16px, 4vw, 36px) 60px;
+  color: #0f172a;
+}
+[data-mk-surface="appuis"] * { box-sizing: border-box; }
+[data-mk-surface="appuis"] .ap-back {
+  display: inline-flex; align-items: center; gap: 7px;
+  text-decoration: none; color: var(--ap-deep); font-weight: 650;
+}
+[data-mk-surface="appuis"] .ap-intro { margin: 14px 0 22px; }
+[data-mk-surface="appuis"] .ap-intro h1 {
+  font-size: clamp(1.6rem, 3.5vw, 2.2rem); line-height: 1.2;
+  font-weight: 800; margin: 0 0 7px;
+}
+[data-mk-surface="appuis"] .ap-intro p {
+  margin: 0; color: var(--ap-muted); font-size: .97rem;
+}
+[data-mk-surface="appuis"] .ap-hero {
+  border-radius: 22px; padding: clamp(18px, 3vw, 28px);
+  color: #fff; background: linear-gradient(117deg,#5232db,#2b176e);
+}
+[data-mk-surface="appuis"] .ap-hero-title {
+  font-size: 1.3rem; font-weight: 800; margin: 0;
+}
+[data-mk-surface="appuis"] .ap-hero-desc {
+  color: #e9e3ff; font-size: .86rem; margin: 4px 0 0;
+}
+[data-mk-surface="appuis"] .ap-metrics {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px; margin-top: 19px;
+}
+[data-mk-surface="appuis"] .ap-metric {
+  min-width: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: #f1ebff; color: #2b176e;
+  padding: 14px 8px 12px; border-radius: 16px; text-align: center;
+}
+[data-mk-surface="appuis"] .ap-metric svg {
+  width: 24px; height: 24px; color: #5232db;
+}
+[data-mk-surface="appuis"] .ap-metric strong {
+  font-size: 1.55rem; line-height: 1.4; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+[data-mk-surface="appuis"] .ap-metric span { font-size: .78rem; }
+[data-mk-surface="appuis"] .ap-hero--single { padding: 12px 18px; }
+[data-mk-surface="appuis"] .ap-hero--single :is(.ap-hero-title,.ap-hero-desc) {
+  display: none;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metrics {
+  display: flex; margin-top: 0;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric {
+  display: flex; flex-direction: row; align-items: center; justify-content: flex-start;
+  flex: 1; background: transparent; color: #fff; gap: 10px;
+  min-width: 0; padding: 0; text-align: left;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric :is(svg,strong,span) {
+  color: #fff;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric strong {
+  font-size: 1.18rem;
+}
+[data-mk-surface="appuis"] .ap-hero--single .ap-metric span { font-size: .95rem; }
+[data-mk-surface="appuis"] .ap-filters {
+  display: flex; gap: 8px; overflow-x: auto; padding-block: 18px 4px;
+  scrollbar-width: thin;
+}
+[data-mk-surface="appuis"] .ap-filter {
+  white-space: nowrap; border: 1px solid #dfd8e4;
+  background: transparent; color: #2b176e;
+  border-radius: 999px; padding: 9px 17px;
+  font: inherit; font-size: .88rem; cursor: pointer;
+}
+[data-mk-surface="appuis"] .ap-filter[aria-pressed="true"] {
+  border-color: transparent; background: #e6dfff;
+  font-weight: 700; color: #5232db;
+}
+[data-mk-surface="appuis"] .ap-family { margin-top: 22px; }
+[data-mk-surface="appuis"] .ap-family[hidden] { display: none; }
+[data-mk-surface="appuis"] .ap-section-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+}
+[data-mk-surface="appuis"] .ap-section-head h2 {
+  margin: 0; flex: 1; font-size: 1.2rem; font-weight: 750;
+}
+[data-mk-surface="appuis"] .ap-section-head > svg {
+  width: 24px; height: 24px; color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] .ap-see-all {
+  font-size: .86rem; white-space: nowrap; color: var(--ap-primary);
+  font-weight: 700; text-decoration: none;
+}
+[data-mk-surface="appuis"] .ap-grid {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 12px;
+}
+[data-mk-surface="appuis"] .ap-card {
+  display: flex; gap: 12px; min-width: 0;
+  align-items: center; border: 1px solid var(--ap-border);
+  background: #fff; text-decoration: none; color: inherit;
+  border-radius: 18px; padding: 15px; transition: border-color .12s;
+}
+[data-mk-surface="appuis"] a.ap-card:hover {
+  border-color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] .ap-card-symbol {
+  flex: 0 0 46px; height: 46px; display: grid; place-items: center;
+  border-radius: 14px; background: #f0eaff; color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] .ap-card-symbol svg { width: 23px; height: 23px; }
+[data-mk-surface="appuis"] .ap-card-copy { min-width: 0; flex: 1; }
+[data-mk-surface="appuis"] .ap-card-copy strong {
+  display: block; font-weight: 750; overflow-wrap: anywhere; line-height: 1.35;
+}
+[data-mk-surface="appuis"] .ap-card-copy small {
+  display: block; color: var(--ap-muted); margin-top: 4px;
+  overflow-wrap: anywhere; line-height: 1.35;
+}
+[data-mk-surface="appuis"] .ap-card-copy em {
+  display: block; font-style: normal; font-size: .78rem;
+  font-weight: 700; color: var(--ap-primary); margin-top: 5px;
+}
+[data-mk-surface="appuis"] .ap-card > svg {
+  width: 18px; height: 18px; flex: 0 0 auto; color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] [data-appuis-more][hidden] { display: none; }
+[data-mk-surface="appuis"] .ap-additional[hidden] { display: none; }
+[data-mk-surface="appuis"] .ap-expand {
+  display: inline-flex; gap: 7px; align-items: center;
+  border: 0; color: var(--ap-primary); background: transparent;
+  font: inherit; font-weight: 700; cursor: pointer; padding: 12px 0;
+}
+[data-mk-surface="appuis"] .ap-family-detail {
+  margin-top: 15px; padding: 12px 14px;
+  border: 1px solid var(--ap-border); border-radius: 16px;
+  background: #fff;
+}
+[data-mk-surface="appuis"] .ap-family-detail summary {
+  cursor: pointer; font-weight: 700; color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] .ap-family-detail .ap-grid { margin-top: 13px; }
+[data-mk-surface="appuis"] .ap-family-detail .ap-card { background: #fcfbff; }
+[data-mk-surface="appuis"] .ap-note,
+[data-mk-surface="appuis"] .ap-empty { color: var(--ap-muted); }
+[data-mk-surface="appuis"] .ap-empty {
+  border: 1px solid var(--ap-border); border-radius: 18px; padding: 22px;
+}
+[data-mk-surface="appuis"] :is(button,a):focus-visible {
+  outline: 3px solid #ff704d; outline-offset: 3px;
+}
+@media (max-width: 690px) {
+  [data-mk-surface="appuis"] .ap-grid { grid-template-columns: 1fr; }
+  [data-mk-surface="appuis"] .ap-metrics {
+    grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px;
+  }
+  [data-mk-surface="appuis"] .ap-metric { padding: 10px 5px; }
+  [data-mk-surface="appuis"] .ap-metric strong { font-size: 1.25rem; }
+  [data-mk-surface="appuis"] .ap-metric span { font-size: .65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-mk-surface="appuis"] .ap-card { transition: none; }
+}
+
+
+/* Appuis v2: one useful Recognition card, one direct spending level. */
+[data-mk-surface="appuis"] .ap-recognition {
+  border-radius: 20px;
+  padding: clamp(17px, 3vw, 24px);
+  color: white;
+  background: linear-gradient(120deg, #5232db, #2b176e);
+}
+[data-mk-surface="appuis"] .ap-recognition-title {
+  display: flex; align-items: center; gap: 10px;
+}
+[data-mk-surface="appuis"] .ap-recognition-title svg {
+  color: #f3da91; width: 26px; height: 26px;
+}
+[data-mk-surface="appuis"] .ap-recognition-title h2 {
+  margin: 0; color: #fff; font-size: 1.08rem; font-weight: 750;
+}
+[data-mk-surface="appuis"] .ap-recognition-credits {
+  display: block; font-size: clamp(1.6rem, 4vw, 2.2rem);
+  font-weight: 800; line-height: 1.25; margin-top: 18px;
+  font-variant-numeric: tabular-nums;
+}
+[data-mk-surface="appuis"] .ap-recognition-credits span {
+  font-size: .96rem; font-weight: 600;
+}
+[data-mk-surface="appuis"] .ap-recognition-pending {
+  display: block; margin-top: 7px; font-size: .84rem; color: #e5ddff;
+}
+[data-mk-surface="appuis"] .ap-recognition-action {
+  margin-top: 18px; display: flex; align-items: center; gap: 12px;
+  padding: 13px 15px; border-radius: 13px; text-decoration: none;
+  background: #fff; color: #2b176e; font-weight: 750;
+}
+[data-mk-surface="appuis"] .ap-recognition-action svg {
+  width: 20px; height: 20px; color: #5232db;
+}
+[data-mk-surface="appuis"] .ap-recognition-action svg:last-child {
+  margin-left: auto;
+}
+[data-mk-surface="appuis"] .ap-spend-balance {
+  display: flex; align-items: center; gap: 13px;
+  padding: 18px 20px; border-radius: 18px;
+  color: #fff; background: linear-gradient(120deg,#5232db,#2b176e);
+}
+[data-mk-surface="appuis"] .ap-spend-balance svg {
+  width: 28px; height: 28px; color: #f3da91;
+}
+[data-mk-surface="appuis"] .ap-spend-balance strong {
+  font-size: clamp(1.3rem, 3vw, 1.75rem); font-variant-numeric: tabular-nums;
+}
+[data-mk-surface="appuis"] .ap-money {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 16px; border: 1px solid var(--ap-border);
+  border-radius: 17px; margin-top: 16px; background: #fff;
+}
+[data-mk-surface="appuis"] .ap-money small {
+  display: block; color: var(--ap-muted);
+}
+[data-mk-surface="appuis"] .ap-money strong {
+  display: block; font-size: 1.3rem; margin-top: 4px;
+}
+[data-mk-surface="appuis"] .ap-money button {
+  padding: 10px 19px; border: 1px solid var(--ap-border);
+  border-radius: 12px; background: #f2f1f4; color: #777;
+  cursor: not-allowed; opacity: .7;
+}
+[data-mk-surface="appuis"] .ap-credit-reward {
+  min-width: 0; display: flex; gap: 11px; align-items: center;
+  border: 1px solid var(--ap-border); border-radius: 17px;
+  padding: 13px; background: #fff;
+}
+[data-mk-surface="appuis"] .ap-credit-reward .ap-card-copy {
+  min-width: 0; flex: 1; line-height: 1.35;
+}
+[data-mk-surface="appuis"] .ap-credit-reward button {
+  flex: 0 0 auto; border-radius: 11px; border: 0;
+  background: var(--ap-primary); color: #fff;
+  font: inherit; font-size: .85rem; font-weight: 700;
+  padding: 10px 12px; cursor: pointer;
+}
+[data-mk-surface="appuis"] .ap-credit-reward button:disabled {
+  background: #ddd8e7; color: #555; cursor: not-allowed;
+}
+[data-mk-surface="appuis"] .ap-feedback {
+  margin-top: 16px; color: #7f1d1d; font-weight: 650;
+}
+@media (max-width: 420px) {
+  [data-mk-surface="appuis"] .ap-credit-reward {
+    flex-wrap: wrap;
+  }
+  [data-mk-surface="appuis"] .ap-credit-reward button {
+    margin-left: 59px;
+  }
+}

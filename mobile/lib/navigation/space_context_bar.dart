@@ -44,7 +44,11 @@ class MakoloSpaceContextBar extends StatelessWidget {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final width = (constraints.maxWidth - MakoloSpacing.sm) / 2;
+                  // Give the actor and perspective full readable labels on
+                  // compact phones instead of truncating the authority scope.
+                  final width = constraints.maxWidth < 520
+                      ? constraints.maxWidth
+                      : (constraints.maxWidth - MakoloSpacing.sm) / 2;
                   return Wrap(
                     spacing: MakoloSpacing.sm,
                     runSpacing: MakoloSpacing.xs,
@@ -219,7 +223,7 @@ class _ContextButton extends StatelessWidget {
       icon: Icon(icon, size: 18),
       label: Align(
         alignment: Alignment.centerLeft,
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),

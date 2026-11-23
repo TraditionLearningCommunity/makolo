@@ -1,0 +1,10 @@
+{% if subscription_handoff %}
+<section class="mk-panel p-4 sm:p-5" aria-label="Continuer après un blocage d’abonnement">
+  <span class="mk-kicker">Pour avancer</span>
+  <p class="mt-2 text-sm" style="color:var(--mk-text)">{{ subscription_handoff.message }}</p>
+  {% if subscription_handoff.url %}
+    <a class="mk-btn mk-btn-secondary mt-3" href="{{ subscription_handoff.url }}">Comprendre dans l’abonnement</a>
+    <p class="mt-2 text-xs" style="color:var(--mk-muted)">Revenir à l’action ne la confirme pas automatiquement. Vos saisies peuvent devoir être reprises.</p>
+  {% endif %}
+</section>
+{% endif %}

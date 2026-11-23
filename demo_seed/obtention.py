@@ -24,9 +24,9 @@ def _space(owner):
         Organization,
         "beta-obtention",
         defaults={
-            "name": "Makolo Beta Obtention",
+            "name": "Espace des démarches et ressources",
             "slug": "beta-obtention",
-            "description": "Espace fictif pour démontrer la verticale Obtention.",
+            "description": "Accès aux démarches, ressources et informations de mise à disposition.",
             "contact_email": "contact.beta.obtention@makolo.test",
             "country": "CD",
             "city": "Lubumbashi",
@@ -52,6 +52,17 @@ def _ensure_obtention(*, actor, space, slug, title, targets, modes, result_label
         .first()
     )
     if existing is not None:
+        # This slug belongs to the deterministic beta seed, not to a real offer.
+        expected_title = title
+        updates = {"title": expected_title}
+        for name in ("short_description", "description"):
+            if name in kwargs:
+                updates[name] = kwargs[name]
+        changed = [name for name, value in updates.items() if getattr(existing.activity, name) != value]
+        if changed:
+            for name in changed:
+                setattr(existing.activity, name, updates[name])
+            existing.activity.save(update_fields=[*changed, "updated_at"])
         return existing
     return create_obtention(
         actor=actor,
@@ -102,7 +113,7 @@ def seed_obtention(ctx: SeedContext) -> None:
         slug="kit-scolaire-a-retirer",
         title="Kit scolaire à retirer",
         short_description="Recevoir un kit scolaire complet à Lubumbashi.",
-        description="Scénario bêta d’attribution réelle, indépendant du paiement.",
+        description="Préparation d’un kit de fournitures scolaires et coordination des étapes de retrait.",
         targets=[
             {"title": "Sac scolaire", "quantity": "1", "unit": "pièce"},
             {"title": "Cahiers", "quantity": "10", "unit": "pièces"},
@@ -169,7 +180,7 @@ def seed_obtention(ctx: SeedContext) -> None:
         slug="projecteur-4k",
         title="Projecteur 4K",
         short_description="Acheter ou louer un projecteur pour une activité.",
-        description="Scénario bêta montrant plusieurs modes sans créer de sous-verticale Achat/Location.",
+        description="Consultez les modalités de disponibilité du projecteur, à l’achat ou à la location.",
         targets=[{"title": "Projecteur 4K", "quantity": "1", "unit": "pièce"}],
         modes=[ObtentionModeCode.BUY, ObtentionModeCode.RENT],
         result_label="Projecteur effectivement obtenu",

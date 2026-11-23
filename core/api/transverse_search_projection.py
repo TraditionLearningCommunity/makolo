@@ -8,6 +8,10 @@ from access.models import AccessStatus
 from commerce.models import CommerceOrder, CommerceOrderStatus
 from django.db.models import Q
 from journeys.models import JourneyStatus
+from trust.credential_models import CredentialType
+from trust.credential_selectors import credentials_for_profile
+from trust.models import ProofType
+from trust.selectors import proofs_for_profile
 
 
 from core.participant_selectors import (
@@ -29,7 +33,18 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group", "commerce_order"]},
+            "coverage": {
+                "state": "partial",
+                "owners": [
+                    "journey",
+                    "access",
+                    "personal_asset",
+                    "proof",
+                    "credential",
+                    "group",
+                    "commerce_order",
+                ],
+            },
         }
     # Both selectors are beneficiary-scoped BEFORE any free text match.
     journeys = participant_journey_search(
@@ -101,6 +116,67 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 ),
             },
         ))
+    proof_type_matches = [
+        value
+        for value, label in ProofType.choices
+        if query.casefold() in label.casefold() or query.casefold() in value.casefold()
+    ]
+    proofs = proofs_for_profile(profile).filter(
+        Q(journey__activity__title__icontains=query)
+        | Q(proof_type__in=proof_type_matches)
+    ).order_by("-issued_at", "pk")
+    for row in proofs[:offset + limit]:
+        entries.append((
+            row.issued_at, "proof", str(row.pk),
+            {
+                "source": {"kind": "proof", "id": str(row.pk)},
+                "title": row.get_proof_type_display(),
+                "human_type": "Preuve",
+                "relation": "Ma preuve",
+                "historical": False,
+                "context": "Mes ressources",
+                "destination": reverse(
+                    "trust:proof-detail", kwargs={"proof_id": row.pk}
+                ),
+                "owner_api": reverse(
+                    "personal-projections:proof-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
+
+    credential_type_matches = [
+        value
+        for value, label in CredentialType.choices
+        if query.casefold() in label.casefold() or query.casefold() in value.casefold()
+    ]
+    credentials = credentials_for_profile(profile).filter(
+        Q(title__icontains=query)
+        | Q(activity__title__icontains=query)
+        | Q(issuer_space__name__icontains=query)
+        | Q(issuer_profile__first_name__icontains=query)
+        | Q(issuer_profile__last_name__icontains=query)
+        | Q(issuer_profile__username__icontains=query)
+        | Q(credential_type__in=credential_type_matches)
+    ).order_by("-issued_at", "pk")
+    for row in credentials[:offset + limit]:
+        entries.append((
+            row.issued_at, "credential", str(row.pk),
+            {
+                "source": {"kind": "credential", "id": str(row.pk)},
+                "title": row.title,
+                "human_type": "Titre",
+                "relation": "Mon titre",
+                "historical": False,
+                "context": "Mes ressources",
+                "destination": reverse(
+                    "trust:credential-detail", kwargs={"credential_id": row.pk}
+                ),
+                "owner_api": reverse(
+                    "personal-projections:title-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
+
     groups = groups_for_profile(profile).filter(
         space__isnull=True,
         name__icontains=query
@@ -152,7 +228,15 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             },
         ))
     entries.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
-    total = journeys.count() + accesses.count() + assets.count() + groups.count() + orders.count()
+    total = (
+        journeys.count()
+        + accesses.count()
+        + assets.count()
+        + proofs.count()
+        + credentials.count()
+        + groups.count()
+        + orders.count()
+    )
     selected = [row[3] for row in entries[offset:offset + limit]]
     return {
         "actor_context": {"kind": "profile"},
@@ -162,5 +246,16 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "count": total, "offset": offset, "limit": limit,
             "has_more": offset + len(selected) < total,
         },
-        "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group"]},
+        "coverage": {
+            "state": "partial",
+            "owners": [
+                "journey",
+                "access",
+                "personal_asset",
+                "proof",
+                "credential",
+                "group",
+                "commerce_order",
+            ],
+        },
     }

@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
 
 from rest_framework.test import APIClient
 
@@ -59,7 +60,13 @@ from questionnaires.services import (
     request_form,
 )
 from requirements.contracts import RequirementAssessmentState
-from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment
+from services.models import (
+    OpportunityPolicy,
+    ServiceCurrentOutcome,
+    ServiceJourneyContext,
+    ServiceKind,
+    ServiceRequirementAssessment,
+)
 from services.requirement_services import assess_requirement, derive_requirement_consequence
 from services.services import create_service_details, create_service_journey
 
@@ -104,6 +111,61 @@ class Z5DetailAPIContractTests(TestCase):
             workflow=WorkflowKind.REGISTRATION,
             status=status,
         )
+
+    def test_service_result_is_owner_fact_distinct_from_journey_state(self):
+        service = create_service_details(
+            activity=self.activity, actor=self.user,
+            service_kind=ServiceKind.OTHER,
+        )
+        journey = create_service_journey(
+            service=service, initiated_by=self.user,
+            beneficiary=self.user, objective="Faire examiner mon dossier",
+        )
+        self.client.force_authenticate(self.user)
+        url = f"/api/v1/me/journeys/{journey.pk}/"
+        initial = self.client.get(url)
+        self.assertEqual(initial.status_code, 200)
+        self.assertIsNone(initial.json()["data"]["service_result"])
+        self.assertEqual(
+            initial.json()["data"]["service_request"]["objective"],
+            "Faire examiner mon dossier",
+        )
+        self.assertIsNone(initial.json()["data"]["service_request"]["opportunity"])
+
+        ServiceJourneyContext.objects.filter(journey=journey).update(
+            current_outcome=ServiceCurrentOutcome.UNDER_REVIEW,
+        )
+        reading = self.client.get(url)
+        self.assertEqual(reading.status_code, 200)
+        result = reading.json()["data"]["service_result"]
+        self.assertEqual(result["code"], ServiceCurrentOutcome.UNDER_REVIEW)
+        self.assertEqual(result["label"], "En revue")
+        self.assertEqual(reading.json()["data"]["state"]["code"], JourneyStatus.DRAFT)
+
+        ServiceJourneyContext.objects.filter(journey=journey).update(
+            current_outcome=ServiceCurrentOutcome.UNSUCCESSFUL,
+        )
+        unsuccessful = self.client.get(url)
+        self.assertEqual(unsuccessful.json()["data"]["service_result"]["code"],
+                         ServiceCurrentOutcome.UNSUCCESSFUL)
+        self.assertEqual(unsuccessful.json()["data"]["state"]["code"],
+                         JourneyStatus.DRAFT)
+
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_web_n3_uses_canonical_goal_and_does_not_invent_progress(self):
+        journey = self.journey()
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("core:participant-journey-detail", args=[journey.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mon objectif")
+        self.assertContains(response, "mk-journey-hero")
+        self.assertContains(response, self.activity.title)
+        self.assertNotContains(response, "Progression de la démarche")
+        self.assertNotContains(response, "Aucun formulaire demandé")
+        self.assertNotContains(response, "Aucun document ou instruction supplémentaire")
+        self.assertLessEqual(response.content.decode().count("Mes formulaires"), 1)
 
     def test_journey_detail_is_scoped_and_preserves_waiting_blocked_and_date_only(self):
         occurrence = create_occurrence(
@@ -251,6 +313,8 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
         row = next(item for item in data["forms"] if item["id"] == str(form_request.pk))
+        self.assertEqual(row["title"], "Formulaire Z5")
+        self.assertIn("opens_at", row)
         self.assertIn("complete_form", data["capabilities"])
         self.assertEqual(row["capabilities"], ["complete_form"])
         self.assertEqual(
@@ -293,11 +357,13 @@ class Z5DetailAPIContractTests(TestCase):
     def test_occurrence_live_link_requires_actual_participant_projection(self):
         occurrence = create_occurrence(
             activity=self.activity,
-            start_at=timezone.now() + timedelta(hours=2),
-            end_at=timezone.now() + timedelta(hours=4),
+            start_at=timezone.now() - timedelta(minutes=5),
+            end_at=timezone.now() + timedelta(hours=2),
             timezone="Africa/Lubumbashi",
             status=OccurrenceStatus.SCHEDULED,
         )
+        occurrence.live_enabled = True
+        occurrence.save(update_fields=["live_enabled", "updated_at"])
         self.journey(occurrence=occurrence)
 
         self.client.force_authenticate(self.user)
@@ -311,6 +377,29 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(outsider.status_code, 200)
         self.assertNotIn("live", outsider.json()["data"]["links"])
         self.assertNotIn("open_live", outsider.json()["data"]["capabilities"])
+
+    def test_journey_day_of_link_depends_on_operations_beneficiary_gate(self):
+        occurrence = create_occurrence(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=2),
+            timezone="Africa/Lubumbashi",
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        journey = self.journey(occurrence=occurrence, status=JourneyStatus.CONFIRMED)
+        self.client.force_authenticate(self.user)
+        url = f"/api/v1/me/journeys/{journey.pk}/"
+        allowed = self.client.get(url)
+        self.assertEqual(allowed.status_code, 200)
+        self.assertIn("open_day_of", allowed.json()["data"]["capabilities"])
+        self.assertIn("day_of", allowed.json()["data"]["links"])
+
+        journey.status = JourneyStatus.CANCELLED
+        journey.save(update_fields=["status", "updated_at"])
+        cancelled = self.client.get(url)
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertNotIn("open_day_of", cancelled.json()["data"]["capabilities"])
+        self.assertNotIn("day_of", cancelled.json()["data"]["links"])
 
     def test_capacity_unlimited_and_access_terminal_states_are_preserved(self):
         unlimited = CapacityPool.objects.create(

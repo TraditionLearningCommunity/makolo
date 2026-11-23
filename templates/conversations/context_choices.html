@@ -1,0 +1,20 @@
+{% extends 'base/app.html' %}
+{% block title %}Conversations | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-2xl pb-12">
+  <h1 class="mk-page-title">Conversations</h1>
+  {% if can_ensure %}
+    <form method="post" action="{% url 'conversations:context-ensure' kind context_pk %}" class="mt-6">{% csrf_token %}
+      <button type="submit" class="mk-btn mk-btn-primary">Échanger</button>
+    </form>
+  {% endif %}
+  <div class="mt-6 divide-y overflow-hidden rounded-2xl border" style="border-color:var(--mk-border)">
+    {% for row in conversations %}
+      <a class="block px-5 py-4 hover:bg-[color:var(--mk-subtle-bg)] focus-visible:outline-2" href="{% url 'conversations:detail' row.conversation.pk %}">
+        <span class="block font-bold">{% if row.conversation.title_override %}{{ row.conversation.title_override }}{% else %}{{ row.label }}{% endif %}</span>
+        {% if row.conversation.purpose %}<span class="mt-1 block text-sm" style="color:var(--mk-muted)">{{ row.conversation.purpose }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

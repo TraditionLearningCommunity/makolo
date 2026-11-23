@@ -231,7 +231,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Informations disponibles'), findsOneWidget);
+    expect(find.text('Hors connexion'), findsOneWidget);
     expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
   });
 

@@ -21,6 +21,7 @@
   const bindShare = (root) => {
     if (boundRoots.has(root)) return;
     const createUrl = root.dataset.createUrl;
+    const publicUrl = root.dataset.publicUrl;
     const searchUrl = root.dataset.profileSearchUrl;
     const form = root.querySelector('form');
     const csrf = form?.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
@@ -39,9 +40,13 @@
     let searchTimer = null;
     let sendingRecipient = null;
 
-    if (!createUrl || !form) return;
+    if ((!createUrl || !form) && !publicUrl) return;
     boundRoots.add(root);
     if (!navigator.share && nativeButton) nativeButton.hidden = true;
+    if (publicUrl) {
+      if (internalButton) internalButton.hidden = true;
+      if (qrButton) qrButton.hidden = true;
+    }
 
     const setFeedback = (message) => {
       if (feedback) feedback.textContent = message;
@@ -55,6 +60,7 @@
     };
 
     const postShare = async (recipientId = '') => {
+      if (!createUrl || !form) throw new Error('share-create-unavailable');
       const response = await fetch(createUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -72,6 +78,23 @@
 
     const shareData = () => {
       if (shareDataPromise) return shareDataPromise;
+      if (publicUrl) {
+        try {
+          const target = new URL(publicUrl, window.location.origin);
+          if (target.origin !== window.location.origin) {
+            throw new Error('share-url-origin-mismatch');
+          }
+          const url = target.toString();
+          shareDataPromise = Promise.resolve({
+            title: root.dataset.shareTitle || 'Makolo',
+            text: root.dataset.shareText || '',
+            url,
+          });
+        } catch (_error) {
+          shareDataPromise = Promise.reject(new Error('share-url-invalid'));
+        }
+        return shareDataPromise;
+      }
       shareDataPromise = postShare().catch((error) => {
         shareDataPromise = null;
         throw error;

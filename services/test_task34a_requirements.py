@@ -116,6 +116,67 @@ class ServiceHorizontalRequirementTests(TestCase):
             self.context.requirement_assessments.select_related("requirement").order_by("requirement__position")
         )
 
+    def test_web_service_journey_shows_requirement_owner_facts(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.beneficiary)
+        response = self.client.get(
+            reverse("core:participant-journey-detail", args=[self.journey.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Conditions de ma demande")
+        self.assertContains(response, "Requirement 1")
+        self.assertContains(response, "Vérifier mes éléments")
+        self.assertNotContains(response, "Conditions obligatoires")
+
+    def test_native_evidence_handoff_never_satisfies_a_requirement(self):
+        from django.urls import reverse
+
+        assessment = self.assessments[0]
+        artifact = create_artifact(
+            journey=self.journey,
+            uploaded_file=pdf_upload(),
+            uploaded_by=self.beneficiary,
+            kind=JourneyArtifactKind.OTHER,
+            title="Dossier à examiner",
+        )
+        url = reverse(
+            "personal-detail-projections:journey-requirement-evidence",
+            kwargs={
+                "journey_id": self.journey.pk,
+                "assessment_id": assessment.pk,
+            },
+        )
+        self.client.force_login(self.beneficiary)
+        first = self.client.post(
+            url, data={"artifact_id": str(artifact.pk)},
+            content_type="application/json",
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["evidence"]["artifact_id"], str(artifact.pk))
+        again = self.client.post(
+            url, data={"artifact_id": str(artifact.pk)},
+            content_type="application/json",
+        )
+        self.assertEqual(again.status_code, 200)
+        self.assertEqual(
+            first.json()["evidence"]["id"], again.json()["evidence"]["id"],
+        )
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, RequirementAssessmentState.UNASSESSED)
+        self.assertEqual(
+            ServiceRequirementEvidence.objects.filter(
+                assessment=assessment, artifact=artifact,
+            ).count(), 1,
+        )
+        self.client.force_login(self.curator)
+        self.assertEqual(
+            self.client.post(
+                url, data={"artifact_id": str(artifact.pk)},
+                content_type="application/json",
+            ).status_code, 404,
+        )
+
     def test_progress_uses_only_fundamental_states(self):
         states = [
             RequirementAssessmentState.UNASSESSED,

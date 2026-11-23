@@ -39,6 +39,8 @@ class DomainEventType:
     CONVERSATION_INVITATION_DECLINED = "conversation.invitation.declined"
     CONVERSATION_ROUTE_ADDED = "conversation.route.added"
     CONVERSATION_ROUTE_RETIRED = "conversation.route.retired"
+    CONVERSATION_ENTRY_CREATED = "conversation.entry.created"
+    CONVERSATION_ENTRY_MENTIONED = "conversation.entry.mentioned"
 
     PLACEMENT_ASSIGNED = "placement.assigned"
     PLACEMENT_CHANGED = "placement.changed"
@@ -80,6 +82,7 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
     DOSSIER_CREATED = "dossier.created"
+    DOSSIER_UPDATED = "dossier.updated"
     DOSSIER_JOURNEY_LINKED = "dossier.journey_linked"
     DOSSIER_JOURNEY_UNLINKED = "dossier.journey_unlinked"
     DOSSIER_LIFECYCLE_CHANGED = "dossier.lifecycle_changed"
@@ -90,6 +93,7 @@ class DomainEventType:
     DOSSIER_ASSIGNMENT_REMOVED = "dossier.assignment_removed"
 
     PROJECT_CREATED = "project.created"
+    PROJECT_UPDATED = "project.updated"
     PROJECT_LIFECYCLE_CHANGED = "project.lifecycle_changed"
     PROJECT_DOSSIER_LINKED = "project.dossier_linked"
     PROJECT_DOSSIER_UNLINKED = "project.dossier_unlinked"
@@ -100,6 +104,7 @@ class DomainEventType:
     FORM_REOPENED = "form.reopened"
     RESOURCE_PUBLISHED = "resource.published"
     RESOURCE_REPLACED = "resource.replaced"
+    RESOURCE_RETIRED = "resource.retired"
 
     OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
     OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"
@@ -170,6 +175,10 @@ class DomainEventType:
     SUBSCRIPTION_SUSPENDED = "subscription.suspended"
     SUBSCRIPTION_REACTIVATED = "subscription.reactivated"
     SUBSCRIPTION_ELIGIBILITY_AVAILABLE = "subscription.eligibility.available"
+    SUBSCRIPTION_COVERAGE_CREATED = "subscription.coverage.created"
+    SUBSCRIPTION_COVERAGE_STATUS_CHANGED = "subscription.coverage.status.changed"
+    SUBSCRIPTION_COVERAGE_ALLOCATION_CREATED = "subscription.coverage.allocation.created"
+    SUBSCRIPTION_COVERAGE_ALLOCATION_CHANGED = "subscription.coverage.allocation.changed"
 
     values = frozenset(value for name, value in vars().items() if name.isupper() and isinstance(value, str))
 

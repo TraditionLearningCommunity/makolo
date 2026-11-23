@@ -6,7 +6,8 @@ from . import views
 app_name = "personal_assets"
 
 urlpatterns = [
-    path("", views.library_list, name="list"),
+    path("", views.resources_hub, name="list"),
+    path("documents/", views.library_list, name="documents"),
     path("add/", views.library_add, name="add"),
     path("<uuid:asset_id>/", views.library_detail, name="detail"),
     path("<uuid:asset_id>/version/", views.library_add_version, name="add-version"),

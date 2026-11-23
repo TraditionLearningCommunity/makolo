@@ -3,6 +3,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from .public_profile_views import PublicProfileAPIView
 from .views import (
     AccountDeleteAPIView,
     IdentifierAvailabilityAPIView,
@@ -25,6 +26,7 @@ router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="users")
 
 urlpatterns = [
+    path("public-profiles/<uuid:profile_id>/", PublicProfileAPIView.as_view(), name="public-profile"),
     path("auth/register/", RegisterAPIView.as_view(), name="register"),
     path(
         "auth/identifier/availability/",

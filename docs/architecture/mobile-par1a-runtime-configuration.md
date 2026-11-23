@@ -32,7 +32,7 @@ Les features ne lisent jamais directement une URL, un fournisseur ou une variabl
 
 Le `namespace` Kotlin reste `com.makolo`. Changer l'`applicationId` n'exige donc pas de déplacer `MainActivity`.
 
-`config/dev.json` porte désormais les valeurs client réelles de l'environnement DEV approuvé : backend de test PythonAnywhere, style MapLibre/MapTiler DEV, Firebase/FCM, Sentry Flutter et capability de localisation background. App Links reste désactivé. `beta.json` et `prod.json` restent volontairement incomplets tant que leurs valeurs canoniques n'existent pas ; le runtime refuse PROD sans `MAKOLO_API_BASE_URL`.
+`config/dev.json` porte désormais les valeurs client réelles de l'environnement DEV approuvé : backend de test PythonAnywhere, style MapLibre DEV, géocodage sélectionné par configuration, Firebase/FCM, Sentry Flutter et capability de localisation background. App Links reste désactivé. `beta.json` et `prod.json` restent volontairement incomplets tant que leurs valeurs canoniques n'existent pas ; le runtime refuse PROD sans `MAKOLO_API_BASE_URL`.
 
 Pour une surcharge locale ou CI non canonique, copier le fichier de base vers `config/<env>.local.json`. Ces fichiers sont ignorés par Git. Une valeur DEV versionnée doit rester une configuration client distribuable dans l'application ; aucun secret serveur ne doit y entrer.
 
@@ -40,7 +40,8 @@ Pour une surcharge locale ou CI non canonique, copier le fichier de base vers `c
 
 - `MAKOLO_ENVIRONMENT` : `dev`, `beta` ou `prod`.
 - `MAKOLO_API_BASE_URL` : URL HTTP(S) Makolo ; optionnelle en DEV/BETA, obligatoire en PROD.
-- `MAKOLO_MAPS_ENABLED` + `MAKOLO_MAP_STYLE` : activation et style/configuration MapLibre. Aucun provider n'est codé en dur.
+- `MAKOLO_MAPS_ENABLED` + `MAKOLO_MAP_STYLE` : activation et URL de style au format compatible MapLibre Style Specification. Le moteur de rendu reste MapLibre ; le fournisseur de tuiles/style se change en remplaçant cette valeur, sans toucher aux features.
+- `MAKOLO_GEOCODING_ENABLED` + `MAKOLO_GEOCODING_PROVIDER` + `MAKOLO_GEOCODING_API_KEY` + `MAKOLO_GEOCODING_ENDPOINT` : activation, adaptateur, credential client et endpoint HTTPS optionnel du géocodage. Les adaptateurs actuellement disponibles sont `maptiler` et `google_maps`. Lorsque le géocodage est activé, la clé et l'endpoint HTTPS doivent être fournis explicitement ; aucun endpoint fournisseur n'est implicite.
 - `MAKOLO_FIREBASE_ENABLED` : déclaration d'activation. PAR-1A n'appelle pas `Firebase.initializeApp`.
 - `MAKOLO_SENTRY_ENABLED` + `MAKOLO_SENTRY_DSN` : sélection future entre `SentryCrashReporter` et `NoopCrashReporter`. PAR-1A ne fait pas le bootstrap.
 - `MAKOLO_APP_LINKS_ENABLED` + `MAKOLO_APP_LINKS_SCHEME` + `MAKOLO_APP_LINKS_HOST` : contrat runtime. Aucun domaine n'est inventé et aucun intent-filter App Links n'est ajouté tant que la valeur canonique n'existe pas.
@@ -96,9 +97,15 @@ Pour un flavor où Firebase reste désactivé, l'absence du fichier client ne bl
 
 `MakoloMapView` reçoit déjà un `styleString` de son appelant. PAR-1A ne change pas cette abstraction.
 
-La configuration fournit `MAKOLO_MAP_STYLE`. Elle peut plus tard désigner un style/provider réellement choisi sans modifier Now, Discovery, Journey ou une autre feature. `MAKOLO_MAPS_ENABLED=true` sans style est rejeté.
+La configuration fournit `MAKOLO_MAP_STYLE`, une URL de style compatible MapLibre. Le rendu reste isolé dans `MakoloMapView`; changer de fournisseur de style/tuiles compatible ne demande aucune modification dans Now, Discovery, Journey ou une autre feature. `MAKOLO_MAPS_ENABLED=true` sans style est rejeté. Google Maps SDK n'est pas un style MapLibre interchangeable : l'utiliser comme moteur de rendu demanderait un adaptateur de carte distinct.
 
 Aucune URL OpenFreeMap, MapLibre, OSM ou autre provider n'est ajoutée dans `mobile/lib/features/**`.
+
+## Géocodage
+
+`GeoSearchGateway` est le contrat consommé par le runtime. `createGeoSearchGateway` sélectionne l'adaptateur à partir de `MakoloGeocodingConfig`; les features ne connaissent ni le fournisseur, ni son endpoint, ni le format réseau. `maptiler` et `google_maps` sont disponibles. L'endpoint HTTPS est toujours injecté depuis la configuration ; aucun host fournisseur n'est codé en dur dans les adaptateurs. Le géocodage est indépendant de l'activation des cartes.
+
+Les clés utilisées dans une application mobile sont des identifiants client extractibles : elles doivent être limitées aux APIs nécessaires et surveillées dans la console du fournisseur. Aucun credential administratif ou secret serveur ne doit être utilisé ici.
 
 ## Sentry
 

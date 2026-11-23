@@ -1,0 +1,42 @@
+{% extends 'base/app.html' %}
+{% load conversation_tags static %}
+{% block title %}{{ point.title|default:'Discussion' }} | Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-3xl pb-16">
+  <a class="mb-5 inline-block text-sm font-semibold" href="{% url 'conversations:detail' conversation.pk %}?focus={{ point.pk }}#point-{{ point.pk }}" style="color:var(--mk-brand)">Retour à la conversation</a>
+  <header class="mb-7">
+    <p class="mk-kicker">Discussion</p>
+    <h1 class="mk-page-title mt-2">{{ point.title|default:'Discussion' }}</h1>
+    {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ point.body }}</p>{% endif %}
+  </header>
+  <div data-exchange-page data-conversation="{{ conversation.pk }}" data-point="{{ point.pk }}" data-title="{{ point.title|default:'Discussion' }}"></div>
+  <details class="mt-4"><summary>Messages précédents</summary>
+  {% if entries %}
+    <div class="space-y-3">
+      {% for entry in entries %}
+        <article class="rounded-xl border p-4" style="border-color:var(--mk-border)">
+          <p class="whitespace-pre-line text-sm leading-6">{{ entry.body }}</p>
+          {% conversation_exchange_attachments entry request.user as entry_files %}
+          {% include 'conversations/_attachment_gallery.html' with files=entry_files %}
+          <p class="mt-2 text-xs" style="color:var(--mk-muted)">{{ entry.created_at|date:'d/m/Y H:i' }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-sm" style="color:var(--mk-muted)">Aucun message pour le moment.</p>
+  {% endif %}
+  {% if next_cursor %}
+    <a href="?cursor={{ next_cursor }}" class="mk-action-button mt-5" data-variant="secondary">Voir la suite</a>
+  {% endif %}
+  {% if can_contribute %}
+    <form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-8 space-y-3 border-t pt-5" style="border-color:var(--mk-border)">{% csrf_token %}
+      <input type="hidden" name="client_reference" value="{{ client_reference }}">
+      <label for="exchange-reply" class="sr-only">Répondre</label>
+      <textarea name="body" id="exchange-reply" class="mk-input w-full" rows="3" required maxlength="5000" placeholder="Écrire un message…"></textarea>
+      <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
+    </form>
+  {% endif %}
+  </details>
+</main>
+<script defer src="{% static 'js/conversations-media-gallery.js' %}"></script>
+{% endblock %}

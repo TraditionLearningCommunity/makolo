@@ -4,10 +4,11 @@ Admin remains an emergency/technical fallback. Platform never performs raw polic
 CRUD and never treats a simulation preview as publication.
 """
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 from math import ceil
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -140,3 +141,62 @@ def change_recognition_definition_availability(
         metadata={"reason": reason},
     )
     return obj
+
+
+@transaction.atomic
+def configure_credit_valuation(
+    *, actor, expected_version, amount_per_credit, currency, activate, reason,
+):
+    """Audit an opt-in, server-owned indication; never authorize a payout."""
+    from .models import RecognitionCreditValuation
+
+    _require(actor, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
+    reason = _reason(reason)
+    currency = (currency or "").strip().upper()
+    try:
+        per_credit = Decimal(str(amount_per_credit).strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationError("Montant par crédit non valide.") from exc
+    if not per_credit.is_finite() or per_credit <= 0 or per_credit.as_tuple().exponent < -8:
+        raise ValidationError("Valeur positive avec au maximum 8 décimales requise.")
+    if per_credit >= Decimal("10000000000"):
+        raise ValidationError("La valeur par crédit dépasse la limite autorisée.")
+    if not (len(currency) == 3 and currency.isalpha() and currency.isascii()):
+        raise ValidationError("La devise ISO doit avoir trois lettres.")
+
+    current = RecognitionCreditValuation.objects.select_for_update().filter(pk=1).first()
+    version = str(current.version) if current is not None else "0"
+    if str(expected_version) != version:
+        raise ValidationError("La configuration a changé ; actualisez avant de modifier.")
+    before = {
+        "active": current.is_active if current is not None else False,
+        "currency": current.currency if current is not None else None,
+        "amount_per_credit": str(current.amount_per_credit) if current is not None else None,
+    }
+    if current is None:
+        current = RecognitionCreditValuation(pk=1)
+    current.currency = currency
+    current.amount_per_credit = per_credit
+    current.is_active = bool(activate)
+    current.version = int(version) + 1
+    try:
+        current.save()
+    except IntegrityError as exc:
+        raise ValidationError(
+            "La configuration a changé ; actualisez avant de modifier."
+        ) from exc
+    audit_action(
+        actor=actor,
+        action="recognition.credit_valuation_configured",
+        target_type="recognition_credit_valuation", target_id=str(current.pk),
+        summary="Valorisation Recognition configurée",
+        before=before,
+        after={
+            "active": current.is_active,
+            "currency": current.currency,
+            "amount_per_credit": str(current.amount_per_credit),
+            "version": current.version,
+        },
+        metadata={"reason": reason},
+    )
+    return current

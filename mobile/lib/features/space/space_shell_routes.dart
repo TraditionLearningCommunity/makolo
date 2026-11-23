@@ -1,12 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
+import '../../network/api_error.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../navigation/secondary_screen.dart';
@@ -16,6 +22,13 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../sync/freshness.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
+import 'space_us_surface.dart';
+import 'space_us_resources_screen.dart';
+import 'space_us_authority_facts.dart';
+import '../now/now_screen.dart';
+import '../now/now_selector.dart';
+import '../discovery/discovery_repository.dart';
+import '../discovery/discovery_screens.dart';
 
 enum SpaceShellSurface { now, discover, work, us }
 
@@ -95,6 +108,9 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
   }
 
   Future<void> _refresh() async {
+    // Discover shares the canonical Discovery acquisition, not the old
+    // Space-only attention snapshot. It refreshes through DiscoveryScreen.
+    if (widget.surface == SpaceShellSurface.discover) return;
     final repository = widget.runtime.space;
     final actor = widget.runtime.actorContext?.value;
     if (repository == null ||
@@ -106,12 +122,12 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       await switch (widget.surface) {
         SpaceShellSurface.now => repository.refreshNow(
           actor.space,
-          actor.perspective,
+          const ActorPerspective.all(),
         ),
         SpaceShellSurface.discover => repository.refreshDiscover(actor.space),
         SpaceShellSurface.work => repository.refreshWork(
           actor.space,
-          actor.perspective,
+          const ActorPerspective.all(),
         ),
         SpaceShellSurface.us => repository.refreshUs(actor.space),
       };
@@ -126,12 +142,12 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
   ) => switch (widget.surface) {
     SpaceShellSurface.now => repository.watchNow(
       actor.space,
-      actor.perspective,
+      const ActorPerspective.all(),
     ),
     SpaceShellSurface.discover => repository.watchDiscover(actor.space),
     SpaceShellSurface.work => repository.watchWork(
       actor.space,
-      actor.perspective,
+      const ActorPerspective.all(),
     ),
     SpaceShellSurface.us => repository.watchUs(actor.space),
   };
@@ -150,15 +166,47 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       return const SizedBox.shrink();
     }
 
+    if (widget.surface == SpaceShellSurface.discover) {
+      final discovery = widget.runtime.discovery;
+      if (discovery == null) {
+        return const MakoloEmptyState(
+          title: 'Découvrir n’est pas disponible pour le moment.',
+        );
+      }
+      final query = DiscoveryQuery(
+        spaceSlug: actor.space.slug,
+        spaceId: actor.space.id,
+      );
+      return DiscoveryScreen(
+        key: ValueKey('space-discovery:${actor.space.id}'),
+        initialQuery: query,
+        repository: discovery,
+        onOpenActivity: (id) => context.push(
+          Uri(
+            path: '/discover/items/activity/${Uri.encodeComponent(id)}',
+            queryParameters: {'context': 'space', 'space': actor.space.slug},
+          ).toString(),
+        ),
+        onOpenItem: (family, id) => context.push(
+          Uri(
+            path:
+                '/discover/items/${Uri.encodeComponent(family)}/'
+                '${Uri.encodeComponent(id)}',
+            queryParameters: {'context': 'space', 'space': actor.space.slug},
+          ).toString(),
+        ),
+      );
+    }
+
     final source = switch (widget.surface) {
       SpaceShellSurface.now => repository.nowSource(
         actor.space,
-        actor.perspective,
+        const ActorPerspective.all(),
       ),
       SpaceShellSurface.discover => repository.discoverSource(actor.space),
       SpaceShellSurface.work => repository.workSource(
         actor.space,
-        actor.perspective,
+        const ActorPerspective.all(),
       ),
       SpaceShellSurface.us => repository.usSource(actor.space),
     };
@@ -168,14 +216,14 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       builder: (context, status) {
         if (status.data?.invalidated == true) {
           return const MakoloEmptyState(
-            title: 'Autorité Space révoquée ou indisponible.',
+            title: 'Impossible d’accéder à cet Espace actuellement.',
             icon: Icons.lock_outline,
           );
         }
         return StreamBuilder<StoredProjection?>(
           key: ValueKey(
             '${widget.surface.name}:${actor.space.id}:'
-            '${SpaceSyncKeys.perspectiveKey(actor.perspective)}',
+            'all',
           ),
           stream: _stream(repository, actor),
           builder: (context, snapshot) {
@@ -186,44 +234,38 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     projection,
                     now: DateTime.now(),
                   );
-            if (freshness == FreshnessState.expired) {
-              return MakoloErrorState(
-                message: 'Cette observation a expiré.',
-                onRetry: _refresh,
-              );
-            }
+            // Stale locally acquired facts remain readable. Freshness is a
+            // presentation cue, not evidence of withdrawn permission.
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                MakoloFreshnessNotice(
-                  freshness: const ProjectionSurfaceAdapter().freshnessCue(
-                    freshness,
-                  ),
-                ),
-                if (status.data?.lastErrorCode != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            projection == null
-                                ? 'Actualisation indisponible.'
-                                : 'Actualisation indisponible. Observation conservée du ${projection.receivedAt.toLocal()}',
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _refresh,
-                          child: const Text('Réessayer'),
-                        ),
-                      ],
+                // Nous presents the retained owner snapshot without an extra
+                // refresh banner. The shell already carries the transport cue.
+                // Revoked access remains enforced by source.invalidated above.
+                if (widget.surface != SpaceShellSurface.us)
+                  MakoloFreshnessNotice(
+                    freshness: const ProjectionSurfaceAdapter().freshnessCue(
+                      freshness,
                     ),
                   ),
                 Expanded(
-                  child: _SpaceProjectionBody(
-                    surface: widget.surface,
-                    projection: snapshot.data,
-                    fallbackSpaceName: actor.space.slug,
+                  child: StreamBuilder<List<SpaceSummary>>(
+                    stream: repository.watchInventory(),
+                    builder: (context, inventory) {
+                      final known = (inventory.data ?? const <SpaceSummary>[])
+                          .where((item) => item.identity == actor.space);
+                      final knownName = known.isEmpty
+                          ? actor.space.slug
+                          : known.first.name;
+                      return _SpaceProjectionBody(
+                        surface: widget.surface,
+                        projection: snapshot.data,
+                        fallbackSpaceName: knownName,
+                        spaceId: actor.space.id,
+                        onRefresh: _refresh,
+                        mediaBaseUri: widget.runtime.api?.baseUri,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -240,31 +282,108 @@ class _SpaceProjectionBody extends StatelessWidget {
     required this.surface,
     required this.projection,
     required this.fallbackSpaceName,
+    required this.spaceId,
+    required this.onRefresh,
+    this.mediaBaseUri,
   });
 
   final SpaceShellSurface surface;
   final StoredProjection? projection;
   final String fallbackSpaceName;
+  final String spaceId;
+  final Future<void> Function() onRefresh;
+  final Uri? mediaBaseUri;
 
   @override
   Widget build(BuildContext context) {
     final payload = projection?.payload;
     if (payload == null) {
-      return _message('Cette vue n’est pas disponible pour le moment.');
+      return _initialStructure(context);
     }
 
     return switch (surface) {
-      SpaceShellSurface.now => _attentionBody(
-        payload,
-        emptyMessage: 'Rien ne demande votre attention pour le moment.',
-      ),
+      SpaceShellSurface.now => _spaceNowBody(context),
       SpaceShellSurface.discover => _attentionBody(
         payload,
         emptyMessage: 'Rien à découvrir pour le moment.',
       ),
-      SpaceShellSurface.work => SpaceWorkSurface(payload: payload),
+      SpaceShellSurface.work => SpaceWorkSurface(
+        payload: payload,
+        mediaBaseUri: mediaBaseUri,
+      ),
       SpaceShellSurface.us => _usBody(context, payload),
     };
+  }
+
+  Widget _spaceNowBody(BuildContext context) {
+    final selection = const NowSelector().select(
+      projection: projection,
+      now: DateTime.now(),
+    );
+    if (selection.situations.isEmpty &&
+        _map(projection?.payload['selection'])?['state'] == 'partial') {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const MakoloEmptyState(
+            title: 'Rien à afficher pour le moment.',
+            body:
+                'Vous pouvez actualiser pour voir les dernières informations.',
+            icon: Icons.info_outline_rounded,
+          ),
+          MakoloActionButton(
+            label: 'Actualiser',
+            onPressed: onRefresh,
+            appearance: MakoloActionAppearance.quiet,
+            icon: Icons.refresh_rounded,
+          ),
+        ],
+      );
+    }
+    final space = _map(projection?.payload['space']);
+    final nowView = NowView(
+      key: ValueKey(
+        'space-now:${_text(space?['id'])}:${_text(projection?.payload['responsibility'])}',
+      ),
+      selection: selection,
+      onRetry: onRefresh,
+      onOpenOwner: (destination) async {
+        final path = NowScreen.ownerPathFor(destination);
+        if (path == null) return;
+        await context.push(path);
+        if (context.mounted) await onRefresh();
+      },
+    );
+    if (_map(projection?.payload['selection'])?['state'] != 'partial') {
+      return nowView;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.md),
+          child: MakoloStatus(
+            label: 'Certaines situations restent hors de cette sélection.',
+            tone: MakoloStatusTone.info,
+            icon: Icons.info_outline_rounded,
+          ),
+        ),
+        Expanded(child: nowView),
+        if (projection?.payload['has_more'] == true)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.md,
+              vertical: MakoloSpacing.sm,
+            ),
+            child: MakoloActionButton(
+              label: 'Poursuivre dans Métier',
+              onPressed: () => context.go('/space/work'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.arrow_forward_rounded,
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _attentionBody(
@@ -287,193 +406,15 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
   }
 
-  Widget _usBody(BuildContext context, Map<String, dynamic> payload) {
-    final identity = _map(payload['identity']);
-    final name = _text(identity?['name']) ?? fallbackSpaceName;
-    final authority = _map(payload['authority']);
-    final limited =
-        authority?['scope'] == 'activity_limited' ||
-        authority?['limited_to_activities'] == true;
-    final team = _map(payload['team']);
-    final responsibilities = _map(payload['responsibilities']);
-    final ownership = _map(payload['ownership']);
-    final trust = _map(payload['trust']);
-    final capabilities = _map(payload['capabilities']);
-    final handoffs = _map(payload['handoffs']);
-    final teamItems = team?['items'] is List
-        ? team!['items'] as List
-        : const [];
-    final responsibilityItems = responsibilities?['items'] is List
-        ? responsibilities!['items'] as List
-        : const [];
-    final ownershipItems = ownership?['items'] is List
-        ? ownership!['items'] as List
-        : const [];
-    return ListView(
-      key: const Key('space-us-projection'),
-      padding: const EdgeInsets.all(MakoloSpacing.lg),
-      children: [
-        Semantics(
-          header: true,
-          child: Text(
-            'Nous',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-        ),
-        const SizedBox(height: MakoloSpacing.xs),
-        Text(name, style: Theme.of(context).textTheme.titleLarge),
-        if (_text(identity?['description']) case final description?) ...[
-          const SizedBox(height: MakoloSpacing.xs),
-          Text(description),
-        ],
-        if (limited) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          const MakoloStatus(
-            label: 'Contexte limité à certaines activités',
-            tone: MakoloStatusTone.info,
-            icon: Icons.lock_outline,
-          ),
-        ],
-        const SizedBox(height: MakoloSpacing.xl),
-        _usSection(
-          context,
-          title: 'Équipe',
-          description: limited
-              ? 'La composition globale n’est pas visible dans ce contexte.'
-              : 'Les personnes qui font vivre cet Espace.',
-          child: limited
-              ? const Text('Détails réservés à une autorité Space.')
-              : _usRows(
-                  teamItems,
-                  empty: 'Aucun membre visible pour le moment.',
-                ),
-        ),
-        if (handoffs?['team'] is String)
-          _usHandoff(context, handoffs!['team'] as String, 'Voir l’équipe'),
-        if (handoffs?['responsibilities'] is String)
-          _usHandoff(
-            context,
-            handoffs!['responsibilities'] as String,
-            'Approfondir les responsabilités',
-          ),
-        if (handoffs?['relationships'] is String)
-          _usHandoff(
-            context,
-            handoffs!['relationships'] as String,
-            'Personnes & relations',
-          ),
-        _usSection(
-          context,
-          title: 'Responsabilités',
-          description:
-              'Qui porte quoi, sans confondre responsabilité et autorité.',
-          child: _usRows(
-            responsibilityItems,
-            empty: 'Aucune responsabilité visible dans ce contexte.',
-            label: (item) => _text(_map(item)?['label']) ?? 'Responsabilité',
-            detail: (item) {
-              final row = _map(item);
-              final activity = _map(row?['activity']);
-              return _text(activity?['title']) ?? 'Portée de l’Espace';
-            },
-          ),
-        ),
-        if (!limited && ownershipItems.isNotEmpty)
-          _usSection(
-            context,
-            title: 'Ownership',
-            description:
-                'Une responsabilité institutionnelle distincte de l’équipe.',
-            child: _usRows(ownershipItems, empty: ''),
-          ),
-        if (!limited && handoffs?['ownership'] is String)
-          _usHandoff(
-            context,
-            handoffs!['ownership'] as String,
-            'Ouvrir Ownership',
-          ),
-        _usSection(
-          context,
-          title: 'Confiance',
-          description: 'Des faits contextualisés, jamais un score global.',
-          child: Text(
-            trust?['verified'] == true
-                ? 'Identité de l’Espace vérifiée dans un périmètre connu.'
-                : 'Aucun fait public de vérification actif n’est projeté.',
-          ),
-        ),
-        if (handoffs?['trust'] is String)
-          _usHandoff(context, handoffs!['trust'] as String, 'Ouvrir Trust'),
-        if (!limited && handoffs?['pilot'] is String)
-          _usHandoff(context, handoffs!['pilot'] as String, 'Piloter'),
-        if (!limited && capabilities?['update_space'] == true) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Text(
-            'Paramètres de l’Espace restent une profondeur institutionnelle.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          if (handoffs?['settings'] is String)
-            _usHandoff(
-              context,
-              handoffs!['settings'] as String,
-              'Paramètres institutionnels',
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _usHandoff(BuildContext context, String route, String label) => Align(
-    alignment: Alignment.centerLeft,
-    child: TextButton.icon(
-      onPressed: () => context.push(route),
-      icon: const Icon(Icons.arrow_forward_rounded),
-      label: Text(label),
-    ),
-  );
-
-  Widget _usSection(
-    BuildContext context, {
-    required String title,
-    required String description,
-    required Widget child,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-    child: MakoloSection(title: title, description: description, child: child),
-  );
-
-  Widget _usRows(
-    List items, {
-    required String empty,
-    String Function(Object item)? label,
-    String Function(Object item)? detail,
-  }) {
-    if (items.isEmpty) return Text(empty);
-    return Column(
-      children: [
-        for (final item in items)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(label?.call(item) ?? _rowLabel(item)),
-            subtitle: Text(detail?.call(item) ?? _rowDetail(item)),
-          ),
-      ],
-    );
-  }
-
-  String _rowLabel(Object item) {
-    final row = _map(item);
-    final profile = _map(row?['profile']);
-    return _text(profile?['name']) ??
-        _text(row?['name']) ??
-        'Élément collectif';
-  }
-
-  String _rowDetail(Object item) {
-    final row = _map(item);
-    final responsibility = _map(row?['responsibility']);
-    return _text(responsibility?['label']) ?? 'Fait collectif connu';
-  }
+  Widget _usBody(BuildContext context, Map<String, dynamic> payload) =>
+      SpaceUsSurface(
+        payload: payload,
+        fallbackSpaceName: fallbackSpaceName,
+        onOpen: (route) async {
+          await context.push(route);
+          if (context.mounted) await onRefresh();
+        },
+      );
 
   Map<String, dynamic>? _map(Object? value) => value is Map
       ? value.map((key, value) => MapEntry(key.toString(), value))
@@ -482,6 +423,53 @@ class _SpaceProjectionBody extends StatelessWidget {
   String? _text(Object? value) {
     if (value is! String || value.trim().isEmpty) return null;
     return value.trim();
+  }
+
+  Widget _initialStructure(BuildContext context) {
+    // The screen's composition is known even when the owner has never
+    // provided this Space's content. Do not invent rows, counts or authority.
+    final sections = switch (surface) {
+      SpaceShellSurface.now => const ['Now'],
+      SpaceShellSurface.discover => const ['Découvrir'],
+      SpaceShellSurface.work => const ['Métier'],
+      SpaceShellSurface.us => const [
+        'Notre Passeport',
+        'Nos démarches',
+        'Notre espace',
+      ],
+    };
+    return ListView(
+      key: Key('space-initial-structure-${surface.name}'),
+      padding: const EdgeInsets.all(MakoloSpacing.lg),
+      children: [
+        if (surface == SpaceShellSurface.us) ...[
+          MakoloCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.apartment_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Text(
+                    fallbackSpaceName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.md),
+        ],
+        for (final title in sections) ...[
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: MakoloSpacing.sm),
+          const MakoloCard(child: MakoloSkeleton(lines: 3)),
+          const SizedBox(height: MakoloSpacing.md),
+        ],
+      ],
+    );
   }
 
   Widget _message(String message) => ListView(
@@ -510,17 +498,80 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   SpaceActorIdentity? _space;
   bool _denied = false;
   bool _loading = true;
+  List<Map<String, dynamic>>? _fullTeam;
+  bool _teamUnavailable = false;
+  bool _teamMutating = false;
+  Map<String, dynamic>? _authorityFacts;
+  bool _authorityLoading = false;
+  String? _authorityError;
+  int _authorityRequestVersion = 0;
 
   @override
   void initState() {
     super.initState();
-    _resolveSpace();
+    if (widget.depth != 'resources') {
+      widget.runtime.actorContext?.addListener(_onActorChanged);
+      _resolveSpace();
+    }
+  }
+
+  void _onActorChanged() {
+    if (!mounted) return;
+    // N3 authority is never retained across actor or perspective transitions.
+    _authorityRequestVersion++;
+    setState(() {
+      _fullTeam = null;
+      _teamUnavailable = false;
+      _authorityFacts = null;
+      _authorityLoading = false;
+      _authorityError = null;
+    });
+    final current = widget.runtime.actorContext?.value;
+    if (current is SpaceActorContext &&
+        _space != null &&
+        current.space.id == _space!.id) {
+      final repository = widget.runtime.space;
+      if (repository != null && repository.sync != null) {
+        unawaited(repository.refreshUs(_space!).catchError((Object _) {}));
+      }
+      if (widget.depth == 'team' && widget.runtime.api != null) {
+        unawaited(_loadTeam(_space!));
+      }
+      if (widget.depth == 'authority') {
+        unawaited(_loadAuthority(_space!));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.runtime.actorContext?.removeListener(_onActorChanged);
+    super.dispose();
   }
 
   Future<void> _resolveSpace() async {
     final repository = widget.runtime.space;
-    if (repository == null) return;
+    if (repository == null) {
+      if (mounted) {
+        setState(() {
+          _denied = true;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    final actorBeforeLookup = widget.runtime.actorContext?.value;
     final inventory = await repository.readInventory();
+    if (!mounted) return;
+    // Never replace a user-initiated actor change that happened while the
+    // inventory was loading for an old deep link.
+    if (widget.runtime.actorContext?.value != actorBeforeLookup) {
+      setState(() {
+        _denied = true;
+        _loading = false;
+      });
+      return;
+    }
     SpaceSummary? summary;
     for (final candidate in inventory) {
       if (candidate.identity.slug == widget.slug) {
@@ -551,20 +602,541 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       // The source state below turns a revoked or unavailable depth into a
       // safe local message; it never promotes cached authority.
     }
+    if (widget.depth == 'team') {
+      await _loadTeam(summary.identity);
+    }
+    if (widget.depth == 'authority') {
+      await _loadAuthority(summary.identity);
+    }
+  }
+
+  Future<void> _loadAuthority(SpaceActorIdentity space) async {
+    final version = ++_authorityRequestVersion;
+    final current = widget.runtime.actorContext?.value;
+    final api = widget.runtime.api;
+    if (current is! SpaceActorContext ||
+        current.space.id != space.id ||
+        api == null) {
+      if (mounted) {
+        setState(() {
+          _authorityFacts = null;
+          _authorityLoading = false;
+          _authorityError = 'Connexion nécessaire pour consulter vos droits.';
+        });
+      }
+      return;
+    }
+    setState(() {
+      _authorityFacts = null;
+      _authorityLoading = true;
+      _authorityError = null;
+    });
+    try {
+      final response = await api.get(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/us/authority/',
+      );
+      final payload = response.jsonObject();
+      if (payload['space_id']?.toString() != space.id ||
+          payload['mandates'] is! List) {
+        throw const FormatException('Invalid N3 authority');
+      }
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = payload;
+        _authorityLoading = false;
+      });
+    } on MakoloApiError catch (error) {
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = null;
+        _authorityLoading = false;
+        if (error.statusCode == 401 ||
+            error.statusCode == 403 ||
+            error.statusCode == 404) {
+          _denied = true;
+        } else {
+          _authorityError = 'Impossible de consulter vos autorisations.';
+        }
+      });
+    } on Object {
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = null;
+        _authorityLoading = false;
+        _authorityError = 'Impossible de consulter vos autorisations.';
+      });
+    }
+  }
+
+  Future<void> _loadTeam(SpaceActorIdentity space) async {
+    final api = widget.runtime.api;
+    if (api == null) return; // Offline preview remains usable until expiry.
+    try {
+      final response = await api.get(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/team/',
+      );
+      final decoded = jsonDecode(response.body);
+      if (decoded is! List) throw const FormatException('Expected team list');
+      final rows = <Map<String, dynamic>>[
+        for (final item in decoded)
+          if (item is Map)
+            {
+              for (final entry in item.entries)
+                if (entry.key is String) entry.key as String: entry.value,
+            },
+      ];
+      final actor = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          actor is! SpaceActorContext ||
+          actor.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _fullTeam = rows;
+        _teamUnavailable = false;
+      });
+    } on MakoloApiError catch (error) {
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
+      } else {
+        setState(() => _teamUnavailable = true);
+      }
+    } on Object {
+      if (mounted) setState(() => _teamUnavailable = true);
+    }
+  }
+
+  List<Map<String, String>> _teamRoleOptions(Map<String, dynamic> payload) {
+    final options = _map(payload['team'])?['role_options'];
+    if (options is! List) return const [];
+    return [
+      for (final entry in options)
+        if (_map(entry) case final role?)
+          if (_text(role['code']) != null)
+            {
+              'code': _text(role['code'])!,
+              'label': _text(role['label']) ?? _text(role['code'])!,
+            },
+    ];
+  }
+
+  Future<void> _mutateTeam(
+    Future<void> Function() operation, {
+    String successMessage = 'Équipe actualisée.',
+    String? subscriptionHandoff,
+  }) async {
+    final current = widget.runtime.actorContext?.value;
+    if (_teamMutating ||
+        current is! SpaceActorContext ||
+        _space == null ||
+        current.space.id != _space!.id) {
+      return;
+    }
+    final spaceId = current.space.id;
+    setState(() => _teamMutating = true);
+    try {
+      await operation();
+      if (!mounted ||
+          widget.runtime.actorContext?.value is! SpaceActorContext) {
+        return;
+      }
+      final currentActor =
+          widget.runtime.actorContext!.value as SpaceActorContext;
+      if (currentActor.space.id != spaceId) return;
+      await _loadTeam(_space!);
+      final repository = widget.runtime.space;
+      if (repository != null) {
+        try {
+          await repository.refreshUs(_space!);
+          await repository.refreshRelationships(_space!);
+        } on Object {
+          // Server mutation succeeded, but local projections may be older.
+        }
+      }
+      if (mounted && !_denied) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(successMessage)));
+      }
+    } on MakoloApiError catch (error) {
+      final currentActor = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          currentActor is! SpaceActorContext ||
+          currentActor.space.id != spaceId ||
+          currentActor.space.slug != widget.slug) {
+        return; // Late response from a different actor; never show stale data.
+      }
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
+      } else {
+        // A Subscription quota is different from a transport error or a
+        // Mandate refusal. Only a server-declared owner denial can hand off.
+        final isSubscriptionDenial =
+            error.statusCode == 400 && error.fields.containsKey('subscription');
+        final handoff = '/space/${widget.slug}/subscription';
+        final actor = widget.runtime.actorContext?.value;
+        final mayInspect =
+            isSubscriptionDenial &&
+            subscriptionHandoff == handoff &&
+            actor is SpaceActorContext &&
+            actor.space.id == spaceId &&
+            actor.space.slug == widget.slug;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.message),
+            duration: const Duration(seconds: 7),
+            action: mayInspect
+                ? SnackBarAction(
+                    label: 'Comprendre',
+                    onPressed: () {
+                      final current = widget.runtime.actorContext?.value;
+                      if (!mounted ||
+                          current is! SpaceActorContext ||
+                          current.space.id != spaceId ||
+                          current.space.slug != widget.slug) {
+                        return;
+                      }
+                      context.push('$handoff?from=team');
+                    },
+                  )
+                : null,
+          ),
+        );
+      }
+    } on Object {
+      final currentActor = widget.runtime.actorContext?.value;
+      if (mounted &&
+          currentActor is SpaceActorContext &&
+          currentActor.space.id == spaceId &&
+          currentActor.space.slug == widget.slug) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cette modification n’a pas été enregistrée.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _teamMutating = false);
+    }
+  }
+
+  Future<void> _addTeamMember(Map<String, dynamic> payload) async {
+    final api = widget.runtime.api;
+    final roles = _teamRoleOptions(payload);
+    if (api == null || roles.isEmpty) return;
+    final email = TextEditingController();
+    String? selected;
+    try {
+      final result = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: const Text('Ajouter un collaborateur'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Cette personne doit déjà avoir un compte Makolo. '
+                  'Le rôle attribué détermine les droits d’action dans cet Espace.',
+                ),
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail du Profil',
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  isExpanded: true,
+                  hint: const Text('Choisir un rôle'),
+                  decoration: const InputDecoration(labelText: 'Rôle'),
+                  items: [
+                    for (final role in roles)
+                      DropdownMenuItem(
+                        value: role['code']!,
+                        child: Text(role['label']!),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) update(() => selected = value);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              MakoloActionButton(
+                label: 'Annuler',
+                onPressed: () => Navigator.pop(context),
+                appearance: MakoloActionAppearance.quiet,
+              ),
+              MakoloActionButton(
+                label: 'Confirmer l’ajout',
+                onPressed: () {
+                  if (email.text.trim().isEmpty || selected == null) return;
+                  Navigator.pop(context, {
+                    'email': email.text.trim(),
+                    'role': selected!,
+                  });
+                },
+                appearance: MakoloActionAppearance.primary,
+              ),
+            ],
+          ),
+        ),
+      );
+      if (result == null || !mounted) return;
+      final links = payload['handoffs'];
+      final subscriptionHandoff = links is Map
+          ? links['subscription']?.toString()
+          : null;
+      await _mutateTeam(() async {
+        await api.post(
+          'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/',
+          body: result,
+        );
+      }, subscriptionHandoff: subscriptionHandoff);
+    } finally {
+      email.dispose();
+    }
+  }
+
+  Future<void> _changeTeamRole(
+    Map<String, dynamic> row,
+    Map<String, dynamic> payload,
+  ) async {
+    final api = widget.runtime.api;
+    final roles = _teamRoleOptions(payload);
+    final id = _text(row['id']);
+    if (api == null || roles.isEmpty || id == null) return;
+    String? selected;
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Ajouter un rôle'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_depthRowLabel(row)),
+              const Text(
+                'Ce rôle s’ajoute aux mandats existants. Les autorisations déjà accordées restent actives.',
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: selected,
+                isExpanded: true,
+                hint: const Text('Choisir un rôle'),
+                items: [
+                  for (final role in roles)
+                    DropdownMenuItem(
+                      value: role['code']!,
+                      child: Text(role['label']!),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) update(() => selected = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            MakoloActionButton(
+              label: 'Annuler',
+              onPressed: () => Navigator.pop(context),
+              appearance: MakoloActionAppearance.quiet,
+            ),
+            MakoloActionButton(
+              label: 'Ajouter ce rôle',
+              onPressed: selected == null
+                  ? null
+                  : () => Navigator.pop(context, selected),
+              appearance: MakoloActionAppearance.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    await _mutateTeam(() async {
+      await api.patch(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/${Uri.encodeComponent(id)}/',
+        body: {'role': chosen},
+      );
+    });
+  }
+
+  Future<void> _transferOwnership(Map<String, dynamic> payload) async {
+    final capabilities = _map(payload['capabilities']);
+    final api = widget.runtime.api;
+    if (api == null ||
+        _fullTeam == null ||
+        capabilities?['manage_team'] != true ||
+        capabilities?['manage_ownership'] != true) {
+      return;
+    }
+    final candidates = _fullTeam!
+        .where(
+          (row) =>
+              _text(row['id']) != null &&
+              row['responsibility'] != 'space_owner',
+        )
+        .toList();
+    if (candidates.isEmpty) return;
+    String? chosenId;
+    var relinquish = false;
+    final selection = await showDialog<Map<String, Object>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Transférer la propriété de l’Espace'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Choisissez un collaborateur actif. '
+                'Votre droit de transférer la propriété sera vérifié.',
+              ),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: chosenId,
+                hint: const Text('Nouveau propriétaire'),
+                items: [
+                  for (final row in candidates)
+                    DropdownMenuItem(
+                      value: _text(row['id'])!,
+                      child: Text(_depthRowLabel(row)),
+                    ),
+                ],
+                onChanged: (value) => update(() => chosenId = value),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Renoncer aussi à mon rôle de propriétaire'),
+                subtitle: const Text('Décoché : je reste propriétaire.'),
+                value: relinquish,
+                onChanged: (value) => update(() => relinquish = value == true),
+              ),
+            ],
+          ),
+          actions: [
+            MakoloActionButton(
+              label: 'Annuler',
+              onPressed: () => Navigator.pop(context),
+              appearance: MakoloActionAppearance.quiet,
+            ),
+            MakoloActionButton(
+              label: 'Confirmer le transfert',
+              onPressed: chosenId == null
+                  ? null
+                  : () => Navigator.pop(context, <String, Object>{
+                      'target_membership_id': chosenId!,
+                      'relinquish_current_owner': relinquish,
+                    }),
+              appearance: MakoloActionAppearance.primary,
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null || !mounted) return;
+    await _mutateTeam(() async {
+      await api.post(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/ownership/transfer/',
+        body: selection,
+      );
+    }, successMessage: 'Gouvernance actualisée.');
+  }
+
+  Future<void> _removeTeamMember(Map<String, dynamic> row) async {
+    final api = widget.runtime.api;
+    final id = _text(row['id']);
+    if (api == null || id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Retirer ce collaborateur ?'),
+        content: Text(
+          'Retirer ${_depthRowLabel(row)} peut également lui retirer '
+          'ses responsabilités dans cet Espace.',
+        ),
+        actions: [
+          MakoloActionButton(
+            label: 'Annuler',
+            onPressed: () => Navigator.pop(context, false),
+            appearance: MakoloActionAppearance.quiet,
+          ),
+          MakoloActionButton(
+            label: 'Confirmer le retrait',
+            onPressed: () => Navigator.pop(context, true),
+            appearance: MakoloActionAppearance.danger,
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _mutateTeam(() async {
+      await api.delete(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/${Uri.encodeComponent(id)}/',
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.depth == 'resources') {
+      return SpaceUsResourcesScreen(runtime: widget.runtime, slug: widget.slug);
+    }
     if (_loading) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Vérification du contexte Space…',
+        message: 'Vérification de votre accès à cet Espace…',
       );
     }
     if (_denied || _space == null) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Ce contexte Space n’est pas disponible pour votre Profil.',
+        message:
+            'Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.',
+      );
+    }
+    final current = widget.runtime.actorContext?.value;
+    if (current is! SpaceActorContext || current.space.id != _space!.id) {
+      return const MakoloSecondaryScreen(
+        title: 'Nous',
+        message: 'Vous avez changé d’Espace. Revenez à Nous pour continuer.',
       );
     }
     final repository = widget.runtime.space!;
@@ -574,10 +1146,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       initialData: OwnerSourceState.unknown,
       builder: (context, sourceSnapshot) {
         final state = sourceSnapshot.data ?? OwnerSourceState.unknown;
-        if (state.invalidated || state.lastErrorCode != null) {
+        if (state.invalidated) {
           return MakoloSecondaryScreen(
             title: _depthTitle(widget.depth),
-            message: 'Cette profondeur n’est plus disponible avec l’autorité actuelle. Le contexte public de l’Espace reste protégé.',
+            message:
+                'Cette rubrique n’est plus accessible avec vos droits actuels.',
           );
         }
         return StreamBuilder<StoredProjection?>(
@@ -585,29 +1158,105 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           builder: (context, snapshot) {
             final payload = snapshot.data?.payload;
             if (payload == null) {
-              return MakoloSecondaryScreen(
-                title: _depthTitle(widget.depth),
+              return MakoloErrorState(
                 message: 'Cette profondeur ne peut pas être actualisée pour le moment.',
+                onRetry: _retryDepth,
               );
             }
             final handoffs = payload['handoffs'];
             final link = handoffs is Map ? handoffs[widget.depth] : null;
-            final allowed = link is String;
+            final allowed = link == '/space/${widget.slug}/us/${widget.depth}';
             if (!allowed) {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
-                message:
-                    'Cette profondeur n’est pas autorisée dans ce contexte.',
+                message: 'Cette rubrique n’est pas accessible avec vos droits actuels.',
               );
             }
-            return _depthBody(context, payload);
+            final freshness = WorkspaceContextRepository.surfaceFreshness
+                .evaluate(snapshot.data!, now: DateTime.now());
+            if (freshness == FreshnessState.expired) {
+              return MakoloErrorState(
+                message: 'Ces informations doivent être actualisées.',
+                onRetry: _retryDepth,
+              );
+            }
+            return _depthBody(
+              context,
+              payload,
+              observationOnly:
+                  state.lastErrorCode != null || state.lastSuccessAt == null,
+            );
           },
         );
       },
     );
   }
 
-  Widget _depthBody(BuildContext context, Map<String, dynamic> payload) {
+  Future<void> _retryDepth() async {
+    final active = widget.runtime.actorContext?.value;
+    final repository = widget.runtime.space;
+    if (active is! SpaceActorContext ||
+        _space == null ||
+        active.space.id != _space!.id ||
+        repository == null ||
+        repository.sync == null) {
+      return;
+    }
+    try {
+      await repository.refreshUs(_space!);
+      if (widget.depth == 'team') await _loadTeam(_space!);
+      if (widget.depth == 'authority') await _loadAuthority(_space!);
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
+      }
+    } on Object {
+      // Keep the last non-expired observation; owner-source state reports
+      // the failure and no offline action can be submitted from it.
+    }
+  }
+
+  Widget _depthBody(
+    BuildContext context,
+    Map<String, dynamic> payload, {
+    bool observationOnly = false,
+  }) {
+    if (widget.depth == 'authority') {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Mes autorisations')),
+        body: _authorityLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _authorityFacts == null
+            ? ListView(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                children: [
+                  Text(
+                    observationOnly
+                        ? 'Actualisez vos autorisations avant de les consulter.'
+                        : _authorityError ?? 'Autorisations indisponibles.',
+                  ),
+                  if (widget.runtime.api != null &&
+                      widget.runtime.space?.sync != null)
+                    MakoloActionButton(
+                      label: 'Réessayer',
+                      onPressed: _retryDepth,
+                      appearance: MakoloActionAppearance.quiet,
+                      icon: Icons.refresh_rounded,
+                    ),
+                ],
+              )
+            : ListView(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                children: [SpaceUsAuthorityFacts(payload: _authorityFacts!)],
+              ),
+      );
+    }
     final title = _depthTitle(widget.depth);
     final section = widget.depth == 'team'
         ? _map(payload['team'])
@@ -616,33 +1265,218 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         : widget.depth == 'ownership'
         ? _map(payload['ownership'])
         : null;
-    final rows = section?['items'];
+    final allRows = widget.depth == 'team' && _fullTeam != null
+        ? _fullTeam!
+        : section?['items'];
+    final rows = allRows is List
+        ? allRows
+              .where(
+                (row) =>
+                    widget.depth != 'responsibilities' ||
+                    _map(row)?['combined'] != true,
+              )
+              .toList()
+        : const <dynamic>[];
+    final canManageTeam =
+        !observationOnly &&
+        widget.depth == 'team' &&
+        _map(payload['capabilities'])?['manage_team'] == true &&
+        _teamRoleOptions(payload).isNotEmpty;
+    final canTransferOwnership =
+        !observationOnly &&
+        widget.depth == 'ownership' &&
+        _map(payload['capabilities'])?['manage_team'] == true &&
+        _map(payload['capabilities'])?['manage_ownership'] == true;
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
-          Text('Nous', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            'Cette profondeur reste attachée au Space actif et à son autorité serveur.',
-          ),
+          if (widget.depth == 'team' &&
+              _map(payload['handoffs'])?['relationships'] ==
+                  '/space/${widget.slug}/us/relationships') ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloActionButton(
+              label: 'Voir les relations de cet Espace',
+              onPressed: () =>
+                  context.push('/space/${widget.slug}/us/relationships'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.hub_outlined,
+            ),
+          ],
+          if (widget.depth == 'responsibilities' &&
+              !observationOnly &&
+              _map(payload['handoffs'])?['authority'] ==
+                  '/space/${widget.slug}/us/authority') ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloActionButton(
+              label: 'Voir mes autorisations',
+              onPressed: () =>
+                  context.push('/space/${widget.slug}/us/authority'),
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.shield_outlined,
+            ),
+          ],
           const SizedBox(height: MakoloSpacing.lg),
-          if (widget.depth == 'trust')
-            Text(
-              _map(payload['trust'])?['verified'] == true
-                  ? 'Identité de l’Espace vérifiée dans un périmètre connu.'
-                  : 'Aucun fait public de vérification actif n’est projeté.',
-            )
-          else if (rows is List && rows.isNotEmpty)
-            for (final row in rows)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_depthRowLabel(row)),
-                subtitle: Text(_depthRowDetail(row)),
+          if (canManageTeam) ...[
+            MakoloActionButton(
+              label: 'Ajouter un collaborateur',
+              onPressed: _teamMutating ? null : () => _addTeamMember(payload),
+              appearance: MakoloActionAppearance.primary,
+              icon: Icons.person_add_alt_1_outlined,
+            ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          if (canTransferOwnership) ...[
+            if (_fullTeam == null)
+              MakoloActionButton(
+                label: 'Choisir un nouveau propriétaire',
+                onPressed: _teamMutating ? null : () => _loadTeam(_space!),
+                appearance: MakoloActionAppearance.secondary,
+                icon: Icons.group_add_outlined,
               )
+            else if (_fullTeam!.any(
+              (row) =>
+                  _text(row['id']) != null &&
+                  row['responsibility'] != 'space_owner',
+            ))
+              MakoloActionButton(
+                label: 'Transférer la propriété',
+                onPressed: _teamMutating
+                    ? null
+                    : () => _transferOwnership(payload),
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.verified_user_outlined,
+              )
+            else
+              const Text('Aucun collaborateur éligible à ce transfert.'),
+            if (_teamUnavailable)
+              MakoloActionButton(
+                label: 'Réessayer de charger les collaborateurs',
+                onPressed: () => _loadTeam(_space!),
+                appearance: MakoloActionAppearance.quiet,
+              ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          if (_teamMutating) const LinearProgressIndicator(),
+          if (widget.depth == 'trust') ...[
+            if (_map(payload['trust'])?['claims'] case final List claims) ...[
+              if (claims.isNotEmpty) ...[
+                for (final claim in claims)
+                  if (_map(claim) case final fact?)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                      child: MakoloCard(
+                        padding: const EdgeInsets.all(MakoloSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _text(fact['claim_type']) ??
+                                  'Fait de vérification',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (_text(fact['status']) case final status?)
+                              Text('État : $status'),
+                            if (fact['valid_until'] != null)
+                              Text(
+                                'Validité annoncée : ${fact['valid_until']}',
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+              ] else if (!observationOnly)
+                const MakoloEmptyState(title: 'Aucun fait à afficher.'),
+            ] else if (!observationOnly)
+              const MakoloEmptyState(title: 'Aucun fait à afficher.'),
+          ] else if (rows.isEmpty && !observationOnly)
+            const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
-            const Text('Aucun élément visible dans ce contexte.'),
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                child: MakoloCard(
+                  padding: const EdgeInsets.all(MakoloSpacing.md),
+                  child: Row(
+                    children: [
+                      Icon(
+                        widget.depth == 'team'
+                            ? Icons.person_outline
+                            : widget.depth == 'ownership'
+                            ? Icons.verified_user_outlined
+                            : Icons.assignment_ind_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: MakoloSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _depthRowLabel(row),
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _depthRowDetail(row),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (canManageTeam &&
+                                _fullTeam != null &&
+                                _map(row) != null &&
+                                (_map(row)?['responsibility'] !=
+                                        'space_owner' ||
+                                    _map(
+                                          payload['capabilities'],
+                                        )?['manage_ownership'] ==
+                                        true)) ...[
+                              const SizedBox(height: MakoloSpacing.sm),
+                              Wrap(
+                                spacing: MakoloSpacing.sm,
+                                children: [
+                                  MakoloActionButton(
+                                    label: 'Ajouter un rôle',
+                                    onPressed: _teamMutating
+                                        ? null
+                                        : () => _changeTeamRole(
+                                            _map(row)!,
+                                            payload,
+                                          ),
+                                    appearance: MakoloActionAppearance.quiet,
+                                  ),
+                                  MakoloActionButton(
+                                    label: 'Retirer',
+                                    onPressed: _teamMutating
+                                        ? null
+                                        : () => _removeTeamMember(_map(row)!),
+                                    appearance: MakoloActionAppearance.danger,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          if (widget.depth == 'team' &&
+              _fullTeam == null &&
+              section?['has_more'] == true)
+            const Text(
+              'Aperçu partiel : tous les membres ne sont pas chargés.',
+            ),
+          if (widget.depth == 'team' && _teamUnavailable)
+            MakoloActionButton(
+              label: 'Réessayer de charger l’équipe',
+              onPressed: () => _loadTeam(_space!),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.refresh_rounded,
+            ),
+          if (widget.depth == 'ownership' && section?['has_more'] == true)
+            const Text('Aperçu partiel de la gouvernance institutionnelle.'),
         ],
       ),
     );
@@ -650,10 +1484,12 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   String _depthTitle(String depth) => switch (depth) {
     'team' => 'Équipe',
-    'responsibilities' => 'Responsabilités',
+    'responsibilities' => 'Mes rôles',
+    'authority' => 'Mes autorisations',
     'relationships' => 'Personnes & relations',
-    'ownership' => 'Ownership',
-    'trust' => 'Trust',
+    'ownership' => 'Gouvernance',
+    'resources' => 'Nos ressources',
+    'trust' => 'Confiance',
     'pilot' => 'Piloter',
     'settings' => 'Paramètres institutionnels',
     _ => 'Nous',
@@ -670,11 +1506,25 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   String _depthRowDetail(Object? value) {
     final row = _map(value);
+    if (widget.depth == 'team') {
+      final rawRoles = row?['roles'];
+      if (rawRoles is List) {
+        final labels = rawRoles
+            .map((item) => _text(_map(item)?['label']))
+            .whereType<String>()
+            .toList(growable: false);
+        if (labels.isNotEmpty) return labels.join(' · ');
+      }
+    }
     final responsibility = _map(row?['responsibility']);
     final activity = _map(row?['activity']);
     return _text(responsibility?['label']) ??
         _text(activity?['title']) ??
-        'Fait projeté par le serveur';
+        (widget.depth == 'team'
+            ? 'Membre de l’équipe'
+            : widget.depth == 'ownership'
+            ? 'Mandat de propriétaire'
+            : 'Portée collective');
   }
 
   Map<String, dynamic>? _map(Object? value) => value is Map

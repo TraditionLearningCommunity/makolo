@@ -419,7 +419,10 @@ class S4TransitionTests(TestCase):
         assessment.refresh_from_db()
         transition.refresh_from_db()
         self.assertEqual(assessment.state, RequirementAssessmentState.SATISFIED)
-        self.assertEqual(transition.status, SubscriptionTransitionStatus.READY)
+        self.assertEqual(transition.status, SubscriptionTransitionStatus.COMPLETED)
+        self.assertTrue(transition.subscription.items.filter(
+            created_via_transition=transition, status="active",
+        ).exists())
 
     def test_waived_payment_obligation_satisfies_assessment(self):
         version = self.make_version("s4.addon.payment.waived")

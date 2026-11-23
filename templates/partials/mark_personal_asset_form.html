@@ -1,0 +1,43 @@
+{% comment %}
+PersonalAsset owns this POST and all file validation. Mark only prepares
+an explicit, user-reviewed file handoff. No Mark upload endpoint is added.
+{% endcomment %}
+{% if mark_asset_form %}
+<section class="mk-mark-owner-panel" data-mk-mark-owner-panel hidden
+  aria-labelledby="mk-mark-owner-title">
+  <h2 id="mk-mark-owner-title">Conserver dans Mes documents</h2>
+  <p>Vérifiez les informations avant de confier ce document à Mes documents.
+    Il ne sera ni considéré comme preuve ni utilisé pour satisfaire une exigence.</p>
+  <form method="post" action="{% url 'personal_assets:add' %}"
+    enctype="multipart/form-data" data-mk-mark-owner-form>
+    {% csrf_token %}
+    <div class="mk-mark-owner-fields">
+      <label>Titre
+        {{ mark_asset_form.title }}
+      </label>
+      <label>Type de document
+        {{ mark_asset_form.kind }}
+      </label>
+      <label>Confidentialité
+        {{ mark_asset_form.sensitivity }}
+      </label>
+      <label>Émission (facultative)
+        {{ mark_asset_form.issued_at }}
+      </label>
+      <label>Échéance (facultative)
+        {{ mark_asset_form.expires_at }}
+      </label>
+      <label>Fichier
+        {{ mark_asset_form.file }}
+      </label>
+    </div>
+    <div class="mk-mark-tools">
+      <button type="submit" class="mk-action-button" data-variant="primary">
+        Conserver ce document
+      </button>
+      <button type="button" class="mk-action-button" data-variant="secondary"
+        data-mk-mark-owner-cancel>Annuler</button>
+    </div>
+  </form>
+</section>
+{% endif %}

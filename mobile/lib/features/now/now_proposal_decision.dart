@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 
@@ -106,9 +108,9 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
           content: Text(
             isSpace
                 ? 'Vous allez répondre au nom de cet Espace. '
-                      'Le serveur vérifiera votre Mandate et vos permissions.'
+                      'Votre autorisation à agir pour cet Espace sera vérifiée.'
                 : 'Vous allez répondre personnellement. '
-                      'La décision sera vérifiée par le propriétaire.',
+                      'Votre réponse sera vérifiée avant d’être confirmée.',
           ),
           actions: [
             TextButton(
@@ -165,13 +167,21 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      FilledButton.icon(
+      MakoloActionButton(
         onPressed: _sending || _confirmed ? null : () => unawaited(_respond()),
-        icon: const Icon(Icons.arrow_forward_rounded),
-        label: Text(widget.action.label),
+        icon: Icons.arrow_forward_rounded,
+        label: widget.action.label,
+        appearance: MakoloActionAppearance.primary,
+        phase: _sending
+            ? MakoloActionPhase.processing
+            : _confirmed
+            ? MakoloActionPhase.confirmed
+            : _error != null
+            ? MakoloActionPhase.failed
+            : MakoloActionPhase.available,
       ),
       if (_sending) const LinearProgressIndicator(),
-      if (_confirmed) const Text('Réponse confirmée par le réseau d’action.'),
+      if (_confirmed) const Text('Réponse confirmée.'),
       if (_error != null)
         Text(
           _error!,

@@ -1,0 +1,65 @@
+/* Space documents: calm, concise, touch-friendly institutional library. */
+.mk-docs{max-width:980px;margin:0 auto;padding:clamp(16px,3vw,36px) 0 60px;color:#0F172A}
+.mk-docs-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px}
+.mk-docs-heading h1{font-size:clamp(2rem,4vw,3.2rem);font-weight:850;letter-spacing:-.045em;line-height:1.1;margin:7px 0 0}
+.mk-docs-kicker{display:block;font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;font-weight:750;color:#5232DB;margin-top:14px}
+.mk-docs-back{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:#5232DB;font-weight:700;font-size:.9rem}
+.mk-docs-back svg,.mk-docs-primary svg,.mk-docs-quiet svg{width:18px;height:18px}
+.mk-docs-primary,.mk-docs-quiet{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:46px;border:0;border-radius:14px;padding:10px 17px;cursor:pointer;font-size:.9rem;font-weight:750}
+.mk-docs-primary{color:white!important;background:#5232DB}
+.mk-docs-quiet{background:#F1EBFF;color:#2B176E}
+.mk-docs-primary:hover{background:#2B176E}
+.mk-docs-create{position:relative}
+.mk-docs-create summary{list-style:none;user-select:none}
+.mk-docs-create summary::-webkit-details-marker{display:none}
+.mk-docs-create[open] .mk-docs-form{margin-top:12px}
+.mk-docs-form{z-index:3;display:grid;gap:13px;min-width:min(360px,90vw);padding:20px;border:1px solid #E6E0F6;border-radius:20px;background:white;box-shadow:0 14px 46px rgba(43,23,110,.1)}
+.mk-docs-form label{display:grid;gap:6px;font-size:.78rem;font-weight:750;color:#334155}
+.mk-docs-form input,.mk-docs-form select{width:100%;min-height:44px;padding:10px;border:1px solid #D9DDE7;border-radius:10px;background:white;font:inherit;color:#0F172A}
+.mk-docs-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mk-docs-search{display:flex;align-items:center;gap:12px;background:white;border:1px solid #E5E7EB;border-radius:16px;padding:8px 14px;margin-bottom:15px}
+.mk-docs-search>svg{width:21px;color:#6B7280}
+.mk-docs-search input{flex:1;min-width:0;border:none;background:transparent;outline:none;font:inherit;min-height:40px}
+.mk-docs-search button{display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:10px;background:#F4F0FF;color:#5232DB}
+.mk-docs-search button svg{width:18px}
+.mk-docs-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.mk-docs-row,.mk-docs-version{display:flex;align-items:center;gap:15px;min-height:80px;border:1px solid #E6E6ED;border-radius:18px;background:white;padding:14px 17px;text-decoration:none;color:inherit}
+.mk-docs-row:hover{border-color:#5232DB;box-shadow:0 4px 15px rgba(82,50,219,.06)}
+.mk-docs-file{width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:14px;background:#F4F0FF;color:#5232DB}
+.mk-docs-file svg{width:23px;height:23px}
+.mk-docs-copy{flex:1;min-width:0;display:grid;gap:4px}
+.mk-docs-copy strong{font-size:.96rem;font-weight:730;overflow-wrap:anywhere}
+.mk-docs-copy small{color:#64748B;font-size:.77rem}
+.mk-docs-chevron,.mk-docs-icon svg{width:20px;color:#5232DB}
+.mk-docs-panel{background:white;border:1px solid #E6E6ED;border-radius:24px;padding:clamp(16px,3vw,26px)}
+.mk-docs-panel>header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.mk-docs-panel h2{font-size:1.16rem;font-weight:780}
+.mk-docs-version{border:0;border-bottom:1px solid #ECEAF3;border-radius:0;padding:10px 0;min-height:70px}
+.mk-docs-version:last-child{border-bottom:0}
+.mk-docs-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:12px;color:#5232DB;background:#F4F0FF}
+.mk-docs-empty{padding:70px 20px;display:grid;justify-items:center;gap:12px;text-align:center;background:white;border:1px dashed #D8CFF5;border-radius:22px}
+.mk-docs-empty>svg{width:38px;height:38px;color:#5232DB}
+.mk-docs-empty strong{font-size:1rem}
+.mk-docs-pagination{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:20px}
+.mk-docs-pagination a{display:inline-flex;align-items:center;gap:8px;color:#5232DB;font-weight:750}
+.mk-docs-pagination svg{width:18px}
+.mk-docs-danger{margin-top:26px}
+.mk-docs-danger button{display:inline-flex;align-items:center;gap:9px;color:#B42318;border:0;background:transparent;cursor:pointer;font-weight:700;min-height:44px}
+.mk-docs-danger svg{width:18px}
+.mk-docs-notice{display:flex;gap:10px;padding:14px;border-radius:14px;background:#F5F2FF;margin-bottom:20px;color:#2B176E}
+.mk-docs :is(a,button,input,summary,select):focus-visible{outline:3px solid #FF704D;outline-offset:3px}
+@media(max-width:600px){.mk-docs-heading{align-items:stretch}.mk-docs-create>.mk-docs-primary{width:100%}.mk-docs-form{min-width:0}.mk-docs-fields{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.mk-docs-row{transition:none}}
+
+.mk-docs-edit{margin-bottom:20px}
+.mk-docs-edit summary{list-style:none}
+.mk-docs-edit summary::-webkit-details-marker{display:none}
+.mk-docs-edit[open] .mk-docs-form{max-width:420px;margin-top:10px}
+.mk-docs-share,.mk-docs-use{margin-top:20px}
+.mk-docs-share h2,.mk-docs-use h2{display:flex;align-items:center;gap:10px}
+.mk-docs-share h2 svg,.mk-docs-use h2 svg{width:20px;color:#5232DB}
+.mk-docs-icon{border:0;cursor:pointer}
+.mk-docs-use-form{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.mk-docs-use-form select{min-height:46px;min-width:200px;flex:1;border:1px solid #E6E6ED;border-radius:12px;padding:10px 12px;background:white;font:inherit}
+.mk-docs-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mk-docs-empty-compact{padding:12px 0;color:#64748B;font-size:.84rem}

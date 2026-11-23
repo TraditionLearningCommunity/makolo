@@ -19,6 +19,7 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
       return DayOfScreen(
         occurrenceId: state.pathParameters['id']!,
         repository: repository,
+        actorContext: runtime.actorContext,
         onOpenAccess: (accessId, detailPath) =>
             context.push('/accesses/$accessId'),
         onPresentCredential: (accessId, credentialPath) => context.push(
@@ -27,6 +28,12 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
         ),
         onOpenLive: (livePath) =>
             context.push('/occurrences/${state.pathParameters['id']}/live'),
+        onOpenScanner: () =>
+            context.push('/occurrences/${state.pathParameters['id']}/scanner'),
+        onOpenDepth: (kind) => context.push(
+          '/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
+        ),
+        onOpenHistory: () => context.push('/history'),
       );
     },
   ),

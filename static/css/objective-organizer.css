@@ -1,0 +1,467 @@
+/* Mes démarches — calm and structured Makolo editorial workspace.
+   The component is shared in meaning with Flutter's organizer; responsive
+   composition changes, business rules do not. */
+.mk-organizer {
+  --o-primary: var(--mk-brand);
+  --o-deep: var(--mk-brand-strong, #2b176e);
+  --o-coral: var(--mk-coral, #ff704d);
+  --o-ink: var(--mk-text);
+  --o-muted: var(--mk-muted);
+  --o-line: var(--mk-border);
+  --o-soft: var(--mk-surface-muted);
+  --o-surface: var(--mk-surface-solid);
+  width: min(100%, 1130px);
+  margin-inline: auto;
+  padding: 16px clamp(16px, 3vw, 40px) 60px;
+  color: var(--o-ink);
+}
+.mk-organizer *, .mk-organizer *::before, .mk-organizer *::after { box-sizing: border-box; }
+.mk-organizer a { color: inherit; text-decoration: none; }
+/* Shared control and application a11y layer own focus rings. */
+.mk-organizer svg, .mk-organizer [data-lucide] {
+  width: 21px;
+  height: 21px;
+  flex: none;
+  stroke-width: 1.8;
+}
+.mk-organizer__breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: var(--o-muted);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+.mk-organizer__breadcrumb a:hover { color: var(--o-primary); }
+.mk-organizer__heading {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-content: space-between;
+  padding-bottom: 28px;
+}
+.mk-organizer__eyebrow {
+  font-size: 12px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  font-weight: 750;
+  color: var(--o-primary);
+  margin: 0 0 10px;
+}
+.mk-organizer__heading h1 {
+  font-size: clamp(28px, 4vw, 41px);
+  letter-spacing: -.038em;
+  font-weight: 800;
+  line-height: 1.12;
+  margin: 0;
+}
+.mk-organizer__intro { margin: 12px 0 0; color: var(--o-muted); line-height: 1.5; }
+.mk-organizer__heading-mark {
+  width: 66px;
+  height: 66px;
+  background: #f1edff;
+  color: var(--o-primary);
+  border-radius: 19px;
+  display: grid;
+  place-items: center;
+}
+.mk-organizer__heading-mark svg { width: 32px; height: 32px; }
+.mk-organizer__create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  max-width: 650px;
+  margin-bottom: 26px;
+}
+/* Creation links use the shared Makolo action control; only placement stays here. */
+.mk-organizer__create .mk-action-button { min-height: 54px; gap: 11px; }
+.mk-organizer__tools {
+  padding: 16px 0 20px;
+  border-top: 1px solid var(--o-line);
+  border-bottom: 1px solid var(--o-line);
+}
+.mk-organizer__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 600px);
+  padding: 12px 14px;
+  min-height: 51px;
+  border: 1px solid #d4cfdf;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--o-muted);
+}
+.mk-organizer__search:focus-within { border-color: var(--o-primary); box-shadow: 0 0 0 3px #5232db13; }
+.mk-organizer__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-ink);
+  outline: 0;
+  font-size: 15px;
+}
+.mk-organizer__search input:focus-visible { outline: 0; }
+.mk-organizer__search input::placeholder { color: #8590a2; }
+.mk-organizer__suggestions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 10px 0 0;
+}
+.mk-organizer__suggestions[hidden] { display: none; }
+.mk-organizer__suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 12px;
+  background: #f4f2fa;
+  color: var(--o-deep) !important;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.mk-organizer__suggestion:hover { background: #e8e1fd; }
+.mk-organizer__suggestion svg { width: 16px; height: 16px; }
+.mk-organizer__link-title { overflow-wrap: anywhere; }
+.mk-organizer__filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 13px;
+  margin-top: 17px;
+}
+.mk-organizer__filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--o-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.mk-organizer__filters select { max-width: 190px; cursor: pointer; }
+/* Order and reset adopt the shared control skin and accessible target. */
+.mk-organizer__order.mk-action-button { flex: none; }
+.mk-organizer__clear.mk-action-button { white-space: nowrap; }
+.mk-organizer__views { margin-top: 22px; }
+/* Tabs/pressed state use mk-interaction-tabs from the shared foundation. */
+.mk-organizer__views svg { width: 17px; height: 17px; }
+.mk-organizer__body { padding-top: 20px; }
+.mk-organizer__summary {
+  color: var(--o-muted);
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.mk-organizer__results--cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.mk-organizer__card {
+  background: var(--o-surface);
+  border: 1px solid var(--o-line);
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mk-organizer__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--o-primary);
+}
+.mk-organizer__card-head > svg { width: 28px; height: 28px; }
+.mk-organizer__state {
+  margin-left: auto;
+  color: var(--o-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+.mk-organizer__card-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 18px;
+  font-weight: 760;
+  letter-spacing: -.02em;
+}
+.mk-organizer__card-title:hover, .mk-organizer__list-link:hover,
+.mk-organizer__node-link:hover { color: var(--o-primary); }
+.mk-organizer__card-title > svg { display: none; }
+.mk-organizer__card-description {
+  margin: 8px 0 15px;
+  color: var(--o-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.mk-organizer__tags {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.mk-organizer__tag {
+  background: #f5f3fb;
+  color: #4d425f;
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.mk-organizer__preview { margin-top: 18px; border-top: 1px solid var(--o-line); padding-top: 12px; }
+.mk-organizer__preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.mk-organizer__preview-item svg { width: 17px; height: 17px; color: var(--o-primary); }
+.mk-organizer__list-item {
+  border-bottom: 1px solid var(--o-line);
+  background: #fff;
+}
+.mk-organizer__list-link {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.mk-organizer__list-link > svg:first-child { color: var(--o-primary); width: 24px; height: 24px; }
+.mk-organizer__list-link > svg:last-child { margin-left: auto; width: 16px; height: 16px; color: var(--o-muted); }
+.mk-organizer__list-copy { margin-left: auto; flex: 1; }
+.mk-organizer__meta { font-size: 12px; color: var(--o-muted); font-weight: 450; margin: 5px 0 0; }
+.mk-organizer__results--explorer {
+  border: 1px solid var(--o-line);
+  border-radius: 14px;
+  padding: 8px;
+  background: #fff;
+}
+.mk-organizer__node-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 53px;
+  border-radius: 9px;
+  padding-inline-end: 12px;
+}
+.mk-organizer__node-head:hover { background: var(--o-soft); }
+.mk-organizer__node-toggle,
+.mk-organizer__node-spacer {
+  width: 31px;
+  height: 38px;
+  flex: none;
+}
+.mk-organizer__node-toggle {
+  display: grid;
+  place-items: center;
+  color: var(--o-muted);
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+.mk-organizer__node-toggle:hover { color: var(--o-primary); }
+.mk-organizer__node-toggle svg { width: 17px; height: 17px; }
+.mk-organizer__node-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.mk-organizer__node-link svg { width: 20px; height: 20px; color: var(--o-primary); }
+.mk-organizer__node-head .mk-organizer__meta { margin: 0 0 0 10px; }
+.mk-organizer__node-children { border-inline-start: 1px solid var(--o-line); margin-inline-start: 17px; }
+.mk-organizer__empty {
+  text-align: center;
+  color: var(--o-muted);
+  padding: 55px 18px;
+  grid-column: 1 / -1;
+}
+.mk-organizer__empty svg { width: 40px; height: 40px; color: var(--o-primary); }
+.mk-organizer__empty h2 { color: var(--o-ink); margin: 16px 0 6px; font-size: 18px; }
+.mk-organizer__empty p { margin: 0; font-size: 14px; }
+.mk-organizer__continuation { text-align: center; padding: 24px 0; }
+.mk-organizer__continuation[hidden] { display: none; }
+.mk-organizer__continuation p { color: var(--o-muted); font-size: 13px; }
+.mk-organizer__load.mk-action-button { gap: 8px; }
+.mk-organizer__load:disabled { cursor: progress; opacity: .6; }
+.mk-organizer__error { color: #bc4026 !important; }
+@media (max-width: 740px) {
+  .mk-organizer__results--cards { grid-template-columns: minmax(0, 1fr); }
+  .mk-organizer__heading-mark { width: 54px; height: 54px; }
+  .mk-organizer__node-head .mk-organizer__meta { display: none; }
+}
+@media (max-width: 470px) {
+  .mk-organizer { padding-inline: 15px; }
+  .mk-organizer__create { grid-template-columns: 1fr; }
+  .mk-organizer__filters label { width: calc(50% - 7px); }
+  .mk-organizer__filters select { width: 100%; max-width: 100%; }
+  .mk-organizer__heading-mark { display: none; }
+  .mk-organizer__views { display: flex; width: 100%; }
+  .mk-organizer__views > button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-organizer * { transition-duration: 0.01ms !important; }
+}
+
+
+/* Project/Dossier creation uses the exact same visual grammar as the organizer. */
+.mk-organizer--create { max-width: 760px; }
+.mk-organizer--create .mk-organizer__heading { padding-bottom: 22px; }
+.mk-organizer__create-form {
+  border: 1px solid var(--o-line);
+  border-radius: 19px;
+  background: var(--o-surface);
+  padding: clamp(18px, 4vw, 32px);
+  display: grid;
+  gap: 21px;
+}
+.mk-organizer__field { display: grid; gap: 9px; }
+.mk-organizer__field > label {
+  color: var(--o-ink);
+  font-size: 14px;
+  font-weight: 750;
+}
+.mk-organizer__field > :is(input,select,textarea) {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #cdd0db;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--o-ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  min-height: 48px;
+}
+.mk-organizer__field > textarea { min-height: 110px; resize: vertical; }
+.mk-organizer__field > :is(input,select,textarea):focus {
+  border-color: var(--o-primary);
+  outline: 3px solid #5232db23;
+  outline-offset: 1px;
+}
+.mk-organizer__field--invalid > :is(input,select,textarea) {
+  border-color: #c94739;
+}
+.mk-organizer__field-help, .mk-organizer__form-note {
+  margin: 0;
+  color: var(--o-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.mk-organizer__form-errors, .mk-organizer__field-errors {
+  color: #ae2b22;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mk-organizer__field-errors ul, .mk-organizer__form-errors ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mk-organizer__form-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  padding-top: 6px;
+}
+.mk-organizer__form-footer .mk-organizer__primary:not(.mk-action-button) {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+}
+.mk-organizer__form-cancel {
+  min-height: 45px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--o-muted) !important;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mk-organizer__form-cancel:hover { color: var(--o-primary) !important; }
+
+
+/* Objectives organizer, shared Profile/Space presentation:
+   icon-only views/filters with native selects retained for accessibility. */
+.mk-organizer__heading {padding-bottom:12px}
+.mk-organizer__heading h1 {margin-bottom:0}
+.mk-organizer__create {gap:8px;margin-bottom:14px}
+.mk-organizer__create .mk-action-button {min-height:46px;gap:7px}
+.mk-organizer__tools {padding:12px 0 14px}
+.mk-organizer__filters {align-items:center;gap:7px;margin-top:11px}
+.mk-organizer__filters .mk-organizer__icon-filter {
+  position:relative;display:inline-flex;align-items:center;
+  justify-content:center;width:44px;height:44px;min-width:44px;
+  border:1px solid var(--o-line);border-radius:11px;
+  background:var(--o-surface);color:var(--o-muted);
+  cursor:pointer;margin:0;
+}
+.mk-organizer__filters .mk-organizer__icon-filter svg {
+  width:20px;height:20px;pointer-events:none;
+}
+.mk-organizer__filters .mk-organizer__icon-filter select {
+  position:absolute;inset:0;width:100%;height:100%;max-width:none;
+  margin:0;opacity:0;cursor:pointer;
+}
+.mk-organizer__filters .mk-organizer__icon-filter:focus-within {
+  outline:3px solid var(--o-primary);outline-offset:2px;
+}
+.mk-organizer__filters .mk-organizer__icon-filter.is-active {
+  background:#ede8ff;border-color:#b9abff;color:var(--o-primary);
+}
+.mk-organizer__filters :is(.mk-organizer__order,.mk-organizer__clear) {
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:8px;
+}
+.mk-organizer__views {display:inline-flex;width:auto;gap:3px;margin-top:12px}
+.mk-organizer__views > button {
+  display:inline-flex;justify-content:center;align-items:center;
+  flex:0 0 48px;min-width:48px;min-height:44px;padding:8px;
+}
+.mk-organizer__views svg {width:20px;height:20px}
+.mk-organizer__body {padding-top:13px}
+.mk-organizer__summary {margin-bottom:9px}
+.mk-organizer__empty {
+  display:block;padding:15px 2px;background:transparent;
+  border:0;text-align:start;font-size:14px;min-height:0;
+}
+@media(max-width:470px){
+  .mk-organizer__create {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mk-organizer__create .mk-action-button {font-size:13px}
+  .mk-organizer__filters .mk-organizer__icon-filter {width:44px;height:44px}
+  .mk-organizer__filters .mk-organizer__icon-filter select {width:100%;max-width:none}
+  .mk-organizer__views {display:inline-flex;width:auto}
+  .mk-organizer__views > button {flex:0 0 48px}
+}
+
+/* Dense project/dossier cards without clipping the names of linked items. */
+.mk-organizer__results--cards {gap:10px}
+.mk-organizer__card {padding:12px;border-radius:14px}
+.mk-organizer__card-head > svg {width:23px;height:23px}
+.mk-organizer__card-title {margin-top:8px;font-size:16px;line-height:1.35}
+.mk-organizer__card-description {margin:5px 0 10px;font-size:12px}
+.mk-organizer__tag {padding:4px 7px}
+.mk-organizer__preview {margin-top:9px;padding-top:7px}
+.mk-organizer__preview-item {padding:5px 0;white-space:normal;overflow-wrap:anywhere}
+.mk-organizer__list-link {min-height:58px;padding:9px 8px;gap:9px}

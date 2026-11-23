@@ -19,6 +19,169 @@ class JourneyReadinessItem {
   final String? nextLink;
 }
 
+/// Non-actionable owner facts are not turned into client-side commands.
+class JourneyPaymentSummary {
+  const JourneyPaymentSummary({
+    required this.amount,
+    required this.currency,
+    required this.state,
+    this.reason,
+    this.obligationId,
+    this.orderId,
+  });
+  final String amount;
+  final String currency;
+  final String state;
+  final String? reason;
+  final String? obligationId;
+  final String? orderId;
+}
+
+/// Decision communicated by the Service owner, not a Journey state.
+/// Service owner details pinned to this personal Journey, never a new owner.
+class JourneyServiceRequest {
+  const JourneyServiceRequest({
+    this.objective,
+    this.opportunityTitle,
+    this.opportunityIssuer,
+    this.opportunityPublicationState,
+  });
+
+  final String? objective;
+  final String? opportunityTitle;
+  final String? opportunityIssuer;
+  final String? opportunityPublicationState;
+}
+
+class JourneyServiceResult {
+  const JourneyServiceResult({required this.code, required this.label});
+
+  final String code;
+  final String label;
+}
+
+class JourneyHistoryEntry {
+  const JourneyHistoryEntry({
+    required this.id,
+    required this.label,
+    required this.state,
+    required this.at,
+  });
+
+  final String id;
+  final String label;
+  final String state;
+  final DateTime at;
+}
+
+class JourneyOrderSummary {
+  const JourneyOrderSummary({
+    required this.id,
+    required this.state,
+    this.total,
+    this.currency,
+  });
+
+  final String id;
+  final String state;
+  final String? total;
+  final String? currency;
+}
+
+class JourneyPracticalFacts {
+  const JourneyPracticalFacts({
+    this.startAt,
+    this.startDate,
+    this.startTime,
+    this.endDate,
+    this.endTime,
+    this.timezone,
+    this.placeName,
+    this.placeAddress,
+    this.placeLocality,
+    this.accessInstructions,
+  });
+  final DateTime? startAt;
+  final String? startDate;
+  final String? startTime;
+  final String? endDate;
+  final String? endTime;
+  final String? timezone;
+  final String? placeName;
+  final String? placeAddress;
+  final String? placeLocality;
+  final String? accessInstructions;
+
+  bool get hasContent =>
+      startAt != null ||
+      startDate != null ||
+      placeName != null ||
+      placeAddress != null ||
+      accessInstructions != null;
+}
+
+class JourneyResourcePreview {
+  const JourneyResourcePreview({
+    required this.id,
+    required this.title,
+    required this.kind,
+    this.description,
+    this.mimeType,
+  });
+  final String id;
+  final String title;
+  final String kind;
+  final String? description;
+  final String? mimeType;
+
+  static List<JourneyResourcePreview> fromProjection(
+    StoredProjection? projection,
+  ) {
+    final raw = projection?.payload['items'];
+    if (raw is! List) return const [];
+    final rows = <JourneyResourcePreview>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final id = item['id']?.toString().trim() ?? '';
+      final title = item['title']?.toString().trim() ?? '';
+      if (id.isEmpty || title.isEmpty) continue;
+      final kind = item['kind']?.toString() ?? '';
+      final description = item['description']?.toString().trim();
+      rows.add(
+        JourneyResourcePreview(
+          id: id,
+          title: title,
+          kind: kind,
+          description: description?.isNotEmpty == true ? description : null,
+          mimeType: item['mime_type']?.toString(),
+        ),
+      );
+    }
+    return List.unmodifiable(rows);
+  }
+}
+
+/// A JourneyStep is an owner fact, never a locally invented task or percentage.
+class JourneyStepSummary {
+  const JourneyStepSummary({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.kind,
+    required this.dependsOn,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final String kind;
+  final List<String> dependsOn;
+
+  bool get isCompleted => status == 'completed';
+  bool get isTerminal =>
+      status == 'completed' || status == 'skipped' || status == 'cancelled';
+}
+
 class JourneyFormSummary {
   const JourneyFormSummary({
     required this.id,
@@ -26,12 +189,14 @@ class JourneyFormSummary {
     required this.state,
     required this.canComplete,
     required this.detailLink,
+    this.title = 'Formulaire',
     this.dueAt,
     this.saveLink,
     this.submitLink,
   });
 
   final String id;
+  final String title;
   final bool required;
   final String state;
   final DateTime? dueAt;
@@ -47,12 +212,16 @@ class JourneyReference {
     required this.label,
     this.state,
     this.link,
+    this.isRequired = false,
+    this.consequence,
   });
 
   final String id;
   final String label;
   final String? state;
   final String? link;
+  final bool isRequired;
+  final String? consequence;
 }
 
 class JourneyDetailPresentation {
@@ -71,8 +240,22 @@ class JourneyDetailPresentation {
     required this.capabilities,
     required this.freshness,
     required this.sourceInvalidated,
+    this.canRespondInvitation = false,
+    this.pendingRequests = 0,
+    this.rejectedRequests = 0,
+    this.payment,
+    this.order,
+    this.serviceResult,
+    this.serviceRequest,
+    this.history = const [],
+    this.payments = const [],
+    this.practical,
+    this.workflowKind = '',
+    this.stateCode = '',
+    this.steps = const [],
     this.summary,
     this.nextActionLabel,
+    this.nextActionKey,
     this.nextActionLink,
     this.resourcesLink,
     this.activity,
@@ -85,6 +268,9 @@ class JourneyDetailPresentation {
   final bool available;
   final String title;
   final String kindLabel;
+  final String workflowKind;
+  final String stateCode;
+  final List<JourneyStepSummary> steps;
   final String? summary;
   final String journeyState;
   final String readinessState;
@@ -93,6 +279,7 @@ class JourneyDetailPresentation {
   final List<JourneyReadinessItem> waiting;
   final List<JourneyReadinessItem> blockers;
   final String? nextActionLabel;
+  final String? nextActionKey;
   final String? nextActionLink;
   final String? resourcesLink;
   final List<JourneyFormSummary> forms;
@@ -105,8 +292,24 @@ class JourneyDetailPresentation {
   final Set<String> capabilities;
   final FreshnessState? freshness;
   final bool sourceInvalidated;
+  final bool canRespondInvitation;
+  final int pendingRequests;
+  final int rejectedRequests;
+  final JourneyPaymentSummary? payment;
+  final JourneyOrderSummary? order;
+  final JourneyServiceResult? serviceResult;
+  final JourneyServiceRequest? serviceRequest;
+  final List<JourneyHistoryEntry> history;
+  final List<JourneyPaymentSummary> payments;
+  final JourneyPracticalFacts? practical;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
+  bool get isTerminal => const {
+    'fulfilled',
+    'rejected',
+    'cancelled',
+    'expired',
+  }.contains(stateCode);
 }
 
 class JourneyDetailSelector {
@@ -117,7 +320,12 @@ class JourneyDetailSelector {
     required JourneySourceState source,
     required DateTime now,
   }) {
-    if (projection == null) {
+    // An explicit owner denial is authoritative even if a stale snapshot
+    // is still in a stream during SQLite invalidation.
+    final ownerDenied =
+        source.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(source.lastErrorCode);
+    if (projection == null || ownerDenied) {
       return JourneyDetailPresentation(
         available: false,
         title: '',
@@ -143,6 +351,7 @@ class JourneyDetailSelector {
       sourceInvalidated: source.invalidated,
     );
     final payload = base.payload ?? const <String, dynamic>{};
+    final identity = _map(payload['identity']);
     final representation = _map(payload['representation']);
     final state = _map(payload['state']);
     final readiness = _map(payload['readiness']);
@@ -151,13 +360,30 @@ class JourneyDetailSelector {
     final access = _map(payload['access']);
     final resources = _map(payload['resources']);
     final links = _map(payload['links']);
+    final requests = _map(payload['requests']);
     final capabilities = _strings(payload['capabilities']).toSet();
 
+    final title = _string(representation['title']) ?? 'Démarche';
+    final summary = _string(representation['summary']);
     return JourneyDetailPresentation(
       available: true,
-      title: _string(representation['title']) ?? 'Démarche',
+      title: title,
       kindLabel: _string(representation['kind_label']) ?? 'Démarche',
-      summary: _string(representation['summary']),
+      workflowKind: _string(identity['workflow']) ?? '',
+      stateCode: _string(state['code']) ?? '',
+      steps: _steps(payload['steps']),
+      pendingRequests: _maps(requests['pending']).length,
+      rejectedRequests: _maps(requests['rejected']).length,
+      payment: _payment(payload['payment']),
+      order: _order(payload['payment']),
+      serviceResult: _serviceResult(payload['service_result']),
+      serviceRequest: _serviceRequest(payload['service_request']),
+      history: _history(payload['history']),
+      payments: _payments(payload['payment']),
+      practical: _practical(occurrence),
+      summary: summary != null && summary.toLowerCase() != title.toLowerCase()
+          ? summary
+          : null,
       journeyState: _string(state['label']) ?? _string(state['code']) ?? '',
       readinessState: _string(readiness['state']) ?? '',
       ready: _readinessItems(readiness['ready']),
@@ -165,6 +391,7 @@ class JourneyDetailSelector {
       waiting: _readinessItems(readiness['waiting']),
       blockers: _readinessItems(readiness['blockers']),
       nextActionLabel: _string(_map(readiness['next'])['label']),
+      nextActionKey: _string(_map(readiness['next'])['key']),
       nextActionLink: _string(_map(readiness['next'])['link']),
       resourcesLink: _string(resources['link']) ?? _string(links['resources']),
       forms: _forms(payload['forms']),
@@ -199,9 +426,156 @@ class JourneyDetailSelector {
           ? _string(links['live'])
           : null,
       capabilities: capabilities,
+      canRespondInvitation:
+          capabilities.contains('accept_invitation') &&
+          capabilities.contains('decline_invitation') &&
+          _string(links['invitation']) != null,
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );
+  }
+
+  static JourneyServiceRequest? _serviceRequest(Object? value) {
+    final request = _map(value);
+    final opportunity = _map(request['opportunity']);
+    final objective = _string(request['objective']);
+    final title = _string(opportunity['title']);
+    if (objective == null && title == null) return null;
+    return JourneyServiceRequest(
+      objective: objective,
+      opportunityTitle: title,
+      opportunityIssuer: _string(opportunity['issuer']),
+      opportunityPublicationState: _string(opportunity['publication_state']),
+    );
+  }
+
+  static JourneyServiceResult? _serviceResult(Object? value) {
+    final result = _map(value);
+    final code = _string(result['code']);
+    final label = _string(result['label']);
+    if (code == null || label == null) return null;
+    return JourneyServiceResult(code: code, label: label);
+  }
+
+  static List<JourneyHistoryEntry> _history(Object? value) {
+    return _maps(value)
+        .map((row) {
+          final id = _string(row['id']);
+          final label = _string(row['label']);
+          final state = _string(row['state']);
+          final at = _dateTime(row['at']);
+          if (id == null || label == null || state == null || at == null) {
+            return null;
+          }
+          return JourneyHistoryEntry(
+            id: id,
+            label: label,
+            state: state,
+            at: at,
+          );
+        })
+        .whereType<JourneyHistoryEntry>()
+        .toList(growable: false);
+  }
+
+  static JourneyOrderSummary? _order(Object? value) {
+    final order = _map(_map(value)['order']);
+    final id = _string(order['id']);
+    final state = _string(order['state']);
+    if (id == null || state == null) return null;
+    return JourneyOrderSummary(
+      id: id,
+      state: state,
+      total: _string(order['total']),
+      currency: _string(order['currency']),
+    );
+  }
+
+  static List<JourneyPaymentSummary> _payments(Object? value) {
+    final payload = _map(value);
+    if (payload.isEmpty) return const [];
+    final obligations = _maps(payload['obligations']);
+    if (obligations.isNotEmpty) {
+      return List.unmodifiable([
+        for (final row in obligations)
+          if (_string(row['amount']) != null &&
+              _string(row['currency']) != null &&
+              _string(row['state']) != null)
+            JourneyPaymentSummary(
+              amount: _string(row['amount'])!,
+              currency: _string(row['currency'])!,
+              // The obligation owns its state. A payment attempt cannot
+              // silently mark an unpaid obligation as settled.
+              state: _string(row['state'])!,
+              reason: _string(row['reason']),
+              obligationId: _string(row['id']),
+            ),
+      ]);
+    }
+    final single = _payment(value);
+    return single == null ? const [] : [single];
+  }
+
+  static JourneyPaymentSummary? _payment(Object? value) {
+    final payment = _map(value);
+    if (payment.isEmpty) return null;
+    final order = _map(payment['order']);
+    final latest = _map(payment['payment']);
+    final obligations = _maps(payment['obligations']);
+    final obligation = obligations.isEmpty
+        ? const <String, dynamic>{}
+        : obligations.first;
+    final amount = _string(obligation['amount']) ?? _string(order['total']);
+    final currency =
+        _string(obligation['currency']) ?? _string(order['currency']);
+    final state =
+        _string(obligation['state']) ??
+        _string(order['state']) ??
+        _string(_map(obligation['payment'])['state']) ??
+        _string(latest['state']);
+    if (amount == null || currency == null || state == null) return null;
+    return JourneyPaymentSummary(
+      amount: amount,
+      currency: currency,
+      state: state,
+      reason: _string(obligation['reason']),
+      obligationId: _string(obligation['id']),
+      orderId: _string(order['id']),
+    );
+  }
+
+  static JourneyPracticalFacts? _practical(Map<String, dynamic> occurrence) {
+    if (occurrence.isEmpty) return null;
+    final timing = _map(occurrence['timing']);
+    final place = _map(occurrence['place']);
+    final result = JourneyPracticalFacts(
+      startAt: _dateTime(timing['start_at']),
+      startDate: _string(timing['start_date']),
+      startTime: _string(timing['start_time']),
+      endDate: _string(timing['end_date']),
+      endTime: _string(timing['end_time']),
+      timezone: _string(timing['timezone']),
+      placeName: _string(place['name']),
+      placeAddress: _string(place['address']),
+      placeLocality: _string(place['locality']),
+      accessInstructions: _string(place['instructions']),
+    );
+    return result.hasContent ? result : null;
+  }
+
+  static List<JourneyStepSummary> _steps(Object? value) {
+    return _maps(value)
+        .map((row) {
+          return JourneyStepSummary(
+            id: _string(row['id']) ?? '',
+            title: _string(row['title']) ?? '',
+            status: _string(row['status']) ?? '',
+            kind: _string(row['kind']) ?? '',
+            dependsOn: _strings(row['depends_on']),
+          );
+        })
+        .where((step) => step.id.isNotEmpty && step.title.isNotEmpty)
+        .toList(growable: false);
   }
 
   static List<JourneyReadinessItem> _readinessItems(Object? value) {
@@ -226,6 +600,7 @@ class JourneyDetailSelector {
           final capabilities = _strings(row['capabilities']);
           return JourneyFormSummary(
             id: _string(row['id']) ?? '',
+            title: _string(row['title']) ?? 'Formulaire',
             required: row['required'] == true,
             state: _string(row['state']) ?? '',
             dueAt: _dateTime(row['due_at']),
@@ -247,6 +622,8 @@ class JourneyDetailSelector {
             label: _string(row['label']) ?? 'Requirement',
             state: _string(row['state']),
             link: _string(row['link']),
+            isRequired: row['required'] == true,
+            consequence: _string(row['consequence']),
           );
         })
         .where((row) => row.id.isNotEmpty)

@@ -23,6 +23,7 @@ def create_journey_for_holder(
     workflow,
     beneficiary=None,
     external_beneficiary=None,
+    beneficiary_space=None,
     occurrence=None,
     expires_at=None,
     status=JourneyStatus.DRAFT,
@@ -33,14 +34,17 @@ def create_journey_for_holder(
     holders use the same Journey model and transition machinery without a fake
     User. No email matching is performed here.
     """
-    if bool(beneficiary) == bool(external_beneficiary):
-        raise ValidationError("Choisissez exactement un bénéficiaire Profile ou externe.")
-    if beneficiary is not None:
+    if sum(bool(holder) for holder in (
+        beneficiary, external_beneficiary, beneficiary_space,
+    )) != 1:
+        raise ValidationError("Choisissez exactement un bénéficiaire Profile, externe ou Espace.")
+    if beneficiary is not None or beneficiary_space is not None:
         from .services import create_journey
 
         return create_journey(
             initiated_by=initiated_by,
             beneficiary=beneficiary,
+            beneficiary_space=beneficiary_space,
             activity=activity,
             occurrence=occurrence,
             workflow=workflow,

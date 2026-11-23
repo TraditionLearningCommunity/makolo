@@ -63,6 +63,16 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
       reconcilers: {
         QuestionnaireSubmitCoordinator.operationKind: submit.reconciler,
       },
+      expectedOwners: {
+        QuestionnaireSubmitCoordinator.operationKind:
+            QuestionnaireSubmitCoordinator.owner,
+      },
+      expectedReplayPolicies: {
+        QuestionnaireSubmitCoordinator.operationKind:
+            ReplayPolicy.refetchBeforeRetry,
+      },
+      canDispatch: (operation) async =>
+          (await tokens.readSession())?.profileId == operation.profileId,
     ),
   );
 }

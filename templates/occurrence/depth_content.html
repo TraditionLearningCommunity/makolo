@@ -1,0 +1,128 @@
+<section class="space-y-5" aria-labelledby="occurrence-depth-heading">
+  {% include 'occurrence/continuity_guard.html' %}
+  <header class="mk-panel p-5 sm:p-7">
+    <p class="mk-kicker">Jour J · Profondeur du domaine propriétaire</p>
+    <h2 id="occurrence-depth-heading" class="mt-2 text-3xl font-extrabold">{{ depth.label }}</h2>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+      {{ occurrence.label|default:activity.title }} · Source : {{ depth.source }}
+    </p>
+    <a class="mk-action-button mt-3" data-variant="secondary" href="{{ day_of_url }}">Retour au Jour J</a>
+  </header>
+
+  {% if messages %}
+    {% for message in messages %}
+      <p class="mk-panel p-4" role="status">{{ message }}</p>
+    {% endfor %}
+  {% endif %}
+
+  {% if depth.kind == "finance" %}
+  <p class="mk-panel p-4 text-sm">Cette vue présente des totaux par statut et devise ; elle ne dévoile ni coordonnées de payeurs ni références de prestataire.</p>
+  {% endif %}
+  {% if depth.kind == "readiness" %}
+  <p class="mk-panel p-4 text-sm">Les contrôles de préparation restent sous la responsabilité de leurs domaines. Cette page ne confirme pas seule leur accomplissement.</p>
+  {% endif %}
+
+  <div class="grid gap-3 lg:grid-cols-2">
+  {% for item in rows %}
+    <article class="mk-panel p-5">
+      <h3 class="text-lg font-bold">{{ item.label|default:item.name|default:item.key|default:"Élément métier" }}</h3>
+      <dl class="mt-3 space-y-2 text-sm">
+        {% for key, value in item.items %}
+          {% if key != "units" and key != "assignments" and key != "links" and key != "id" %}
+          <div class="flex flex-wrap gap-2">
+            <dt class="font-semibold">{{ key }} :</dt>
+            <dd style="color:var(--mk-muted)">{{ value|default_if_none:"À vérifier" }}</dd>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </dl>
+
+      {% if depth.can_manage and depth.kind == "operator_queue" %}
+      <div class="mt-4 flex flex-wrap gap-2">
+        <form method="post" data-sensitive-action="true">
+          {% csrf_token %}
+          <input type="hidden" name="item_id" value="{{ item.id }}">
+          <input type="hidden" name="action" value="call">
+          <button type="submit" class="mk-action-button" data-variant="primary">Appeler la personne suivante</button>
+        </form>
+        <details class="rounded-xl border p-3" style="border-color:var(--mk-border)">
+          <summary class="cursor-pointer font-semibold">Changer l’état de la file</summary>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="pause" class="mk-action-button" data-variant="secondary">Pause</button></form>
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="resume" class="mk-action-button" data-variant="secondary">Reprendre</button></form>
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="close" class="mk-action-button" data-variant="secondary">Fermer</button></form>
+          </div>
+        </details>
+      </div>
+      {% endif %}
+
+      {% if depth.can_manage and depth.kind == "operator_checkpoints" %}
+      <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
+        <summary class="cursor-pointer font-semibold">Modifier ce point de contrôle</summary>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="open">Ouvrir</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="pause">Pause</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="resume">Reprendre</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="close">Fermer</button></form>
+        </div>
+      </details>
+      {% endif %}
+
+      {% if depth.kind == "my_queue" and item.state == "waiting" or depth.kind == "my_queue" and item.state == "called" %}
+      <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
+        <summary class="cursor-pointer font-semibold">Quitter ma file</summary>
+        <form method="post" data-sensitive-action="true" class="mt-3">
+          {% csrf_token %}
+          <input type="hidden" name="item_id" value="{{ item.id }}">
+          <button type="submit" name="action" value="cancel" class="mk-action-button" data-variant="secondary">Confirmer mon retrait</button>
+        </form>
+      </details>
+      {% endif %}
+
+      {% if depth.kind == "operator_placement" %}
+      {% for unit in item.units %}
+      <div class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
+        <h4 class="font-semibold">{{ unit.label }} · {{ unit.kind }}</h4>
+        {% for assignment in unit.assignments %}
+        <div class="mt-2 text-sm">
+          {{ assignment.beneficiary }}
+          {% if depth.can_manage %}
+          <details>
+            <summary class="cursor-pointer">Retirer l'attribution</summary>
+            <form method="post" data-sensitive-action="true" class="mt-2">{% csrf_token %}
+              <input type="hidden" name="item_id" value="{{ assignment.id }}">
+              <button type="submit" name="action" value="unassign" class="mk-action-button" data-variant="secondary">Confirmer le retrait</button>
+            </form>
+          </details>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% if depth.can_manage %}
+        <details class="mt-3">
+          <summary class="cursor-pointer font-semibold">Attribuer cette unité</summary>
+          <form method="post" data-sensitive-action="true" class="mt-3 space-y-2">
+            {% csrf_token %}
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <input type="hidden" name="unit_id" value="{{ unit.id }}">
+            <label class="block text-sm">Identifiant Profil
+              <input type="text" name="profile_id" class="w-full rounded-xl border p-2" placeholder="UUID" autocomplete="off">
+            </label>
+            <p class="text-xs" style="color:var(--mk-muted)">Ou, pour une personne sans compte :</p>
+            <label class="block text-sm">Identifiant du bénéficiaire externe
+              <input type="text" name="external_beneficiary_id" class="w-full rounded-xl border p-2" placeholder="UUID" autocomplete="off">
+            </label>
+            <button class="mk-action-button" type="submit" name="action" value="assign">Confirmer l'attribution</button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+    </article>
+  {% empty %}
+    <div class="mk-panel p-5">
+      <p>Aucun élément actuellement accessible auprès du domaine propriétaire. L'absence de résultat n'est pas une autorisation supplémentaire.</p>
+    </div>
+  {% endfor %}
+  </div>
+</section>

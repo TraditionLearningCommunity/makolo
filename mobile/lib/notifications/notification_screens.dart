@@ -1,27 +1,32 @@
-import '../selectors/projection_selector.dart';
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../app/runtime/app_runtime.dart';
 import '../data/local/profile_store.dart';
+import '../design/behavior_primitives.dart';
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
-import '../navigation/structured_destination_codec.dart';
+import '../features/settings/notification_preferences_screen.dart' as settings;
 import '../presentation/projection_surface_adapter.dart';
+import '../selectors/projection_selector.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
+import '../sync/sync_status.dart';
 import 'notification_repository.dart';
+import 'notification_router.dart';
 
 class NotificationInboxScreen extends StatefulWidget {
   const NotificationInboxScreen({
     super.key,
     required this.repository,
     required this.onOpenDestination,
+    this.runtime,
   });
 
   final NotificationRepository repository;
+  final AppRuntime? runtime;
   final Future<void> Function(String path) onOpenDestination;
 
   @override
@@ -31,40 +36,156 @@ class NotificationInboxScreen extends StatefulWidget {
 
 class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
+  final ScrollController _scroll = ScrollController();
   bool _refreshing = false;
+  bool _attempted = false;
+  bool _loadFailed = false;
+  bool _loadingMore = false;
+  bool _pageFailed = false;
   bool _onlyUnread = false;
+  bool _requestedUnread = false;
+  int? _previousUnreadCount;
+  bool _newNotificationsAvailable = false;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_maybeLoadMore);
     unawaited(_acquire());
   }
 
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   Future<void> _acquire() async {
-    final local = await widget.repository.readList();
-    final source = await widget.repository.readListSource();
-    if (!mounted) return;
-    if (local == null ||
-        NotificationRepository.listFreshness.evaluate(
-              local,
-              now: DateTime.now(),
-              invalidated: source.invalidated,
-            ) !=
-            FreshnessState.fresh) {
-      await _refresh();
+    try {
+      final local = await widget.repository.readList(onlyUnread: _onlyUnread);
+      final source = await widget.repository.readListSource(
+        onlyUnread: _onlyUnread,
+      );
+      if (!mounted) return;
+      if (local == null ||
+          NotificationRepository.listFreshness.evaluate(
+                local,
+                now: DateTime.now(),
+                invalidated: source.invalidated,
+              ) !=
+              FreshnessState.fresh) {
+        await _refresh();
+      } else {
+        setState(() => _attempted = true);
+        // A locally fresh snapshot does not imply that new notifications
+        // have not been created on the server since the last acquisition.
+        // Preserve the cached list while revalidating the owner discreetly.
+        unawaited(_refresh());
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _attempted = true;
+          _loadFailed = true;
+        });
+      }
     }
   }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    _requestedUnread = _onlyUnread;
+    setState(() {
+      _refreshing = true;
+      _pageFailed = false;
+      _loadFailed = false;
+    });
     try {
-      await widget.repository.refreshList();
+      await widget.repository.refreshList(onlyUnread: _requestedUnread);
     } on Object {
-      // Preserve the last locally synchronized inbox.
+      if (mounted) setState(() => _loadFailed = true);
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted) {
+        setState(() {
+          _attempted = true;
+          _refreshing = false;
+        });
+        if (_requestedUnread != _onlyUnread) unawaited(_acquire());
+      }
     }
+  }
+
+  void _noticeNewNotifications(Object? count) {
+    if (count is! num) return;
+    final current = count.toInt();
+    final previous = _previousUnreadCount;
+    _previousUnreadCount = current;
+    if (previous == null ||
+        current <= previous ||
+        !_scroll.hasClients ||
+        _scroll.offset < 120 ||
+        _newNotificationsAvailable) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_newNotificationsAvailable) {
+        setState(() => _newNotificationsAvailable = true);
+      }
+    });
+  }
+
+  void _showNewNotifications() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    setState(() => _newNotificationsAvailable = false);
+  }
+
+  void _maybeLoadMore() {
+    if (!mounted || _refreshing || _loadingMore || _pageFailed) return;
+    if (!_scroll.hasClients || _scroll.position.extentAfter > 500) return;
+    unawaited(_loadMore());
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _refreshing) return;
+    final requestedUnread = _onlyUnread;
+    final snapshot = await widget.repository.readList(
+      onlyUnread: requestedUnread,
+    );
+    if (!mounted || snapshot?.payload['next'] is! String) return;
+    if (requestedUnread && snapshot?.payload['unread_count'] == 0) return;
+    setState(() {
+      _loadingMore = true;
+      _pageFailed = false;
+    });
+    try {
+      await widget.repository.loadMore(onlyUnread: requestedUnread);
+    } on Object {
+      if (mounted && requestedUnread == _onlyUnread) {
+        setState(() => _pageFailed = true);
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  void _chooseFilter(bool unreadOnly) {
+    if (_onlyUnread == unreadOnly) return;
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    setState(() {
+      _onlyUnread = unreadOnly;
+      _previousUnreadCount = null;
+      _newNotificationsAvailable = false;
+      _pageFailed = false;
+      _loadFailed = false;
+      _attempted = false;
+    });
+    unawaited(_acquire());
   }
 
   Future<void> _markAllRead() async {
@@ -73,48 +194,43 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'La lecture n’a pas été confirmée. L’état serveur connu est conservé.',
-          ),
-        ),
+        const SnackBar(content: Text('Lecture non confirmée. Réessayez.')),
       );
     }
   }
 
+  Future<void> _confirmRead(String id) async {
+    try {
+      await widget.repository.markRead(id);
+    } on Object {
+      // Keep the existing unread state if the server cannot confirm reading.
+    }
+  }
+
   Future<void> _open(_NotificationRow row) async {
-    if (!row.isRead) {
-      try {
-        await widget.repository.markRead(row.id);
-      } on Object {
-        // The owner handoff remains independent from read state. Local unread
-        // state is preserved when the server did not confirm the mutation.
-      }
-    }
+    // Reading must never delay opening the destination on a slow connection.
+    if (!row.isRead) unawaited(_confirmRead(row.id));
     final path = row.destinationPath;
-    if (!mounted) return;
-    if (path == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cette destination n’est plus disponible.'),
-        ),
-      );
-      return;
-    }
+    if (!mounted || path == null) return;
     await widget.onOpenDestination(path);
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchList(),
+      key: ValueKey<bool>(_onlyUnread),
+      stream: widget.repository.watchList(onlyUnread: _onlyUnread),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
-          stream: widget.repository.watchListSource(),
+          key: ValueKey<String>('source-$_onlyUnread'),
+          stream: widget.repository.watchListSource(onlyUnread: _onlyUnread),
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
             final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            final syncStatus = SyncStatusScope.maybeOf(context);
+            final connectionUnavailable =
+                syncStatus?.state == SyncVisualState.offline;
             final rows = _NotificationRow.fromProjection(projection);
             final visible = _onlyUnread
                 ? rows.where((row) => !row.isRead).toList(growable: false)
@@ -127,6 +243,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     invalidated: source.invalidated,
                   );
             final available = projection != null;
+            final hasMore = projection?.payload['next'] is String;
             final state = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -137,17 +254,34 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 pendingOperations: const [],
               ),
               availability: available
-                  ? visible.isEmpty
-                        ? MakoloAvailabilityCue.empty
-                        : MakoloAvailabilityCue.content
+                  ? MakoloAvailabilityCue.content
                   : _refreshing
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: source.lastErrorCode != null && available
+              failure: available
+                  // Cached content remains usable; the thin network cue
+                  // already communicates a disconnected device.
+                  ? (connectionUnavailable
+                        ? MakoloFailureCue.none
+                        : (source.lastErrorCode != null || _loadFailed)
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.none)
+                  : (_attempted && !_refreshing)
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
+            );
+            final total = projection?.payload['total_count'];
+            final unread = projection?.payload['unread_count'];
+            _noticeNewNotifications(unread);
+            final filteredCount = projection?.payload['count'];
+            final remaining =
+                filteredCount is num && filteredCount.toInt() > rows.length
+                ? filteredCount.toInt() - rows.length
+                : 0;
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _maybeLoadMore(),
             );
 
             return Scaffold(
@@ -155,114 +289,374 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 title: const Text('Notifications'),
                 actions: [
                   IconButton(
-                    tooltip: 'Préférences de notification',
+                    tooltip: 'Préférences',
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => NotificationPreferencesScreen(
+                        builder: (_) => settings.NotificationPreferencesScreen(
                           repository: widget.repository,
+                          runtime: widget.runtime,
                         ),
                       ),
                     ),
                     icon: const Icon(Icons.tune_rounded),
                   ),
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+                  PopupMenuButton<String>(
+                    tooltip: 'Actions des notifications',
+                    onSelected: (action) {
+                      if (action == 'read-all') unawaited(_markAllRead());
+                      if (action == 'refresh') unawaited(_refresh());
+                    },
+                    itemBuilder: (_) => [
+                      if (unread is num && unread > 0)
+                        const PopupMenuItem(
+                          value: 'read-all',
+                          child: Text('Tout marquer comme lu'),
+                        ),
+                      const PopupMenuItem(
+                        value: 'refresh',
+                        child: Text('Actualiser'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: state,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement des notifications…',
-                ),
-                empty: MakoloEmptyState(
-                  title: _onlyUnread
-                      ? 'Aucune notification non lue.'
-                      : 'Aucune notification.',
-                  body: 'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
-                ),
-                onRetry: _refresh,
-                content: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        MakoloSpacing.inner,
-                        MakoloSpacing.sm,
-                        MakoloSpacing.inner,
-                        MakoloSpacing.sm,
-                      ),
-                      child: Row(
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Toutes'),
-                            selected: !_onlyUnread,
-                            onSelected: (_) =>
-                                setState(() => _onlyUnread = false),
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          ChoiceChip(
-                            label: const Text('Non lues'),
-                            selected: _onlyUnread,
-                            onSelected: (_) =>
-                                setState(() => _onlyUnread = true),
-                          ),
-                          const Spacer(),
-                          if (rows.any((row) => !row.isRead))
-                            TextButton(
-                              onPressed: _markAllRead,
-                              child: const Text('Tout marquer comme lu'),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.separated(
-                        key: const PageStorageKey<String>(
-                          'notification-inbox-list',
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: state,
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement des notifications…',
+                  ),
+                  recoverableErrorMessage: available
+                      ? null
+                      : 'Impossible d’afficher les notifications.',
+                  empty: MakoloEmptyState(
+                    title: _onlyUnread
+                        ? 'Aucune notification non lue.'
+                        : 'Aucune notification.',
+                  ),
+                  onRetry: _refresh,
+                  content: Column(
+                    children: [
+                      if (_newNotificationsAvailable)
+                        TextButton.icon(
+                          key: const Key('notification-new-items'),
+                          onPressed: _showNewNotifications,
+                          icon: const Icon(Icons.arrow_upward_rounded),
+                          label: const Text('Nouvelles notifications'),
                         ),
-                        itemCount: visible.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final row = visible[index];
-                          return Semantics(
-                            button: true,
-                            label:
-                                '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
-                            child: ListTile(
-                              onTap: () => _open(row),
-                              leading: ExcludeSemantics(
-                                child: Icon(
-                                  row.isRead
-                                      ? Icons.notifications_none_outlined
-                                      : Icons.circle,
-                                  size: row.isRead ? 22 : 9,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          MakoloSpacing.inner,
+                          MakoloSpacing.sm,
+                          MakoloSpacing.inner,
+                          MakoloSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: MakoloSpacing.sm,
+                            runSpacing: MakoloSpacing.sm,
+                            children: [
+                              ChoiceChip(
+                                showCheckmark: false,
+                                visualDensity: VisualDensity.compact,
+                                label: Text(
+                                  'Toutes${total is num ? ' (${total.toInt()})' : ''}',
                                 ),
+                                selected: !_onlyUnread,
+                                onSelected: (_) => _chooseFilter(false),
                               ),
-                              title: Text(
-                                row.title,
-                                style: TextStyle(
-                                  fontWeight: row.isRead
-                                      ? FontWeight.w500
-                                      : FontWeight.w700,
+                              ChoiceChip(
+                                showCheckmark: false,
+                                visualDensity: VisualDensity.compact,
+                                label: Text(
+                                  'Non lues${unread is num ? ' (${unread.toInt()})' : ''}',
                                 ),
+                                selected: _onlyUnread,
+                                onSelected: (_) => _chooseFilter(true),
                               ),
-                              subtitle: Text(
-                                row.message +
-                                    (row.createdAt == null
-                                        ? ''
-                                        : '\n${_timeLabel(row.createdAt!)}'),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: const Icon(Icons.chevron_right_rounded),
-                            ),
-                          );
-                        },
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: ListView.builder(
+                            controller: _scroll,
+                            key: PageStorageKey<String>(
+                              _onlyUnread
+                                  ? 'notification-unread'
+                                  : 'notification-all',
+                            ),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: visible.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == visible.length) {
+                                if (visible.isEmpty &&
+                                    !hasMore &&
+                                    !_loadingMore) {
+                                  return Padding(
+                                    padding: const EdgeInsets.all(28),
+                                    child: Center(
+                                      child: Text(
+                                        _onlyUnread
+                                            ? 'Aucune notification non lue.'
+                                            : 'Aucune notification.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (connectionUnavailable && hasMore) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (_pageFailed) {
+                                  return Center(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() => _pageFailed = false);
+                                        unawaited(_loadMore());
+                                      },
+                                      child: const Text('Réessayer'),
+                                    ),
+                                  );
+                                }
+                                if (_loadingMore) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Center(
+                                    child: Text(
+                                      hasMore
+                                          ? '$remaining autres à afficher'
+                                          : 'Aucune autre notification',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    ),
+                                  ),
+                                );
+                              }
+                              final row = visible[index];
+                              final section = _notificationSection(
+                                context,
+                                row.createdAt,
+                              );
+                              final previousSection = index == 0
+                                  ? null
+                                  : _notificationSection(
+                                      context,
+                                      visible[index - 1].createdAt,
+                                    );
+                              final canInteract =
+                                  row.destinationPath != null || !row.isRead;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (section != previousSection)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        MakoloSpacing.inner,
+                                        MakoloSpacing.lg,
+                                        MakoloSpacing.inner,
+                                        MakoloSpacing.sm,
+                                      ),
+                                      child: Text(
+                                        section,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  Semantics(
+                                    button: canInteract,
+                                    label:
+                                        '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. '
+                                        '${row.confirmed ? 'Confirmée. ' : ''}${row.message}',
+                                    child: InkWell(
+                                      onTap: canInteract
+                                          ? () => _open(row)
+                                          : null,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: MakoloSpacing.inner,
+                                          vertical: MakoloSpacing.compact,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 16,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 8,
+                                                ),
+                                                child: row.isRead
+                                                    ? const SizedBox.shrink()
+                                                    : Icon(
+                                                        Icons.circle,
+                                                        size: 8,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
+                                                      ),
+                                              ),
+                                            ),
+                                            _NotificationVisual(row: row),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    row.title,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleSmall
+                                                        ?.copyWith(
+                                                          fontWeight: row.isRead
+                                                              ? FontWeight.w500
+                                                              : FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                  if (row.isDemo) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Démonstration',
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelSmall
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                  if (row
+                                                      .message
+                                                      .isNotEmpty) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      row.message,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                  if (row.confirmed ||
+                                                      row.createdAt !=
+                                                          null) ...[
+                                                    const SizedBox(
+                                                      height: MakoloSpacing.sm,
+                                                    ),
+                                                    Wrap(
+                                                      spacing:
+                                                          MakoloSpacing.compact,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      children: [
+                                                        if (row.confirmed)
+                                                          Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              const Icon(
+                                                                Icons
+                                                                    .check_circle_outline_rounded,
+                                                                color:
+                                                                    MakoloColors
+                                                                        .success,
+                                                                size: 15,
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 4,
+                                                              ),
+                                                              Text(
+                                                                'Confirmée',
+                                                                style:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .textTheme
+                                                                        .labelMedium
+                                                                        ?.copyWith(
+                                                                          color:
+                                                                              MakoloColors.success,
+                                                                        ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        if (row.createdAt !=
+                                                            null)
+                                                          Text(
+                                                            _notificationDate(
+                                                              context,
+                                                              row.createdAt!,
+                                                            ),
+                                                            style:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(
+                                                                        context,
+                                                                      ).colorScheme.onSurfaceVariant,
+                                                                    ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                            if (row.destinationPath !=
+                                                null) ...[
+                                              const SizedBox(width: 8),
+                                              const Icon(
+                                                Icons.chevron_right_rounded,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Divider(height: 1, indent: 40),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -273,223 +667,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   }
 }
 
-class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({super.key, required this.repository});
-
-  final NotificationRepository repository;
-
-  @override
-  State<NotificationPreferencesScreen> createState() =>
-      _NotificationPreferencesScreenState();
-}
-
-class _NotificationPreferencesScreenState
-    extends State<NotificationPreferencesScreen> {
-  Map<String, dynamic>? _draft;
-  bool _loading = true;
-  bool _saving = false;
-  String? _message;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final local = await widget.repository.readPreferences();
-      if (local != null) {
-        _draft = Map<String, dynamic>.from(local.payload);
-      }
-      await widget.repository.refreshPreferences();
-      final fresh = await widget.repository.readPreferences();
-      if (fresh != null) _draft = Map<String, dynamic>.from(fresh.payload);
-    } on Object {
-      // Existing local preferences remain usable as the last server-known state.
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  bool _bool(String key, {bool fallback = false}) =>
-      _draft?[key] is bool ? _draft![key] as bool : fallback;
-
-  void _setBool(String key, bool value) {
-    setState(() {
-      _draft ??= <String, dynamic>{};
-      _draft![key] = value;
-      _message = null;
-    });
-  }
-
-  TimeOfDay? _time(String key) {
-    final value = _draft?[key]?.toString();
-    if (value == null || value.length < 5) return null;
-    final parts = value.split(':');
-    if (parts.length < 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  Future<void> _pickTime(String key) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _time(key) ?? TimeOfDay.now(),
-    );
-    if (picked == null) return;
-    setState(() {
-      _draft ??= <String, dynamic>{};
-      _draft![key] =
-          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
-    });
-  }
-
-  Future<void> _save() async {
-    final draft = _draft;
-    if (_saving || draft == null) return;
-    if (_bool('quiet_hours_enabled') &&
-        (_time('quiet_hours_start') == null ||
-            _time('quiet_hours_end') == null)) {
-      setState(
-        () =>
-            _message = 'Choisissez le début et la fin des heures silencieuses.',
-      );
-      return;
-    }
-    setState(() {
-      _saving = true;
-      _message = null;
-    });
-    try {
-      await widget.repository.updatePreferences({
-        'push_notifications': _bool('push_notifications', fallback: true),
-        'email_notifications': _bool('email_notifications', fallback: true),
-        'security_notifications': _bool(
-          'security_notifications',
-          fallback: true,
-        ),
-        'event_notifications': _bool('event_notifications', fallback: true),
-        'service_notifications': _bool('service_notifications', fallback: true),
-        'opportunity_notifications': _bool(
-          'opportunity_notifications',
-          fallback: true,
-        ),
-        'marketing_notifications': _bool('marketing_notifications'),
-        'quiet_hours_enabled': _bool('quiet_hours_enabled'),
-        'quiet_hours_start': draft['quiet_hours_start'],
-        'quiet_hours_end': draft['quiet_hours_end'],
-      });
-      if (mounted) setState(() => _message = 'Préférences enregistrées.');
-    } on Object {
-      if (mounted) {
-        setState(
-          () => _message = 'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading && _draft == null) {
-      return const Scaffold(
-        body: MakoloLoadingState(label: 'Chargement des préférences…'),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Préférences')),
-      body: ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        children: [
-          Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
-          SwitchListTile(
-            title: const Text('Push'),
-            subtitle: const Text(
-              'Les alertes système restent un transport ; l’inbox Makolo conserve les signaux.',
-            ),
-            value: _bool('push_notifications', fallback: true),
-            onChanged: (value) => _setBool('push_notifications', value),
-          ),
-          SwitchListTile(
-            title: const Text('Email'),
-            value: _bool('email_notifications', fallback: true),
-            onChanged: (value) => _setBool('email_notifications', value),
-          ),
-          const Divider(),
-          Text('Catégories', style: Theme.of(context).textTheme.titleMedium),
-          _preferenceSwitch(
-            'Sécurité',
-            'security_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Événements',
-            'event_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Services',
-            'service_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Opportunités',
-            'opportunity_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch('Marketing', 'marketing_notifications'),
-          const Divider(),
-          SwitchListTile(
-            title: const Text('Heures silencieuses'),
-            subtitle: const Text(
-              'Les livraisons non urgentes attendent ; les vérités métier ne disparaissent pas.',
-            ),
-            value: _bool('quiet_hours_enabled'),
-            onChanged: (value) => _setBool('quiet_hours_enabled', value),
-          ),
-          if (_bool('quiet_hours_enabled')) ...[
-            ListTile(
-              title: const Text('Début'),
-              subtitle: Text(
-                _time('quiet_hours_start')?.format(context) ?? 'Choisir',
-              ),
-              onTap: () => _pickTime('quiet_hours_start'),
-            ),
-            ListTile(
-              title: const Text('Fin'),
-              subtitle: Text(
-                _time('quiet_hours_end')?.format(context) ?? 'Choisir',
-              ),
-              onTap: () => _pickTime('quiet_hours_end'),
-            ),
-          ],
-          if (_message != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(_message!),
-          ],
-          const SizedBox(height: MakoloSpacing.md),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _preferenceSwitch(String label, String key, {bool fallback = false}) =>
-      SwitchListTile(
-        title: Text(label),
-        value: _bool(key, fallback: fallback),
-        onChanged: (value) => _setBool(key, value),
-      );
-}
-
 class _NotificationRow {
   const _NotificationRow({
     required this.id,
@@ -498,6 +675,10 @@ class _NotificationRow {
     required this.isRead,
     this.createdAt,
     this.destinationPath,
+    this.confirmed = false,
+    this.visualImageUrl,
+    this.category = 'system',
+    this.isDemo = false,
   });
 
   final String id;
@@ -506,39 +687,44 @@ class _NotificationRow {
   final bool isRead;
   final DateTime? createdAt;
   final String? destinationPath;
+  final bool confirmed;
+  final String? visualImageUrl;
+  final String category;
+  final bool isDemo;
 
   static List<_NotificationRow> fromProjection(StoredProjection? projection) {
     final raw = projection?.payload['results'];
     if (raw is! List) return const [];
-    const codec = StructuredDestinationCodec();
+    const router = NotificationRouter();
     return raw
         .whereType<Map>()
         .map((item) {
           final row = item.map((key, value) => MapEntry(key.toString(), value));
-          final destination = codec.fromNavigation(row['navigation']);
-          String? path;
-          if (destination != null) {
-            path = switch (destination.kind.toLowerCase()) {
-              'conversation' => '/conversations/${destination.id}',
-              'journey' => '/journeys/${destination.id}',
-              'activity' => '/activities/${destination.id}',
-              'occurrence' => '/occurrences/${destination.id}',
-              'access' => '/accesses/${destination.id}',
-              'dossier' => '/dossiers/${destination.id}',
-              'project' => '/projects/${destination.id}',
-              'group' => '/groups/${destination.id}',
-              _ => null,
-            };
-          }
+          final path = router.resolveNavigation(row['navigation']);
+          final rawTitle = row['title']?.toString().trim() ?? '';
+          final rawMessage = row['message']?.toString().trim() ?? '';
+          // Present the subject already established by legacy Journey events.
+          final confirmed = rawTitle == 'Confirmation Makolo'
+              ? RegExp(r'^Votre démarche pour «(.+)» est confirmée[.!]?$')
+                    .firstMatch(rawMessage)
+              : null;
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
-            title: row['title']?.toString().trim().isNotEmpty == true
-                ? row['title'].toString().trim()
-                : 'Notification',
-            message: row['message']?.toString().trim() ?? '',
+            title:
+                confirmed?.group(1)?.trim() ??
+                (rawTitle == 'Confirmation Makolo'
+                    ? 'Démarche confirmée'
+                    : rawTitle.isEmpty
+                    ? 'Notification'
+                    : rawTitle),
+            message: confirmed == null ? rawMessage : '',
+            confirmed: confirmed != null,
             isRead: row['is_read'] == true,
             createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
             destinationPath: path,
+            visualImageUrl: _visualUrl(row['visual']),
+            category: row['category']?.toString() ?? 'system',
+            isDemo: row['is_demo'] == true,
           );
         })
         .where((row) => row.id.isNotEmpty)
@@ -546,8 +732,92 @@ class _NotificationRow {
   }
 }
 
-String _timeLabel(DateTime value) {
-  final local = value.toLocal();
-  String two(int part) => part.toString().padLeft(2, '0');
-  return '${two(local.day)}/${two(local.month)}/${local.year} · ${two(local.hour)}:${two(local.minute)}';
+String? _visualUrl(Object? raw) {
+  if (raw is! Map || raw['kind'] != 'activity') return null;
+  final value = raw['image_url'];
+  if (value is! String) return null;
+  final uri = Uri.tryParse(value);
+  // The API is authoritative for whether a public image may be shown.
+  // Never interpret arbitrary notification metadata as an image address.
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  return value;
+}
+
+class _NotificationVisual extends StatelessWidget {
+  const _NotificationVisual({required this.row});
+
+  final _NotificationRow row;
+
+  IconData get _icon => switch (row.category) {
+    'event' => Icons.event_outlined,
+    'ticket' => Icons.confirmation_number_outlined,
+    'payment' => Icons.payments_outlined,
+    'security' => Icons.shield_outlined,
+    'service' => Icons.handyman_outlined,
+    'opportunity' => Icons.lightbulb_outline_rounded,
+    'marketing' => Icons.campaign_outlined,
+    _ => Icons.notifications_none_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final url = row.visualImageUrl;
+    final scheme = Theme.of(context).colorScheme;
+    final fallback = ColoredBox(
+      color: scheme.primaryContainer,
+      child: Center(
+        child: Icon(_icon, color: scheme.onPrimaryContainer, size: 25),
+      ),
+    );
+    return Semantics(
+      label: url == null
+          ? 'Notification : ${row.category}'
+          : 'Image de l’activité',
+      image: url != null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 52,
+          height: 52,
+          child: url == null
+              ? fallback
+              : Image.network(
+                  url,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => fallback,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+String _notificationSection(BuildContext context, DateTime? value) {
+  if (value == null) return 'Autres';
+  final date = value.toLocal();
+  final now = DateTime.now();
+  final currentDay = DateTime(now.year, now.month, now.day);
+  final itemDay = DateTime(date.year, date.month, date.day);
+  final days = currentDay.difference(itemDay).inDays;
+  if (days == 0) return 'Aujourd’hui';
+  if (days == 1) return 'Hier';
+  if (days > 1 && days < 7) return 'Cette semaine';
+  return MaterialLocalizations.of(context).formatMonthYear(date);
+}
+
+String _notificationDate(BuildContext context, DateTime value) {
+  final date = value.toLocal();
+  final now = DateTime.now();
+  if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    return MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(date));
+  }
+  return MaterialLocalizations.of(context).formatMediumDate(date);
 }

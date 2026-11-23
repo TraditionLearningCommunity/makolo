@@ -1,3 +1,4 @@
+/// Runtime-selected MapLibre style URL; the renderer is provider-independent.
 class MakoloMapsConfig {
   const MakoloMapsConfig({required this.enabled, required this.style});
 
