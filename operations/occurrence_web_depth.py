@@ -71,8 +71,33 @@ def depth_page(*, occurrence, actor, projection, kind):
     elif kind == "operator_checkpoints":
         rows = operator.get("checkpoints") or []
     elif kind == "readiness":
-        facts = operator.get("operational_readiness") or participant.get("readiness") or {}
-        rows = facts.get("contributors") or []
+        # One person may be a participant and an operator. The advertised
+        # readiness depth belongs to its declared territory, not whichever
+        # backend section happens to be populated first.
+        if item.get("territory") == "participant":
+            facts = participant.get("readiness") or {}
+        else:
+            facts = operator.get("operational_readiness") or {}
+        if "contributors" in facts:
+            rows = facts.get("contributors") or []
+        else:
+            # Personal Jour J groups owner checks by their effect, while the
+            # operator's projection exposes flat contributors. Keep both.
+            rows = [
+                {
+                    "label": check.get("summary") or check.get("key") or "Préparation",
+                    "state": check.get("state") or state,
+                    "reason": check.get("reason"),
+                    "source": check.get("source"),
+                }
+                for group, state in (
+                    ("blockers", "blocking"),
+                    ("actor_interventions", "action_required"),
+                    ("waiting", "waiting"),
+                    ("ready", "satisfied"),
+                )
+                for check in facts.get(group, [])
+            ]
     else:
         raise Http404
     return {"depth": item, "rows": rows, "details": {}}
